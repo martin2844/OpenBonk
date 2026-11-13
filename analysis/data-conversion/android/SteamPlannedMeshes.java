@@ -93,7 +93,7 @@ public final class SteamPlannedMeshes {
                 f.targetOffset = row.getInt("target_offset"); f.sourceOffset = row.getLong("source_offset"); f.size = row.getInt("size");
                 String pattern = animations ? "assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)(?:\\.split(?:0|[1-9][0-9]*))?)" : objects ?
                         "(?:assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)(?:\\.split(?:0|[1-9][0-9]*))?)|assets/aa/StandaloneLinux64/localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\\.bundle)" :
-                        "assets/bin/Data/sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*)";
+                        "assets/bin/Data/sharedassets[124]\\.assets\\.split(?:0|[1-9][0-9]*)";
                 int entryLimit = (objects || animations) && !f.entry.matches(".*\\.split(?:0|[1-9][0-9]*)") ? MAX_OBJECT_ENTRY : MAX_SPLIT;
                 if (!f.entry.matches(pattern) || !sourceHashes.containsKey(f.source) ||
                         f.size <= 0 || f.size > entryLimit || f.targetOffset < 0 || f.targetOffset > entryLimit - f.size || f.sourceOffset < 0 || f.sourceOffset > MAX_FILE - f.size) throw new IOException("invalid mesh fragment");

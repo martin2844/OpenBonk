@@ -47,5 +47,9 @@ class MeshPlanTests(unittest.TestCase):
             with self.assertRaises(ValueError): restore()
             self.assertFalse(output.exists())
 
+    def test_sharedassets4_split_is_allowed_but_unrelated_entry_is_not(self):
+        self.assertIsNotNone(module.ENTRY.fullmatch(module.study.PREFIX + 'sharedassets4.assets.split1'))
+        self.assertIsNone(module.ENTRY.fullmatch(module.study.PREFIX + 'sharedassets9.assets.split1'))
+
 
 if __name__ == '__main__': unittest.main()

@@ -20,7 +20,8 @@ spec = importlib.util.spec_from_file_location('texture_study', ROOT / 'tools/exp
 study = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(study)
 SOURCE = re.compile(r'(?:sharedassets\d+\.assets|level\d+)(?:\.resS)?\Z')
-ENTRY = re.compile(re.escape(study.PREFIX) + r'sharedassets[12]\.assets\.split(?:0|[1-9]\d*)\Z')
+ENTRY = re.compile(re.escape(study.PREFIX) + r'sharedassets[124]\.assets\.split(?:0|[1-9]\d*)\Z')
+TARGET_GROUPS = (*study.GROUPS, 'sharedassets4')
 SOURCE_ASSETS = ('sharedassets0.assets', 'sharedassets1.assets', 'sharedassets2.assets', 'sharedassets4.assets', 'level1', 'level2', 'level4')
 
 
@@ -124,7 +125,9 @@ def generate(args):
         with zipfile.ZipFile(obb) as zin:
             infos = zin.infolist()
             if len(infos) != len({i.filename for i in infos}): raise ValueError('duplicate ZIP entry')
-            for group in study.GROUPS:
+            for group in TARGET_GROUPS:
+                if group == 'sharedassets4' and not any(info.filename.startswith(study.PREFIX + group + '.assets.split') for info in infos):
+                    continue
                 parts = study.parts(zin, group); data = b''.join(zin.read(p) for p in parts)
                 for obj in UnityPy.load(data).objects:
                     if obj.type.name != 'Mesh': continue
