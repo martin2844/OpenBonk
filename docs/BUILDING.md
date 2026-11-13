@@ -311,6 +311,17 @@ python3 tools/check-research-chain-android.py \
   --device DEVICE_SERIAL
 ```
 
+To compare named serialized Unity objects in two locally available APK/OBB pairs:
+
+```sh
+python3 tools/compare-unity-build-content.py \
+  --reference-apk /path/to/private-reference.apk --reference-obb /path/to/private-reference.obb \
+  --candidate-apk /path/to/private-candidate.apk --candidate-obb /path/to/private-candidate.obb \
+  --output /path/to/new-private-comparison.json
+```
+
+The report contains game-derived names and must remain private. It compares names and counts, not object references, streamed payloads, bundles, code, visual fidelity or gameplay. In one local comparison, an installed iPlay `com.megabonk.nativeport.splittest` APK/OBB and the later `043a365` research runtime plus a reconstructed OBB with the optional font and resource conversions had the same 2,349 MonoScript identities and the same named mesh, animation, audio, sprite, controller and GameObject counts. Seven material names occurred twice in the reference and once in the research build; two further grass-related materials occurred only in the reference. Three texture names differed after the documented case-collision renames; one decoded identically in a local comparison and two had pixel differences. This installed reference is not necessarily the same build used on the Retroid, and these observations do not establish parity.
+
 Add `--runner steam-run` when needed. The check transfers game data to a temporary directory on the selected device and attempts to remove it afterward. It checks reconstruction only; it does not test the launcher, appearance, controls or gameplay. All build artifacts and game data remain private.
 
 The exact-object stage now considers objects as small as 64 bytes and selects source files only from those listed for both supported minimal Steam ZIPs. In a local study it masked 92 exact objects versus 43 with the previous 256-byte threshold; the desktop Java restorer reproduced all 922 archive entries from the minimal Linux ZIP. This is a small reduction in retained data, not a distributable template or an Android gameplay test.
