@@ -383,6 +383,8 @@ The experimental `--font-fallback` option, which requires `--quality-textures`, 
 
 The separate experimental `--resource-fallback` option also requires `--quality-textures`. It attempts only the `GridBox_Collider` and `GridBox_Trigger` textures from the local Steam resources and rejects a candidate unless every mip passes the visible-pixel and alpha quality checks. A local Linux and Windows study selected four target textures totaling 1,398,208 encoded bytes and produced matching 922-entry OBBs; both texture plans reproduced those entries on an iPlay. The check is heuristic, and the converted textures have not been reviewed visually. This option is off by default; the template and APK still contain game data and remain private.
 
+With the resource and font options enabled, both local research chains built private APKs using an existing Unity runtime and Gradle export. A desktop check extracted the plans from a private dual-platform APK and restored the expected OBB from both Steam ZIPs. Without `--resource-fallback`, all 922 converted archive entries matched the preceding local build. These checks do not establish gameplay or rendering fidelity.
+
 With this option enabled, both local research chains completed their seven desktop restoration checks and produced private APKs. A private dual-platform APK was also assembled from the two plans. These builds used an existing local Unity runtime and Gradle export; they do not establish a fresh end-to-end build or interactive gameplay fidelity.
 
 ```sh
