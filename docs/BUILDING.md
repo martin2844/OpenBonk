@@ -211,6 +211,10 @@ Two further version-specific metadata plans are in `analysis/data-conversion/met
 
 `tools/experimental-animation-mask.py` investigates generating masks for a newly built OBB instead of using the old animation layout. It requires UnityPy and local Steam `sharedassets1.assets` and `sharedassets2.assets`. On one new local build, it removed 2,056,359 nonzero bytes shared at identical positions across 108 animation clips; restoring those bytes from the same Steam input reproduced all 922 archive entries byte-for-byte. The generated template retains other game data and must stay local. This is not integrated with the Android launcher, does not remove all animation data, and does not reconstruct the other asset types or establish a redistributable APK.
 
+For local audio research, `tools/experimental-steam-audio.py` substitutes matching Steam FSB audio into a newly built OBB after checking the clip metadata and FSB format. `tools/verify-experimental-steam-audio.py` checks the substitution and decodes both versions with UnityPy's `fmod_toolkit` dependency. In one local test, all 63 pairs decoded with matching channel count, sample rate, sample width and frame count; the remaining 796 OBB entries matched. The modified build reached Forest on an iPlay tablet without a recorded audio error. This does not establish audible or perceptual equivalence.
+
+`tools/experimental-steam-audio-plan.py` can create a local offset-and-hash plan and an OBB template with those 63 audio resources blanked, then restore them from the matching Steam data. One local round trip restored 9,996,992 audio bytes and reproduced all 922 OBB entries byte-for-byte. The template still contains other game data, the plan targets that specific build and Steam input, and neither tool is integrated with the launcher or produces a redistributable APK.
+
 The ARM64 texture adapter can be built locally from the pinned source archive and the Unity Android NDK:
 
 ```sh
