@@ -75,5 +75,17 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertIn('--include-rewired', commands[1])
         self.assertIn('--include-rewired', commands[2])
 
+    @patch.object(module.subprocess, 'run')
+    def test_dual_build_orders_platforms_and_reuses_linux_tools(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows))
+        self.assertEqual(run.call_count, 7)
+        windows_cmd = run.call_args_list[-2].args[0]; dual_cmd = run.call_args_list[-1].args[0]
+        self.assertEqual(windows_cmd[windows_cmd.index('--platform') + 1], 'windows')
+        self.assertEqual(windows_cmd[windows_cmd.index('--host-library') + 1], str(self.out / 'research/native/libopenbonk_texture.so'))
+        self.assertEqual(dual_cmd[dual_cmd.index('--windows-research') + 1], str(self.out / 'windows-research'))
+        self.assertEqual(dual_cmd[dual_cmd.index('--output') + 1], str(self.out / 'dual-launcher'))
+
 
 if __name__ == '__main__': unittest.main()

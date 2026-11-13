@@ -12,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+from types import SimpleNamespace
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,16 +42,41 @@ def commands(a):
     for attr in ('steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home'):
         value = getattr(a, attr)
         if value: chain += ['--' + attr.replace('_', '-'), value]
-    return [('export and prepare Unity', tool('build-local-from-steam.py', *steam)),
-            ('build Android runtime', tool('build-unity-runtime.py', *runtime)),
-            ('export Android Gradle project', tool('build-unity-runtime.py', *gradle)),
-            ('build research launcher', tool('build-local-research-chain.py', *chain))]
+    steps = [('export and prepare Unity', tool('build-local-from-steam.py', *steam)),
+             ('build Android runtime', tool('build-unity-runtime.py', *runtime)),
+             ('export Android Gradle project', tool('build-unity-runtime.py', *gradle)),
+             ('build Linux research launcher', tool('build-local-research-chain.py', *chain))]
+    if a.windows_game:
+        linux_research = out / 'research'; windows_research = out / 'windows-research'
+        windows_chain = ['--steam-data', a.windows_game / 'Megabonk_Data', '--platform', 'windows',
+                         '--runtime-obb', out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
+                         '--runtime-apk', out / 'runtime/android/Megabonk-arm64-runtime-research.apk',
+                         '--gradle-project', out / 'gradle/android/OpenBonk-gradle-project', '--unity-project', workspace,
+                         '--unity-editor', a.unity.parent, '--json-jar', a.json_jar, '--application-id', a.application_id,
+                         '--output', windows_research, '--host-library', a.host_library or linux_research / 'native/libopenbonk_texture.so',
+                         '--android-library', a.android_library or linux_research / 'native/libopenbonk_texture_arm64.so',
+                         '--decoder', a.decoder or linux_research / 'native/crunch-decoder', *wrapped]
+        if a.windows_steam_zip: windows_chain += ['--steam-zip', a.windows_steam_zip]
+        if a.gradle_user_home: windows_chain += ['--gradle-user-home', a.gradle_user_home]
+        dual_args = SimpleNamespace(output=linux_research, steam_data=a.game / 'Megabonk_Data',
+                                    unity_editor=a.unity.parent, runtime_obb=out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
+                                    runtime_apk=out / 'runtime/android/Megabonk-arm64-runtime-research.apk',
+                                    gradle_project=out / 'gradle/android/OpenBonk-gradle-project', unity_project=workspace,
+                                    json_jar=a.json_jar, application_id=a.application_id, runner=a.runner,
+                                    host_library=a.host_library, android_library=a.android_library, decoder=a.decoder,
+                                    steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux')
+        dual = research_chain.commands(dual_args)[-1][1]
+        dual[dual.index('--output') + 1] = str(out / 'dual-launcher')
+        dual += ['--windows-research', str(windows_research)]
+        steps.extend([('build Windows research launcher', tool('build-local-research-chain.py', *windows_chain)),
+                      ('build dual-platform research launcher', dual)])
+    return steps
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('game', 'assetripper', 'unity', 'json-jar', 'output'): p.add_argument('--' + name, required=True, type=Path)
-    for name in ('lua-library', 'steam-zip', 'host-library', 'android-library', 'decoder', 'gradle-user-home'): p.add_argument('--' + name, type=Path)
+    for name in ('lua-library', 'steam-zip', 'host-library', 'android-library', 'decoder', 'gradle-user-home', 'windows-game', 'windows-steam-zip'): p.add_argument('--' + name, type=Path)
     p.add_argument('--application-id', required=True)
     p.add_argument('--runner', help='optional wrapper for AssetRipper, Unity and native tools')
     p.add_argument('--include-rewired', action='store_true', help='experimentally include local Rewired plugins in both Unity builds')
@@ -58,23 +84,28 @@ def main():
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')
     a.output = output.parent.resolve() / output.name
-    for name in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home'):
+    if a.windows_steam_zip and not a.windows_game: p.error('Windows ZIP requires --windows-game')
+    for name in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home', 'windows_game', 'windows_steam_zip'):
         value = getattr(a, name)
         if value is None: continue
         if value.expanduser().is_symlink(): p.error(name + ' must not be a symbolic link')
         setattr(a, name, value.expanduser().resolve(strict=True))
-    inputs = [getattr(a, n) for n in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home') if getattr(a, n) is not None]
+    inputs = [getattr(a, n) for n in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home', 'windows_game', 'windows_steam_zip') if getattr(a, n) is not None]
     if any(a.output.is_relative_to(x) or x.is_relative_to(a.output) for x in (ROOT, *inputs)): p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
     if a.runner and not shutil.which(a.runner): p.error('runner not found')
     if not a.game.is_dir() or not (a.game / 'Megabonk_Data/globalgamemanagers.assets').is_file(): p.error('Steam game data missing')
-    for name in ('assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder'):
+    for name in ('assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'windows_steam_zip'):
         value = getattr(a, name)
         if value is not None and not value.is_file(): p.error(name + ' must be a file')
     if a.gradle_user_home and not a.gradle_user_home.is_dir(): p.error('Gradle cache must be a directory')
-    if not zipfile.is_zipfile(a.json_jar) or (a.steam_zip and not zipfile.is_zipfile(a.steam_zip)): p.error('invalid ZIP input')
+    if not zipfile.is_zipfile(a.json_jar) or (a.steam_zip and not zipfile.is_zipfile(a.steam_zip)) or (a.windows_steam_zip and not zipfile.is_zipfile(a.windows_steam_zip)): p.error('invalid ZIP input')
     if importlib.util.find_spec('UnityPy') is None: p.error('UnityPy missing from active Python environment')
-    try: research_chain.validate_steam_inputs((a.game / 'Megabonk_Data').resolve(), a.steam_zip)
+    try:
+        research_chain.validate_steam_inputs((a.game / 'Megabonk_Data').resolve(), a.steam_zip)
+        if a.windows_game:
+            if not a.windows_game.is_dir(): raise ValueError('Windows game directory is missing')
+            research_chain.validate_steam_inputs((a.windows_game / 'Megabonk_Data').resolve(strict=True), a.windows_steam_zip, 'windows')
     except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error: p.error(str(error))
     steps = commands(a)
     # The output's parent already exists, so the nested preflight can run
@@ -90,7 +121,8 @@ def main():
             print(f'[{i}/{len(steps)}] {label}', flush=True); log.write(f'[{i}/{len(steps)}] {label}\n'); log.flush()
             status = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT).returncode
             if status: raise SystemExit(f'Stage failed: {label} (status {status}); local outputs and log retained at {a.output}')
-    print('Private research APK created:', a.output / 'research/launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk', flush=True)
+    result = 'dual-launcher' if a.windows_game else 'research/launcher'
+    print('Private research APK created:', a.output / result / 'gradle/launcher/build/outputs/apk/release/launcher-release.apk', flush=True)
     print('The APK, ZIP and intermediate files contain game data and must not be distributed.', flush=True)
 
 
