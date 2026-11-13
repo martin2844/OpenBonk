@@ -356,6 +356,19 @@ For research, `tools/build-generated-audio-launcher.py` also accepts `--packed-p
 
 The verifier accepts both shared and standalone texture groups from the current study report. On the `04b9e84` research build it verified all 783 converted texture ranges and 722 unrelated archive entries. Of those textures, 123 had a channel error above 32 on more than 5% of pixels on at least one of the two backgrounds. This is a diagnostic comparison against the prior Android build, not a count of confirmed visible defects; it shows why the mean-error filter alone is insufficient. A separate trial disabling the ETC encoder's heuristics did not meaningfully improve the previously banded sprite, which remains excluded from conversion.
 
+An independent [Etc2Comp](https://github.com/google/etc2comp) probe produced a smoother result for that sprite. In one level-zero comparison against the prior Android texture, its largest average visible RGB error on black fell from 0.797 to 0.144 on a 0–255 scale. The probe produced byte-identical host and iPlay output for 23 local fixtures, including multiple game texture mipmaps and synthetic sizes; this is not proof of determinism for every input or device. It has not been integrated into texture plans or the APK.
+
+To build and compare the standalone probe using only synthetic input:
+
+```sh
+python3 tools/build-etc2-quality-probe.py --target host --output /path/to/new-host-probe
+python3 tools/build-etc2-quality-probe.py --target android --ndk /path/to/Unity/Editor/Data/PlaybackEngines/AndroidPlayer/NDK --output /path/to/new-android-probe
+python3 tools/create-etc2-quality-fixtures.py --output /path/to/new-fixtures
+python3 tools/check-etc2-quality-android.py --host /path/to/new-host-probe --android /path/to/new-android-probe --fixtures /path/to/new-fixtures --device DEVICE_SERIAL
+```
+
+The builders need a host C++ compiler or Unity's Android NDK; add `--runner steam-run` where needed. Fixture directories may also contain private raw RGBA game data and must remain local. The device check uses a temporary directory on the selected device and attempts to remove it afterward.
+
 `tools/prepare-texture-native-comparison.py` creates private per-mip fixtures from the local Steam input and converted study; `tools/run-texture-native-comparison.py` runs them on an explicitly selected Android device and cleans up the transferred files. In one iPlay test, all 3,462 mip conversions from those 839 candidates matched the tested desktop converter byte-for-byte. This validates only those inputs and conversion outputs, not the heuristic mapping, game rendering, visual fidelity or the final launcher. The fixtures contain game data and must not be shared.
 
 `tools/experimental-converted-texture-plan.py` generates local offset-and-hash reconstruction plans for the converted study, including textures spanning split files. One round trip masked 43,668,436 bytes from 839 converted textures and restored all 922 archive entries byte-for-byte from Steam. `SteamPlannedTextures.java` implements the same plan using the native texture converter and bounded temporary files. A standalone iPlay test restored all 922 entries and rejected invalid plan hashes, incompatible templates, overlapping fragments and modified source hashes without producing an output. This reproduces the experimental conversion, including its visual differences, and has not been tested in gameplay.
