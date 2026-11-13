@@ -3,6 +3,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -14,6 +15,14 @@ spec.loader.exec_module(module)
 
 
 class AndroidInputPreparationTests(unittest.TestCase):
+    def test_native_axis_calls_have_checked_in_definitions(self):
+        root = Path(__file__).resolve().parents[2] / 'unity/OpenBonk/Assets/Scripts/Assembly-CSharp'
+        used = set()
+        for name in ('AndroidNativeInput.cs', 'InputSetting.cs'):
+            used.update(re.findall(r'Input\.GetAxis(?:Raw)?\("([^\"]+)"\)', (root / name).read_text()))
+        self.assertTrue(used)
+        self.assertEqual(used - set(module.NAMES), set())
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name); self.project = self.root / 'workspace'

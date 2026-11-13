@@ -109,6 +109,8 @@ python3 tools/prepare-android-input.py \
 
 The tool preserves unrelated axes and writes the original file to the local backup. `--check` verifies the expected configuration without changing it. `build-local-unity-apk.py` runs this step automatically, and `build-unity-runtime.py` rejects a workspace whose Android axes are absent or different. In editor tests, the clean export failed the chest navigation axis check before preparation; after preparation, chest navigation, controller bindings, menu A/B inversion, challenge-shrine and boss-bar checks passed. These checks do not replace physical controller testing on Android.
 
+An end-to-end run from a clean clone at commit `240e2b8` exported Steam data, applied the axes before Unity import, rebuilt localization and built an embedded local APK. The axis check still matched after the build, and the chest navigation play-mode check passed against that fresh workspace. The APK installed and started its launcher on an iPlay; physical input and gameplay were not tested. The APK and local workspace contain game data and are not distributable artifacts.
+
 The observed 2.0.0 export contains three pairs of textures whose paths differ only in letter case; Unity can fail to import both. Before opening the workspace in Unity, rename the conflicting texture copies and their metadata together:
 
 ```sh
