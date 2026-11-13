@@ -52,7 +52,7 @@ runtime_obb="$repo_root/build/android/stored-video-probe/android-rebased-video.o
 runtime_plan="$repo_root/build/android/runtime-steam-compatibility/private-runtime-rebase-plan-v2.zip"
 if [ "$runtime_mode" = 2 ]; then runtime_obb="$repo_root/build/android/no-rewired-current-rebase/android-video.obb"; fi
 if [ "$no_water_probes" = 1 ]; then runtime_obb="$repo_root/build/android/water-probe-template/new-video.obb"; fi
-texture_lib="$repo_root/build/android/shared1-cubemap-plan/libtexture-arm64.so"
+texture_lib="${OPENBONK_TEXTURE_LIBRARY:-$repo_root/build/android/shared1-cubemap-plan/libtexture-arm64.so}"
 python_cmd="${OPENBONK_PYTHON:-python3}"
 # The pinned runtimes below read the legacy cache profile path. Never assemble
 # them with a launcher that writes the new persistent queue: that combination
