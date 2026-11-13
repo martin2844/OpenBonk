@@ -10,6 +10,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import re
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,6 +46,20 @@ def hash_entry(z, name):
     with z.open(name) as stream: return hashlib.file_digest(stream, 'sha256').digest()
 
 
+def group_manifest(rows):
+    expected = {}
+    for row in rows:
+        group, key = row['group'], row['target_id']
+        if (not isinstance(group, str) or
+                (group not in study.GROUPS and not re.fullmatch(r'[0-9a-f]{32}', group)) or
+                type(key) is not int):
+            raise ValueError('invalid texture group or identifier')
+        group_rows = expected.setdefault(group, {})
+        if key in group_rows: raise ValueError('duplicate texture identifier in group')
+        group_rows[key] = row
+    return expected
+
+
 def run(args):
     import UnityPy
     from UnityPy.export import Texture2DConverter as converter
@@ -56,17 +71,13 @@ def run(args):
     report = json.loads(manifest.read_text())
     rows = report.get('textures')
     if report.get('schema') != 1 or not isinstance(rows, list) or not rows: raise ValueError('invalid study report')
-    expected = {group: {} for group in study.GROUPS}
-    for row in rows:
-        group, key = row['group'], row['target_id']
-        if group not in expected or type(key) is not int or key in expected[group]: raise ValueError('duplicate or invalid texture')
-        expected[group][key] = row
+    expected = group_manifest(rows)
     measured = []
     with zipfile.ZipFile(before) as original, zipfile.ZipFile(after) as converted:
         names = original.namelist()
         if len(names) != len(set(names)) or names != converted.namelist(): raise ValueError('archive entry lists differ')
         modified = set()
-        for group in study.GROUPS:
+        for group in expected:
             splits = study.parts(original, group)
             old = b''.join(original.read(info) for info in splits)
             new = b''.join(converted.read(info.filename) for info in splits)

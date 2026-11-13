@@ -9,6 +9,14 @@ spec.loader.exec_module(module)
 
 
 class VisibleQualityTests(unittest.TestCase):
+    def test_manifest_includes_standalone_and_rejects_unsafe_groups(self):
+        standalone = 'a' * 32
+        rows = [{'group': 'sharedassets1', 'target_id': 1}, {'group': standalone, 'target_id': 1}]
+        self.assertEqual(set(module.group_manifest(rows)), {'sharedassets1', standalone})
+        for invalid in (rows + [rows[0]], [{'group': '../outside', 'target_id': 1}],
+                        [{'group': standalone, 'target_id': True}]):
+            with self.assertRaises(ValueError): module.group_manifest(invalid)
+
     def test_transparent_rgb_does_not_inflate_visible_error(self):
         a = Image.new('RGBA', (2, 2), (0, 0, 0, 0))
         b = Image.new('RGBA', (2, 2), (255, 100, 50, 0))
