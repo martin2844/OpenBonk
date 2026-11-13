@@ -189,6 +189,8 @@ The corrected GUID and collection preparation also completed through `build-loca
 
 During Android scene preparation and the player build, the build entry point temporarily uses the reconstructed project localization settings and restores the previous editor instance afterward. An editor check opened all five scenes without a missing-settings error. A subsequent local embedded APK built and started its launcher on an iPlay; its build log contained zero `There is no active LocalizationSettings` errors, compared with 13 in the earlier build, and the GUID and item checks passed afterward. The runtime builder now rejects a successful Unity exit if this specific error occurs in its log. In-game localization remains unverified by these checks.
 
+The Android build filters the desktop-only `Assets/MonoBehaviour/UIParticle.asset` preload by its project path rather than an export-specific GUID, while preserving the localization preload and restoring the original project settings afterward. In one clean-export build, Unity reported one excluded preload; inspection of the resulting APK showed `Localization Settings` still preloaded and `UIParticle` absent from that list. The project settings file matched its pre-build copy byte for byte, and the private APK installed and started its launcher on an iPlay. Particle rendering in gameplay was not tested by this check.
+
 The observed Steam export also has Addressables files that conflict with Unity's newly generated Android files at player build time. After successfully rebuilding Android Addressables, back up and remove conflicting exported files from the isolated workspace:
 
 ```sh

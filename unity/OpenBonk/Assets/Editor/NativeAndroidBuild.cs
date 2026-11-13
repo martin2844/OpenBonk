@@ -410,6 +410,8 @@ public static class NativeAndroidBuild
 			BuildPath(projectRoot, "android/managed-plugins/com.rlabrecque.steamworks.net.dll")
 		};
 		string originalSettings = File.ReadAllText(projectSettingsPath);
+		var originalPreloads = PlayerSettings.GetPreloadedAssets();
+		var androidPreloads = FilterDesktopOnlyPreloads(originalPreloads);
 		var originalPluginBytes = new byte[managedPluginPaths.Length][];
 		var normalizedPluginBytes = new byte[managedPluginPaths.Length][];
 		for (int i = 0; i < managedPluginPaths.Length; i++)
@@ -417,15 +419,18 @@ public static class NativeAndroidBuild
 			originalPluginBytes[i] = File.ReadAllBytes(Path.Combine(projectRoot, managedPluginPaths[i]));
 			normalizedPluginBytes[i] = File.ReadAllBytes(normalizedPluginPaths[i]);
 		}
-		const string desktopOnlyPreload = "  - {fileID: 11400000, guid: fdaaa6919a450484ea3dd0c16b60eebe, type: 2}\n";
 		try
 		{
-			File.WriteAllText(projectSettingsPath, originalSettings.Replace(desktopOnlyPreload, ""));
+			PlayerSettings.SetPreloadedAssets(androidPreloads);
+			Debug.Log("Android build excluded desktop-only preloads=" + (originalPreloads.Length - androidPreloads.Length));
 			for (int i = 0; i < managedPluginPaths.Length; i++)
 				File.WriteAllBytes(Path.Combine(projectRoot, managedPluginPaths[i]), normalizedPluginBytes[i]);
 			AssetDatabase.Refresh();
 			foreach (string pluginPath in managedPluginPaths)
 				AssetDatabase.ImportAsset(pluginPath, ImportAssetOptions.ForceUpdate);
+			var effectivePreloads = PlayerSettings.GetPreloadedAssets();
+			if (FilterDesktopOnlyPreloads(effectivePreloads).Length != effectivePreloads.Length)
+				throw new System.InvalidOperationException("Desktop-only preload remained enabled for Android build");
 			if (System.Environment.GetEnvironmentVariable("OPENBONK_NO_REWIRED_PLUGINS") == "1")
 			{
 				if (System.Environment.GetEnvironmentVariable("OPENBONK_NO_REWIRED_CODE") != "1")
@@ -445,6 +450,7 @@ public static class NativeAndroidBuild
 		}
 		finally
 		{
+			PlayerSettings.SetPreloadedAssets(originalPreloads);
 			if (System.Environment.GetEnvironmentVariable("OPENBONK_NO_REWIRED_PLUGINS") == "1")
 				foreach (string pluginPath in new[] { "Assets/Plugins/Rewired_Core.dll", "Assets/Plugins/Rewired_Linux.dll" })
 					try { (AssetImporter.GetAtPath(pluginPath) as PluginImporter)?.SetIncludeInBuildDelegate(null); }
@@ -456,6 +462,18 @@ public static class NativeAndroidBuild
 			foreach (string pluginPath in managedPluginPaths)
 				AssetDatabase.ImportAsset(pluginPath, ImportAssetOptions.ForceUpdate);
 		}
+	}
+
+	internal static Object[] FilterDesktopOnlyPreloads(Object[] assets)
+	{
+		if (assets == null) throw new System.ArgumentNullException(nameof(assets));
+		var result = new List<Object>(assets.Length);
+		foreach (Object asset in assets)
+		{
+			if (asset != null && AssetDatabase.GetAssetPath(asset) == "Assets/MonoBehaviour/UIParticle.asset") continue;
+			result.Add(asset);
+		}
+		return result.ToArray();
 	}
 
 	private static string[] PrepareAndroidScenesWithLocalization()
