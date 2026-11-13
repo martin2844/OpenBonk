@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 import zipfile
 
 spec = importlib.util.spec_from_file_location('animation_fragments', Path(__file__).resolve().parents[1] / 'experimental-animation-fragment-plan.py')
@@ -12,12 +13,25 @@ spec.loader.exec_module(module)
 
 
 class AnimationFragmentTests(unittest.TestCase):
+    def test_fragment_index_separates_types_and_excludes_meshes(self):
+        import UnityPy
+        def obj(kind, offset, payload):
+            return SimpleNamespace(type=SimpleNamespace(name=kind), byte_size=len(payload), byte_start=offset,
+                                   path_id=offset + 1, get_raw_data=lambda: payload)
+        material, component, mesh = (b'A' * 256, b'B' * 256, b'C' * 256)
+        objects = [obj('Material', 0, material), obj('MonoBehaviour', 256, component), obj('Mesh', 512, mesh)]
+        with patch.object(UnityPy, 'load', return_value=SimpleNamespace(objects=objects)):
+            index = module.fragment_index({'sharedassets1.assets': material + component + mesh})
+        self.assertEqual(index[('Material', 256)][0][3], material)
+        self.assertEqual(index[('MonoBehaviour', 256)][0][3], component)
+        self.assertNotIn(('Mesh', 256), index)
+
     def test_particle_selection_prefers_matching_blocks(self):
         target = b'A' * 64 + b'B' * 64
         wrong = ('sharedassets1.assets', 1, 0, b'C' * 128)
         best = ('sharedassets1.assets', 2, 128, b'A' * 64 + b'D' * 64)
-        self.assertIs(module.best_particle(target, [wrong, best]), best)
-        self.assertIsNone(module.best_particle(target, []))
+        self.assertIs(module.best_fragment(target, [wrong, best]), best)
+        self.assertIsNone(module.best_fragment(target, []))
 
     def test_split_mask_round_trip_and_overlap_rejection(self):
         parts = [SimpleNamespace(filename='one', file_size=5), SimpleNamespace(filename='two', file_size=5)]

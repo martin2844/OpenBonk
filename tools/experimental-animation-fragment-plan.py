@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mask matching Steam animation and particle bytes in Unity assets.
+"""Mask matching Steam object bytes in Unity assets.
 
 Only equal nonzero bytes are masked; unmatched animation bytes and other game
 data remain in the template. Inputs and output must stay local. Generation
@@ -26,6 +26,7 @@ spec3 = importlib.util.spec_from_file_location('object_plan', ROOT / 'tools/expe
 objects_plan = importlib.util.module_from_spec(spec3)
 spec3.loader.exec_module(objects_plan)
 ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:[0-9a-f]{32}|(?:sharedassets\d+\.assets|level\d+|resources\.assets)(?:\.split(?:0|[1-9]\d*))?)\Z')
+FRAGMENT_TYPES = frozenset(('ParticleSystem', 'Material', 'MonoBehaviour', 'AnimatorController', 'TerrainData'))
 
 
 def make_fragments(parts, target_offset, target, source_name, source_offset, source):
@@ -71,19 +72,19 @@ def apply(raw, rows, sources, restore=False):
     return bytes(out)
 
 
-def particle_index(sources):
+def fragment_index(sources):
     import UnityPy
     index = defaultdict(list)
     for name, data in sources.items():
         for obj in UnityPy.load(data).objects:
-            if obj.type.name != 'ParticleSystem': continue
+            if obj.type.name not in FRAGMENT_TYPES or not 256 <= obj.byte_size <= 8 * 1024 * 1024: continue
             raw = obj.get_raw_data(); offset = obj.byte_start
-            if data[offset:offset + len(raw)] != raw: raise ValueError('particle source bounds differ')
-            index[len(raw)].append((name, obj.path_id, offset, raw))
+            if data[offset:offset + len(raw)] != raw: raise ValueError('object source bounds differ')
+            index[(obj.type.name, len(raw))].append((name, obj.path_id, offset, raw))
     return index
 
 
-def best_particle(target, candidates):
+def best_fragment(target, candidates):
     if not candidates: return None
     # Ranking affects only how many bytes can be removed. Every chosen byte is
     # compared again, masked individually, and checked on reconstruction.
@@ -95,7 +96,7 @@ def generate(args):
     import UnityPy
     source, original = args.steam_data.resolve(strict=True), args.obb.resolve(strict=True)
     output = animation.regular_output(args.output, (source, original)); sources = animation.read_sources(source); index = animation.source_index(sources)
-    particles = particle_index(sources)
+    fragments_index = fragment_index(sources)
     rows = []; outcomes = Counter(); output.mkdir(mode=0o700)
     try:
         with zipfile.ZipFile(original) as zin:
@@ -106,12 +107,13 @@ def generate(args):
                 try: objects = UnityPy.load(data).objects
                 except Exception: continue
                 for obj in objects:
-                    if obj.type.name not in ('AnimationClip', 'ParticleSystem'): continue
+                    if obj.type.name != 'AnimationClip' and obj.type.name not in FRAGMENT_TYPES: continue
                     target = obj.get_raw_data(); offset = obj.byte_start
                     if data[offset:offset + len(target)] != target: raise ValueError('animation target bounds differ')
-                    if obj.type.name == 'ParticleSystem':
-                        selected = best_particle(target, particles.get(len(target), []))
-                        if selected is None: outcomes['particle_unmatched'] += 1; continue
+                    if obj.type.name != 'AnimationClip':
+                        if not 256 <= len(target) <= 8 * 1024 * 1024: continue
+                        selected = best_fragment(target, fragments_index.get((obj.type.name, len(target)), []))
+                        if selected is None: outcomes[obj.type.name + '_unmatched'] += 1; continue
                     else:
                         candidates = index.get((obj.read().m_Name, len(target)), [])
                         if not candidates: outcomes['unmatched'] += 1; continue
@@ -122,7 +124,7 @@ def generate(args):
                     source_name, source_id, source_offset, src = selected
                     fragments = make_fragments(parts, offset, target, source_name, source_offset, src)
                     if not fragments: outcomes['no_matching_bytes'] += 1; continue
-                    rows.extend(fragments); outcomes['particle_matched' if obj.type.name == 'ParticleSystem' else 'matched'] += 1
+                    rows.extend(fragments); outcomes[obj.type.name + '_matched'] += 1
             if not rows: raise ValueError('no matching animation bytes')
             grouped = defaultdict(list)
             for row in rows: grouped[row['entry']].append(row)
@@ -137,8 +139,8 @@ def generate(args):
         (output / 'plan.json').write_text(json.dumps(plan, separators=(',', ':')) + '\n')
     except BaseException:
         shutil.rmtree(output); raise
-    print(f'Masked {sum(r["masked_bytes"] for r in rows)} nonzero bytes across {outcomes["matched"]} clips and {outcomes["particle_matched"]} particle systems; other game data remains.')
-    print('Not selected:', {k: v for k, v in outcomes.items() if k not in ('matched', 'particle_matched')})
+    print(f'Masked {sum(r["masked_bytes"] for r in rows)} nonzero bytes; other game data remains.')
+    print('Object outcomes:', dict(outcomes))
 
 
 def restore(args):
