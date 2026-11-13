@@ -213,6 +213,8 @@ On a system that needs a compatibility wrapper, add e.g. `--runner steam-run`; a
 
 A separate experiment used `--include-rewired` for both the runtime and Gradle export from a localization-repaired workspace, then generated the research launcher from those outputs. Its seven preparation stages reproduced the expected OBB checksum on an iPlay, and its isolated APK installed and started the launcher. The option's propagation through the higher-level commands is covered by unit tests; a complete one-command Steam build with this option and interactive controller behavior remain unverified. The experimental APK still contains game data.
 
+That Rewired research experiment predates Android input-axis preparation and does not validate physical controls. Rebuild it with the current preparation stage before testing input.
+
 Including the Rewired assemblies does not switch Android gameplay input to Rewired: `MyInputManager` delegates Android actions to `AndroidNativeInput`, because the available Rewired integration has desktop backends. Both runtime variants apply the Android scene preparation that removes desktop manager components and enables the standalone UI input module. A local Rewired-inclusive embedded APK built with this scene preparation and started its launcher; its menu and controller input have not been tested interactively.
 
 An optional `--application-id com.example.openbonktest` builds an isolated local test package without changing the default runtime ID. This does not install anything and is not a release signing configuration.
@@ -275,6 +277,8 @@ The pinned conversion environment was tested on Linux x86-64 with Python 3.13. U
 A clean local run completed all of these steps and produced a private research APK. Its seven data-preparation stages were also checked on an Android device against the expected OBB checksum; this does not verify interactive gameplay. Unity's native dependencies, including `libxml2.so.2`, must be available in the environment running the editor.
 
 An end-to-end run from a clean clone at commit `3f06c4b` also completed with automatic localization GUID repair and both editor checks: the scene entry and 17 item descriptions in English and Spanish. The runtime build log had no localization `NullReferenceException` entries. Its seven data-preparation stages reproduced the expected OBB checksum on an iPlay, and the resulting isolated APK installed and started its launcher there. The interactive import, visual quality and gameplay of this particular build have not been verified. Its template and APK still contain game data and must remain private.
+
+That `3f06c4b` research build predates the Android input-axis preparation documented above and must not be used as evidence that controller input works. The later clean embedded build at `240e2b8` includes the corrected input configuration, but its physical controls remain untested.
 
 The texture conversion study also handles the `Tiles1_Normal` and `Tiles4_Normal` DXT5nm maps, reconstructing their alpha/green normal channels before encoding to ETC1. In one local build their 5,592,432 image bytes were excluded from the template, reducing its nonzero bytes from 23,160,778 to 19,549,303. The regenerated seven-stage chain reproduced its expected OBB checksum on an iPlay and built a private research APK. This conversion is lossy and has not been reviewed visually in gameplay. Other game data remains in the template; the output is not redistributable.
 
