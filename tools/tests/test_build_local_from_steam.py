@@ -61,6 +61,21 @@ class SteamBuildTest(unittest.TestCase):
         self.assertIn(str(self.out / 'export/ExportedProject'), command)
         self.assertIn('com.example.steamcheck', command)
 
+    @patch.object(MODULE.subprocess, 'run')
+    def test_builds_lua_in_output_when_no_library_is_given(self, run):
+        unity = Path(self.argv[self.argv.index('--unity') + 1])
+        compiler = unity.parent / 'Data/PlaybackEngines/AndroidPlayer/NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang'
+        compiler.parent.mkdir(parents=True)
+        compiler.write_bytes(b'fixture')
+        compiler.chmod(0o700)
+        index = self.argv.index('--lua-library')
+        del self.argv[index:index + 2]
+        self.run_main()
+        self.assertEqual(run.call_count, 4)
+        lua_call = run.call_args_list[1]
+        self.assertEqual(lua_call.kwargs['env']['OPENBONK_LUA_OUTPUT'], str(self.out / 'lua'))
+        self.assertIn(str(self.out / 'lua/libmegabonk_lua.so'), run.call_args_list[3].args[0])
+
 
 if __name__ == '__main__':
     unittest.main()

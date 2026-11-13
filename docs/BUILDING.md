@@ -32,12 +32,11 @@ python3 tools/build-local-from-steam.py \
   --game /path/to/Steam/steamapps/common/Megabonk \
   --assetripper /path/to/AssetRipper.GUI.Free \
   --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
-  --lua-library /path/to/libmegabonk_lua.so \
   --output /path/to/new-local-build \
   --application-id com.example.openbonktest
 ```
 
-This runs the export followed by the local Unity build described below. Both phases retain their logs and intermediate files inside the new output directory, which contains game-derived data and must stay local. Add `--runner steam-run` if needed; `--check` only verifies initial inputs. This is not the data-separated release build.
+This builds the Lua bridge with Unity's Android NDK, then runs the export and local Unity build described below. Alternatively, supply `--lua-library /path/to/libmegabonk_lua.so` to use a locally built bridge. Logs and intermediate files stay inside the new output directory, which contains game-derived data and must stay local. Add `--runner steam-run` if needed; `--check` only verifies initial inputs. This is not the data-separated release build.
 
 For an experimental local, data-embedded APK, `tools/build-local-unity-apk.py` runs the preparation stages described below in sequence from an AssetRipper 2.0.0 `ExportedProject` and a locally built Lua bridge:
 
