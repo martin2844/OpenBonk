@@ -11,6 +11,14 @@ using UnityEngine.SceneManagement;
 public static class NativeAndroidBuild
 {
 	internal static bool SplitLauncherProbeEnabled;
+	private static string BuildPath(string projectRoot, string relativePath)
+	{
+		string configured = System.Environment.GetEnvironmentVariable("OPENBONK_BUILD_ROOT");
+		string buildRoot = string.IsNullOrEmpty(configured)
+			? Path.GetFullPath(Path.Combine(projectRoot, "../../../build"))
+			: Path.GetFullPath(configured);
+		return Path.GetFullPath(Path.Combine(buildRoot, relativePath));
+	}
 	public static void BuildArm64Apk()
 	{
 		BuildApk(ScriptingImplementation.IL2CPP, AndroidArchitecture.ARM64, "Megabonk-arm64-il2cpp.apk", true);
@@ -41,8 +49,8 @@ public static class NativeAndroidBuild
 		bool oldSplit = PlayerSettings.Android.splitApplicationBinary;
 		AndroidSdkVersions oldTargetSdk = PlayerSettings.Android.targetSdkVersion;
 		string projectRoot = Directory.GetParent(Application.dataPath).FullName;
-		string output = Path.GetFullPath(Path.Combine(projectRoot, "../../../build/android/Megabonk-arm64-runtime-research.apk"));
-		string obb = Path.GetFullPath(Path.Combine(projectRoot, "../../../build/android/Megabonk-arm64-runtime-research.main.obb"));
+		string output = BuildPath(projectRoot, "android/Megabonk-arm64-runtime-research.apk");
+		string obb = BuildPath(projectRoot, "android/Megabonk-arm64-runtime-research.main.obb");
 		if (File.Exists(output) || File.Exists(obb)) throw new System.InvalidOperationException("Research output already exists");
 		try
 		{
@@ -67,8 +75,8 @@ public static class NativeAndroidBuild
 		string oldId = PlayerSettings.GetApplicationIdentifier(BuildTargetGroup.Android);
 		bool oldSplit = PlayerSettings.Android.splitApplicationBinary;
 		string root = Directory.GetParent(Application.dataPath).FullName;
-		string output = Path.GetFullPath(Path.Combine(root, "../../../build/android/OpenBonk-arrow-research.apk"));
-		string obb = Path.GetFullPath(Path.Combine(root, "../../../build/android/OpenBonk-arrow-research.main.obb"));
+		string output = BuildPath(root, "android/OpenBonk-arrow-research.apk");
+		string obb = BuildPath(root, "android/OpenBonk-arrow-research.main.obb");
 		if (File.Exists(output) || File.Exists(obb)) throw new System.InvalidOperationException("Research output already exists");
 		try
 		{
@@ -92,8 +100,8 @@ public static class NativeAndroidBuild
 		string oldId = PlayerSettings.GetApplicationIdentifier(BuildTargetGroup.Android);
 		bool oldSplit = PlayerSettings.Android.splitApplicationBinary;
 		string root = Directory.GetParent(Application.dataPath).FullName;
-		string output = Path.GetFullPath(Path.Combine(root, "../../../build/android/OpenBonk-gold-research.apk"));
-		string obb = Path.GetFullPath(Path.Combine(root, "../../../build/android/OpenBonk-gold-research.main.obb"));
+		string output = BuildPath(root, "android/OpenBonk-gold-research.apk");
+		string obb = BuildPath(root, "android/OpenBonk-gold-research.main.obb");
 		if (File.Exists(output) || File.Exists(obb)) throw new System.InvalidOperationException("Research output already exists");
 		try
 		{
@@ -121,7 +129,7 @@ public static class NativeAndroidBuild
 		string projectRoot = Directory.GetParent(Application.dataPath).FullName;
 		string generatedJava = Path.Combine(projectRoot, "Assets/AndroidSplitLauncher/SplitExpectedData.java");
 		string oldJava = File.ReadAllText(generatedJava);
-		string obb = Path.GetFullPath(Path.Combine(projectRoot, "../../../build/android/Megabonk-arm64-split-test.main.obb"));
+		string obb = BuildPath(projectRoot, "android/Megabonk-arm64-split-test.main.obb");
 		string splitDiagnosticDir = System.Environment.GetEnvironmentVariable("OPENBONK_SPLIT_DIAGNOSTIC_DIR");
 		try
 		{
@@ -254,7 +262,6 @@ public static class NativeAndroidBuild
 	private static void BuildApk(ScriptingImplementation backend, AndroidArchitecture architecture, string fileName, bool sanitizeAndroidScenes = false, string applicationId = "com.megabonk.nativeport")
 	{
 		const BuildTargetGroup targetGroup = BuildTargetGroup.Android;
-		string output = "../../../build/android/" + fileName;
 
 		EditorUserBuildSettings.SwitchActiveBuildTarget(targetGroup, BuildTarget.Android);
 		EditorUserBuildSettings.buildAppBundle = false;
@@ -277,7 +284,7 @@ public static class NativeAndroidBuild
 		PlayerSettings.Android.bundleVersionCode = 1;
 
 		string projectRoot = Directory.GetParent(Application.dataPath).FullName;
-		string absoluteOutput = Path.GetFullPath(Path.Combine(projectRoot, output));
+		string absoluteOutput = BuildPath(projectRoot, Path.Combine("android", fileName));
 		Directory.CreateDirectory(Path.GetDirectoryName(absoluteOutput));
 
 		string[] scenes = sanitizeAndroidScenes ? PrepareAndroidScenes() : new[]
@@ -340,9 +347,9 @@ public static class NativeAndroidBuild
 		};
 		string[] normalizedPluginPaths =
 		{
-			"../../../build/android/managed-plugins/Rewired_Core.dll",
-			"../../../build/android/managed-plugins/Coffee.UIParticle.dll",
-			"../../../build/android/managed-plugins/com.rlabrecque.steamworks.net.dll"
+			BuildPath(projectRoot, "android/managed-plugins/Rewired_Core.dll"),
+			BuildPath(projectRoot, "android/managed-plugins/Coffee.UIParticle.dll"),
+			BuildPath(projectRoot, "android/managed-plugins/com.rlabrecque.steamworks.net.dll")
 		};
 		string originalSettings = File.ReadAllText(projectSettingsPath);
 		var originalPluginBytes = new byte[managedPluginPaths.Length][];
@@ -350,7 +357,7 @@ public static class NativeAndroidBuild
 		for (int i = 0; i < managedPluginPaths.Length; i++)
 		{
 			originalPluginBytes[i] = File.ReadAllBytes(Path.Combine(projectRoot, managedPluginPaths[i]));
-			normalizedPluginBytes[i] = File.ReadAllBytes(Path.GetFullPath(Path.Combine(projectRoot, normalizedPluginPaths[i])));
+			normalizedPluginBytes[i] = File.ReadAllBytes(normalizedPluginPaths[i]);
 		}
 		const string desktopOnlyPreload = "  - {fileID: 11400000, guid: fdaaa6919a450484ea3dd0c16b60eebe, type: 2}\n";
 		try
