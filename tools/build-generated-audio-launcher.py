@@ -149,6 +149,39 @@ def verify_textures(template, plan_path, intermediate):
         raise ValueError('converted texture checksum differs')
 
 
+def verify_meshes(template, plan_path, intermediate):
+    plan = json.loads(plan_path.read_text())
+    if plan.get('schema') != 1 or plan.get('kind') != 'experimental-steam-mesh-buffer-offsets' or plan.get('template_sha256') != digest(template):
+        raise ValueError('mesh plan or template differs')
+    rows = plan.get('records')
+    if not isinstance(rows, list) or not rows or len(rows) > 10000: raise ValueError('invalid mesh records')
+    grouped = {}
+    for row in rows:
+        entry = row.get('entry')
+        if not isinstance(entry, str) or not re.fullmatch(r'assets/bin/Data/sharedassets[12]\.assets\.split(?:0|[1-9]\d*)', entry):
+            raise ValueError('invalid mesh entry')
+        grouped.setdefault(entry, []).append(row)
+    with zipfile.ZipFile(template) as base, zipfile.ZipFile(intermediate) as result:
+        names = base.namelist()
+        if len(names) != len(set(names)) or names != result.namelist() or not set(grouped).issubset(names):
+            raise ValueError('mesh archive entries differ')
+        for name in names:
+            if name not in grouped:
+                if entry_digest(base, name) != entry_digest(result, name): raise ValueError('unrelated mesh archive entry differs')
+                continue
+            a, b = base.read(name), result.read(name)
+            if len(a) != len(b): raise ValueError('mesh split length differs')
+            end = 0
+            for row in sorted(grouped[name], key=lambda r: r['target_offset']):
+                start, size = row['target_offset'], row['size']
+                if type(start) is not int or type(size) is not int or start < end or size <= 0 or start + size > len(a):
+                    raise ValueError('invalid mesh range')
+                if a[end:start] != b[end:start] or any(a[start:start + size]) or hashlib.sha256(b[start:start + size]).hexdigest() != row['sha256']:
+                    raise ValueError('mesh payload differs')
+                end = start + size
+            if a[end:] != b[end:]: raise ValueError('unrelated mesh split bytes differ')
+
+
 def property_value(value):
     result = []
     for c in str(value):
@@ -180,6 +213,8 @@ def main():
     p.add_argument('--texture-plan', type=Path, help='optional converted texture plan for combined research mode')
     p.add_argument('--texture-intermediate-obb', type=Path, help='canonical texture restoration used by the packed plan')
     p.add_argument('--texture-library', type=Path, help='local ARM64 texture converter library')
+    p.add_argument('--mesh-plan', type=Path, help='optional mesh plan for combined research mode')
+    p.add_argument('--mesh-intermediate-obb', type=Path, help='canonical mesh restoration used by the texture plan')
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
     gradle, project, runtime, template, plan, expected, editor = [x.expanduser().resolve(strict=True) for x in
@@ -190,10 +225,13 @@ def main():
     texture_args = (a.texture_plan, a.texture_intermediate_obb, a.texture_library)
     if any(texture_args) and (not all(texture_args) or not packed): p.error('texture mode requires all texture inputs and packed audio mode')
     texture_plan, texture_intermediate, texture_library = ([x.expanduser().resolve(strict=True) for x in texture_args] if all(texture_args) else (None, None, None))
+    if bool(a.mesh_plan) != bool(a.mesh_intermediate_obb) or (a.mesh_plan and not texture_plan): p.error('mesh mode requires both mesh inputs and texture mode')
+    mesh_plan = a.mesh_plan.expanduser().resolve(strict=True) if a.mesh_plan else None
+    mesh_intermediate = a.mesh_intermediate_obb.expanduser().resolve(strict=True) if a.mesh_intermediate_obb else None
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be a new directory')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []))):
+    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []))):
         p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
     if a.runner and not shutil.which(a.runner): p.error('configured runner not found')
@@ -210,10 +248,12 @@ def main():
     if a.gradle_user_home and not a.gradle_user_home.expanduser().resolve(strict=True).is_dir(): p.error('Gradle cache must be a directory')
     for path in gradle.rglob('*'):
         if path.is_symlink(): p.error('Gradle project must not contain symbolic links')
+    if mesh_plan:
+        verify_meshes(template, mesh_plan, mesh_intermediate)
     if texture_plan:
         with texture_library.open('rb') as f: header = f.read(20)
         if len(header) != 20 or header[:6] != b'\x7fELF\x02\x01' or struct.unpack_from('<H', header, 18)[0] != 183: p.error('texture library must be ARM64 ELF')
-        verify_textures(template, texture_plan, texture_intermediate)
+        verify_textures(mesh_intermediate or template, texture_plan, texture_intermediate)
     if packed:
         verify_packed(texture_intermediate or template, packed, intermediate)
     guid = verify(intermediate or template, plan, expected, runtime, gradle)
@@ -234,7 +274,7 @@ def main():
     assets = library / 'src/main/assets/openbonk-diagnostic'
     assets.mkdir()
     (assets / 'marker').write_bytes(b'OPENBONK_PRIVATE_DIAGNOSTIC_V1')
-    mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
+    mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V4' if mesh_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
     (assets / 'generated-audio-mode').write_bytes(mode)
     shutil.copyfile(template, assets / 'generated-audio-template.obb')
     shutil.copyfile(plan, assets / 'generated-audio-plan.json')
@@ -248,6 +288,9 @@ def main():
         dest = library / 'src/main/jniLibs/arm64-v8a/libopenbonk_texture.so'
         if dest.exists() or dest.is_symlink(): raise ValueError('unexpected existing texture library')
         shutil.copyfile(texture_library, dest)
+    if mesh_plan:
+        shutil.copyfile(mesh_plan, assets / 'mesh-plan.json')
+        (assets / 'mesh-plan.sha256').write_text(digest(mesh_plan), encoding='ascii')
     (library / 'src/main/assets/unity_obb_guid').write_bytes(guid)
     result_hash = digest(expected)
     (launcher / 'SplitExpectedData.java').write_text('package com.megabonk.launcher;\nfinal class SplitExpectedData { static final String SHA256 = "' + result_hash + '", LEGACY_SHA256 = "", SECOND_LEGACY_SHA256 = "", THIRD_LEGACY_SHA256 = "", FOURTH_LEGACY_SHA256 = "", FIFTH_LEGACY_SHA256 = "", SIXTH_LEGACY_SHA256 = ""; }\n', encoding='ascii')

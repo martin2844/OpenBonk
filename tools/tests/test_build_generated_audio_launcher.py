@@ -95,6 +95,18 @@ class GeneratedAudioBuildTest(unittest.TestCase):
             z.writestr(entries[0], b'xxAB'); z.writestr(entries[1], b'CDzz')
         with self.assertRaises(ValueError): MODULE.verify_textures(template, plan, intermediate)
 
+    def test_mesh_plan_checks_payload_and_unchanged_bytes(self):
+        template, intermediate, plan = (self.root / n for n in ('mesh-template.obb', 'mesh-intermediate.obb', 'mesh.json'))
+        entry = 'assets/bin/Data/sharedassets1.assets.split0'
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, b'head' + bytes(4) + b'tail')
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'headmesh' + b'tail')
+        row = {'entry': entry, 'target_offset': 4, 'size': 4, 'sha256': hashlib.sha256(b'mesh').hexdigest()}
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-steam-mesh-buffer-offsets',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        MODULE.verify_meshes(template, plan, intermediate)
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'headmesh' + b'nope')
+        with self.assertRaises(ValueError): MODULE.verify_meshes(template, plan, intermediate)
+
 
 if __name__ == '__main__':
     unittest.main()
