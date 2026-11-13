@@ -1,8 +1,10 @@
 import importlib.util
+import hashlib
 from pathlib import Path
 import tempfile
 import unittest
 import zipfile
+from unittest.mock import patch
 
 
 TOOLS = Path(__file__).resolve().parents[1]
@@ -34,16 +36,36 @@ class ConversionMetadataTest(unittest.TestCase):
             root = Path(tmp)
             source = root / 'source'
             source.mkdir()
-            for index in range(48):
-                (source / f'fixture-{index:02}.bin').write_bytes(bytes([index]))
+            for name in PACKAGE.EXPECTED_NAMES - set(PACKAGE.METADATA_PINS) - set(PACKAGE.SHADER_PINS):
+                (source / name).write_bytes(b'fixture')
+            shader_pins = {}
+            for name in PACKAGE.SHADER_PINS:
+                data = name.encode()
+                (source / name).write_bytes(data)
+                shader_pins[name] = hashlib.sha256(data).hexdigest()
             output = root / 'plans.zip'
-            PACKAGE.package(source, output)
+            with patch.object(PACKAGE, 'SHADER_PINS', shader_pins):
+                PACKAGE.package(source, output)
             with zipfile.ZipFile(output) as archive:
                 self.assertEqual(len(archive.namelist()), 50)
                 for name in PACKAGE.METADATA_PINS:
                     self.assertEqual(archive.read(name), (PACKAGE.METADATA_DIR / name).read_bytes())
             with self.assertRaises(ValueError):
                 PACKAGE.package(source, output)
+
+    def test_equal_count_with_wrong_name_is_rejected(self):
+        with tempfile.TemporaryDirectory(prefix='openbonk-plans-test-') as tmp:
+            source = Path(tmp)
+            for name in PACKAGE.EXPECTED_NAMES - set(PACKAGE.METADATA_PINS) - set(PACKAGE.SHADER_PINS):
+                (source / name).write_bytes(b'fixture')
+            shaders = {}
+            for name in PACKAGE.SHADER_PINS:
+                (source / name).write_bytes(name.encode())
+                shaders[name] = hashlib.sha256(name.encode()).hexdigest()
+            (source / 'map.bin').rename(source / 'wrong.bin')
+            with patch.object(PACKAGE, 'SHADER_PINS', shaders):
+                with self.assertRaisesRegex(ValueError, 'names differ'):
+                    PACKAGE.inputs(source)
 
     def test_rejects_bad_override_before_creating_archive(self):
         with tempfile.TemporaryDirectory(prefix='openbonk-plans-test-') as tmp:

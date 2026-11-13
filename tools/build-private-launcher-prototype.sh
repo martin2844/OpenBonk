@@ -105,6 +105,9 @@ else
  if [ ! -f "$base" ]; then echo "Missing required input: $base" >&2; exit 1; fi
 fi
 if [ ! -d "$template" ] || [ ! -d "$launcher_src" ]; then echo 'Missing Gradle template or launcher source directory' >&2; exit 1; fi
+shader_args=()
+if [ -n "${OPENBONK_SHADER_PACK_DIR:-}" ]; then shader_args=(--shader-dir "$OPENBONK_SHADER_PACK_DIR"); fi
+"$python_cmd" "$repo_root/tools/package-conversion-plans.py" "$plan_dir" --check "${shader_args[@]}"
 minimal_shared0="$repo_root/build/android/shared0-no-sky-font-base/base.zip"
 if [ ! -f "$minimal_shared0" ]; then "$python_cmd" "$repo_root/analysis/data-conversion/build-minimal-shared0-base.py"; fi
 mkdir "$out_dir"
@@ -256,8 +259,6 @@ fi
 cp "$lua_notice" "$assets/notices/Lua-5.4.9.txt"
 cp "$texture_lib" "$work/unityLibrary/src/main/jniLibs/arm64-v8a/libopenbonk_texture.so"
 OPENBONK_ZLIB_ARCH=arm64 OPENBONK_UNITY_EDITOR="$unity_editor" OPENBONK_TOOL_RUNNER="${OPENBONK_TOOL_RUNNER:-}" "$repo_root/tools/build-stable-zlib.sh" "$work/unityLibrary/src/main/jniLibs/arm64-v8a/libopenbonk_zlib.so"
-shader_args=()
-if [ -n "${OPENBONK_SHADER_PACK_DIR:-}" ]; then shader_args=(--shader-dir "$OPENBONK_SHADER_PACK_DIR"); fi
 "$python_cmd" "$repo_root/tools/package-conversion-plans.py" "$plan_dir" "$assets/plans.zip" "${shader_args[@]}"
 (
  cd "$work"
