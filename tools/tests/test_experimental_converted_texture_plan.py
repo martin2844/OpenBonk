@@ -65,6 +65,13 @@ class ConvertedTexturePlanTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.restore()
         self.assertFalse(self.output.exists())
 
+    def test_quality_requires_rgba_target_and_encoder(self):
+        self.row.update(quality=True, target_format=4)
+        with self.assertRaises(ValueError): self.restore()
+        self.row['target_format'] = 47
+        with self.assertRaisesRegex(ValueError, 'quality encoder is required'): self.restore()
+        self.assertFalse(self.output.exists())
+
     def test_reconstructs_standalone_hashed_entry(self):
         entry = module.study.PREFIX + 'a' * 32
         with zipfile.ZipFile(self.template, 'w') as z:

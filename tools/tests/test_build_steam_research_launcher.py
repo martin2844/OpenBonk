@@ -87,5 +87,13 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertEqual(dual_cmd[dual_cmd.index('--windows-research') + 1], str(self.out / 'windows-research'))
         self.assertEqual(dual_cmd[dual_cmd.index('--output') + 1], str(self.out / 'dual-launcher'))
 
+    @patch.object(module.subprocess, 'run')
+    def test_quality_option_reaches_both_platforms(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--quality-textures')
+        self.assertIn('--quality-textures', run.call_args_list[-3].args[0])
+        self.assertIn('--quality-textures', run.call_args_list[-2].args[0])
+
 
 if __name__ == '__main__': unittest.main()

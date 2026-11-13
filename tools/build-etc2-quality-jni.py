@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build an experimental high-quality ETC2 JNI library; not used by the APK."""
+"""Build an experimental high-quality ETC2 JNI library for private research."""
 import argparse
 import hashlib
 import importlib.util
@@ -56,7 +56,9 @@ def main():
         result = temp / 'libopenbonk_quality.so'
         cmd = ([runner] if runner else []) + [str(compiler), '-std=c++17', '-O2', '-pthread', '-shared', '-fPIC', '-DOPENBONK_JNI', '-Wl,--no-undefined']
         if a.target == 'android': cmd += ['-static-libstdc++', '-U__ARM_NEON']
-        cmd += jni_includes + ['-I' + str(pak), '-I' + str(etc / 'Etc'), '-I' + str(etc / 'EtcCodec'), str(quality_source),
+        cmd += jni_includes + ['-I' + str(pak), '-I' + str(etc / 'Etc'), '-I' + str(etc / 'EtcCodec'),
+                               '-I' + str(ROOT / 'third_party/texture2ddecoder-unitycrunch'), str(quality_source),
+                               str(ROOT / 'analysis/data-conversion/android/steam_unity_crunch_jni.cpp'),
                                str(pak / 'ProcessRGB.cpp'), str(pak / 'Tables.cpp'), *map(str, sources), '-o', str(result)]
         subprocess.run(cmd, check=True)
         with result.open('rb') as stream: header = stream.read(20)

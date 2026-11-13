@@ -14,6 +14,7 @@ import re
 import shutil
 import struct
 import subprocess
+import tarfile
 import zipfile
 
 
@@ -115,6 +116,11 @@ def verify_textures(template, plan_path, intermediate, cubemaps=False):
         size = row.get('target_size')
         if row.get('id') != i or type(size) is not int or not 0 < size <= 64 * 1024 * 1024:
             raise ValueError('invalid texture record')
+        quality = row.get('quality', False)
+        if type(quality) is not bool or (quality and (cubemaps or row.get('normal', False) or row.get('target_format') != 47 or
+                                                       type(row.get('width')) is not int or type(row.get('height')) is not int or
+                                                       not 1 <= row['width'] <= 2048 or not 1 <= row['height'] <= 2048)):
+            raise ValueError('invalid quality texture metadata')
         if cubemaps and size != 6 * 131072: raise ValueError('invalid cubemap size')
         total += size
         if total > 256 * 1024 * 1024: raise ValueError('texture size limit exceeded')
@@ -279,6 +285,10 @@ def verify_windows_research(root, expected, runtime, gradle):
     return template, obj, paths
 
 
+def has_quality_textures(plan):
+    return any(row.get('quality', False) for row in json.loads(plan.read_text(encoding='utf-8'))['records'])
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('gradle-project', 'unity-project', 'runtime-apk', 'audio-template', 'audio-plan', 'expected-obb', 'unity-editor', 'output'):
@@ -361,6 +371,9 @@ def main():
     guid = verify(intermediate or template, plan, expected, runtime, gradle)
     if windows_research: verify_research_platform(object_plan, 'linux')
     windows = verify_windows_research(windows_research, expected, runtime, gradle) if windows_research else None
+    quality_needed = bool(texture_plan and (has_quality_textures(texture_plan) or (windows and has_quality_textures(windows[2]['texture']))))
+    if quality_needed and (texture_library.stat().st_size > 64 * 1024 * 1024 or b'Java_com_openbonk_dataprep_SteamConvertedTextures_convertQualityMip' not in texture_library.read_bytes()):
+        raise ValueError('Android texture library lacks the quality encoder')
     print('Local prototype prerequisites verified; output contains game data.', flush=True)
     if a.check:
         print('Check only; no APK was built.')
@@ -416,6 +429,17 @@ def main():
         for name, path in plan_files.items():
             shutil.copyfile(path, dest / (name + '-plan.json'))
             (dest / (name + '-plan.sha256')).write_text(digest(path), encoding='ascii')
+    if quality_needed:
+        source = ROOT / 'third_party/etc2comp-39422c1.tar.gz'
+        if source.is_symlink() or not source.is_file() or digest(source) != 'ba661f81c69fa4eecb2654afcacb0639617a619d964d6baf2310997c75f4381b':
+            raise ValueError('quality encoder license source differs')
+        notices = assets / 'notices'; notices.mkdir(exist_ok=True)
+        with tarfile.open(source, 'r:gz') as archive:
+            for name in ('LICENSE', 'AUTHORS'):
+                member = archive.getmember('etc2comp-39422c1/' + name)
+                if not member.isfile() or member.size > 64 * 1024: raise ValueError('invalid quality encoder notice')
+                with archive.extractfile(member) as stream:
+                    (notices / ('etc2comp-' + name + '.txt')).write_bytes(stream.read())
     (library / 'src/main/assets/unity_obb_guid').write_bytes(guid)
     result_hash = digest(expected)
     (launcher / 'SplitExpectedData.java').write_text('package com.megabonk.launcher;\nfinal class SplitExpectedData { static final String SHA256 = "' + result_hash + '", LEGACY_SHA256 = "", SECOND_LEGACY_SHA256 = "", THIRD_LEGACY_SHA256 = "", FOURTH_LEGACY_SHA256 = "", FIFTH_LEGACY_SHA256 = "", SIXTH_LEGACY_SHA256 = ""; }\n', encoding='ascii')

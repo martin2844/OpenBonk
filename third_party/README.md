@@ -13,7 +13,8 @@ notices. Only the relevant C++ sources are used by the native adapter.
 `39422c1aa2f4889d636db5790af1d0be6ff3a226`. The included source is licensed
 under Apache-2.0. The archive SHA-256 is
 `ba661f81c69fa4eecb2654afcacb0639617a619d964d6baf2310997c75f4381b`.
-It is used only by the experimental quality probes and JNI adapter, not the APK.
+It is used by the standalone probes and opt-in private research APKs; those
+APKs include the license and authors in their diagnostic assets.
 
 The adjacent directories document the exact zlib and Unity Crunch sources and
 their licenses. Game assets, user data and Unity binaries are not included.

@@ -130,6 +130,18 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         plan.write_text(json.dumps(payload))
         with self.assertRaises(ValueError): MODULE.verify_textures(template, plan, intermediate, cubemaps=True)
 
+    def test_quality_texture_plan_rejects_incompatible_format(self):
+        template, intermediate, plan = (self.root / n for n in ('quality-template.obb', 'quality-intermediate.obb', 'quality-plan.json'))
+        entry = 'assets/bin/Data/sharedassets1.assets.split0'
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, bytes(4))
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'data')
+        row = {'id': 0, 'target_size': 4, 'target_sha256': hashlib.sha256(b'data').hexdigest(),
+               'quality': True, 'target_format': 45, 'width': 1, 'height': 1,
+               'fragments': [{'entry': entry, 'target_offset': 0, 'size': 4, 'converted_offset': 0}]}
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-converted-steam-texture-offsets',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        with self.assertRaisesRegex(ValueError, 'quality texture metadata'): MODULE.verify_textures(template, plan, intermediate)
+
     def test_mesh_plan_checks_payload_and_unchanged_bytes(self):
         template, intermediate, plan = (self.root / n for n in ('mesh-template.obb', 'mesh-intermediate.obb', 'mesh.json'))
         entry = 'assets/bin/Data/sharedassets1.assets.split0'

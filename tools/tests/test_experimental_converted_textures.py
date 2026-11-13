@@ -9,6 +9,15 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_quality_gate_checks_visible_pixels_and_alpha(self):
+        from PIL import Image
+        original = Image.new('RGBA', (4, 4), (100, 100, 100, 255))
+        self.assertTrue(module.acceptable_quality_image(original, original.copy()))
+        changed = original.copy(); changed.putpixel((0, 0), (200, 100, 100, 255))
+        self.assertFalse(module.acceptable_quality_image(original, changed))
+        changed = original.copy(); changed.putpixel((0, 0), (100, 100, 100, 0))
+        self.assertFalse(module.acceptable_quality_image(original, changed))
+
     def test_texture_error_gate_rejects_large_or_invalid_errors(self):
         self.assertTrue(module.acceptable_texture_error([0.0, 2.0, 10.0, 0.0]))
         for error in ([0, 0, 10.01, 0], [0, 0, float('nan'), 0], [0, 0, -1, 0], [0, 0, 0]):

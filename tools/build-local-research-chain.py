@@ -75,6 +75,7 @@ def commands(a):
     steamzip = a.steam_zip or out / 'steam.zip'
     python = sys.executable
     wrapped = ['--runner', a.runner] if a.runner else []
+    quality = getattr(a, 'quality_textures', False)
     prefix = [a.runner] if a.runner else []
     steps = []
     def py(label, name, *args): steps.append((label, [python, str(TOOLS / name), *map(str, args)]))
@@ -86,16 +87,20 @@ def commands(a):
     def toolplan(label, script, source_obb, dest, *extra):
         py(label, script, 'generate', '--steam-data', steam, '--obb', source_obb, '--output', dest, *extra)
     if a.steam_zip is None: py('Steam ZIP', 'create-launcher-steam-zip.py', steam, steamzip, '--platform', a.platform)
-    if a.host_library is None: py('host texture converter', 'build-host-texture-library.py', '--java-home', jdk, '--output', hostlib, *wrapped)
-    if a.android_library is None: py('Android texture converter', 'build-android-texture-library.py', '--ndk', android / 'NDK', '--output', armlib, *wrapped)
+    if a.host_library is None:
+        if quality: py('host texture converter', 'build-etc2-quality-jni.py', '--target', 'host', '--java-home', jdk, '--output', hostlib, *wrapped)
+        else: py('host texture converter', 'build-host-texture-library.py', '--java-home', jdk, '--output', hostlib, *wrapped)
+    if a.android_library is None:
+        if quality: py('Android texture converter', 'build-etc2-quality-jni.py', '--target', 'android', '--ndk', android / 'NDK', '--output', armlib, *wrapped)
+        else: py('Android texture converter', 'build-android-texture-library.py', '--ndk', android / 'NDK', '--output', armlib, *wrapped)
     if a.decoder is None: py('Crunch decoder', 'build-crunch-decoder.py', decoder)
     py('individual Steam audio', 'experimental-steam-audio.py', '--steam-data', steam, '--obb', a.runtime_obb, '--output', out / 'individual-audio.obb')
     py('packed Steam audio', 'experimental-packed-steam-audio.py', '--steam-data', steam, '--obb', out / 'individual-audio.obb', '--output', out / 'packed-audio.obb')
-    py('converted textures', 'experimental-converted-textures.py', '--steam-data', steam, '--obb', out / 'packed-audio.obb', '--output', out / 'texture-study')
+    py('converted textures', 'experimental-converted-textures.py', '--steam-data', steam, '--obb', out / 'packed-audio.obb', '--output', out / 'texture-study', *(['--quality-library', hostlib] if quality else []))
     py('converted cubemaps', 'experimental-converted-cubemaps.py', '--steam-data', steam, '--obb', out / 'texture-study/converted.obb', '--decoder', decoder, '--output', out / 'cubemap-study', *wrapped)
     toolplan('individual audio plan', 'experimental-steam-audio-plan.py', out / 'cubemap-study/converted.obb', plans / 'audio')
     toolplan('packed audio plan', 'experimental-packed-audio-plan.py', plans / 'audio/template.obb', plans / 'packed')
-    toolplan('texture plan', 'experimental-converted-texture-plan.py', plans / 'packed/template.obb', plans / 'texture', '--manifest', out / 'texture-study/report.json')
+    toolplan('texture plan', 'experimental-converted-texture-plan.py', plans / 'packed/template.obb', plans / 'texture', '--manifest', out / 'texture-study/report.json', *(['--quality-library', hostlib] if quality else []))
     toolplan('mesh plan', 'experimental-mesh-buffer-plan.py', plans / 'texture/template.obb', plans / 'mesh')
     toolplan('cubemap plan', 'experimental-cubemap-plan.py', plans / 'mesh/template.obb', plans / 'cubemap', '--manifest', out / 'cubemap-study/report.json', '--decoder', decoder, *wrapped)
     toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation')
@@ -142,6 +147,7 @@ def main():
         p.add_argument('--' + name, type=Path)
     p.add_argument('--application-id', required=True)
     p.add_argument('--platform', choices=('linux', 'windows'), default='linux', help='Steam data platform (Windows support is experimental)')
+    p.add_argument('--quality-textures', action='store_true', help='experimentally use the high-quality ETC2 encoder for selected textures')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()

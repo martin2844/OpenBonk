@@ -14,7 +14,7 @@ public final class SteamPlannedTextures {
     private static final String PREFIX = "assets/bin/Data/";
     private static final class Texture {
         String source, inputHash, outputHash, decodedHash; long inputOffset, convertedOffset;
-        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat; boolean normal;
+        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat; boolean normal, quality;
     }
     private static final class Fragment {
         Texture texture; String entry; int targetOffset, convertedOffset, size;
@@ -104,12 +104,15 @@ public final class SteamPlannedTextures {
                     t.width = row.getInt("width"); t.height = row.getInt("height"); t.mips = row.getInt("mips"); t.targetFormat = row.getInt("target_format");
                     if (row.has("normal") && !(row.get("normal") instanceof Boolean)) throw new IOException("invalid normal flag");
                     t.normal = row.has("normal") && row.getBoolean("normal");
+                    if (row.has("quality") && !(row.get("quality") instanceof Boolean)) throw new IOException("invalid quality flag");
+                    t.quality = row.has("quality") && row.getBoolean("quality");
                 }
                 if (!sourceHashes.containsKey(t.source) || t.inputOffset < 0 || t.inputSize <= 0 || t.inputSize > MAX_CLIP || t.inputOffset > MAX_FILE - t.inputSize ||
                     t.outputSize <= 0 || t.outputSize > MAX_CLIP || t.width <= 0 || t.width > 4096 || t.height <= 0 || t.height > 4096 || t.mips <= 0 || t.mips > 32 ||
                     !(cubemaps ? (t.sourceFormat == 12 || t.sourceFormat == 29) : (t.sourceFormat == 1 || t.sourceFormat == 3 || t.sourceFormat == 4 || t.sourceFormat == 10 || t.sourceFormat == 12 || t.sourceFormat == 25)) ||
                     !(t.normal ? (!cubemaps && t.sourceFormat == 12 && t.targetFormat == 34) : (t.targetFormat == 4 || t.targetFormat == 45 || t.targetFormat == 47))) throw new IOException("invalid texture metadata");
                 if (cubemaps && (!t.source.equals("sharedassets1.assets.resS") || t.inputSize > 4 * 1024 * 1024 || t.outputSize != 6 * 131072)) throw new IOException("invalid cubemap metadata");
+                if (t.quality && (cubemaps || t.normal || t.targetFormat != 47 || t.width > 2048 || t.height > 2048)) throw new IOException("invalid quality texture metadata");
                 t.convertedOffset = total; total += t.outputSize; if (total > MAX_TOTAL) throw new IOException("texture limit exceeded");
                 JSONArray fs = row.getJSONArray("fragments"); int position = 0;
                 if (fs.length() == 0 || fs.length() > 128) throw new IOException("invalid fragment count");
@@ -175,7 +178,7 @@ public final class SteamPlannedTextures {
                         int n = mipSize(sourceFormat, w, h), wanted = mipSize(t.targetFormat, w, h);
                         if (n > input.length - inputPos || wanted > t.outputSize - outputPos) throw new IOException("invalid mip bounds");
                         byte[] mip;
-                        try { byte[] part = Arrays.copyOfRange(input, inputPos, inputPos + n); mip = t.normal ? SteamConvertedTextures.convertNormalMip(part, w, h, t.targetFormat) : SteamConvertedTextures.convertMip(part, w, h, sourceFormat, t.targetFormat); }
+                        try { byte[] part = Arrays.copyOfRange(input, inputPos, inputPos + n); mip = t.quality ? SteamConvertedTextures.convertQualityMip(part, w, h, sourceFormat) : t.normal ? SteamConvertedTextures.convertNormalMip(part, w, h, t.targetFormat) : SteamConvertedTextures.convertMip(part, w, h, sourceFormat, t.targetFormat); }
                         catch (UnsatisfiedLinkError e) { throw new IOException("texture converter unavailable", e); }
                         if (mip == null || mip.length != wanted) throw new IOException("texture conversion failed");
                         out.write(mip); hash.update(mip); inputPos += n; outputPos += wanted;

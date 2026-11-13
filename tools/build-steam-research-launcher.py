@@ -39,6 +39,7 @@ def commands(a):
              '--gradle-project', out / 'gradle/android/OpenBonk-gradle-project', '--unity-project', workspace,
              '--unity-editor', a.unity.parent, '--json-jar', a.json_jar, '--application-id', a.application_id,
              '--output', out / 'research', *wrapped]
+    if a.quality_textures: chain += ['--quality-textures']
     for attr in ('steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home'):
         value = getattr(a, attr)
         if value: chain += ['--' + attr.replace('_', '-'), value]
@@ -57,6 +58,7 @@ def commands(a):
                          '--android-library', a.android_library or linux_research / 'native/libopenbonk_texture_arm64.so',
                          '--decoder', a.decoder or linux_research / 'native/crunch-decoder', *wrapped]
         if a.windows_steam_zip: windows_chain += ['--steam-zip', a.windows_steam_zip]
+        if a.quality_textures: windows_chain += ['--quality-textures']
         if a.gradle_user_home: windows_chain += ['--gradle-user-home', a.gradle_user_home]
         dual_args = SimpleNamespace(output=linux_research, steam_data=a.game / 'Megabonk_Data',
                                     unity_editor=a.unity.parent, runtime_obb=out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
@@ -64,7 +66,7 @@ def commands(a):
                                     gradle_project=out / 'gradle/android/OpenBonk-gradle-project', unity_project=workspace,
                                     json_jar=a.json_jar, application_id=a.application_id, runner=a.runner,
                                     host_library=a.host_library, android_library=a.android_library, decoder=a.decoder,
-                                    steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux')
+                                    steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux', quality_textures=a.quality_textures)
         dual = research_chain.commands(dual_args)[-1][1]
         dual[dual.index('--output') + 1] = str(out / 'dual-launcher')
         dual += ['--windows-research', str(windows_research)]
@@ -80,6 +82,7 @@ def main():
     p.add_argument('--application-id', required=True)
     p.add_argument('--runner', help='optional wrapper for AssetRipper, Unity and native tools')
     p.add_argument('--include-rewired', action='store_true', help='experimentally include local Rewired plugins in both Unity builds')
+    p.add_argument('--quality-textures', action='store_true', help='experimentally use higher-quality ETC2 for selected textures')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')

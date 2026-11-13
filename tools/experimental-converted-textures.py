@@ -8,6 +8,7 @@ Requires UnityPy, Pillow and UnityPy's texture encoding dependencies.
 import argparse
 from collections import Counter, defaultdict
 import hashlib
+import importlib.util
 import json
 import math
 from pathlib import Path
@@ -19,11 +20,32 @@ ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'assets/bin/Data/'
 GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
+QUALITY_NAMES = frozenset(('sprite_0091', 'sprite_0097'))
 MAX_MEAN_ERROR = 10.0
 
 
 def acceptable_texture_error(mean):
     return len(mean) == 4 and all(math.isfinite(v) and 0 <= v <= MAX_MEAN_ERROR for v in mean)
+
+
+def load_quality_encoder(path):
+    spec = importlib.util.spec_from_file_location('quality_texture', ROOT / 'tools/quality_texture.py')
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    return module.QualityEncoder(path)
+
+
+def acceptable_quality_image(original, converted):
+    from PIL import Image, ImageChops, ImageStat
+    a, b = original.convert('RGBA'), converted.convert('RGBA')
+    if a.size != b.size: return False
+    if ImageStat.Stat(ImageChops.difference(a.getchannel('A'), b.getchannel('A'))).mean[0] > 1: return False
+    for shade in (0, 255):
+        base = Image.new('RGBA', a.size, (shade, shade, shade, 255))
+        diff = ImageChops.difference(Image.alpha_composite(base, a).convert('RGB'), Image.alpha_composite(base, b).convert('RGB'))
+        if max(ImageStat.Stat(diff).mean) > 1: return False
+        r, g, blue = diff.split()
+        if ImageChops.lighter(ImageChops.lighter(r, g), blue).getextrema()[1] > 32: return False
+    return True
 
 
 def select_source(target, candidates, texture=lambda item: item):
@@ -89,6 +111,9 @@ def run(args):
     from PIL import ImageChops, ImageStat
     from UnityPy.export import Texture2DConverter as converter
     source, obb = args.steam_data.resolve(strict=True), args.obb.resolve(strict=True)
+    quality = None
+    if getattr(args, 'quality_library', None):
+        quality = load_quality_encoder(args.quality_library)
     output = args.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): raise ValueError('output must be a new directory')
     output = output.parent.resolve() / output.name
@@ -127,6 +152,7 @@ def run(args):
                     src = select_source(target, candidates)
                     if src is None: outcomes['missing_or_ambiguous'] += 1; continue
                     normal = target.m_Name in NORMAL_MAPS and src.m_TextureFormat == 12 and target.m_TextureFormat == 34
+                    high_quality = bool(quality and target.m_Name in QUALITY_NAMES and target.m_TextureFormat == 47 and not normal)
                     if target.m_TextureFormat not in (4, 45, 47) and not normal or src.m_TextureFormat not in (1, 3, 4, 10, 12, 25):
                         outcomes['unsupported_format'] += 1; continue
                     if 'normal' in target.m_Name.lower() and not normal: outcomes['normal_excluded'] += 1; continue
@@ -140,9 +166,12 @@ def run(args):
                         target_mips = mip_slices(old, target.m_TextureFormat, target.m_Width, target.m_Height, target.m_MipCount)
                         chunks = []
                         for w, h, payload in source_mips:
-                            image = converter.parse_image_data(payload, w, h, src.m_TextureFormat, src.object_reader.version, src.object_reader.platform)
-                            if normal: image = normal_image(image)
-                            encoded, fmt = converter.image_to_texture2d(image, target.m_TextureFormat, target.object_reader.platform, target.m_PlatformBlob)
+                            if high_quality:
+                                encoded, fmt = quality.encode(payload, w, h, int(src.m_TextureFormat)), target.m_TextureFormat
+                            else:
+                                image = converter.parse_image_data(payload, w, h, src.m_TextureFormat, src.object_reader.version, src.object_reader.platform)
+                                if normal: image = normal_image(image)
+                                encoded, fmt = converter.image_to_texture2d(image, target.m_TextureFormat, target.object_reader.platform, target.m_PlatformBlob)
                             if int(fmt) != target.m_TextureFormat or len(encoded) != mip_size(target.m_TextureFormat, w, h): raise ValueError('encoded mip differs')
                             chunks.append(encoded)
                         new = b''.join(chunks)
@@ -157,14 +186,14 @@ def run(args):
                         continue
                     # A high level-zero error indicates a questionable match or
                     # conversion; keep the existing texture for local review.
-                    if not acceptable_texture_error(mean):
+                    if not (acceptable_quality_image(original_image, converted_image) if high_quality else acceptable_texture_error(mean)):
                         if group not in GROUPS: quality_excluded.add(PREFIX + group)
                         outcomes['high_error'] += 1; continue
                     start = obj.byte_start + pos
                     if asset[start:start + len(old)] != old or modified[start:start + len(old)] != old: raise ValueError('target texture offset differs or overlaps')
                     modified[start:start + len(old)] = new
                     rows.append({'group': group, 'target_id': obj.path_id, 'name': target.m_Name,
-                                 'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat), 'normal': normal,
+                                 'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat), 'normal': normal, 'quality': high_quality,
                                  'bytes': len(old), 'top_mean_rgba_error': [round(x, 3) for x in mean]})
                     alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
                     if group in GROUPS: aliases[alias_key].append((rows[-1], new))
@@ -219,6 +248,7 @@ def main():
     p.add_argument('--obb', required=True, type=Path)
     p.add_argument('--steam-data', required=True, type=Path)
     p.add_argument('--output', required=True, type=Path)
+    p.add_argument('--quality-library', type=Path, help='optional experimental desktop quality encoder')
     run(p.parse_args())
 
 

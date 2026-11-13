@@ -65,16 +65,20 @@ def apply(raw, rows, converted=None):
     return bytes(result)
 
 
-def convert_texture(payload, row):
+def convert_texture(payload, row, quality=None):
     from UnityPy.export import Texture2DConverter as converter
+    if row.get('quality', False) and quality is None: raise ValueError('quality encoder is required')
     # The tested Texture2D formats do not depend on platform blobs or platform.
     # Decoder and encoder versions must reproduce the planned output hash.
     source_mips = study.mip_slices(payload, row['source_format'], row['width'], row['height'], row['mips'])
     chunks = []
     for w, h, data in source_mips:
-        image = converter.parse_image_data(data, w, h, row['source_format'], (2023, 2, 22, 0), 19)
-        if row.get('normal', False): image = study.normal_image(image)
-        encoded, fmt = converter.image_to_texture2d(image, row['target_format'], 13, None)
+        if row.get('quality', False):
+            encoded, fmt = quality.encode(data, w, h, row['source_format']), 47
+        else:
+            image = converter.parse_image_data(data, w, h, row['source_format'], (2023, 2, 22, 0), 19)
+            if row.get('normal', False): image = study.normal_image(image)
+            encoded, fmt = converter.image_to_texture2d(image, row['target_format'], 13, None)
         if int(fmt) != row['target_format'] or len(encoded) != study.mip_size(row['target_format'], w, h): raise ValueError('converted mip differs')
         chunks.append(encoded)
     result = b''.join(chunks)
@@ -86,6 +90,7 @@ def generate(args):
     import UnityPy
     source, obb, manifest = (p.resolve(strict=True) for p in (args.steam_data, args.obb, args.manifest))
     output = new_output(args.output, (source, obb, manifest))
+    quality = study.load_quality_encoder(args.quality_library) if getattr(args, 'quality_library', None) else None
     report = json.loads(manifest.read_text()); candidates = report.get('textures')
     if report.get('schema') != 1 or not isinstance(candidates, list) or not candidates: raise ValueError('invalid study report')
     chosen = {g: {} for g in study.GROUPS}
@@ -99,7 +104,7 @@ def generate(args):
         for row in records.values():
             if not any(k in row for k in ('alias_group', 'alias_target_id', 'source_name')): continue
             parent = chosen.get(row.get('alias_group'), {}).get(row.get('alias_target_id'))
-            if row.get('alias_group') not in study.GROUPS or parent is None or row.get('source_name') != parent['name'] or any(row.get(k) != parent.get(k) for k in ('source_format', 'target_format', 'normal', 'bytes')):
+            if row.get('alias_group') not in study.GROUPS or parent is None or row.get('source_name') != parent['name'] or any(row.get(k) != parent.get(k) for k in ('source_format', 'target_format', 'normal', 'bytes')) or row.get('quality', False) != parent.get('quality', False):
                 raise ValueError('invalid standalone texture alias')
     index = defaultdict(list)
     for group in study.GROUPS:
@@ -145,11 +150,13 @@ def generate(args):
                     if not target or target_pos < 0 or target_body.count(target) != 1: raise ValueError('unsupported target layout')
                     row = {'id': len(rows), 'source': name, 'source_offset': offset, 'source_size': len(payload),
                            'source_sha256': sha(payload), 'width': tex.m_Width, 'height': tex.m_Height,
-                           'mips': tex.m_MipCount, 'source_format': int(src.m_TextureFormat), 'target_format': int(tex.m_TextureFormat), 'normal': prior.get('normal', False),
+                           'mips': tex.m_MipCount, 'source_format': int(src.m_TextureFormat), 'target_format': int(tex.m_TextureFormat), 'normal': prior.get('normal', False), 'quality': prior.get('quality', False),
                            'target_size': len(target), 'target_sha256': sha(target),
                            'fragments': fragments(parts, obj.byte_start + target_pos, len(target))}
                     # Verify the record is actually reproducible before blanking it.
-                    if convert_texture(payload, row) != target: raise ValueError('converted target differs')
+                    if type(row['quality']) is not bool or (row['quality'] and (row['normal'] or row['target_format'] != 47)):
+                        raise ValueError('invalid quality texture metadata')
+                    if convert_texture(payload, row, quality) != target: raise ValueError('converted target differs')
                     rows.append(row)
             if not rows: raise ValueError('no textures selected')
             with zipfile.ZipFile(output / 'template.obb', 'x') as zout:
@@ -172,6 +179,7 @@ def restore(args, convert=convert_texture):
     from contextlib import ExitStack
     source, template, plan_file = (p.resolve(strict=True) for p in (args.steam_data, args.template, args.plan))
     output = new_output(args.output, (source, template, plan_file))
+    quality = study.load_quality_encoder(args.quality_library) if getattr(args, 'quality_library', None) else None
     plan = json.loads(plan_file.read_text())
     if plan.get('schema') != 1 or plan.get('kind') != 'experimental-converted-steam-texture-offsets' or plan.get('template_sha256') != file_hash(template): raise ValueError('plan or template differs')
     rows, hashes = plan.get('records'), plan.get('sources')
@@ -188,6 +196,8 @@ def restore(args, convert=convert_texture):
             if (any(type(row.get(k)) is not int for k in ('width', 'height', 'mips', 'source_format', 'target_format')) or
                     not 0 < row['width'] <= 4096 or not 0 < row['height'] <= 4096 or not 0 < row['mips'] <= 32 or
                     row['source_format'] not in (1, 3, 4, 10, 12, 25) or type(row.get('normal', False)) is not bool or
+                    type(row.get('quality', False)) is not bool or
+                    (row.get('quality', False) and (row.get('normal', False) or row['target_format'] != 47 or row['width'] > 2048 or row['height'] > 2048)) or
                     (row.get('normal', False) and (row['source_format'], row['target_format']) != (12, 34)) or
                     (not row.get('normal', False) and row['target_format'] not in (4, 45, 47))):
                 raise ValueError('invalid texture conversion metadata')
@@ -202,7 +212,7 @@ def restore(args, convert=convert_texture):
             if position != row['target_size']: raise ValueError('incomplete texture fragments')
             stream = streams[row['source']]; stream.seek(offset); payload = stream.read(size)
             if len(payload) != size or sha(payload) != row['source_sha256']: raise ValueError('source texture differs')
-            result = convert(payload, row)
+            result = convert_texture(payload, row, quality) if row.get('quality', False) else convert(payload, row)
             if len(result) != row['target_size'] or sha(result) != row['target_sha256']: raise ValueError('converted texture differs')
             converted[i] = result
     created = False
@@ -228,6 +238,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__); sub = p.add_subparsers(dest='command', required=True)
     for command in ('generate', 'restore'):
         s = sub.add_parser(command); s.add_argument('--steam-data', type=Path, required=True); s.add_argument('--output', type=Path, required=True)
+        s.add_argument('--quality-library', type=Path, help='optional experimental desktop quality encoder')
         if command == 'generate': s.add_argument('--obb', type=Path, required=True); s.add_argument('--manifest', type=Path, required=True)
         else: s.add_argument('--template', type=Path, required=True); s.add_argument('--plan', type=Path, required=True)
     args = p.parse_args(); (generate if args.command == 'generate' else restore)(args)

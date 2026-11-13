@@ -69,5 +69,15 @@ class ResearchChainTests(unittest.TestCase):
             first = module.commands(a)[0][1]
             self.assertEqual(first[first.index('--platform') + 1], 'windows')
 
+    def test_quality_mode_builds_and_uses_both_quality_libraries(self):
+        with tempfile.TemporaryDirectory() as temp:
+            a = self.args(Path(temp)); a.quality_textures = True
+            a.host_library = None; a.android_library = None
+            steps = dict(module.commands(a))
+            self.assertTrue(steps['host texture converter'][1].endswith('build-etc2-quality-jni.py'))
+            self.assertIn('--target', steps['Android texture converter'])
+            for name in ('converted textures', 'texture plan'):
+                self.assertIn('--quality-library', steps[name])
+
 
 if __name__ == '__main__': unittest.main()
