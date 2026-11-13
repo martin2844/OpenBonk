@@ -25,7 +25,18 @@ This compiles the `Steam*.java` sources and checks that the three generated Java
 
 ## Isolated Unity workspace
 
-If you already have a compatible reconstructed Unity project with `Assets`, `Packages` and `ProjectSettings`, the checkout can overlay its code into a separate local copy:
+An experimental local export step uses AssetRipper.GUI.Web 2.0.0 and a game installation provided by the user:
+
+```sh
+python3 tools/export-steam-unity-project.py \
+  --game /path/to/Steam/steamapps/common/Megabonk \
+  --assetripper /path/to/AssetRipper.GUI.Free \
+  --output /path/to/new-local-export
+```
+
+On systems that need it, add `--runner steam-run`. The tool starts AssetRipper on a loopback-only server, retains a local log, and requires a new output directory. `--check` validates prerequisites. The exported game assets and log stay local; this does not by itself produce an APK.
+
+The checkout can overlay its code into a separate local copy of a compatible exported Unity project with `Assets`, `Packages` and `ProjectSettings`:
 
 ```sh
 python3 tools/assemble-unity-workspace.py \
