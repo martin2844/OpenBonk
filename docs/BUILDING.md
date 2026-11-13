@@ -297,7 +297,7 @@ python3 tools/check-unity-gameplay.py \
   --output /path/to/new-private-check-logs
 ```
 
-Add `--runner steam-run` if needed. These checks exercise input bindings, menu A/B swapping, chest skipping and navigation, challenge completion and boss bars. They passed in the prepared `043a365` workspace above. The tool checks success markers and exit status, and its logs remain local. It does not exercise the APK, physical controls, rendering or a complete game session.
+Add `--runner steam-run` if needed. These checks exercise input bindings, menu A/B swapping, chest skipping and navigation, challenge completion, boss bars and camera fading. They passed in the prepared `043a365` workspace above. The tool checks success markers and exit status, and its logs remain local. It does not exercise the APK, physical controls, rendering or a complete game session.
 
 The same build's seven restoration stages were also run in sequence on the iPlay; each reproduced the 922 expected entries. To repeat this private device check with a completed research directory and authorized Android device:
 
@@ -321,6 +321,10 @@ python3 tools/compare-unity-build-content.py \
 ```
 
 The report contains game-derived names and must remain private. It compares names and counts, not object references, streamed payloads, bundles, code, visual fidelity or gameplay. In one local comparison, an installed iPlay `com.megabonk.nativeport.splittest` APK/OBB and the later `043a365` research runtime plus a reconstructed OBB with the optional font and resource conversions had the same 2,349 MonoScript identities and the same named mesh, animation, audio, sprite, controller and GameObject counts. Seven material names occurred twice in the reference and once in the research build; two further grass-related materials occurred only in the reference. Three texture names differed after the documented case-collision renames; one decoded identically in a local comparison and two had pixel differences. This installed reference is not necessarily the same build used on the Retroid, and these observations do not establish parity.
+
+A separate local type-tree inspection matched all 86 `CameraFadeObject` components by scene and GameObject ID across those two OBBs. Their renderer and fade-material references matched, including six null material references present in both. This checks that specific wiring only; it does not establish that the materials render correctly or that other scene references match.
+
+For the three renamed texture pairs in that comparison, the decoded level-zero dimensions matched. The skull pair was identical; the retaliation pair had mean alpha error 0.379 and maximum alpha error 2 on a 0–255 scale; the bush pair's alpha matched. Their color values differed for the latter two. These pixel comparisons do not establish how the textures look in motion or on a device.
 
 Add `--runner steam-run` when needed. The check transfers game data to a temporary directory on the selected device and attempts to remove it afterward. It checks reconstruction only; it does not test the launcher, appearance, controls or gameplay. All build artifacts and game data remain private.
 

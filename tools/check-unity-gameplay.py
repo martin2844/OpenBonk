@@ -22,6 +22,7 @@ CHECKS = (
     ('ChestNavigationBindingCheck', 'PASSED', True),
     ('ChallengeShrinePlayCheck', 'PASS', True),
     ('BossHealthBarPlayCheck', 'PASS', True),
+    ('CameraFadeObjectPortCheck', 'passed', False),
 )
 
 
@@ -77,7 +78,7 @@ def main():
         if rsp.is_file() and not rsp.is_symlink() and rsp.read_bytes() == DEFINES:
             rsp.unlink()
             if meta.is_file() and not meta.is_symlink(): meta.unlink()
-    print('Six Unity component checks passed. Android gameplay remains unverified.')
+    print('Seven Unity component checks passed. Android gameplay remains unverified.')
 
 
 if __name__ == '__main__': main()
