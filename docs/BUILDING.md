@@ -219,6 +219,23 @@ The research launcher builder accepts `--animation-plan` and `--animation-interm
 
 The research launcher builder accepts `--object-plan` and `--object-intermediate-obb` together with the animation, cubemap, mesh, texture and audio inputs. The experimental launcher restores exact objects first, followed by the six stages described here. Desktop integration checked each plan's failure and rollback and successful installation; a standalone iPlay test ran all seven stages and matched the desktop OBB checksum. The APK compiled, but interactive import and gameplay have not been tested. Other game data remains in the template, so it must stay private.
 
+`tools/build-local-research-chain.py` automates the private research sequence from an already-built local runtime APK and OBB, matching Gradle export and isolated Unity workspace. It generates the conversion studies, seven plans and canonical intermediates, verifies each reconstruction, then builds the debug-signed research launcher. For example:
+
+```sh
+python3 tools/build-local-research-chain.py \
+  --steam-data /path/to/Megabonk_Data \
+  --runtime-obb /path/to/local-runtime.main.obb \
+  --runtime-apk /path/to/local-runtime.apk \
+  --gradle-project /path/to/local-gradle-export \
+  --unity-project /path/to/isolated-unity-workspace \
+  --unity-editor /path/to/Unity/2023.2.22f1/Editor \
+  --json-jar /path/to/json-20180813.jar \
+  --application-id com.example.openbonkresearch \
+  --output /path/to/new-local-research-directory
+```
+
+The active Python environment needs UnityPy and its texture dependencies; a C++ compiler, the Unity Android NDK and an existing compatible Gradle cache are also required. Add `--runner steam-run` where needed, and run Python within a compatible environment if its native libraries require one. Optional `--steam-zip`, `--host-library`, `--android-library`, `--decoder` and `--gradle-user-home` reuse local inputs; otherwise the script creates the ZIP and builds its native tools. `--check` validates only initial inputs. One local run with supplied ZIP and libraries completed all 26 stages; another generated those inputs and completed all 30 stages. Both seven-stage preparations reproduced the expected OBB on an iPlay. The command does not create the initial Unity workspace, runtime or Gradle export, establish visual/gameplay fidelity, or remove all game content. Its output directory, logs, ZIP and APK must remain private.
+
 For local audio research, `tools/experimental-steam-audio.py` substitutes matching Steam FSB audio into a newly built OBB after checking the clip metadata and FSB format. `tools/verify-experimental-steam-audio.py` checks the substitution and decodes both versions with UnityPy's `fmod_toolkit` dependency. In one local test, all 63 pairs decoded with matching channel count, sample rate, sample width and frame count; the remaining 796 OBB entries matched. The modified build reached Forest on an iPlay tablet without a recorded audio error. This does not establish audible or perceptual equivalence.
 
 `tools/experimental-steam-audio-plan.py` can create a local offset-and-hash plan and an OBB template with those 63 audio resources blanked, then restore them from the matching Steam data. One local round trip restored 9,996,992 audio bytes and reproduced all 922 OBB entries byte-for-byte. The template still contains other game data, and the plan targets that specific build and Steam input; neither tool produces a redistributable APK.
