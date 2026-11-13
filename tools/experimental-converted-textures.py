@@ -7,6 +7,7 @@ Requires UnityPy, Pillow and UnityPy's texture encoding dependencies.
 """
 import argparse
 from collections import Counter, defaultdict
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -16,6 +17,18 @@ ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'assets/bin/Data/'
 GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
+
+
+def select_source(target, candidates, texture=lambda item: item):
+    """Select only metadata-compatible candidates with identical image payloads."""
+    if target.m_ImageCount != 1: return None
+    keys = ('m_MipCount', 'm_ImageCount', 'm_ColorSpace')
+    compatible = [item for item in candidates if all(getattr(target, key, None) == getattr(texture(item), key, None) for key in keys)]
+    if not compatible: return None
+    if len(compatible) > 1:
+        fingerprints = {(int(texture(item).m_TextureFormat), hashlib.sha256(bytes(texture(item).get_image_data())).digest()) for item in compatible}
+        if len(fingerprints) != 1: return None
+    return compatible[0]
 
 
 def mip_size(fmt, width, height):
@@ -94,10 +107,8 @@ def run(args):
                     if obj.type.name != 'Texture2D': continue
                     target = obj.read()
                     candidates = index[(target.m_Name, target.m_Width, target.m_Height)]
-                    if len(candidates) != 1: outcomes['missing_or_ambiguous'] += 1; continue
-                    src = candidates[0]
-                    if any(getattr(target, k, None) != getattr(src, k, None) for k in ('m_MipCount', 'm_ImageCount', 'm_ColorSpace')) or target.m_ImageCount != 1:
-                        outcomes['metadata_mismatch'] += 1; continue
+                    src = select_source(target, candidates)
+                    if src is None: outcomes['missing_or_ambiguous'] += 1; continue
                     normal = target.m_Name in NORMAL_MAPS and src.m_TextureFormat == 12 and target.m_TextureFormat == 34
                     if target.m_TextureFormat not in (4, 45, 47) and not normal or src.m_TextureFormat not in (1, 3, 4, 10, 12, 25):
                         outcomes['unsupported_format'] += 1; continue

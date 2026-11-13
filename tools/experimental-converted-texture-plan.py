@@ -112,8 +112,9 @@ def generate(args):
                     if key not in objects: raise ValueError('missing target texture')
                     obj = objects[key]; tex = obj.read()
                     found = index[(tex.m_Name, tex.m_Width, tex.m_Height)]
-                    if len(found) != 1 or tex.m_Name != prior['name']: raise ValueError('source mapping differs')
-                    src_group, src_obj, src = found[0]
+                    chosen_source = study.select_source(tex, found, texture=lambda item: item[2])
+                    if chosen_source is None or tex.m_Name != prior['name']: raise ValueError('source mapping differs')
+                    src_group, src_obj, src = chosen_source
                     if (any(getattr(tex, k, None) != getattr(src, k, None) for k in ('m_MipCount', 'm_ImageCount', 'm_ColorSpace')) or
                             int(tex.m_TextureFormat) != prior['target_format'] or int(src.m_TextureFormat) != prior['source_format']):
                         raise ValueError('texture metadata differs')

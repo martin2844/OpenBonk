@@ -9,6 +9,19 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_duplicate_sources_must_have_identical_payload_and_format(self):
+        class Texture:
+            m_MipCount, m_ImageCount, m_ColorSpace = 1, 1, 0
+            def __init__(self, data, fmt=12): self.data, self.m_TextureFormat = data, fmt
+            def get_image_data(self): return self.data
+        target = Texture(b'target')
+        first, same, different = Texture(b'same'), Texture(b'same'), Texture(b'different')
+        self.assertIs(module.select_source(target, [first, same]), first)
+        self.assertIsNone(module.select_source(target, [first, different]))
+        self.assertIsNone(module.select_source(target, [first, Texture(b'same', 10)]))
+        different.m_MipCount = 2
+        self.assertIs(module.select_source(target, [first, different]), first)
+
     def test_mip_sizes_round_blocks_up(self):
         self.assertEqual(module.mip_size(45, 5, 3), 16)
         self.assertEqual(module.mip_size(34, 5, 3), 16)
