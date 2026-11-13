@@ -7,6 +7,7 @@ import java.util.*;
 /** Standalone local-only check; fixtures contain game data. */
 public final class SteamConvertedTextures {
     static native byte[] convertMip(byte[] source, int width, int height, int sourceFormat, int targetFormat);
+    static native byte[] convertQualityMip(byte[] source, int width, int height, int sourceFormat);
     static native byte[] convertNormalMip(byte[] source, int width, int height, int targetFormat);
     private static final class Counts { int total, equal, failed; }
     public static void main(String[] args) throws Exception {
