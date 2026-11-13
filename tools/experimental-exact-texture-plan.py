@@ -121,7 +121,7 @@ def generate(args):
                     key = (tex.m_Name, tex.m_Width, tex.m_Height, tex.m_TextureFormat, tex.m_MipCount)
                     matches = []
                     for source_group, other, candidate in index[key]:
-                        if bytes(candidate.image_data) != payload: continue
+                        if bytes(candidate.get_image_data()) != payload: continue
                         data = other.get_raw_data()
                         stream = candidate.m_StreamData
                         if stream.path:
