@@ -33,7 +33,7 @@ class RuntimeBuildTest(unittest.TestCase):
         self.out = self.root / 'result'
 
     def write_editor(self, body):
-        self.editor.write_text('#!' + sys.executable + '\n' + body)
+        self.editor.write_text('#!' + sys.executable + '\nimport sys\nfrom pathlib import Path\nPath(sys.argv[sys.argv.index("-logFile")+1]).write_text("")\n' + body)
         self.editor.chmod(0o700)
 
     def run_tool(self, *extra):
@@ -72,6 +72,14 @@ class RuntimeBuildTest(unittest.TestCase):
         self.assertNotEqual(self.run_tool().returncode, 0)
         self.assertEqual(rsp.read_text(), 'keep')
         self.assertFalse(self.out.exists())
+
+    def test_missing_localization_settings_in_build_log_fails(self):
+        self.write_editor("import os,sys\nfrom pathlib import Path\nPath(sys.argv[sys.argv.index('-logFile')+1]).write_text('Exception: There is no active LocalizationSettings.')\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android'\n(p/'Megabonk-arm64-launcher-test.apk').write_bytes(b'apk')\n")
+        result = self.run_tool('--embedded')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('without localization settings', result.stderr)
+        self.assertTrue(self.out.is_dir())
+        self.assertFalse((self.project / 'Assets/csc.rsp').exists())
 
     def test_gradle_export_requires_expected_files(self):
         self.write_editor("import os,sys\nfrom pathlib import Path\nassert sys.argv[sys.argv.index('-executeMethod')+1] == 'NativeAndroidBuild.ExportArm64RuntimeGradleProject'\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android/OpenBonk-gradle-project'\nfor f in ('settings.gradle','launcher/build.gradle','unityLibrary/build.gradle'):\n q=p/f; q.parent.mkdir(parents=True,exist_ok=True); q.write_text('fixture')\n")

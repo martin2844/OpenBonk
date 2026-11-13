@@ -110,6 +110,10 @@ def main():
                 rsp_meta.unlink()
     if status:
         raise SystemExit(f'Unity exited with status {status}; inspect the local log: {log}')
+    if not log.is_file():
+        raise SystemExit(f'Unity did not create its build log: {log}')
+    if 'There is no active LocalizationSettings.' in log.read_text(errors='replace'):
+        raise SystemExit(f'Unity opened a scene without localization settings; inspect the local log: {log}')
     if args.gradle_project:
         gradle = output / 'android/OpenBonk-gradle-project'
         for relative in ('settings.gradle', 'launcher/build.gradle', 'unityLibrary/build.gradle'):

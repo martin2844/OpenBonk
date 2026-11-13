@@ -175,6 +175,8 @@ The project must already be prepared, and must contain the supported bundles und
 
 The corrected GUID and collection preparation also completed through `build-local-from-steam.py` from a clean clone at commit `9bf971e`: the resulting local embedded APK installed and its launcher started on the iPlay, and the player build log had no localization `NullReferenceException` entries. The newer default-table item check was then run separately against that fresh workspace and passed for the 17 English and Spanish descriptions. The APK embeds game data and remains private; neither launcher startup nor editor checks establish gameplay parity.
 
+During Android scene preparation and the player build, the build entry point temporarily uses the reconstructed project localization settings and restores the previous editor instance afterward. An editor check opened all five scenes without a missing-settings error. A subsequent local embedded APK built and started its launcher on an iPlay; its build log contained zero `There is no active LocalizationSettings` errors, compared with 13 in the earlier build, and the GUID and item checks passed afterward. The runtime builder now rejects a successful Unity exit if this specific error occurs in its log. In-game localization remains unverified by these checks.
+
 The observed Steam export also has Addressables files that conflict with Unity's newly generated Android files at player build time. After successfully rebuilding Android Addressables, back up and remove conflicting exported files from the isolated workspace:
 
 ```sh

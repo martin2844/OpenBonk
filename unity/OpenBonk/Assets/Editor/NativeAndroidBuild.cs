@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Localization.Settings;
 using UnityEngine.SceneManagement;
 
 /// <summary>Reproducible native Android player build entry points.</summary>
@@ -303,6 +304,20 @@ public static class NativeAndroidBuild
 
 	private static void BuildApk(ScriptingImplementation backend, AndroidArchitecture architecture, string fileName, bool sanitizeAndroidScenes = false, string applicationId = "com.megabonk.nativeport")
 	{
+		var previous = LocalizationSettings.HasSettings ? LocalizationSettings.Instance : null;
+		var projectSettings = sanitizeAndroidScenes
+			? AssetDatabase.LoadAssetAtPath<LocalizationSettings>("Assets/MonoBehaviour/Localization Settings.asset")
+			: null;
+		try
+		{
+			if (projectSettings != null) LocalizationSettings.Instance = projectSettings;
+			BuildApkCore(backend, architecture, fileName, sanitizeAndroidScenes, applicationId);
+		}
+		finally { if (projectSettings != null) LocalizationSettings.Instance = previous; }
+	}
+
+	private static void BuildApkCore(ScriptingImplementation backend, AndroidArchitecture architecture, string fileName, bool sanitizeAndroidScenes, string applicationId)
+	{
 		const BuildTargetGroup targetGroup = BuildTargetGroup.Android;
 
 		EditorUserBuildSettings.SwitchActiveBuildTarget(targetGroup, BuildTarget.Android);
@@ -329,7 +344,7 @@ public static class NativeAndroidBuild
 		string absoluteOutput = BuildPath(projectRoot, Path.Combine("android", fileName));
 		Directory.CreateDirectory(Path.GetDirectoryName(absoluteOutput));
 
-		string[] scenes = sanitizeAndroidScenes ? PrepareAndroidScenes() : new[]
+		string[] scenes = sanitizeAndroidScenes ? PrepareAndroidScenesWithLocalization() : new[]
 		{
 			"Assets/Scenes/BootScene.unity",
 			"Assets/Scenes/MainMenu.unity",
@@ -441,6 +456,22 @@ public static class NativeAndroidBuild
 			foreach (string pluginPath in managedPluginPaths)
 				AssetDatabase.ImportAsset(pluginPath, ImportAssetOptions.ForceUpdate);
 		}
+	}
+
+	private static string[] PrepareAndroidScenesWithLocalization()
+	{
+		// Opening the extracted scenes invokes LocalizeStringEvent.OnEnable in
+		// the editor. Use the reconstructed project settings while preparing the
+		// copies, then restore the editor's previous instance.
+		var previous = LocalizationSettings.HasSettings ? LocalizationSettings.Instance : null;
+		var projectSettings = AssetDatabase.LoadAssetAtPath<LocalizationSettings>("Assets/MonoBehaviour/Localization Settings.asset");
+		if (projectSettings == null) return PrepareAndroidScenes();
+		try
+		{
+			LocalizationSettings.Instance = projectSettings;
+			return PrepareAndroidScenes();
+		}
+		finally { LocalizationSettings.Instance = previous; }
 	}
 
 	private static string[] PrepareAndroidScenes()
