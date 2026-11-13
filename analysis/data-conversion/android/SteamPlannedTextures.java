@@ -14,7 +14,7 @@ public final class SteamPlannedTextures {
     private static final String PREFIX = "assets/bin/Data/";
     private static final class Texture {
         String source, inputHash, outputHash, decodedHash; long inputOffset, convertedOffset;
-        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat;
+        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat; boolean normal;
     }
     private static final class Fragment {
         Texture texture; String entry; int targetOffset, convertedOffset, size;
@@ -67,7 +67,7 @@ public final class SteamPlannedTextures {
     private static int mipSize(int fmt, int w, int h) throws IOException {
         long n;
         if (fmt == 1 || fmt == 3 || fmt == 4) n = (long)w * h * fmt;
-        else if (fmt == 10 || fmt == 12 || fmt == 25 || fmt == 45 || fmt == 47) n = (long)((w + 3) / 4) * ((h + 3) / 4) * (fmt == 10 || fmt == 45 ? 8 : 16);
+        else if (fmt == 10 || fmt == 12 || fmt == 25 || fmt == 34 || fmt == 45 || fmt == 47) n = (long)((w + 3) / 4) * ((h + 3) / 4) * (fmt == 10 || fmt == 34 || fmt == 45 ? 8 : 16);
         else throw new IOException("unsupported texture format");
         if (n <= 0 || n > MAX_CLIP) throw new IOException("invalid mip size"); return (int)n;
     }
@@ -100,11 +100,15 @@ public final class SteamPlannedTextures {
                 t.inputOffset = row.getLong("source_offset"); t.inputSize = row.getInt("source_size"); t.outputSize = row.getInt("target_size");
                 t.sourceFormat = row.getInt("source_format");
                 if (cubemaps) { t.width = 512; t.height = 512; t.mips = 6; t.targetFormat = 45; t.decodedHash = checkedHash(row.getString("decoded_sha256")); }
-                else { t.width = row.getInt("width"); t.height = row.getInt("height"); t.mips = row.getInt("mips"); t.targetFormat = row.getInt("target_format"); }
+                else {
+                    t.width = row.getInt("width"); t.height = row.getInt("height"); t.mips = row.getInt("mips"); t.targetFormat = row.getInt("target_format");
+                    if (row.has("normal") && !(row.get("normal") instanceof Boolean)) throw new IOException("invalid normal flag");
+                    t.normal = row.has("normal") && row.getBoolean("normal");
+                }
                 if (!sourceHashes.containsKey(t.source) || t.inputOffset < 0 || t.inputSize <= 0 || t.inputSize > MAX_CLIP || t.inputOffset > MAX_FILE - t.inputSize ||
                     t.outputSize <= 0 || t.outputSize > MAX_CLIP || t.width <= 0 || t.width > 4096 || t.height <= 0 || t.height > 4096 || t.mips <= 0 || t.mips > 32 ||
                     !(cubemaps ? (t.sourceFormat == 12 || t.sourceFormat == 29) : (t.sourceFormat == 1 || t.sourceFormat == 3 || t.sourceFormat == 4 || t.sourceFormat == 10 || t.sourceFormat == 12 || t.sourceFormat == 25)) ||
-                    !(t.targetFormat == 4 || t.targetFormat == 45 || t.targetFormat == 47)) throw new IOException("invalid texture metadata");
+                    !(t.normal ? (!cubemaps && t.sourceFormat == 12 && t.targetFormat == 34) : (t.targetFormat == 4 || t.targetFormat == 45 || t.targetFormat == 47))) throw new IOException("invalid texture metadata");
                 if (cubemaps && (!t.source.equals("sharedassets1.assets.resS") || t.inputSize > 4 * 1024 * 1024 || t.outputSize != 6 * 131072)) throw new IOException("invalid cubemap metadata");
                 t.convertedOffset = total; total += t.outputSize; if (total > MAX_TOTAL) throw new IOException("texture limit exceeded");
                 JSONArray fs = row.getJSONArray("fragments"); int position = 0;
@@ -168,7 +172,7 @@ public final class SteamPlannedTextures {
                         int n = mipSize(sourceFormat, w, h), wanted = mipSize(t.targetFormat, w, h);
                         if (n > input.length - inputPos || wanted > t.outputSize - outputPos) throw new IOException("invalid mip bounds");
                         byte[] mip;
-                        try { mip = SteamConvertedTextures.convertMip(Arrays.copyOfRange(input, inputPos, inputPos + n), w, h, sourceFormat, t.targetFormat); }
+                        try { byte[] part = Arrays.copyOfRange(input, inputPos, inputPos + n); mip = t.normal ? SteamConvertedTextures.convertNormalMip(part, w, h, t.targetFormat) : SteamConvertedTextures.convertMip(part, w, h, sourceFormat, t.targetFormat); }
                         catch (UnsatisfiedLinkError e) { throw new IOException("texture converter unavailable", e); }
                         if (mip == null || mip.length != wanted) throw new IOException("texture conversion failed");
                         out.write(mip); hash.update(mip); inputPos += n; outputPos += wanted;

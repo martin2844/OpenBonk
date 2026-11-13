@@ -55,5 +55,15 @@ class ConvertedTexturePlanTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.restore()
         self.assertFalse(self.output.exists())
 
+    def test_normal_format_requires_explicit_flag_and_dxt5_input(self):
+        self.row.update(source_format=12, target_format=34, normal=True)
+        self.restore()
+        self.output.unlink()
+        self.row['normal'] = False
+        with self.assertRaises(ValueError): self.restore()
+        self.row.update(normal=True, source_format=4)
+        with self.assertRaises(ValueError): self.restore()
+        self.assertFalse(self.output.exists())
+
 
 if __name__ == '__main__': unittest.main()

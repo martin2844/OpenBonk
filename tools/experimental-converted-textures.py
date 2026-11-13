@@ -15,12 +15,13 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'assets/bin/Data/'
 GROUPS = ('sharedassets1', 'sharedassets2')
+NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
 
 
 def mip_size(fmt, width, height):
     if width < 1 or height < 1: raise ValueError('invalid dimensions')
     if fmt in (1, 3, 4): return width * height * fmt
-    if fmt in (10, 12, 25, 45, 47): return ((width + 3) // 4) * ((height + 3) // 4) * (8 if fmt in (10, 45) else 16)
+    if fmt in (10, 12, 25, 34, 45, 47): return ((width + 3) // 4) * ((height + 3) // 4) * (8 if fmt in (10, 34, 45) else 16)
     raise ValueError('unsupported texture format')
 
 
@@ -35,6 +36,18 @@ def mip_slices(data, fmt, width, height, count):
         offset += size
     if offset != len(data): raise ValueError('unexpected extra mip data')
     return out
+
+
+def normal_image(image):
+    """Convert DXT5nm's alpha/green channels to an RGB normal map."""
+    from PIL import Image
+    import math
+    image = image.convert('RGBA')
+    x, y = image.getchannel('A'), image.getchannel('G')
+    lut = bytes(round(math.sqrt(max(0, 1 - (a / 127.5 - 1) ** 2 - (b / 127.5 - 1) ** 2)) * 127.5 + 127.5)
+                for a in range(256) for b in range(256))
+    z = Image.frombytes('L', image.size, bytes(lut[(a << 8) | b] for a, b in zip(x.tobytes(), y.tobytes())))
+    return Image.merge('RGBA', (x, y, z, Image.new('L', image.size, 255)))
 
 
 def parts(archive, group):
@@ -85,9 +98,10 @@ def run(args):
                     src = candidates[0]
                     if any(getattr(target, k, None) != getattr(src, k, None) for k in ('m_MipCount', 'm_ImageCount', 'm_ColorSpace')) or target.m_ImageCount != 1:
                         outcomes['metadata_mismatch'] += 1; continue
-                    if target.m_TextureFormat not in (4, 45, 47) or src.m_TextureFormat not in (1, 3, 4, 10, 12, 25):
+                    normal = target.m_Name in NORMAL_MAPS and src.m_TextureFormat == 12 and target.m_TextureFormat == 34
+                    if target.m_TextureFormat not in (4, 45, 47) and not normal or src.m_TextureFormat not in (1, 3, 4, 10, 12, 25):
                         outcomes['unsupported_format'] += 1; continue
-                    if 'normal' in target.m_Name.lower(): outcomes['normal_excluded'] += 1; continue
+                    if 'normal' in target.m_Name.lower() and not normal: outcomes['normal_excluded'] += 1; continue
                     old = bytes(target.image_data)
                     body = obj.get_raw_data()
                     pos = body.find(old)
@@ -99,6 +113,7 @@ def run(args):
                         chunks = []
                         for w, h, payload in source_mips:
                             image = converter.parse_image_data(payload, w, h, src.m_TextureFormat, src.object_reader.version, src.object_reader.platform)
+                            if normal: image = normal_image(image)
                             encoded, fmt = converter.image_to_texture2d(image, target.m_TextureFormat, target.object_reader.platform, target.m_PlatformBlob)
                             if int(fmt) != target.m_TextureFormat or len(encoded) != mip_size(target.m_TextureFormat, w, h): raise ValueError('encoded mip differs')
                             chunks.append(encoded)
@@ -116,7 +131,7 @@ def run(args):
                     if asset[start:start + len(old)] != old or modified[start:start + len(old)] != old: raise ValueError('target texture offset differs or overlaps')
                     modified[start:start + len(old)] = new
                     rows.append({'group': group, 'target_id': obj.path_id, 'name': target.m_Name,
-                                 'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat),
+                                 'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat), 'normal': normal,
                                  'bytes': len(old), 'top_mean_rgba_error': [round(x, 3) for x in mean]})
                     outcomes['converted'] += 1
                 offset = 0

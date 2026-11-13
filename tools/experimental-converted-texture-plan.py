@@ -73,6 +73,7 @@ def convert_texture(payload, row):
     chunks = []
     for w, h, data in source_mips:
         image = converter.parse_image_data(data, w, h, row['source_format'], (2023, 2, 22, 0), 19)
+        if row.get('normal', False): image = study.normal_image(image)
         encoded, fmt = converter.image_to_texture2d(image, row['target_format'], 13, None)
         if int(fmt) != row['target_format'] or len(encoded) != study.mip_size(row['target_format'], w, h): raise ValueError('converted mip differs')
         chunks.append(encoded)
@@ -135,7 +136,7 @@ def generate(args):
                     if not target or target_pos < 0 or target_body.count(target) != 1: raise ValueError('unsupported target layout')
                     row = {'id': len(rows), 'source': name, 'source_offset': offset, 'source_size': len(payload),
                            'source_sha256': sha(payload), 'width': tex.m_Width, 'height': tex.m_Height,
-                           'mips': tex.m_MipCount, 'source_format': int(src.m_TextureFormat), 'target_format': int(tex.m_TextureFormat),
+                           'mips': tex.m_MipCount, 'source_format': int(src.m_TextureFormat), 'target_format': int(tex.m_TextureFormat), 'normal': prior.get('normal', False),
                            'target_size': len(target), 'target_sha256': sha(target),
                            'fragments': fragments(parts, obj.byte_start + target_pos, len(target))}
                     # Verify the record is actually reproducible before blanking it.
@@ -177,7 +178,9 @@ def restore(args, convert=convert_texture):
             if type(row['target_size']) is not int or not 0 < row['target_size'] <= 64 * 1024 * 1024: raise ValueError('invalid target size')
             if (any(type(row.get(k)) is not int for k in ('width', 'height', 'mips', 'source_format', 'target_format')) or
                     not 0 < row['width'] <= 4096 or not 0 < row['height'] <= 4096 or not 0 < row['mips'] <= 32 or
-                    row['source_format'] not in (1, 3, 4, 10, 12, 25) or row['target_format'] not in (4, 45, 47)):
+                    row['source_format'] not in (1, 3, 4, 10, 12, 25) or type(row.get('normal', False)) is not bool or
+                    (row.get('normal', False) and (row['source_format'], row['target_format']) != (12, 34)) or
+                    (not row.get('normal', False) and row['target_format'] not in (4, 45, 47))):
                 raise ValueError('invalid texture conversion metadata')
             total += row['target_size']
             if total > 256 * 1024 * 1024: raise ValueError('texture limit exceeded')
