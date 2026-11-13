@@ -5,6 +5,7 @@ import com.openbonk.dataprep.SteamDiagnosticInputCheck;
 import com.openbonk.dataprep.SteamRuntimeRebase;
 import com.openbonk.dataprep.SteamVideoStorage;
 import com.openbonk.dataprep.SteamGeneratedAudio;
+import com.openbonk.dataprep.SteamPackedAudio;
 import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -35,9 +36,9 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
   try{
    String[] available=context.getAssets().list(ROOT);
    if(available!=null&&Arrays.asList(available).contains("generated-audio-mode")){
-    try(InputStream in=context.getAssets().open(ROOT+"generated-audio-mode")){
-     if(!"OPENBONK_GENERATED_AUDIO_RESEARCH_V1".equals(smallAscii(in,64)))throw new IOException("invalid generated audio mode");
-    }
+    String mode;
+    try(InputStream in=context.getAssets().open(ROOT+"generated-audio-mode")){mode=smallAscii(in,64);}
+    if(!"OPENBONK_GENERATED_AUDIO_RESEARCH_V1".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V2".equals(mode))throw new IOException("invalid generated audio mode");
     String expected;
     try(InputStream in=context.getAssets().open(ROOT+"generated-audio-plan.sha256")){expected=smallAscii(in,64);}
     if(!expected.matches("[0-9a-f]{64}"))throw new IOException("invalid generated audio checksum");
@@ -45,7 +46,15 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
     try(InputStream in=context.getAssets().open(ROOT+"generated-audio-template.obb")){copy(in,template,512L*1024*1024);}
     try(InputStream in=context.getAssets().open(ROOT+"generated-audio-plan.json")){copy(in,plan,1024L*1024);}
     if(progress!=null)progress.accept("Preparando audio");
-    SteamGeneratedAudio.restore(template,steam,plan,expected,output);
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V2")){
+     String packedExpected;
+     try(InputStream in=context.getAssets().open(ROOT+"packed-audio-plan.sha256")){packedExpected=smallAscii(in,64);}
+     if(!packedExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid packed audio checksum");
+     File packedPlan=temp.resolve("packed-audio-plan.json").toFile(),intermediate=temp.resolve("packed-audio-intermediate.obb").toFile();
+     try(InputStream in=context.getAssets().open(ROOT+"packed-audio-plan.json")){copy(in,packedPlan,1024L*1024);}
+     SteamPackedAudio.restore(template,steam,packedPlan,packedExpected,intermediate);
+     SteamGeneratedAudio.restore(intermediate,steam,plan,expected,output);
+    }else SteamGeneratedAudio.restore(template,steam,plan,expected,output);
     return;
    }
    File shared0=temp.resolve("shared0.zip").toFile(),obb=temp.resolve("base.obb").toFile(),plans=temp.resolve("plans").toFile();if(!plans.mkdir())throw new IOException("cannot create diagnostic inputs");

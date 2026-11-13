@@ -15,13 +15,17 @@ public final class GeneratedAudioIntegrationCheck {
     }
     private static void require(boolean condition) { if (!condition) throw new AssertionError(); }
     public static void main(String[] args) throws Exception {
-        if (args.length != 5) throw new IllegalArgumentException("new-dir template plan steam-zip expected-obb");
+        if (args.length != 5 && args.length != 6) throw new IllegalArgumentException("new-dir template plan steam-zip expected-obb [packed-plan]");
         Path root = Paths.get(args[0]); Files.createDirectory(root); Path assets = root.resolve("assets/openbonk-diagnostic"); Files.createDirectories(assets);
         Path cache = root.resolve("cache"); Files.createDirectory(cache); Path destination = root.resolve("data"); Files.createDirectory(destination);
         Files.write(assets.resolve("marker"), "OPENBONK_PRIVATE_DIAGNOSTIC_V1".getBytes(StandardCharsets.US_ASCII));
-        Files.write(assets.resolve("generated-audio-mode"), "OPENBONK_GENERATED_AUDIO_RESEARCH_V1".getBytes(StandardCharsets.US_ASCII));
+        Files.write(assets.resolve("generated-audio-mode"), (args.length == 6 ? "OPENBONK_GENERATED_AUDIO_RESEARCH_V2" : "OPENBONK_GENERATED_AUDIO_RESEARCH_V1").getBytes(StandardCharsets.US_ASCII));
         Files.copy(Paths.get(args[1]), assets.resolve("generated-audio-template.obb"));
         Files.copy(Paths.get(args[2]), assets.resolve("generated-audio-plan.json"));
+        if (args.length == 6) {
+            Files.copy(Paths.get(args[5]), assets.resolve("packed-audio-plan.json"));
+            Files.write(assets.resolve("packed-audio-plan.sha256"), sha(new File(args[5])).getBytes(StandardCharsets.US_ASCII));
+        }
         Path planHash = assets.resolve("generated-audio-plan.sha256");
         Files.write(planHash, "0000000000000000000000000000000000000000000000000000000000000000".getBytes(StandardCharsets.US_ASCII));
         File obb = destination.resolve("game.obb").toFile(), steam = destination.resolve("steam.zip").toFile();
@@ -30,6 +34,15 @@ public final class GeneratedAudioIntegrationCheck {
         String expectedHash = sha(new File(args[4]));
         SplitFileRecovery.Validator validObb = f -> { try { return sha(f).equals(expectedHash); } catch (Exception e) { return false; } };
         SplitFileRecovery.Validator validSteam = OriginalGameDataValidator::valid;
+        if (args.length == 6) {
+            Path packedHash = assets.resolve("packed-audio-plan.sha256");
+            Files.write(packedHash, "0000000000000000000000000000000000000000000000000000000000000000".getBytes(StandardCharsets.US_ASCII));
+            try (InputStream in = new FileInputStream(args[3])) {
+                try { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid packed plan accepted"); }
+                catch (IOException expected) { require(new String(Files.readAllBytes(obb.toPath()), StandardCharsets.US_ASCII).equals("old-obb")); require(new String(Files.readAllBytes(steam.toPath()), StandardCharsets.US_ASCII).equals("old-steam")); }
+            }
+            Files.write(packedHash, sha(new File(args[5])).getBytes(StandardCharsets.US_ASCII));
+        }
         try (InputStream in = new FileInputStream(args[3])) {
             try { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid plan accepted"); }
             catch (IOException expected) { require(new String(Files.readAllBytes(obb.toPath()), StandardCharsets.US_ASCII).equals("old-obb")); require(new String(Files.readAllBytes(steam.toPath()), StandardCharsets.US_ASCII).equals("old-steam")); }

@@ -67,6 +67,37 @@ def verify(template, plan_path, expected, runtime, gradle):
     return guid
 
 
+def verify_packed(template, plan_path, intermediate):
+    plan = json.loads(plan_path.read_text())
+    if plan.get('schema') != 1 or plan.get('kind') != 'experimental-packed-steam-audio-offsets' or plan.get('template_sha256') != digest(template):
+        raise ValueError('packed audio plan or template differs')
+    allowed = {'assets/bin/Data/sharedassets1.resource', 'assets/bin/Data/sharedassets2.resource'}
+    rows = plan.get('records')
+    if not isinstance(rows, list) or not rows or any(r.get('entry') not in allowed for r in rows):
+        raise ValueError('invalid packed audio records')
+    with zipfile.ZipFile(template) as base, zipfile.ZipFile(intermediate) as result:
+        names = base.namelist()
+        if len(names) != len(set(names)) or names != result.namelist() or not {r['entry'] for r in rows}.issubset(names):
+            raise ValueError('packed archive entries differ')
+        for name in names:
+            selected = sorted((r for r in rows if r['entry'] == name), key=lambda r: r['target_offset'])
+            if not selected:
+                if entry_digest(base, name) != entry_digest(result, name):
+                    raise ValueError('unrelated packed archive entry differs')
+                continue
+            a, b = base.read(name), result.read(name)
+            if len(a) != len(b): raise ValueError('packed resource length differs')
+            end = 0
+            for row in selected:
+                start, size = row['target_offset'], row['size']
+                if type(start) is not int or type(size) is not int or start < end or size <= 0 or start + size > len(a):
+                    raise ValueError('invalid packed range')
+                if a[end:start] != b[end:start] or any(a[start:start + size]) or hashlib.sha256(b[start:start + size]).hexdigest() != row['sha256']:
+                    raise ValueError('packed payload differs')
+                end = start + size
+            if a[end:] != b[end:]: raise ValueError('unrelated packed resource data differs')
+
+
 def property_value(value):
     result = []
     for c in str(value):
@@ -93,14 +124,19 @@ def main():
     p.add_argument('--application-id', required=True)
     p.add_argument('--runner', help='optional executable such as steam-run')
     p.add_argument('--gradle-user-home', type=Path, help='existing local Gradle cache')
+    p.add_argument('--packed-plan', type=Path, help='optional packed-audio plan for the combined research mode')
+    p.add_argument('--intermediate-obb', type=Path, help='canonical packed-audio restoration used by the single-audio plan')
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
     gradle, project, runtime, template, plan, expected, editor = [x.expanduser().resolve(strict=True) for x in
         (a.gradle_project, a.unity_project, a.runtime_apk, a.audio_template, a.audio_plan, a.expected_obb, a.unity_editor)]
+    if bool(a.packed_plan) != bool(a.intermediate_obb): p.error('packed plan and intermediate OBB must be supplied together')
+    packed = a.packed_plan.expanduser().resolve(strict=True) if a.packed_plan else None
+    intermediate = a.intermediate_obb.expanduser().resolve(strict=True) if a.intermediate_obb else None
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be a new directory')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected)):
+    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []))):
         p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
     if a.runner and not shutil.which(a.runner): p.error('configured runner not found')
@@ -117,7 +153,9 @@ def main():
     if a.gradle_user_home and not a.gradle_user_home.expanduser().resolve(strict=True).is_dir(): p.error('Gradle cache must be a directory')
     for path in gradle.rglob('*'):
         if path.is_symlink(): p.error('Gradle project must not contain symbolic links')
-    guid = verify(template, plan, expected, runtime, gradle)
+    if packed:
+        verify_packed(template, packed, intermediate)
+    guid = verify(intermediate or template, plan, expected, runtime, gradle)
     print('Local prototype prerequisites verified; output contains game data.', flush=True)
     if a.check:
         print('Check only; no APK was built.')
@@ -135,10 +173,13 @@ def main():
     assets = library / 'src/main/assets/openbonk-diagnostic'
     assets.mkdir()
     (assets / 'marker').write_bytes(b'OPENBONK_PRIVATE_DIAGNOSTIC_V1')
-    (assets / 'generated-audio-mode').write_bytes(b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1')
+    (assets / 'generated-audio-mode').write_bytes(b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1')
     shutil.copyfile(template, assets / 'generated-audio-template.obb')
     shutil.copyfile(plan, assets / 'generated-audio-plan.json')
     (assets / 'generated-audio-plan.sha256').write_text(digest(plan), encoding='ascii')
+    if packed:
+        shutil.copyfile(packed, assets / 'packed-audio-plan.json')
+        (assets / 'packed-audio-plan.sha256').write_text(digest(packed), encoding='ascii')
     (library / 'src/main/assets/unity_obb_guid').write_bytes(guid)
     result_hash = digest(expected)
     (launcher / 'SplitExpectedData.java').write_text('package com.megabonk.launcher;\nfinal class SplitExpectedData { static final String SHA256 = "' + result_hash + '", LEGACY_SHA256 = "", SECOND_LEGACY_SHA256 = "", THIRD_LEGACY_SHA256 = "", FOURTH_LEGACY_SHA256 = "", FIFTH_LEGACY_SHA256 = "", SIXTH_LEGACY_SHA256 = ""; }\n', encoding='ascii')

@@ -66,6 +66,18 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         MODULE.replace_once(properties, r'^unityProjectPath=.*$', 'unityProjectPath=new')
         self.assertEqual(properties.read_text(), 'unityProjectPath=new\nother=value\n')
 
+    def test_packed_template_ranges_and_unmodified_bytes(self):
+        packed, intermediate, plan = (self.root / n for n in ('packed.obb', 'intermediate.obb', 'packed.json'))
+        entry = 'assets/bin/Data/sharedassets1.resource'
+        with zipfile.ZipFile(packed, 'w') as z: z.writestr(entry, b'head' + bytes(4) + b'tail')
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'headcliptail')
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-packed-steam-audio-offsets',
+            'template_sha256': MODULE.digest(packed), 'records': [{'entry': entry, 'target_offset': 4,
+            'size': 4, 'sha256': hashlib.sha256(b'clip').hexdigest()}]}))
+        MODULE.verify_packed(packed, plan, intermediate)
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'headclipBAD!')
+        with self.assertRaises(ValueError): MODULE.verify_packed(packed, plan, intermediate)
+
 
 if __name__ == '__main__':
     unittest.main()
