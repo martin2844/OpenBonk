@@ -246,6 +246,39 @@ def replace_once(path, pattern, replacement, dotall=False):
     path.write_text(text, encoding='utf-8')
 
 
+def verify_research_platform(plan, platform):
+    inventories = json.loads((ROOT / 'tools/launcher-steam-inputs.json').read_text(encoding='utf-8'))['platforms']
+    selected = inventories[platform]; other = inventories['windows' if platform == 'linux' else 'linux']
+    sources = json.loads(plan.read_text(encoding='utf-8')).get('sources')
+    if not isinstance(sources, dict) or not sources: raise ValueError('research plan has no Steam sources')
+    if any(selected.get(name, {}).get('sha256') != value for name, value in sources.items()):
+        raise ValueError(platform + ' research plan uses incompatible Steam sources')
+    if not any(other.get(name, {}).get('sha256') != value for name, value in sources.items()):
+        raise ValueError('research plan does not distinguish Steam platforms')
+
+
+def verify_windows_research(root, expected, runtime, gradle):
+    """Validate a second complete seven-stage plan against the same runtime."""
+    canonical = root / 'canonical'
+    template = root / 'plans/objects/template.obb'
+    obj = root / 'plans/objects/plan.json'
+    paths = {name: canonical / (name + '-plan.json') for name in ('animation', 'cubemap', 'mesh', 'texture', 'packed', 'audio')}
+    outputs = {name: canonical / ('after-' + name + '.obb') for name in ('objects', 'animation', 'cubemap', 'mesh', 'texture', 'packed')}
+    final = canonical / 'final.obb'
+    for path in (template, obj, final, *paths.values(), *outputs.values()):
+        if path.is_symlink() or not path.is_file(): raise ValueError('incomplete Windows research inputs')
+    if digest(final) != digest(expected): raise ValueError('Windows and Linux final OBBs differ')
+    verify_research_platform(obj, 'windows')
+    verify_meshes(template, obj, outputs['objects'], objects=True)
+    verify_animations(outputs['objects'], paths['animation'], outputs['animation'])
+    verify_textures(outputs['animation'], paths['cubemap'], outputs['cubemap'], cubemaps=True)
+    verify_meshes(outputs['cubemap'], paths['mesh'], outputs['mesh'])
+    verify_textures(outputs['mesh'], paths['texture'], outputs['texture'])
+    verify_packed(outputs['texture'], paths['packed'], outputs['packed'])
+    verify(outputs['packed'], paths['audio'], final, runtime, gradle)
+    return template, obj, paths
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('gradle-project', 'unity-project', 'runtime-apk', 'audio-template', 'audio-plan', 'expected-obb', 'unity-editor', 'output'):
@@ -266,6 +299,7 @@ def main():
     p.add_argument('--animation-intermediate-obb', type=Path, help='canonical animation restoration used by the cubemap plan')
     p.add_argument('--object-plan', type=Path, help='optional exact object plan for combined research mode')
     p.add_argument('--object-intermediate-obb', type=Path, help='canonical object restoration used by the animation plan')
+    p.add_argument('--windows-research', type=Path, help='optional validated Windows seven-stage research output')
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
     gradle, project, runtime, template, plan, expected, editor = [x.expanduser().resolve(strict=True) for x in
@@ -288,10 +322,12 @@ def main():
     if bool(a.object_plan) != bool(a.object_intermediate_obb) or (a.object_plan and not animation_plan): p.error('object mode requires both object inputs and animation mode')
     object_plan = a.object_plan.expanduser().resolve(strict=True) if a.object_plan else None
     object_intermediate = a.object_intermediate_obb.expanduser().resolve(strict=True) if a.object_intermediate_obb else None
+    windows_research = a.windows_research.expanduser().resolve(strict=True) if a.windows_research else None
+    if windows_research and (not windows_research.is_dir() or not object_plan): p.error('Windows research requires a directory and complete seven-stage Linux inputs')
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be a new directory')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []), *([cubemap_plan, cubemap_intermediate] if cubemap_plan else []), *([animation_plan, animation_intermediate] if animation_plan else []), *([object_plan, object_intermediate] if object_plan else []))):
+    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []), *([cubemap_plan, cubemap_intermediate] if cubemap_plan else []), *([animation_plan, animation_intermediate] if animation_plan else []), *([object_plan, object_intermediate] if object_plan else []), *([windows_research] if windows_research else []))):
         p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
     if a.runner and not shutil.which(a.runner): p.error('configured runner not found')
@@ -323,6 +359,8 @@ def main():
     if packed:
         verify_packed(texture_intermediate or template, packed, intermediate)
     guid = verify(intermediate or template, plan, expected, runtime, gradle)
+    if windows_research: verify_research_platform(object_plan, 'linux')
+    windows = verify_windows_research(windows_research, expected, runtime, gradle) if windows_research else None
     print('Local prototype prerequisites verified; output contains game data.', flush=True)
     if a.check:
         print('Check only; no APK was built.')
@@ -366,6 +404,18 @@ def main():
     if object_plan:
         shutil.copyfile(object_plan, assets / 'object-plan.json')
         (assets / 'object-plan.sha256').write_text(digest(object_plan), encoding='ascii')
+    if windows:
+        win_template, win_object, win_plans = windows
+        dest = assets / 'windows'; dest.mkdir()
+        (assets / 'dual-platform').write_bytes(b'OPENBONK_DUAL_RESEARCH_V1')
+        (dest / 'generated-audio-mode').write_bytes(b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7')
+        shutil.copyfile(win_template, dest / 'generated-audio-template.obb')
+        plan_files = {'generated-audio': win_plans['audio'], 'packed-audio': win_plans['packed'],
+                      'texture': win_plans['texture'], 'mesh': win_plans['mesh'], 'cubemap': win_plans['cubemap'],
+                      'animation': win_plans['animation'], 'object': win_object}
+        for name, path in plan_files.items():
+            shutil.copyfile(path, dest / (name + '-plan.json'))
+            (dest / (name + '-plan.sha256')).write_text(digest(path), encoding='ascii')
     (library / 'src/main/assets/unity_obb_guid').write_bytes(guid)
     result_hash = digest(expected)
     (launcher / 'SplitExpectedData.java').write_text('package com.megabonk.launcher;\nfinal class SplitExpectedData { static final String SHA256 = "' + result_hash + '", LEGACY_SHA256 = "", SECOND_LEGACY_SHA256 = "", THIRD_LEGACY_SHA256 = "", FOURTH_LEGACY_SHA256 = "", FIFTH_LEGACY_SHA256 = "", SIXTH_LEGACY_SHA256 = ""; }\n', encoding='ascii')

@@ -47,6 +47,24 @@ class GeneratedAudioBuildTest(unittest.TestCase):
     def test_verified_matching_inputs(self):
         self.assertEqual(MODULE.verify(self.template, self.plan, self.expected, self.runtime, self.gradle), self.guid)
 
+    def test_windows_research_requires_same_final_archive(self):
+        root = self.root / 'windows'; canonical = root / 'canonical'; canonical.mkdir(parents=True)
+        objects = root / 'plans/objects'; objects.mkdir(parents=True)
+        for path in [objects / 'template.obb', objects / 'plan.json', canonical / 'final.obb',
+                     *[canonical / (name + '-plan.json') for name in ('animation', 'cubemap', 'mesh', 'texture', 'packed', 'audio')],
+                     *[canonical / ('after-' + name + '.obb') for name in ('objects', 'animation', 'cubemap', 'mesh', 'texture', 'packed')]]:
+            path.write_bytes(b'different')
+        with self.assertRaisesRegex(ValueError, 'final OBBs differ'):
+            MODULE.verify_windows_research(root, self.expected, self.runtime, self.gradle)
+
+    def test_dual_plan_rejects_wrong_platform_sources(self):
+        inventory = json.loads((MODULE.ROOT / 'tools/launcher-steam-inputs.json').read_text())['platforms']
+        path = self.root / 'object-plan.json'; name = 'sharedassets1.assets'
+        path.write_text(json.dumps({'sources': {name: inventory['linux'][name]['sha256']}}))
+        MODULE.verify_research_platform(path, 'linux')
+        with self.assertRaisesRegex(ValueError, 'incompatible Steam sources'):
+            MODULE.verify_research_platform(path, 'windows')
+
     def test_rejects_changed_expected_audio(self):
         with zipfile.ZipFile(self.expected, 'w') as z:
             z.writestr('unity_obb_guid', self.guid)
