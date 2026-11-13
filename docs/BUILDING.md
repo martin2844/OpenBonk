@@ -60,6 +60,16 @@ python3 tools/prepare-unity-workspace.py \
 
 This installs locally generated plugins, restores their checked-in metadata and backs up replaced files in `.openbonk-original-plugins` inside the workspace. The optional removal flag is intended for the observed AssetRipper 1.3.14 export: it backs up and removes specific DLLs that duplicate Unity packages. Use `--check` first and keep the original export. Preparing these files does not reconstruct the missing project configuration and assets.
 
+After importing the prepared workspace once in Unity, remap references from those exported package DLLs to scripts in the imported Unity packages:
+
+```sh
+python3 tools/remap-unity-package-scripts.py \
+  --project /path/to/new-local-workspace \
+  --backup /path/to/new-local-script-backup
+```
+
+The 41 mappings were compared against corresponding component references in the existing working project. On one fresh export they covered 13,738 references in 86 files. The tool checks the installed package GUIDs, rejects unknown references to removed package DLLs, backs up every changed file, and supports `--check`. This is a version-specific reconstruction step, not proof that every scene or component behaves correctly.
+
 An experimental localization stage reconstructs Android localization from the 19 supported local Linux Steam bundles, without adding game text to this checkout:
 
 ```sh
