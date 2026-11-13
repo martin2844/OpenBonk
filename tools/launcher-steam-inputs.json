@@ -1,0 +1,321 @@
+{
+  "description": "Pinned Steam input files for the private OpenBonk launcher experiment; hashes identify exact files, not a general version compatibility claim.",
+  "platforms": {
+    "linux": {
+      "Resources/unity_builtin_extra": {
+        "size": 613984,
+        "sha256": "cc516143255e3f8f075909519f9fecf67af2b058466155aeb376ca949d0561cf"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-assets-shared_assets_all.bundle": {
+        "size": 23696,
+        "sha256": "10c446c917a0e3a038c37f9a1ae132e76bc65a9011ebdd07716f146641741ffe"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-chinese(simplified)(zh-hans)_assets_all.bundle": {
+        "size": 31844,
+        "sha256": "7a9bfd7308ed62d88e1ab70d923e843e1f420e81d2b33e0dde501587a2f96200"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-chinese(traditional)(zh-hant)_assets_all.bundle": {
+        "size": 31970,
+        "sha256": "efa0165ffd5fb551715e34e7e902c0c0213fec71455b93e53c63b47d8373a5ce"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-czech(cs)_assets_all.bundle": {
+        "size": 34308,
+        "sha256": "68f67f7281a4bad9565d167b7ddf5022b842a37d7859f6925457222dcac46e51"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-english(en)_assets_all.bundle": {
+        "size": 31716,
+        "sha256": "88b425367cc9b0387a4e431e69fe7f3c24f58ba1122d014b98319363112ef3af"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-french(fr)_assets_all.bundle": {
+        "size": 33753,
+        "sha256": "e63d85084285fa9da2458218efbce22090c08bbc483f6924871f1facf414065a"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-german(de)_assets_all.bundle": {
+        "size": 33815,
+        "sha256": "f5d05f48753ad9f21294ec967401066df96d767fddda954aa769e9e9ef08a375"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-italian(it)_assets_all.bundle": {
+        "size": 33062,
+        "sha256": "4784cc3573d98960888680774b170d2afc38d34d022059506583a8327dd04d15"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-japanese(ja)_assets_all.bundle": {
+        "size": 33257,
+        "sha256": "4bcaf60d4c9e0da02e53ad15c04addf1255e4d3bbc4eacff935f643fc3131534"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-korean(ko)_assets_all.bundle": {
+        "size": 33162,
+        "sha256": "06d1f3c2aa4001b87fb49456b498806f25bc2bda14b3e46f12246fcf102f0098"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-polish(pl)_assets_all.bundle": {
+        "size": 33752,
+        "sha256": "d988faab45ec3d515d719f9df6d65eed4100c3775ee235def7456125facf9951"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-portuguese(pt)_assets_all.bundle": {
+        "size": 33082,
+        "sha256": "80433690e7b08685d1557bac19c5e894618cdd3cc923141983786489314c5bdb"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-russian(ru)_assets_all.bundle": {
+        "size": 35336,
+        "sha256": "7556fe1c725138e48b643e89667c9a675ddc21976516ee26d0fb072e94896d83"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-spanish(es)_assets_all.bundle": {
+        "size": 33258,
+        "sha256": "c094b4860376ee9719511a285bf4d04dfab7acb4350570675da81511019c2a94"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-spanish_latam_assets_all.bundle": {
+        "size": 33267,
+        "sha256": "23d625d1c8d354d697c973ed726329a6ba851710853e444b7469f398ad9cd0b4"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-thai(th)_assets_all.bundle": {
+        "size": 34972,
+        "sha256": "05fef478dfcf7c835b076153e3815db9b5677aca42b678daa1026268c44e15a6"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-turkish(tr)_assets_all.bundle": {
+        "size": 33284,
+        "sha256": "a41cf3082be7bf09208d5798461d44635a476817a48ad684c253d8b15affec4b"
+      },
+      "StreamingAssets/aa/StandaloneLinux64/localization-string-tables-ukrainian(uk)_assets_all.bundle": {
+        "size": 35931,
+        "sha256": "0af172bcc79c66dcb8da78b524ab95a04ea1a4f75c226364a75102afa664db78"
+      },
+      "globalgamemanagers.assets": {
+        "size": 4689332,
+        "sha256": "b3f7db2d847edd89f66e387a9bbc926b5c555314a23ca55a0531cf662c89bbe0"
+      },
+      "globalgamemanagers.assets.resS": {
+        "size": 2796240,
+        "sha256": "39dd38fcd8dd95d41d6d55fe16a448d29fe2c31d9a162c825c24c6d99a893d7a"
+      },
+      "level1": {
+        "size": 2101944,
+        "sha256": "fe6e50ab3323b523dc53a4151fcc12dcf4d5fd0076d14b5150ba16dd64371551"
+      },
+      "level1.resS": {
+        "size": 116112,
+        "sha256": "bb81d103c119b2c62abd68766cdb58de392922911b877a6b737d8e46090313e6"
+      },
+      "level2": {
+        "size": 10417064,
+        "sha256": "1bb0eafb262237c2e1cee771bde78f3e7727ab574fc01f5a60977d0098b406f8"
+      },
+      "level2.resS": {
+        "size": 74576,
+        "sha256": "544f0a484be350056444c7776f157aab9da9f467df611ebdbf9a7f1da0181b51"
+      },
+      "level4": {
+        "size": 2701232,
+        "sha256": "df80b6b32996444082b7ddce3e0cbe3573dbe25d90184f28a10bda9413e88600"
+      },
+      "resources.assets": {
+        "size": 4092292,
+        "sha256": "a71923a420e792cd46c107eb8e607443ceb9357ef988e4efb73caafa3d35a366"
+      },
+      "resources.assets.resS": {
+        "size": 2621536,
+        "sha256": "58b5f2965eb4a325f77fad08df75c036334e5625e58833fd02cf42fa8ee16d50"
+      },
+      "sharedassets0.assets": {
+        "size": 131481128,
+        "sha256": "01ff22507aa0ef446543b038429039deb92f817b89668bed858bafe99235c19a"
+      },
+      "sharedassets0.assets.resS": {
+        "size": 888864,
+        "sha256": "374d7bd078c7428c9a1815d3ef3d942a26353c7e3af63258aa55dbb9837cee7b"
+      },
+      "sharedassets1.assets": {
+        "size": 56239204,
+        "sha256": "d9c955e43af9151f4d9d4e3ae9328ff2582bde7a1c9aa4580ddb2ba95ad66b35"
+      },
+      "sharedassets1.assets.resS": {
+        "size": 113115008,
+        "sha256": "43c08c5f3228f725f01567bacfabfbb6d2ff50afd7a0536c5a9e1953f6e86fea"
+      },
+      "sharedassets1.resource": {
+        "size": 60845700,
+        "sha256": "28f6806a1ca59ab2b7aa77b6d7ba1492b0cbd76d6518caa6bad70e4762c45d5c"
+      },
+      "sharedassets2.assets": {
+        "size": 5824160,
+        "sha256": "e4c4298e57fe5aaa76836132e6821b297199c60b2106fa12a0db4ef17a67f5da"
+      },
+      "sharedassets2.assets.resS": {
+        "size": 10434976,
+        "sha256": "e2444f63f9950a81858a74fdeaa9c219277d30cb1a5361ca7b206ab2667a9a84"
+      },
+      "sharedassets2.resource": {
+        "size": 5365152,
+        "sha256": "79f5dc7f17f979dc841accec3ed48744cfe78f787001f308b94632e2166503fa"
+      },
+      "sharedassets4.assets": {
+        "size": 693868,
+        "sha256": "cfbc8731afc9dfb6137b85e63d324d5376b4a7d066b7ffdce2cef32c5ca233e3"
+      },
+      "sharedassets4.assets.resS": {
+        "size": 564048,
+        "sha256": "862c2f10062861982d7dd0593fa9345811147c3f3018a91365c3fe8260067127"
+      },
+      "sharedassets4.resource": {
+        "size": 1780640,
+        "sha256": "aa7cba281dd84a509bc1c0f200fa69cb21640615d92f16a65e9959db69a3b78b"
+      }
+    },
+    "windows": {
+      "Resources/unity_builtin_extra": {
+        "size": 384980,
+        "sha256": "840ecbbac9fe74b259eda5f29c40aeb66fdd785c09588e40188acaf930f3862a"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-assets-shared_assets_all.bundle": {
+        "size": 23696,
+        "sha256": "e019ee56c0d08145c94374bf1694b068e255fb90aa1ba7e184863c0e20fad41e"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-chinese(simplified)(zh-hans)_assets_all.bundle": {
+        "size": 31844,
+        "sha256": "5a76e9b69b1e221e22a293def56467fa414a3e5026b79bbd6d628df5dabb9112"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-chinese(traditional)(zh-hant)_assets_all.bundle": {
+        "size": 31970,
+        "sha256": "fadfc3656362a9cfd828fc98fb83b062fd66f4acd32498645c50f27d13ba4b61"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-czech(cs)_assets_all.bundle": {
+        "size": 34308,
+        "sha256": "ad7d486411a327358d5ff6e2fe5ad0d16166e6d7a03403aec1971f8db935d70e"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-english(en)_assets_all.bundle": {
+        "size": 31716,
+        "sha256": "67fc28f87e5369ee37f587c944042c0938b218291e8f74757247e12859e85d35"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-french(fr)_assets_all.bundle": {
+        "size": 33753,
+        "sha256": "78181a12c9da801f5f7156ba3192bb797e6163dfba100a0558e58f603d7a86e0"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-german(de)_assets_all.bundle": {
+        "size": 33815,
+        "sha256": "525c12f9e42f6e70bcd1b92362af43b213f54a3b093f6484659b05d933eed728"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-italian(it)_assets_all.bundle": {
+        "size": 33062,
+        "sha256": "8a8f0e2d41179037122af0cf1cde237ebd3ac5b1248d4b7a22e5cdfe16f915fc"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-japanese(ja)_assets_all.bundle": {
+        "size": 33257,
+        "sha256": "c9ef68c0a2ef6ab0a135feb8810800db7079b057cfcdb6ee17693b0a99c2d771"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-korean(ko)_assets_all.bundle": {
+        "size": 33162,
+        "sha256": "41371622fe23c4b682117174a7b5e816083146c15a9de50a842b2290bc3bbdd6"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-polish(pl)_assets_all.bundle": {
+        "size": 33752,
+        "sha256": "75965880b19bffea1cb4ac4eed7ffdd9f5b735847c63a65f38d0aa5ddf37816b"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-portuguese(pt)_assets_all.bundle": {
+        "size": 33082,
+        "sha256": "bd8827738de781bd00c76b197c9f75f18185489086a257fd8b283f2c2718015a"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-russian(ru)_assets_all.bundle": {
+        "size": 35336,
+        "sha256": "e3cec3fab792d39448cf8e4c33028d216aeb78eb7c8fbd579082229110631482"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-spanish(es)_assets_all.bundle": {
+        "size": 33258,
+        "sha256": "b4c5c66405aae9c33d84ef94cae0929bd96f4141646602e9a77264fd90469981"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-spanish_latam_assets_all.bundle": {
+        "size": 33267,
+        "sha256": "bc6cc17efcc244067ecd7524654e3c4dd4e1d35da64d6bc5ed10c7f9b761a5e9"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-thai(th)_assets_all.bundle": {
+        "size": 34973,
+        "sha256": "a1a3a1476bd915fc6f854c83bc6a3e69bd6b9bc26e77bb84f94d48b755ac2095"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-turkish(tr)_assets_all.bundle": {
+        "size": 33284,
+        "sha256": "c6add2553e63b59c6ccf33485cbb9f3a3623825a6c68d152819351d94a098d64"
+      },
+      "StreamingAssets/aa/StandaloneWindows64/localization-string-tables-ukrainian(uk)_assets_all.bundle": {
+        "size": 35931,
+        "sha256": "c1b7f4712ad798334d71d319f26d3aedf2667b997ce92a39f9c3e29a300f3084"
+      },
+      "globalgamemanagers.assets": {
+        "size": 1037196,
+        "sha256": "9d7146c2d338034b798aec477ce5c3e494a9cc0969861c2706996bf69ae16915"
+      },
+      "globalgamemanagers.assets.resS": {
+        "size": 2796240,
+        "sha256": "39dd38fcd8dd95d41d6d55fe16a448d29fe2c31d9a162c825c24c6d99a893d7a"
+      },
+      "level1": {
+        "size": 2101944,
+        "sha256": "9fa2811a0dab3be720f1c626a12b6d8062e7219a60f513e10de9519f1339c93c"
+      },
+      "level1.resS": {
+        "size": 116112,
+        "sha256": "bb81d103c119b2c62abd68766cdb58de392922911b877a6b737d8e46090313e6"
+      },
+      "level2": {
+        "size": 10417064,
+        "sha256": "853ee36652352d3245f335d498a2c70ff9fe3e0380e14991a83fd65c847d48d6"
+      },
+      "level2.resS": {
+        "size": 74576,
+        "sha256": "544f0a484be350056444c7776f157aab9da9f467df611ebdbf9a7f1da0181b51"
+      },
+      "level4": {
+        "size": 2701248,
+        "sha256": "d840ce413aa05ceb141ba5234ced8394aca0d82e0f76063eacd08a8b59bfc4f2"
+      },
+      "resources.assets": {
+        "size": 527348,
+        "sha256": "142439d97de6546370e03b3c09831c4401383e056816aee19966465ef861e0db"
+      },
+      "resources.assets.resS": {
+        "size": 2621536,
+        "sha256": "58b5f2965eb4a325f77fad08df75c036334e5625e58833fd02cf42fa8ee16d50"
+      },
+      "sharedassets0.assets": {
+        "size": 131699616,
+        "sha256": "772b0a4fc30592c6da17667e532efd0674f76eb7eb5ad24fc5673229b8fe525d"
+      },
+      "sharedassets0.assets.resS": {
+        "size": 888864,
+        "sha256": "374d7bd078c7428c9a1815d3ef3d942a26353c7e3af63258aa55dbb9837cee7b"
+      },
+      "sharedassets1.assets": {
+        "size": 50251684,
+        "sha256": "64c5156116e20fe645acc133bfae7ab1fdd3a7bbc99f915559efc0640be0349a"
+      },
+      "sharedassets1.assets.resS": {
+        "size": 113115008,
+        "sha256": "43c08c5f3228f725f01567bacfabfbb6d2ff50afd7a0536c5a9e1953f6e86fea"
+      },
+      "sharedassets1.resource": {
+        "size": 60845700,
+        "sha256": "29c8f2252d881f0ad039c58a30e8773a45b65ed3a3cbee9f31789350dc12d50d"
+      },
+      "sharedassets2.assets": {
+        "size": 5503192,
+        "sha256": "cb59b62352b2ed5654fc1f1df451cf8f221c260627df6ee5feb7fcedac71cfa9"
+      },
+      "sharedassets2.assets.resS": {
+        "size": 10434976,
+        "sha256": "e2444f63f9950a81858a74fdeaa9c219277d30cb1a5361ca7b206ab2667a9a84"
+      },
+      "sharedassets2.resource": {
+        "size": 5365152,
+        "sha256": "79f5dc7f17f979dc841accec3ed48744cfe78f787001f308b94632e2166503fa"
+      },
+      "sharedassets4.assets": {
+        "size": 693876,
+        "sha256": "896ae7ac28e9ff8916121322326842369bcc9616e57ddd7764813085775130d9"
+      },
+      "sharedassets4.assets.resS": {
+        "size": 564048,
+        "sha256": "862c2f10062861982d7dd0593fa9345811147c3f3018a91365c3fe8260067127"
+      },
+      "sharedassets4.resource": {
+        "size": 1780640,
+        "sha256": "aa7cba281dd84a509bc1c0f200fa69cb21640615d92f16a65e9959db69a3b78b"
+      }
+    }
+  }
+}
