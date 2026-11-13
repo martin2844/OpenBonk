@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Mask byte-identical serialized objects in a private research OBB.
 
-Only exact whole-object matches from local Steam files are handled. Matching
-bytes do not establish provenance or distribution rights. The template keeps
+Exact whole-object matches and matching shader fragments from local Steam files
+are handled. Matching bytes do not establish provenance or distribution rights. The template keeps
 other game data and must remain local. Generation requires UnityPy.
 """
 import argparse
@@ -72,6 +72,28 @@ def fragments(parts, offset, data, source, source_offset):
     return rows
 
 
+def common_shader_fragments(target, sources):
+    """Yield nonoverlapping exact matches; source and target offsets may differ."""
+    index = {}
+    for name, source_offset, data in sources:
+        for offset in range(0, len(data) - 31, 4):
+            block = data[offset:offset + 32]
+            if block.count(0) < 24:
+                index.setdefault(block, (name, source_offset, data, offset))
+    offset = 0
+    while offset + 32 <= len(target):
+        match = index.get(target[offset:offset + 32])
+        if match is None:
+            offset += 4
+            continue
+        name, source_base, data, source_pos = match
+        end = offset + 32
+        while end < len(target) and source_pos + end - offset < len(data) and target[end] == data[source_pos + end - offset]:
+            end += 1
+        yield offset, target[offset:end], name, source_base + source_pos
+        offset = (end + 3) // 4 * 4
+
+
 def apply(raw, rows, streams=None):
     out = bytearray(raw); end = 0
     for row in sorted(rows, key=lambda r: r['target_offset']):
@@ -93,7 +115,7 @@ def apply(raw, rows, streams=None):
 def generate(args):
     import UnityPy
     source, original = args.steam_data.resolve(strict=True), args.obb.resolve(strict=True)
-    output = new_output(args.output, (source, original)); targets = defaultdict(list); skipped = Counter()
+    output = new_output(args.output, (source, original)); targets = defaultdict(list); shader_targets = []; skipped = Counter()
     with zipfile.ZipFile(original) as zin:
         infos = zin.infolist()
         if len(infos) != len({i.filename for i in infos}): raise ValueError('duplicate OBB entry')
@@ -109,10 +131,13 @@ def generate(args):
                 if len(raw) != obj.byte_size or data[offset:offset + len(raw)] != raw: raise ValueError('target object bounds differ')
                 if not any(raw): continue
                 targets[(obj.type.name, len(raw), sha(raw))].append((name, offset))
+                if obj.type.name in ('Shader', 'ComputeShader'):
+                    try: shader_targets.append((obj.type.name, obj.read().m_Name, name, offset, raw))
+                    except Exception: skipped['unreadable_target_shaders'] += 1
     allowed_sources = launcher_source_names()
     source_files = sorted(p for p in source.iterdir() if p.name in allowed_sources and p.is_file() and not p.is_symlink())
     if not source_files: raise ValueError('no Steam serialized assets')
-    found = {}
+    found = {}; shader_sources = defaultdict(list)
     for path in source_files:
         if path.stat().st_size > 256 * 1024 * 1024: raise ValueError('Steam asset exceeds limit')
         data = path.read_bytes()
@@ -123,8 +148,15 @@ def generate(args):
                 offset = obj.byte_start
                 if data[offset:offset + len(raw)] != raw: raise ValueError('Steam object bounds differ')
                 found[key] = (path.name, offset)
-    if not found: raise ValueError('no exact object matches')
-    output.mkdir(mode=0o700); rows = []; counts = Counter()
+            if obj.type.name in ('Shader', 'ComputeShader'):
+                try: name = obj.read().m_Name
+                except Exception:
+                    skipped['unreadable_source_shaders'] += 1
+                    continue
+                offset = obj.byte_start
+                if data[offset:offset + len(raw)] != raw: raise ValueError('Steam shader bounds differ')
+                shader_sources[(obj.type.name, name)].append((path.name, offset, raw))
+    output.mkdir(mode=0o700); rows = []; counts = Counter(); shader_count = 0
     try:
         with zipfile.ZipFile(original) as zin:
             groups = asset_groups(zin)
@@ -135,6 +167,13 @@ def generate(args):
                 if len(payload) != size or sha(payload) != digest: raise ValueError('Steam object differs')
                 for group, target_offset in targets[key]:
                     rows.extend(fragments(groups[group], target_offset, payload, source_name, source_offset)); counts[kind] += 1
+            for kind, name, group, target_offset, raw in shader_targets:
+                if (kind, len(raw), sha(raw)) in found: continue
+                for offset, payload, source_name, source_offset in common_shader_fragments(raw, shader_sources.get((kind, name), ())):
+                    rows.extend(fragments(groups[group], target_offset + offset, payload, source_name, source_offset))
+                    shader_count += 1
+            if not rows: raise ValueError('no exact object or shader matches')
+            if len(rows) > 10000: raise ValueError('object plan exceeds runtime record limit')
             grouped = defaultdict(list)
             for row in rows: grouped[row['entry']].append(row)
             with zipfile.ZipFile(output / 'template.obb', 'x') as zout:
@@ -144,11 +183,12 @@ def generate(args):
         used = sorted({r['source'] for r in rows})
         plan = {'schema': 1, 'kind': 'experimental-exact-steam-object-offsets',
                 'template_sha256': file_hash(output / 'template.obb'), 'sources': {n: file_hash(source / n) for n in used},
-                'matched_objects_by_type': dict(counts), 'skipped': dict(skipped), 'records': rows}
+                'matched_objects_by_type': dict(counts), 'matched_shader_fragments': shader_count,
+                'skipped': dict(skipped), 'records': rows}
         (output / 'plan.json').write_text(json.dumps(plan, separators=(',', ':')) + '\n')
     except BaseException:
         shutil.rmtree(output); raise
-    print(f'Masked {sum(r["size"] for r in rows)} bytes from {sum(counts.values())} exact objects; template still contains game data.')
+    print(f'Masked {sum(r["size"] for r in rows)} bytes from {sum(counts.values())} exact objects and {shader_count} exact shader fragments; template still contains game data.')
     print('Object types:', dict(counts), '; skipped groups:', dict(skipped))
 
 

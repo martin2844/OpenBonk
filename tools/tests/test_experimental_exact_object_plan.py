@@ -14,6 +14,14 @@ spec.loader.exec_module(module)
 
 
 class ExactObjectTests(unittest.TestCase):
+    def test_shader_fragments_copy_exact_bytes_from_different_offsets(self):
+        shared = bytes(range(1, 97))
+        target = b'TARG' * 5 + shared + b'last'
+        source = b'SRC!' * 3 + shared + b'other'
+        matches = list(module.common_shader_fragments(target, [('resources.assets', 100, source)]))
+        self.assertEqual(matches, [(20, shared, 'resources.assets', 112)])
+        self.assertEqual(list(module.common_shader_fragments(bytes(128), [('resources.assets', 0, bytes(128))])), [])
+
     def test_source_files_are_available_in_both_minimal_launcher_zips(self):
         with tempfile.TemporaryDirectory() as t:
             manifest = Path(t) / 'inputs.json'
