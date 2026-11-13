@@ -127,7 +127,14 @@ public final class SteamGeneratedAudio {
                         ZipEntry e = all.nextElement(); String name = e.getName();
                         if (e.isDirectory()) continue; checkName(name);
                         if (seen.size() >= MAX_ENTRIES || !seen.add(name) || e.getSize() < 0 || e.getSize() > MAX_ARCHIVE - total) throw new IOException("invalid template entry");
-                        total += e.getSize(); Clip clip = records.get(name); ZipEntry dest = new ZipEntry(name); dest.setTime(0); out.putNextEntry(dest);
+                        total += e.getSize(); Clip clip = records.get(name); ZipEntry dest = new ZipEntry(name); dest.setTime(0);
+                        // STORED avoids platform-dependent DEFLATE output: the
+                        // launcher validates the complete generated OBB hash.
+                        long crc = e.getCrc();
+                        if (clip != null) { CRC32 checksum = new CRC32(); checksum.update(clip.payload); crc = checksum.getValue(); }
+                        if (crc < 0) throw new IOException("missing template checksum");
+                        dest.setMethod(ZipEntry.STORED); dest.setSize(e.getSize()); dest.setCompressedSize(e.getSize()); dest.setCrc(crc);
+                        out.putNextEntry(dest);
                         try (InputStream in = template.getInputStream(e)) {
                             long count = 0;
                             for (int n; (n = in.read(buffer)) != -1;) {
