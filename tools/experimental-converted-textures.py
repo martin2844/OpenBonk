@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'assets/bin/Data/'
 GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
-QUALITY_NAMES = frozenset(('sprite_0091', 'sprite_0097'))
 MAX_MEAN_ERROR = 10.0
 
 
@@ -46,6 +45,11 @@ def acceptable_quality_image(original, converted):
         r, g, blue = diff.split()
         if ImageChops.lighter(ImageChops.lighter(r, g), blue).getextrema()[1] > 32: return False
     return True
+
+
+def should_try_quality(mean, encoder, normal, target_format, width, height):
+    return bool(not acceptable_texture_error(mean) and encoder and not normal and target_format == 47 and
+                1 <= width <= 2048 and 1 <= height <= 2048)
 
 
 def select_source(target, candidates, texture=lambda item: item):
@@ -152,7 +156,7 @@ def run(args):
                     src = select_source(target, candidates)
                     if src is None: outcomes['missing_or_ambiguous'] += 1; continue
                     normal = target.m_Name in NORMAL_MAPS and src.m_TextureFormat == 12 and target.m_TextureFormat == 34
-                    high_quality = bool(quality and target.m_Name in QUALITY_NAMES and target.m_TextureFormat == 47 and not normal)
+                    high_quality = False
                     if target.m_TextureFormat not in (4, 45, 47) and not normal or src.m_TextureFormat not in (1, 3, 4, 10, 12, 25):
                         outcomes['unsupported_format'] += 1; continue
                     if 'normal' in target.m_Name.lower() and not normal: outcomes['normal_excluded'] += 1; continue
@@ -164,22 +168,30 @@ def run(args):
                         src_data = bytes(src.get_image_data())
                         source_mips = mip_slices(src_data, src.m_TextureFormat, src.m_Width, src.m_Height, src.m_MipCount)
                         target_mips = mip_slices(old, target.m_TextureFormat, target.m_Width, target.m_Height, target.m_MipCount)
-                        chunks = []
-                        for w, h, payload in source_mips:
-                            if high_quality:
-                                encoded, fmt = quality.encode(payload, w, h, int(src.m_TextureFormat)), target.m_TextureFormat
-                            else:
-                                image = converter.parse_image_data(payload, w, h, src.m_TextureFormat, src.object_reader.version, src.object_reader.platform)
-                                if normal: image = normal_image(image)
-                                encoded, fmt = converter.image_to_texture2d(image, target.m_TextureFormat, target.object_reader.platform, target.m_PlatformBlob)
-                            if int(fmt) != target.m_TextureFormat or len(encoded) != mip_size(target.m_TextureFormat, w, h): raise ValueError('encoded mip differs')
-                            chunks.append(encoded)
+                        def encode_mips(use_quality):
+                            encoded_mips = []
+                            for w, h, payload in source_mips:
+                                if use_quality:
+                                    encoded, fmt = quality.encode(payload, w, h, int(src.m_TextureFormat)), target.m_TextureFormat
+                                else:
+                                    image = converter.parse_image_data(payload, w, h, src.m_TextureFormat, src.object_reader.version, src.object_reader.platform)
+                                    if normal: image = normal_image(image)
+                                    encoded, fmt = converter.image_to_texture2d(image, target.m_TextureFormat, target.object_reader.platform, target.m_PlatformBlob)
+                                if int(fmt) != target.m_TextureFormat or len(encoded) != mip_size(target.m_TextureFormat, w, h): raise ValueError('encoded mip differs')
+                                encoded_mips.append(encoded)
+                            return encoded_mips
+                        chunks = encode_mips(False)
                         new = b''.join(chunks)
                         if len(new) != len(old): raise ValueError('converted size differs')
                         w, h, old_top = target_mips[0]
                         original_image = converter.parse_image_data(old_top, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                         converted_image = converter.parse_image_data(chunks[0], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                         mean = ImageStat.Stat(ImageChops.difference(original_image, converted_image)).mean
+                        if should_try_quality(mean, quality, normal, target.m_TextureFormat, target.m_Width, target.m_Height):
+                            chunks = encode_mips(True); new = b''.join(chunks); high_quality = True
+                            if len(new) != len(old): raise ValueError('quality converted size differs')
+                            converted_image = converter.parse_image_data(chunks[0], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
+                            mean = ImageStat.Stat(ImageChops.difference(original_image, converted_image)).mean
                     except (ValueError, NotImplementedError, TypeError, IndexError, RuntimeError) as error:
                         outcomes['conversion_failed_' + type(error).__name__] += 1
                         failures[type(error).__name__ + ': ' + str(error)[:160]] += 1

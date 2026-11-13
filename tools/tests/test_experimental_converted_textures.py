@@ -9,6 +9,14 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_quality_fallback_only_runs_for_eligible_high_error(self):
+        high, low = [11, 0, 0, 0], [1, 0, 0, 0]
+        self.assertTrue(module.should_try_quality(high, object(), False, 47, 1024, 1024))
+        for args in ((low, object(), False, 47, 1024, 1024), (high, None, False, 47, 1024, 1024),
+                     (high, object(), True, 47, 1024, 1024), (high, object(), False, 45, 1024, 1024),
+                     (high, object(), False, 47, 4096, 1024)):
+            self.assertFalse(module.should_try_quality(*args))
+
     def test_quality_gate_checks_visible_pixels_and_alpha(self):
         from PIL import Image
         original = Image.new('RGBA', (4, 4), (100, 100, 100, 255))
