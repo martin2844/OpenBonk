@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import importlib.util
 import json
@@ -121,6 +122,22 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-converted-steam-cubemap-offsets',
                                     'template_sha256': MODULE.digest(template), 'records': [row]}))
         with self.assertRaises(ValueError): MODULE.verify_textures(template, plan, intermediate, cubemaps=True)
+
+    def test_animation_plan_checks_mask_and_surrounding_bytes(self):
+        template, intermediate, plan = (self.root / n for n in ('anim-template.obb', 'anim-intermediate.obb', 'anim.json'))
+        entry = 'assets/bin/Data/sharedassets1.assets.split0'
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, b'x\0b\0y')
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'xAbCy')
+        row = {'entry': entry, 'target_offset': 1, 'size': 3, 'mask': base64.b64encode(b'\x05').decode(),
+               'masked_bytes': 2, 'masked_sha256': hashlib.sha256(b'\0b\0').hexdigest(),
+               'original_sha256': hashlib.sha256(b'AbC').hexdigest()}
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-animation-fragment-mask',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        MODULE.verify_animations(template, plan, intermediate)
+        row['mask'] = base64.b64encode(b'\x85').decode()
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-animation-fragment-mask',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, intermediate)
 
 
 if __name__ == '__main__':
