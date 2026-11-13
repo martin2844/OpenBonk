@@ -26,13 +26,26 @@ class ExactObjectTests(unittest.TestCase):
         masked = module.apply(payload, [row])
         self.assertEqual(module.apply(masked, [row], {source_name: io.BytesIO(payload)}), payload)
 
+    def test_windows_bundle_fragments_preserve_platform_differences(self):
+        name = 'StreamingAssets/aa/StandaloneWindows64/localization-string-tables-english(en)_assets_all.bundle'
+        target = bytes(range(1, 193)); source = bytearray(target); source[80] ^= 255
+        self.assertIsNotNone(module.SOURCE.fullmatch(name))
+        matches = list(module.common_fragments(target, [(name, 0, bytes(source))]))
+        rows = [{'target_offset': offset, 'size': len(payload), 'source': source_name,
+                 'source_offset': source_offset, 'sha256': module.sha(payload)}
+                for offset, payload, source_name, source_offset in matches]
+        self.assertTrue(rows)
+        masked = module.apply(target, rows)
+        self.assertEqual(masked[80], target[80])
+        self.assertEqual(module.apply(masked, rows, {name: io.BytesIO(source)}), target)
+
     def test_shader_fragments_copy_exact_bytes_from_different_offsets(self):
         shared = bytes(range(1, 97))
         target = b'TARG' * 5 + shared + b'last'
         source = b'SRC!' * 3 + shared + b'other'
-        matches = list(module.common_shader_fragments(target, [('resources.assets', 100, source)]))
+        matches = list(module.common_fragments(target, [('resources.assets', 100, source)]))
         self.assertEqual(matches, [(20, shared, 'resources.assets', 112)])
-        self.assertEqual(list(module.common_shader_fragments(bytes(128), [('resources.assets', 0, bytes(128))])), [])
+        self.assertEqual(list(module.common_fragments(bytes(128), [('resources.assets', 0, bytes(128))])), [])
 
     def test_source_files_are_available_in_both_minimal_launcher_zips(self):
         with tempfile.TemporaryDirectory() as t:

@@ -78,7 +78,7 @@ public final class SteamPlannedMeshes {
             templateHash = checkedHash(plan.getString("template_sha256")); JSONObject sources = plan.getJSONObject("sources");
             Iterator<String> keys = sources.keys();
             while (keys.hasNext()) {
-                String name = keys.next(); if (!name.matches(objects ? "(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets|StreamingAssets/aa/StandaloneLinux64/localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\\.bundle)" : "(?:sharedassets[0-9]+\\.assets|level[0-9]+)(?:\\.resS)?")) throw new IOException("invalid source name");
+                String name = keys.next(); if (!name.matches(objects ? "(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets|StreamingAssets/aa/Standalone(?:Linux|Windows)64/localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\\.bundle)" : "(?:sharedassets[0-9]+\\.assets|level[0-9]+)(?:\\.resS)?")) throw new IOException("invalid source name");
                 if (animations && !(name.equals("sharedassets1.assets") || name.equals("sharedassets2.assets"))) throw new IOException("invalid animation source");
                 sourceHashes.put(name, checkedHash(sources.getString(name)));
             }

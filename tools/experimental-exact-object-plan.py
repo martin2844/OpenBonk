@@ -17,7 +17,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'assets/bin/Data/'
 BUNDLE_NAME = r'localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\.bundle'
-SOURCE = re.compile(r'(?:sharedassets\d+\.assets|level\d+|resources\.assets|StreamingAssets/aa/StandaloneLinux64/' + BUNDLE_NAME + r')\Z')
+SOURCE = re.compile(r'(?:sharedassets\d+\.assets|level\d+|resources\.assets|StreamingAssets/aa/Standalone(?:Linux|Windows)64/' + BUNDLE_NAME + r')\Z')
 BUNDLE_ENTRY = re.compile(r'assets/aa/StandaloneLinux64/' + BUNDLE_NAME + r'\Z')
 SINGLE = re.compile(r'(?:[0-9a-f]{32}|level\d+|resources\.assets|sharedassets\d+\.assets)\Z')
 SPLIT = re.compile(r'((?:sharedassets\d+\.assets|level\d+|resources\.assets))\.split(0|[1-9]\d*)\Z')
@@ -31,9 +31,9 @@ def launcher_source_names():
     return {name for name in platforms['linux'].keys() & platforms['windows'].keys() if SOURCE.fullmatch(name)}
 
 
-def launcher_linux_bundles():
+def launcher_localization_bundles(platform):
     platforms = json.loads(STEAM_INPUTS.read_text(encoding='utf-8'))['platforms']
-    return {name for name in platforms['linux'] if name.startswith('StreamingAssets/') and SOURCE.fullmatch(name)}
+    return {name for name in platforms[platform] if name.startswith('StreamingAssets/') and SOURCE.fullmatch(name)}
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
@@ -79,7 +79,7 @@ def fragments(parts, offset, data, source, source_offset):
     return rows
 
 
-def common_shader_fragments(target, sources):
+def common_fragments(target, sources):
     """Yield nonoverlapping exact matches; source and target offsets may differ."""
     index = {}
     for name, source_offset, data in sources:
@@ -163,7 +163,7 @@ def generate(args):
                 offset = obj.byte_start
                 if data[offset:offset + len(raw)] != raw: raise ValueError('Steam shader bounds differ')
                 shader_sources[(obj.type.name, name)].append((path.name, offset, raw))
-    output.mkdir(mode=0o700); rows = []; counts = Counter(); shader_count = 0; bundle_count = 0
+    output.mkdir(mode=0o700); rows = []; counts = Counter(); shader_count = 0; bundle_count = 0; bundle_fragment_count = 0
     try:
         with zipfile.ZipFile(original) as zin:
             groups = asset_groups(zin)
@@ -176,21 +176,32 @@ def generate(args):
                     rows.extend(fragments(groups[group], target_offset, payload, source_name, source_offset)); counts[kind] += 1
             for kind, name, group, target_offset, raw in shader_targets:
                 if (kind, len(raw), sha(raw)) in found: continue
-                for offset, payload, source_name, source_offset in common_shader_fragments(raw, shader_sources.get((kind, name), ())):
+                for offset, payload, source_name, source_offset in common_fragments(raw, shader_sources.get((kind, name), ())):
                     rows.extend(fragments(groups[group], target_offset + offset, payload, source_name, source_offset))
                     shader_count += 1
-            for source_name in sorted(launcher_linux_bundles()):
+            handled_bundles = set()
+            bundle_sources = sorted(launcher_localization_bundles('linux')) + sorted(launcher_localization_bundles('windows'))
+            for source_name in bundle_sources:
                 path = source
                 for part in Path(source_name).parts:
                     path = path / part
                     if path.is_symlink(): raise ValueError('Steam localization path contains a symbolic link')
                 entry = 'assets/aa/StandaloneLinux64/' + path.name
-                if not path.is_file() or entry not in zin.namelist(): continue
+                if entry in handled_bundles or not path.is_file() or entry not in zin.namelist(): continue
                 raw = path.read_bytes()
-                if not raw or len(raw) > 32 * 1024 * 1024 or zin.read(entry) != raw: continue
-                rows.append({'entry': entry, 'target_offset': 0, 'size': len(raw), 'source': source_name,
-                             'source_offset': 0, 'sha256': sha(raw)})
-                bundle_count += 1
+                if not raw or len(raw) > 32 * 1024 * 1024: continue
+                target = zin.read(entry)
+                if target == raw:
+                    rows.append({'entry': entry, 'target_offset': 0, 'size': len(raw), 'source': source_name,
+                                 'source_offset': 0, 'sha256': sha(raw)})
+                    bundle_count += 1
+                elif '/StandaloneWindows64/' in source_name:
+                    for offset, payload, selected, source_offset in common_fragments(target, [(source_name, 0, raw)]):
+                        rows.append({'entry': entry, 'target_offset': offset, 'size': len(payload), 'source': selected,
+                                     'source_offset': source_offset, 'sha256': sha(payload)})
+                        bundle_fragment_count += 1
+                else: continue
+                handled_bundles.add(entry)
             if not rows: raise ValueError('no exact object or shader matches')
             if len(rows) > 10000: raise ValueError('object plan exceeds runtime record limit')
             grouped = defaultdict(list)
@@ -204,11 +215,12 @@ def generate(args):
         plan = {'schema': 1, 'kind': 'experimental-exact-steam-object-offsets',
                 'template_sha256': file_hash(output / 'template.obb'), 'sources': {n: file_hash(source / n) for n in used},
                 'matched_objects_by_type': dict(counts), 'matched_shader_fragments': shader_count, 'matched_localization_bundles': bundle_count,
+                'matched_localization_fragments': bundle_fragment_count,
                 'skipped': dict(skipped), 'records': rows}
         (output / 'plan.json').write_text(json.dumps(plan, separators=(',', ':')) + '\n')
     except BaseException:
         shutil.rmtree(output); raise
-    print(f'Masked {sum(r["size"] for r in rows)} bytes from {sum(counts.values())} exact objects, {shader_count} shader fragments and {bundle_count} localization bundles; template still contains game data.')
+    print(f'Masked {sum(r["size"] for r in rows)} bytes from {sum(counts.values())} objects, {shader_count} shader fragments, {bundle_count} localization bundles and {bundle_fragment_count} localization fragments; template still contains game data.')
     print('Object types:', dict(counts), '; skipped groups:', dict(skipped))
 
 
