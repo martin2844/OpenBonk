@@ -60,7 +60,7 @@ class RuntimeBuildTest(unittest.TestCase):
         self.assertFalse((self.project / 'Assets/csc.rsp').exists())
 
     def test_include_rewired_uses_the_plugin_build_flags(self):
-        self.write_editor("import os,sys\nfrom pathlib import Path\nassert os.environ['OPENBONK_NO_REWIRED_CODE'] == '0'\nassert os.environ['OPENBONK_NO_REWIRED_PLUGINS'] == '0'\nassert (Path(sys.argv[sys.argv.index('-projectPath')+1])/'Assets/csc.rsp').read_text() == '-define:OPENBONK_BETA_NO_PROBES\\n'\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android'\n(p/'Megabonk-arm64-launcher-test.apk').write_bytes(b'apk')\n")
+        self.write_editor("import os,sys\nfrom pathlib import Path\nassert os.environ['OPENBONK_NO_REWIRED_CODE'] == '0'\nassert os.environ['OPENBONK_NO_REWIRED_PLUGINS'] == '0'\nassert os.environ['OPENBONK_NO_REWIRED_SCENE'] == '1'\nassert (Path(sys.argv[sys.argv.index('-projectPath')+1])/'Assets/csc.rsp').read_text() == '-define:OPENBONK_BETA_NO_PROBES\\n'\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android'\n(p/'Megabonk-arm64-launcher-test.apk').write_bytes(b'apk')\n")
         result = self.run_tool('--embedded', '--include-rewired')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse((self.project / 'Assets/csc.rsp').exists())
@@ -92,7 +92,7 @@ class RuntimeBuildTest(unittest.TestCase):
         self.assertFalse(self.out.exists())
 
     def test_embedded_build_uses_single_apk_entry_point(self):
-        self.write_editor("import os,sys\nfrom pathlib import Path\nassert sys.argv[sys.argv.index('-executeMethod')+1] == 'NativeAndroidBuild.BuildArm64EmbeddedLauncherApk'\nassert os.environ['OPENBONK_RUNTIME_APPLICATION_ID'] == 'com.example.cleancheck'\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android'\n(p/'Megabonk-arm64-launcher-test.apk').write_bytes(b'apk')\n")
+        self.write_editor("import os,sys\nfrom pathlib import Path\nassert sys.argv[sys.argv.index('-executeMethod')+1] == 'NativeAndroidBuild.BuildArm64EmbeddedLauncherApk'\nassert os.environ['OPENBONK_RUNTIME_APPLICATION_ID'] == 'com.example.cleancheck'\nassert os.environ['OPENBONK_NO_REWIRED_SCENE'] == '1'\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android'\n(p/'Megabonk-arm64-launcher-test.apk').write_bytes(b'apk')\n")
         result = self.run_tool('--embedded', '--application-id', 'com.example.cleancheck')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.out / 'android/Megabonk-arm64-launcher-test.apk').is_file())
