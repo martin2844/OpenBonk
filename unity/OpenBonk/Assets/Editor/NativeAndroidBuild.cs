@@ -209,6 +209,7 @@ public static class NativeAndroidBuild
 		string oldName = PlayerSettings.productName;
 		string oldId = PlayerSettings.GetApplicationIdentifier(BuildTargetGroup.Android);
 		bool oldSplit = PlayerSettings.Android.splitApplicationBinary;
+		AndroidSdkVersions oldTargetSdk = PlayerSettings.Android.targetSdkVersion;
 		string projectRoot = Directory.GetParent(Application.dataPath).FullName;
 		string generatedJava = Path.Combine(projectRoot, "Assets/AndroidSplitLauncher/SplitExpectedData.java");
 		string oldJava = File.ReadAllText(generatedJava);
@@ -217,9 +218,9 @@ public static class NativeAndroidBuild
 			PlayerSettings.productName = "OpenBonk";
 			PlayerSettings.Android.splitApplicationBinary = false;
 			SplitLauncherProbeEnabled = true;
-			File.WriteAllText(generatedJava, "package com.megabonk.launcher;\nfinal class SplitExpectedData { static final String SHA256 = \"EMBEDDED\", LEGACY_SHA256 = \"\"; }\n");
+			File.WriteAllText(generatedJava, "package com.megabonk.launcher;\nfinal class SplitExpectedData { static final String SHA256 = \"EMBEDDED\", LEGACY_SHA256 = \"\", SECOND_LEGACY_SHA256 = \"\", THIRD_LEGACY_SHA256 = \"\", FOURTH_LEGACY_SHA256 = \"\", FIFTH_LEGACY_SHA256 = \"\", SIXTH_LEGACY_SHA256 = \"\"; }\n");
 			AssetDatabase.ImportAsset("Assets/AndroidSplitLauncher/SplitExpectedData.java", ImportAssetOptions.ForceUpdate);
-			BuildApk(ScriptingImplementation.IL2CPP, AndroidArchitecture.ARM64, "Megabonk-arm64-launcher-test.apk", true, "com.megabonk.nativeport.splittest");
+			BuildApk(ScriptingImplementation.IL2CPP, AndroidArchitecture.ARM64, "Megabonk-arm64-launcher-test.apk", true, RuntimeApplicationId());
 		}
 		finally
 		{
@@ -227,6 +228,7 @@ public static class NativeAndroidBuild
 			AssetDatabase.ImportAsset("Assets/AndroidSplitLauncher/SplitExpectedData.java", ImportAssetOptions.ForceUpdate);
 			SplitLauncherProbeEnabled = false;
 			PlayerSettings.Android.splitApplicationBinary = oldSplit;
+			PlayerSettings.Android.targetSdkVersion = oldTargetSdk;
 			PlayerSettings.productName = oldName;
 			PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, oldId);
 		}

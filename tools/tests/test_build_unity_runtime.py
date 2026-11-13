@@ -85,6 +85,13 @@ class RuntimeBuildTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.out.exists())
 
+    def test_embedded_build_uses_single_apk_entry_point(self):
+        self.write_editor("import os,sys\nfrom pathlib import Path\nassert sys.argv[sys.argv.index('-executeMethod')+1] == 'NativeAndroidBuild.BuildArm64EmbeddedLauncherApk'\nassert os.environ['OPENBONK_RUNTIME_APPLICATION_ID'] == 'com.example.cleancheck'\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android'\n(p/'Megabonk-arm64-launcher-test.apk').write_bytes(b'apk')\n")
+        result = self.run_tool('--embedded', '--application-id', 'com.example.cleancheck')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.out / 'android/Megabonk-arm64-launcher-test.apk').is_file())
+        self.assertFalse((self.project / 'Assets/csc.rsp').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

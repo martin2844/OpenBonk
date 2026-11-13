@@ -27,7 +27,9 @@ def main():
     parser.add_argument('--plugins', type=Path, required=True, help='local directory with the three managed DLL inputs')
     parser.add_argument('--build-root', type=Path, required=True, help='new local directory for outputs and logs')
     parser.add_argument('--runner', help='optional single executable used to launch Unity, such as steam-run')
-    parser.add_argument('--gradle-project', action='store_true', help='export a local Gradle project instead of an APK/OBB')
+    output_mode = parser.add_mutually_exclusive_group()
+    output_mode.add_argument('--gradle-project', action='store_true', help='export a local Gradle project instead of an APK/OBB')
+    output_mode.add_argument('--embedded', action='store_true', help='build a local APK containing the exported game data')
     parser.add_argument('--application-id', help='optional Android application ID for an isolated local test')
     parser.add_argument('--check', action='store_true', help='validate prerequisites without writing files')
     args = parser.parse_args()
@@ -85,6 +87,7 @@ def main():
         env.pop('OPENBONK_RUNTIME_APPLICATION_ID', None)
     log = output / 'runtime-build.log'
     method = ('NativeAndroidBuild.ExportArm64RuntimeGradleProject' if args.gradle_project else
+              'NativeAndroidBuild.BuildArm64EmbeddedLauncherApk' if args.embedded else
               'NativeAndroidBuild.BuildArm64RuntimeResearchApk')
     cmd = ([runner] if runner else []) + [str(editor), '-batchmode', '-nographics', '-quit',
            '-projectPath', str(project), '-executeMethod', method,
@@ -111,13 +114,18 @@ def main():
                 raise SystemExit(f'Unity did not create the expected Gradle file: {relative}; inspect {log}')
         print('Local Gradle project created. It contains game data and is not a final APK.')
         return
-    for name in ('Megabonk-arm64-runtime-research.apk', 'Megabonk-arm64-runtime-research.main.obb'):
+    names = (('Megabonk-arm64-launcher-test.apk',) if args.embedded else
+             ('Megabonk-arm64-runtime-research.apk', 'Megabonk-arm64-runtime-research.main.obb'))
+    for name in names:
         path = output / 'android' / name
         if not path.is_file() or path.stat().st_size == 0:
             raise SystemExit(f'Unity did not create the expected output: {name}; inspect {log}')
         with path.open('rb') as f:
             print(name, hashlib.file_digest(f, 'sha256').hexdigest())
-    print('Local runtime and OBB created. They are not the final launcher APK.')
+    if args.embedded:
+        print('Local APK created with game data embedded. It is not a redistributable build.')
+    else:
+        print('Local runtime and OBB created. They are not the final launcher APK.')
 
 
 if __name__ == '__main__':
