@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
 // Research-only build variant. This does not remove Rewired code from IL2CPP.
@@ -15,6 +16,8 @@ public sealed class AndroidRewiredSceneProbe : IProcessSceneWithReport
     public void OnProcessScene(Scene scene, BuildReport report)
     {
         if (report == null || report.summary.platform != BuildTarget.Android || (Environment.GetEnvironmentVariable("OPENBONK_NO_REWIRED_SCENE") != "1" && Environment.GetEnvironmentVariable("OPENBONK_NO_REWIRED_CODE") != "1")) return;
+        int enabled = EnableStandaloneInput(scene);
+        if (enabled != 0) Debug.Log("Enabled Android standalone input modules=" + enabled + " on " + scene.name);
         foreach (var root in scene.GetRootGameObjects())
         foreach (var manager in root.GetComponentsInChildren<AlwaysManager>(true))
         {
@@ -30,6 +33,20 @@ public sealed class AndroidRewiredSceneProbe : IProcessSceneWithReport
             UnityEngine.Object.DestroyImmediate(rewired);
             Debug.Log("Rewired scene probe: removed Rewired manager and store; retained Android input and vibration on " + scene.name);
         }
+    }
+
+    internal static int EnableStandaloneInput(Scene scene)
+    {
+        int enabled = 0;
+        foreach (var root in scene.GetRootGameObjects())
+        foreach (var events in root.GetComponentsInChildren<EventSystem>(true))
+        foreach (var module in events.GetComponents<StandaloneInputModule>())
+        {
+            if (module.enabled) continue;
+            module.enabled = true;
+            enabled++;
+        }
+        return enabled;
     }
 }
 #endif

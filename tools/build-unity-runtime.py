@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -27,8 +28,11 @@ def main():
     parser.add_argument('--build-root', type=Path, required=True, help='new local directory for outputs and logs')
     parser.add_argument('--runner', help='optional single executable used to launch Unity, such as steam-run')
     parser.add_argument('--gradle-project', action='store_true', help='export a local Gradle project instead of an APK/OBB')
+    parser.add_argument('--application-id', help='optional Android application ID for an isolated local test')
     parser.add_argument('--check', action='store_true', help='validate prerequisites without writing files')
     args = parser.parse_args()
+    if args.application_id and not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', args.application_id, flags=re.ASCII):
+        parser.error('invalid Android application ID')
     project = args.project.expanduser().resolve(strict=True)
     editor = args.unity.expanduser().resolve(strict=True)
     plugins = args.plugins.expanduser().resolve(strict=True)
@@ -75,6 +79,10 @@ def main():
     env.update({'OPENBONK_BUILD_ROOT': str(output), 'OPENBONK_NO_REWIRED_CODE': '1',
                 'OPENBONK_NO_REWIRED_PLUGINS': '1', 'OPENBONK_ANDROID_TARGET_SDK': '35',
                 'OPENBONK_AAPT2_OVERRIDE': str(aapt2)})
+    if args.application_id:
+        env['OPENBONK_RUNTIME_APPLICATION_ID'] = args.application_id
+    else:
+        env.pop('OPENBONK_RUNTIME_APPLICATION_ID', None)
     log = output / 'runtime-build.log'
     method = ('NativeAndroidBuild.ExportArm64RuntimeGradleProject' if args.gradle_project else
               'NativeAndroidBuild.BuildArm64RuntimeResearchApk')

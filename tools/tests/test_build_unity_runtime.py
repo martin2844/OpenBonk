@@ -74,6 +74,17 @@ class RuntimeBuildTest(unittest.TestCase):
         self.assertTrue((self.out / 'android/OpenBonk-gradle-project/settings.gradle').is_file())
         self.assertFalse((self.project / 'Assets/csc.rsp').exists())
 
+    def test_isolated_application_id_is_passed_to_unity(self):
+        self.write_editor("import os\nfrom pathlib import Path\nassert os.environ['OPENBONK_RUNTIME_APPLICATION_ID'] == 'com.example.cleancheck'\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android'\n(p/'Megabonk-arm64-runtime-research.apk').write_bytes(b'apk')\n(p/'Megabonk-arm64-runtime-research.main.obb').write_bytes(b'obb')\n")
+        result = self.run_tool('--application-id', 'com.example.cleancheck')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_invalid_application_id_is_rejected(self):
+        self.write_editor('pass\n')
+        result = self.run_tool('--application-id', 'invalid/id')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.out.exists())
+
 
 if __name__ == '__main__':
     unittest.main()

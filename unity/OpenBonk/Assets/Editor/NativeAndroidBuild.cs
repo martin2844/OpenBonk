@@ -19,6 +19,14 @@ public static class NativeAndroidBuild
 			: Path.GetFullPath(configured);
 		return Path.GetFullPath(Path.Combine(buildRoot, relativePath));
 	}
+	private static string RuntimeApplicationId()
+	{
+		string value = System.Environment.GetEnvironmentVariable("OPENBONK_RUNTIME_APPLICATION_ID");
+		if (string.IsNullOrEmpty(value)) return "com.megabonk.nativeport.splittest";
+		if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$"))
+			throw new System.ArgumentException("Invalid runtime application ID");
+		return value;
+	}
 	public static void BuildArm64Apk()
 	{
 		BuildApk(ScriptingImplementation.IL2CPP, AndroidArchitecture.ARM64, "Megabonk-arm64-il2cpp.apk", true);
@@ -57,7 +65,7 @@ public static class NativeAndroidBuild
 			PlayerSettings.productName = "OpenBonk";
 			PlayerSettings.Android.splitApplicationBinary = true;
 			SplitLauncherProbeEnabled = true;
-			BuildApk(ScriptingImplementation.IL2CPP, AndroidArchitecture.ARM64, "Megabonk-arm64-runtime-research.apk", true, "com.megabonk.nativeport.splittest");
+			BuildApk(ScriptingImplementation.IL2CPP, AndroidArchitecture.ARM64, "Megabonk-arm64-runtime-research.apk", true, RuntimeApplicationId());
 		}
 		finally
 		{
@@ -88,7 +96,7 @@ public static class NativeAndroidBuild
 			PlayerSettings.Android.splitApplicationBinary = true;
 			EditorUserBuildSettings.exportAsGoogleAndroidProject = true;
 			SplitLauncherProbeEnabled = true;
-			BuildApk(ScriptingImplementation.IL2CPP, AndroidArchitecture.ARM64, "OpenBonk-gradle-project", true, "com.megabonk.nativeport.splittest");
+			BuildApk(ScriptingImplementation.IL2CPP, AndroidArchitecture.ARM64, "OpenBonk-gradle-project", true, RuntimeApplicationId());
 		}
 		finally
 		{
