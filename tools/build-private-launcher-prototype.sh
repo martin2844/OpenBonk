@@ -256,22 +256,9 @@ fi
 cp "$lua_notice" "$assets/notices/Lua-5.4.9.txt"
 cp "$texture_lib" "$work/unityLibrary/src/main/jniLibs/arm64-v8a/libopenbonk_texture.so"
 OPENBONK_ZLIB_ARCH=arm64 OPENBONK_UNITY_EDITOR="$unity_editor" OPENBONK_TOOL_RUNNER="${OPENBONK_TOOL_RUNNER:-}" "$repo_root/tools/build-stable-zlib.sh" "$work/unityLibrary/src/main/jniLibs/arm64-v8a/libopenbonk_zlib.so"
-"$python_cmd" - "$plan_dir" "$assets/plans.zip" "${OPENBONK_SHADER_PACK_DIR:-}" <<'PY'
-import hashlib,sys,zipfile
-from pathlib import Path
-source,out=map(Path,sys.argv[1:3]); shader_dir=Path(sys.argv[3]) if sys.argv[3] else None
-pins={'builtin-shader-pack.zip':'a5547ee588ac42c825e10d74443f84ce2a17981de9560fd7b993e5da4a38c079',
-      'shared1-shader-pack.zip':'96b0ea3bc74303b5b4455b1a99e4d875b4d9611af03368b1e39bf79138f3ce7b'}
-files={f.name:f for f in source.iterdir()}
-if shader_dir is not None:
- for name,expected in pins.items():
-  f=shader_dir/name
-  if f.is_symlink() or not f.is_file() or hashlib.sha256(f.read_bytes()).hexdigest()!=expected:raise ValueError('invalid locally generated shader pack: '+name)
-  files[name]=f
-if len(files)!=50 or any(not f.is_file() or f.is_symlink() for f in files.values()):raise ValueError('expected 50 private plan files')
-with zipfile.ZipFile(out,'x',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
- for name,f in sorted(files.items()):z.write(f,name)
-PY
+shader_args=()
+if [ -n "${OPENBONK_SHADER_PACK_DIR:-}" ]; then shader_args=(--shader-dir "$OPENBONK_SHADER_PACK_DIR"); fi
+"$python_cmd" "$repo_root/tools/package-conversion-plans.py" "$plan_dir" "$assets/plans.zip" "${shader_args[@]}"
 (
  cd "$work"
  export JAVA_HOME="$unity_android/OpenJDK" PATH="$unity_android/OpenJDK/bin:$PATH"
