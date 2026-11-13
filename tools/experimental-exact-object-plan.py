@@ -16,7 +16,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'assets/bin/Data/'
-SOURCE = re.compile(r'(?:sharedassets\d+\.assets|level\d+|resources\.assets)\Z')
+BUNDLE_NAME = r'localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\.bundle'
+SOURCE = re.compile(r'(?:sharedassets\d+\.assets|level\d+|resources\.assets|StreamingAssets/aa/StandaloneLinux64/' + BUNDLE_NAME + r')\Z')
+BUNDLE_ENTRY = re.compile(r'assets/aa/StandaloneLinux64/' + BUNDLE_NAME + r'\Z')
 SINGLE = re.compile(r'(?:[0-9a-f]{32}|level\d+|resources\.assets|sharedassets\d+\.assets)\Z')
 SPLIT = re.compile(r'((?:sharedassets\d+\.assets|level\d+|resources\.assets))\.split(0|[1-9]\d*)\Z')
 MIN_OBJECT = 64
@@ -27,6 +29,11 @@ def launcher_source_names():
     """Use only files present in both supported minimal launcher ZIPs."""
     platforms = json.loads(STEAM_INPUTS.read_text(encoding='utf-8'))['platforms']
     return {name for name in platforms['linux'].keys() & platforms['windows'].keys() if SOURCE.fullmatch(name)}
+
+
+def launcher_linux_bundles():
+    platforms = json.loads(STEAM_INPUTS.read_text(encoding='utf-8'))['platforms']
+    return {name for name in platforms['linux'] if name.startswith('StreamingAssets/') and SOURCE.fullmatch(name)}
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
@@ -156,7 +163,7 @@ def generate(args):
                 offset = obj.byte_start
                 if data[offset:offset + len(raw)] != raw: raise ValueError('Steam shader bounds differ')
                 shader_sources[(obj.type.name, name)].append((path.name, offset, raw))
-    output.mkdir(mode=0o700); rows = []; counts = Counter(); shader_count = 0
+    output.mkdir(mode=0o700); rows = []; counts = Counter(); shader_count = 0; bundle_count = 0
     try:
         with zipfile.ZipFile(original) as zin:
             groups = asset_groups(zin)
@@ -172,6 +179,18 @@ def generate(args):
                 for offset, payload, source_name, source_offset in common_shader_fragments(raw, shader_sources.get((kind, name), ())):
                     rows.extend(fragments(groups[group], target_offset + offset, payload, source_name, source_offset))
                     shader_count += 1
+            for source_name in sorted(launcher_linux_bundles()):
+                path = source
+                for part in Path(source_name).parts:
+                    path = path / part
+                    if path.is_symlink(): raise ValueError('Steam localization path contains a symbolic link')
+                entry = 'assets/aa/StandaloneLinux64/' + path.name
+                if not path.is_file() or entry not in zin.namelist(): continue
+                raw = path.read_bytes()
+                if not raw or len(raw) > 32 * 1024 * 1024 or zin.read(entry) != raw: continue
+                rows.append({'entry': entry, 'target_offset': 0, 'size': len(raw), 'source': source_name,
+                             'source_offset': 0, 'sha256': sha(raw)})
+                bundle_count += 1
             if not rows: raise ValueError('no exact object or shader matches')
             if len(rows) > 10000: raise ValueError('object plan exceeds runtime record limit')
             grouped = defaultdict(list)
@@ -181,14 +200,15 @@ def generate(args):
                     raw = zin.read(info)
                     zout.writestr(info, apply(raw, grouped[info.filename]) if info.filename in grouped else raw)
         used = sorted({r['source'] for r in rows})
+        if len(used) > 32: raise ValueError('object plan exceeds runtime source limit')
         plan = {'schema': 1, 'kind': 'experimental-exact-steam-object-offsets',
                 'template_sha256': file_hash(output / 'template.obb'), 'sources': {n: file_hash(source / n) for n in used},
-                'matched_objects_by_type': dict(counts), 'matched_shader_fragments': shader_count,
+                'matched_objects_by_type': dict(counts), 'matched_shader_fragments': shader_count, 'matched_localization_bundles': bundle_count,
                 'skipped': dict(skipped), 'records': rows}
         (output / 'plan.json').write_text(json.dumps(plan, separators=(',', ':')) + '\n')
     except BaseException:
         shutil.rmtree(output); raise
-    print(f'Masked {sum(r["size"] for r in rows)} bytes from {sum(counts.values())} exact objects and {shader_count} exact shader fragments; template still contains game data.')
+    print(f'Masked {sum(r["size"] for r in rows)} bytes from {sum(counts.values())} exact objects, {shader_count} shader fragments and {bundle_count} localization bundles; template still contains game data.')
     print('Object types:', dict(counts), '; skipped groups:', dict(skipped))
 
 
@@ -203,7 +223,7 @@ def restore(args):
     grouped = defaultdict(list)
     for row in rows:
         entry = row.get('entry', '')
-        if row.get('source') not in hashes or not entry.startswith(PREFIX) or not (SINGLE.fullmatch(entry[len(PREFIX):]) or SPLIT.fullmatch(entry[len(PREFIX):])): raise ValueError('invalid object entry')
+        if row.get('source') not in hashes or not (BUNDLE_ENTRY.fullmatch(entry) or (entry.startswith(PREFIX) and (SINGLE.fullmatch(entry[len(PREFIX):]) or SPLIT.fullmatch(entry[len(PREFIX):])))): raise ValueError('invalid object entry')
         grouped[entry].append(row)
     created = False
     try:

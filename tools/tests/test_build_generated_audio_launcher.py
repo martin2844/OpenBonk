@@ -174,6 +174,16 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'xmesh' + b'z')
         with self.assertRaises(ValueError): MODULE.verify_meshes(template, plan, intermediate, objects=True)
 
+    def test_exact_object_plan_checks_localization_bundle(self):
+        template, intermediate, plan = (self.root / n for n in ('bundle-template.obb', 'bundle-intermediate.obb', 'bundle.json'))
+        entry = 'assets/aa/StandaloneLinux64/localization-string-tables-english(en)_assets_all.bundle'
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, bytes(4))
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'data')
+        row = {'entry': entry, 'target_offset': 0, 'size': 4, 'sha256': hashlib.sha256(b'data').hexdigest()}
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-exact-steam-object-offsets',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        MODULE.verify_meshes(template, plan, intermediate, objects=True)
+
 
 if __name__ == '__main__':
     unittest.main()

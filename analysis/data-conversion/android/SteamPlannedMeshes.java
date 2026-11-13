@@ -78,7 +78,7 @@ public final class SteamPlannedMeshes {
             templateHash = checkedHash(plan.getString("template_sha256")); JSONObject sources = plan.getJSONObject("sources");
             Iterator<String> keys = sources.keys();
             while (keys.hasNext()) {
-                String name = keys.next(); if (!name.matches(objects ? "(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)" : "(?:sharedassets[0-9]+\\.assets|level[0-9]+)(?:\\.resS)?")) throw new IOException("invalid source name");
+                String name = keys.next(); if (!name.matches(objects ? "(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets|StreamingAssets/aa/StandaloneLinux64/localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\\.bundle)" : "(?:sharedassets[0-9]+\\.assets|level[0-9]+)(?:\\.resS)?")) throw new IOException("invalid source name");
                 if (animations && !(name.equals("sharedassets1.assets") || name.equals("sharedassets2.assets"))) throw new IOException("invalid animation source");
                 sourceHashes.put(name, checkedHash(sources.getString(name)));
             }
@@ -92,7 +92,7 @@ public final class SteamPlannedMeshes {
                 else f.hash = checkedHash(row.getString("sha256"));
                 f.targetOffset = row.getInt("target_offset"); f.sourceOffset = row.getLong("source_offset"); f.size = row.getInt("size");
                 String pattern = animations ? "assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)(?:\\.split(?:0|[1-9][0-9]*))?)" : objects ?
-                        "assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)(?:\\.split(?:0|[1-9][0-9]*))?)" :
+                        "(?:assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)(?:\\.split(?:0|[1-9][0-9]*))?)|assets/aa/StandaloneLinux64/localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\\.bundle)" :
                         "assets/bin/Data/sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*)";
                 int entryLimit = (objects || animations) && !f.entry.matches(".*\\.split(?:0|[1-9][0-9]*)") ? MAX_OBJECT_ENTRY : MAX_SPLIT;
                 if (!f.entry.matches(pattern) || !sourceHashes.containsKey(f.source) ||
@@ -129,7 +129,7 @@ public final class SteamPlannedMeshes {
             Map<String, Path> files = new HashMap<>();
             for (String name : sourceHashes.keySet()) {
                 ZipEntry e = found.get(name); if (e == null || e.getSize() < 0 || e.getSize() > MAX_FILE) throw new IOException("missing Steam input");
-                Path path = work.resolve(name); MessageDigest h = sha();
+                Path path = work.resolve(name); Files.createDirectories(path.getParent()); MessageDigest h = sha();
                 try (InputStream in = steam.getInputStream(e); OutputStream out = Files.newOutputStream(path)) {
                     copyExact(in, out, e.getSize(), h); if (in.read() != -1 || !hex(h.digest()).equals(sourceHashes.get(name))) throw new IOException("Steam input checksum differs");
                 }

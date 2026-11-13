@@ -163,7 +163,7 @@ def verify_meshes(template, plan_path, intermediate, objects=False):
     grouped = {}
     for row in rows:
         entry = row.get('entry')
-        pattern = (r'assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets\d+\.assets|level\d+|resources\.assets)(?:\.split(?:0|[1-9]\d*))?)'
+        pattern = (r'(?:assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets\d+\.assets|level\d+|resources\.assets)(?:\.split(?:0|[1-9]\d*))?)|assets/aa/StandaloneLinux64/localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\.bundle)'
                    if objects else r'assets/bin/Data/sharedassets[12]\.assets\.split(?:0|[1-9]\d*)')
         if not isinstance(entry, str) or not re.fullmatch(pattern, entry):
             raise ValueError('invalid mesh entry')

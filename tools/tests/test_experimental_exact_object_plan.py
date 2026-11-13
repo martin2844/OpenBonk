@@ -14,6 +14,18 @@ spec.loader.exec_module(module)
 
 
 class ExactObjectTests(unittest.TestCase):
+    def test_localization_bundle_round_trip_and_path_validation(self):
+        source_name = 'StreamingAssets/aa/StandaloneLinux64/localization-string-tables-english(en)_assets_all.bundle'
+        entry = 'assets/aa/StandaloneLinux64/' + Path(source_name).name
+        payload = b'localization bytes'
+        row = {'entry': entry, 'source': source_name, 'source_offset': 0, 'target_offset': 0,
+               'size': len(payload), 'sha256': module.sha(payload)}
+        self.assertIsNotNone(module.SOURCE.fullmatch(source_name))
+        self.assertIsNotNone(module.BUNDLE_ENTRY.fullmatch(entry))
+        self.assertIsNone(module.SOURCE.fullmatch('StreamingAssets/aa/StandaloneLinux64/../../other.bundle'))
+        masked = module.apply(payload, [row])
+        self.assertEqual(module.apply(masked, [row], {source_name: io.BytesIO(payload)}), payload)
+
     def test_shader_fragments_copy_exact_bytes_from_different_offsets(self):
         shared = bytes(range(1, 97))
         target = b'TARG' * 5 + shared + b'last'
