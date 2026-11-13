@@ -288,6 +288,17 @@ A subsequent local end-to-end research build at `04b9e84` included the input-axi
 
 A fresh GitHub clone at `043a365` completed the full dual-platform research build with `--windows-game`, `--quality-textures` and `--font-fallback`. It exported the game and generated the Lua bridge, texture libraries, decoder and both Steam ZIPs locally; it used installed Unity/Android tools, Python dependencies, the JSON JAR and an existing Gradle cache. All seven stages matched 922 archive entries on an iPlay for each platform; a desktop check of the dual APK's packaged plans restored the expected OBB from both ZIPs. The private APK installed under a separate package ID and its launcher process started on the locked device; UI, gameplay and rendering remain unverified. One earlier attempt stopped in Unity with a file-descriptor assertion at a soft limit of 4,096. A complete retry with `ulimit -n 65536` succeeded on that host; this observation does not establish the cause or guarantee the workaround elsewhere. The APK and intermediate files still contain game data and must remain private.
 
+To run selected component checks in the prepared isolated workspace, with Unity closed:
+
+```sh
+python3 tools/check-unity-gameplay.py \
+  --project /path/to/local-build/steam/build/workspace \
+  --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
+  --output /path/to/new-private-check-logs
+```
+
+Add `--runner steam-run` if needed. These checks exercise input bindings, menu A/B swapping, chest skipping and navigation, challenge completion and boss bars. They passed in the prepared `043a365` workspace above. The tool checks success markers and exit status, and its logs remain local. It does not exercise the APK, physical controls, rendering or a complete game session.
+
 The same build's seven restoration stages were also run in sequence on the iPlay; each reproduced the 922 expected entries. To repeat this private device check with a completed research directory and authorized Android device:
 
 ```sh
