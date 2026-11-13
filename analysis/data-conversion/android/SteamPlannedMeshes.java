@@ -11,7 +11,7 @@ import org.json.*;
 public final class SteamPlannedMeshes {
     private static final long MAX_FILE = 1024L * 1024 * 1024, MAX_TOTAL = 256L * 1024 * 1024;
     private static final int MAX_SPLIT = 1024 * 1024, MAX_ENTRIES = 20000, MAX_ROWS = 10000;
-    private static final class Fragment { String entry, source, hash; long sourceOffset; int targetOffset, size; }
+    private static final class Fragment { String entry, source, hash, maskedHash, originalHash; byte[] mask; long sourceOffset; int targetOffset, size; }
     private static MessageDigest sha() {
         try { return MessageDigest.getInstance("SHA-256"); } catch (NoSuchAlgorithmException e) { throw new AssertionError(e); }
     }
@@ -56,6 +56,12 @@ public final class SteamPlannedMeshes {
         }
     }
     public static void restore(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, false);
+    }
+    public static void restoreAnimations(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, true);
+    }
+    private static void restoreInternal(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output, boolean animations) throws IOException {
         Path target = output.toPath().toAbsolutePath(), parent = target.getParent();
         if (parent == null || !Files.isDirectory(parent) || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) throw new IOException("output must be new");
         byte[] data = planBytes(planFile);
@@ -63,11 +69,13 @@ public final class SteamPlannedMeshes {
         String templateHash; Map<String, String> sourceHashes = new HashMap<>(); Map<String, List<Fragment>> byEntry = new HashMap<>();
         try {
             JSONObject plan = new JSONObject(new String(data, "UTF-8"));
-            if (plan.getInt("schema") != 1 || !plan.getString("kind").equals("experimental-steam-mesh-buffer-offsets")) throw new IOException("unsupported mesh plan");
+            String kind = animations ? "experimental-animation-fragment-mask" : "experimental-steam-mesh-buffer-offsets";
+            if (plan.getInt("schema") != 1 || !plan.getString("kind").equals(kind)) throw new IOException("unsupported asset plan");
             templateHash = checkedHash(plan.getString("template_sha256")); JSONObject sources = plan.getJSONObject("sources");
             Iterator<String> keys = sources.keys();
             while (keys.hasNext()) {
                 String name = keys.next(); if (!name.matches("(?:sharedassets[0-9]+\\.assets|level[0-9]+)(?:\\.resS)?")) throw new IOException("invalid source name");
+                if (animations && !(name.equals("sharedassets1.assets") || name.equals("sharedassets2.assets"))) throw new IOException("invalid animation source");
                 sourceHashes.put(name, checkedHash(sources.getString(name)));
             }
             if (sourceHashes.isEmpty() || sourceHashes.size() > 32) throw new IOException("invalid source count");
@@ -75,10 +83,20 @@ public final class SteamPlannedMeshes {
             if (rows.length() <= 0 || rows.length() > MAX_ROWS) throw new IOException("invalid mesh record count");
             for (int i = 0; i < rows.length(); i++) {
                 JSONObject row = rows.getJSONObject(i); Fragment f = new Fragment();
-                f.entry = row.getString("entry"); f.source = row.getString("source"); f.hash = checkedHash(row.getString("sha256"));
+                f.entry = row.getString("entry"); f.source = row.getString("source");
+                if (animations) { f.maskedHash = checkedHash(row.getString("masked_sha256")); f.originalHash = checkedHash(row.getString("original_sha256")); }
+                else f.hash = checkedHash(row.getString("sha256"));
                 f.targetOffset = row.getInt("target_offset"); f.sourceOffset = row.getLong("source_offset"); f.size = row.getInt("size");
-                if (!f.entry.matches("assets/bin/Data/sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*)") || !sourceHashes.containsKey(f.source) ||
+                String pattern = animations ? "assets/bin/Data/(?:[0-9a-f]{32}|sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*))" : "assets/bin/Data/sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*)";
+                if (!f.entry.matches(pattern) || !sourceHashes.containsKey(f.source) ||
                         f.size <= 0 || f.size > MAX_SPLIT || f.targetOffset < 0 || f.targetOffset > MAX_SPLIT - f.size || f.sourceOffset < 0 || f.sourceOffset > MAX_FILE - f.size) throw new IOException("invalid mesh fragment");
+                if (animations) {
+                    try { f.mask = Base64.getDecoder().decode(row.getString("mask")); }
+                    catch (IllegalArgumentException e) { throw new IOException("invalid animation mask", e); }
+                    if (f.mask.length != (f.size + 7) / 8 || ((f.size & 7) != 0 && ((f.mask[f.mask.length - 1] & 255) >>> (f.size & 7)) != 0)) throw new IOException("invalid animation mask size");
+                    int count = 0; for (byte b : f.mask) count += Integer.bitCount(b & 255);
+                    if (count <= 0 || count != row.getInt("masked_bytes")) throw new IOException("invalid animation mask count");
+                }
                 total += f.size; if (total > MAX_TOTAL) throw new IOException("mesh limit exceeded");
                 byEntry.computeIfAbsent(f.entry, k -> new ArrayList<>()).add(f);
             }
@@ -123,13 +141,22 @@ public final class SteamPlannedMeshes {
                         try (DataInputStream in = new DataInputStream(template.getInputStream(entry))) { in.readFully(patched); if (in.read() != -1) throw new IOException("oversized split"); }
                         for (Fragment f : fs) {
                             if (f.targetOffset > patched.length - f.size) throw new IOException("mesh target out of bounds");
-                            for (int i = f.targetOffset; i < f.targetOffset + f.size; i++) if (patched[i] != 0) throw new IOException("mesh template not blank");
+                            if (animations) {
+                                MessageDigest h = sha(); h.update(patched, f.targetOffset, f.size);
+                                if (!hex(h.digest()).equals(f.maskedHash)) throw new IOException("animation template differs");
+                            } else for (int i = f.targetOffset; i < f.targetOffset + f.size; i++) if (patched[i] != 0) throw new IOException("mesh template not blank");
+                            byte[] sourceBytes = animations ? new byte[f.size] : null;
                             try (RandomAccessFile source = new RandomAccessFile(files.get(f.source).toFile(), "r")) {
                                 if (f.sourceOffset + f.size > source.length()) throw new IOException("mesh source out of bounds");
-                                source.seek(f.sourceOffset); source.readFully(patched, f.targetOffset, f.size);
+                                source.seek(f.sourceOffset);
+                                if (animations) source.readFully(sourceBytes); else source.readFully(patched, f.targetOffset, f.size);
+                            }
+                            if (animations) for (int i = 0; i < f.size; i++) if ((f.mask[i / 8] & (1 << (i % 8))) != 0) {
+                                if (patched[f.targetOffset + i] != 0 || sourceBytes[i] == 0) throw new IOException("invalid masked animation byte");
+                                patched[f.targetOffset + i] = sourceBytes[i];
                             }
                             MessageDigest h = sha(); h.update(patched, f.targetOffset, f.size);
-                            if (!hex(h.digest()).equals(f.hash)) throw new IOException("mesh fragment checksum differs");
+                            if (!hex(h.digest()).equals(animations ? f.originalHash : f.hash)) throw new IOException("asset fragment checksum differs");
                         }
                         CRC32 sum = new CRC32(); sum.update(patched); crc = sum.getValue(); restored.add(name);
                     }
