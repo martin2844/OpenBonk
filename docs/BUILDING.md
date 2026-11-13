@@ -25,6 +25,20 @@ This compiles the `Steam*.java` sources and checks that the three generated Java
 
 ## Isolated Unity workspace
 
+To include the Steam export in the experimental local build, use:
+
+```sh
+python3 tools/build-local-from-steam.py \
+  --game /path/to/Steam/steamapps/common/Megabonk \
+  --assetripper /path/to/AssetRipper.GUI.Free \
+  --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
+  --lua-library /path/to/libmegabonk_lua.so \
+  --output /path/to/new-local-build \
+  --application-id com.example.openbonktest
+```
+
+This runs the export followed by the local Unity build described below. Both phases retain their logs and intermediate files inside the new output directory, which contains game-derived data and must stay local. Add `--runner steam-run` if needed; `--check` only verifies initial inputs. This is not the data-separated release build.
+
 For an experimental local, data-embedded APK, `tools/build-local-unity-apk.py` runs the preparation stages described below in sequence from an AssetRipper 2.0.0 `ExportedProject` and a locally built Lua bridge:
 
 ```sh
@@ -36,7 +50,7 @@ python3 tools/build-local-unity-apk.py \
   --application-id com.example.openbonktest
 ```
 
-Add `--runner steam-run` if needed. `--check` validates the initial inputs only. The tool requires a new output directory, retains local intermediates and backups on failure, and does not install the APK. A run from a fresh local export completed and its APK reached a Forest run on an iPlay tablet. The output contains game-derived assets; it is not the data-separated release APK. The sequence remains experimental and the smoke test does not establish full feature parity.
+Add `--runner steam-run` if needed. `--check` validates the initial inputs only. The tool requires a new output directory, retains local intermediates and backups on failure, and does not install the APK. A run from a fresh local export completed and its APK reached a Forest run on an iPlay tablet. The example Forest mod was also imported and enabled from the launcher, appeared in map selection and started a run with its configured five-minute timer; its Lua multipliers were not measured. The output contains game-derived assets; it is not the data-separated release APK. The sequence remains experimental and the smoke tests do not establish full feature parity.
 
 An experimental local export step uses AssetRipper.GUI.Web 2.0.0 and a game installation provided by the user:
 
