@@ -9,7 +9,7 @@ public static class OpenBonkRestorePostProcessing
 {
     private const string AssetPath = "Assets/MonoBehaviour/PostProcessResources.asset";
     private const string Package = "Packages/com.unity.postprocessing/PostProcessing/Shaders/";
-    private static readonly (string field, string path)[] Shaders = {
+    private static readonly (string field, string path)[] ComputeShaders = {
         ("autoExposure", "Builtins/AutoExposure.compute"),
         ("exposureHistogram", "Builtins/ExposureHistogram.compute"),
         ("lut3DBaker", "Builtins/Lut3DBaker.compute"),
@@ -22,6 +22,32 @@ public static class OpenBonkRestorePostProcessing
         ("multiScaleAORender", "Builtins/MultiScaleVORender.compute"),
         ("multiScaleAOUpsample", "Builtins/MultiScaleVOUpsample.compute"),
         ("gaussianDownsample", "Builtins/GaussianDownsample.compute")
+    };
+    private static readonly (string field, string path)[] RasterShaders = {
+        ("bloom", "Builtins/Bloom.shader"),
+        ("copy", "Builtins/Copy.shader"),
+        ("copyStd", "Builtins/CopyStd.shader"),
+        ("copyStdFromTexArray", "Builtins/CopyStdFromTexArray.shader"),
+        ("copyStdFromDoubleWide", "Builtins/CopyStdFromDoubleWide.shader"),
+        ("discardAlpha", "Builtins/DiscardAlpha.shader"),
+        ("depthOfField", "Builtins/DepthOfField.shader"),
+        ("finalPass", "Builtins/FinalPass.shader"),
+        ("grainBaker", "Builtins/GrainBaker.shader"),
+        ("motionBlur", "Builtins/MotionBlur.shader"),
+        ("temporalAntialiasing", "Builtins/TemporalAntialiasing.shader"),
+        ("subpixelMorphologicalAntialiasing", "Builtins/SubpixelMorphologicalAntialiasing.shader"),
+        ("texture2dLerp", "Builtins/Texture2DLerp.shader"),
+        ("uber", "Builtins/Uber.shader"),
+        ("lut2DBaker", "Builtins/Lut2DBaker.shader"),
+        ("lightMeter", "Debug/LightMeter.shader"),
+        ("gammaHistogram", "Debug/Histogram.shader"),
+        ("waveform", "Debug/Waveform.shader"),
+        ("vectorscope", "Debug/Vectorscope.shader"),
+        ("debugOverlays", "Debug/Overlays.shader"),
+        ("deferredFog", "Builtins/DeferredFog.shader"),
+        ("scalableAO", "Builtins/ScalableAO.shader"),
+        ("multiScaleAO", "Builtins/MultiScaleVO.shader"),
+        ("screenSpaceReflections", "Builtins/ScreenSpaceReflections.shader")
     };
 
     public static void Run()
@@ -39,27 +65,39 @@ public static class OpenBonkRestorePostProcessing
             var resource = AssetDatabase.LoadAssetAtPath<ScriptableObject>(AssetPath);
             if (resource == null) throw new InvalidDataException("Post-processing resource is missing.");
             var serialized = new SerializedObject(resource);
-            var shaders = new ComputeShader[Shaders.Length];
-            for (int i = 0; i < Shaders.Length; i++)
+            var compute = new ComputeShader[ComputeShaders.Length];
+            for (int i = 0; i < ComputeShaders.Length; i++)
             {
-                shaders[i] = AssetDatabase.LoadAssetAtPath<ComputeShader>(Package + Shaders[i].path);
-                if (shaders[i] == null || serialized.FindProperty("computeShaders." + Shaders[i].field) == null)
-                    throw new InvalidDataException("Missing post-processing compute shader or field: " + Shaders[i].field);
+                compute[i] = AssetDatabase.LoadAssetAtPath<ComputeShader>(Package + ComputeShaders[i].path);
+                if (compute[i] == null || serialized.FindProperty("computeShaders." + ComputeShaders[i].field) == null)
+                    throw new InvalidDataException("Missing post-processing compute shader or field: " + ComputeShaders[i].field);
+            }
+            var raster = new Shader[RasterShaders.Length];
+            for (int i = 0; i < RasterShaders.Length; i++)
+            {
+                raster[i] = AssetDatabase.LoadAssetAtPath<Shader>(Package + RasterShaders[i].path);
+                if (raster[i] == null || serialized.FindProperty("shaders." + RasterShaders[i].field) == null)
+                    throw new InvalidDataException("Missing post-processing shader or field: " + RasterShaders[i].field);
             }
             Directory.CreateDirectory(backup);
             File.Copy(AssetPath, Path.Combine(backup, "PostProcessResources.asset"), false);
             File.Copy(AssetPath + ".meta", Path.Combine(backup, "PostProcessResources.asset.meta"), false);
             changed = true;
-            for (int i = 0; i < Shaders.Length; i++)
-                serialized.FindProperty("computeShaders." + Shaders[i].field).objectReferenceValue = shaders[i];
+            for (int i = 0; i < ComputeShaders.Length; i++)
+                serialized.FindProperty("computeShaders." + ComputeShaders[i].field).objectReferenceValue = compute[i];
+            for (int i = 0; i < RasterShaders.Length; i++)
+                serialized.FindProperty("shaders." + RasterShaders[i].field).objectReferenceValue = raster[i];
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(resource);
             AssetDatabase.SaveAssets();
             serialized.Update();
-            for (int i = 0; i < Shaders.Length; i++)
-                if (serialized.FindProperty("computeShaders." + Shaders[i].field).objectReferenceValue != shaders[i])
-                    throw new InvalidDataException("Post-processing shader reference did not persist: " + Shaders[i].field);
-            Debug.Log("Restored 12 post-processing compute shader references from the local Unity package.");
+            for (int i = 0; i < ComputeShaders.Length; i++)
+                if (serialized.FindProperty("computeShaders." + ComputeShaders[i].field).objectReferenceValue != compute[i])
+                    throw new InvalidDataException("Post-processing compute reference did not persist: " + ComputeShaders[i].field);
+            for (int i = 0; i < RasterShaders.Length; i++)
+                if (serialized.FindProperty("shaders." + RasterShaders[i].field).objectReferenceValue != raster[i])
+                    throw new InvalidDataException("Post-processing shader reference did not persist: " + RasterShaders[i].field);
+            Debug.Log("Restored 24 post-processing shaders and 12 compute shaders from the local Unity package.");
             EditorApplication.Exit(0);
         }
         catch (Exception error)

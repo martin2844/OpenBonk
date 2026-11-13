@@ -43,7 +43,7 @@ class PostProcessingPreparationTests(unittest.TestCase):
             self.assertEqual(env['OPENBONK_POSTPROCESS_BACKUP'], str(self.backup))
             self.assertEqual((self.project / 'Assets/csc.rsp').read_bytes(), module.DEFINES)
             (self.project / 'Assets/csc.rsp.meta').write_text('generated')
-            self.log.write_text('Restored 12 post-processing compute shader references')
+            self.log.write_text('Restored 24 post-processing shaders and 12 compute shaders')
             return type('Result', (), {'returncode': 0})()
         with patch.object(module.subprocess, 'run', side_effect=run):
             self.invoke()

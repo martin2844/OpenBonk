@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Restore local post-processing compute shader references in an isolated workspace."""
+"""Restore local post-processing shader references in an isolated workspace."""
 import argparse
 import json
 import os
@@ -75,7 +75,7 @@ def main():
                 meta.unlink()
     if status:
         raise SystemExit(f'Unity exited with status {status}; inspect the local log: {log}')
-    if not log.is_file() or 'Restored 12 post-processing compute shader references' not in log.read_text(errors='replace'):
+    if not log.is_file() or 'Restored 24 post-processing shaders and 12 compute shaders' not in log.read_text(errors='replace'):
         raise SystemExit(f'Unity did not confirm post-processing preparation; inspect {log}')
     print('Post-processing shader references restored locally; runtime validation is still required.')
 
