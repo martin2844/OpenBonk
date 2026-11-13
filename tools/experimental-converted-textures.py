@@ -10,6 +10,7 @@ from collections import Counter, defaultdict
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import zipfile
 
@@ -64,6 +65,8 @@ def normal_image(image):
 
 
 def parts(archive, group):
+    if re.fullmatch(r'[0-9a-f]{32}', group):
+        return [archive.getinfo(PREFIX + group)]
     prefix = PREFIX + group + '.assets.split'
     selected = []
     for info in archive.infolist():
@@ -94,6 +97,7 @@ def run(args):
                 tex = obj.read()
                 index[(tex.m_Name, tex.m_Width, tex.m_Height)].append(tex)
     changes, outcomes, failures, rows = {}, Counter(), Counter(), []
+    aliases = defaultdict(list)
     output.mkdir(mode=0o700)
     try:
         with zipfile.ZipFile(obb) as zin:
@@ -144,12 +148,37 @@ def run(args):
                     rows.append({'group': group, 'target_id': obj.path_id, 'name': target.m_Name,
                                  'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat), 'normal': normal,
                                  'bytes': len(old), 'top_mean_rgba_error': [round(x, 3) for x in mean]})
+                    alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
+                    aliases[alias_key].append((rows[-1], new))
                     outcomes['converted'] += 1
                 offset = 0
                 for info in splits:
                     changes[info.filename] = bytes(modified[offset:offset + info.file_size])
                     offset += info.file_size
                 if offset != len(modified): raise ValueError('split length changed')
+            # Some standalone assets duplicate an inline texture already converted
+            # above. Reuse it only if all matching candidates yield the same bytes.
+            for info in infos:
+                if not re.fullmatch(re.escape(PREFIX) + r'[0-9a-f]{32}', info.filename) or info.file_size > 64 * 1024 * 1024: continue
+                asset = zin.read(info)
+                try:
+                    objects = UnityPy.load(asset).objects
+                    if len(objects) != 1 or objects[0].type.name != 'Texture2D': continue
+                    obj = objects[0]; target = obj.read(); old = bytes(target.image_data)
+                    if not old: continue
+                    alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
+                    matches = aliases.get(alias_key, [])
+                    if not matches or len({hashlib.sha256(new).digest() for _, new in matches}) != 1: continue
+                    parent, new = matches[0]; body = obj.get_raw_data(); pos = body.find(old)
+                    if pos < 0 or body.count(old) != 1: continue
+                    start = obj.byte_start + pos
+                    if asset[start:start + len(old)] != old: raise ValueError('standalone texture offset differs')
+                    changes[info.filename] = asset[:start] + new + asset[start + len(old):]
+                    row = dict(parent, group=info.filename[len(PREFIX):], target_id=obj.path_id, name=target.m_Name,
+                               source_name=parent['name'], alias_group=parent['group'], alias_target_id=parent['target_id'])
+                    rows.append(row); outcomes['converted'] += 1; outcomes['standalone_aliases'] += 1
+                except (ValueError, NotImplementedError, TypeError, IndexError, RuntimeError):
+                    outcomes['standalone_unreadable'] += 1
             if not rows: raise ValueError('no textures converted')
             with zipfile.ZipFile(output / 'converted.obb', 'x') as zout:
                 for info in infos:

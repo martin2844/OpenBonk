@@ -123,7 +123,7 @@ def verify_textures(template, plan_path, intermediate, cubemaps=False):
         position = 0
         for frag in fs:
             entry, start, amount, offset = (frag.get(k) for k in ('entry', 'target_offset', 'size', 'converted_offset'))
-            if (not isinstance(entry, str) or not re.fullmatch(r'assets/bin/Data/sharedassets[12]\.assets\.split(?:0|[1-9]\d*)', entry) or
+            if (not isinstance(entry, str) or not re.fullmatch(r'assets/bin/Data/(?:sharedassets[12]\.assets\.split(?:0|[1-9]\d*)|[0-9a-f]{32})', entry) or
                     any(type(v) is not int for v in (start, amount, offset)) or start < 0 or amount <= 0 or offset != position or amount > size - position):
                 raise ValueError('invalid texture fragment')
             if cubemaps and not entry.startswith('assets/bin/Data/sharedassets1.assets.split'): raise ValueError('invalid cubemap entry')

@@ -116,8 +116,11 @@ public final class SteamPlannedTextures {
                 for (int j = 0; j < fs.length(); j++) {
                     JSONObject f = fs.getJSONObject(j); Fragment fragment = new Fragment(); fragment.texture = t;
                     fragment.entry = f.getString("entry"); fragment.targetOffset = f.getInt("target_offset"); fragment.convertedOffset = f.getInt("converted_offset"); fragment.size = f.getInt("size");
-                    if (!fragment.entry.matches(PREFIX + (cubemaps ? "sharedassets1" : "sharedassets[12]") + "\\.assets\\.split(?:0|[1-9][0-9]*)") || fragment.convertedOffset != position || fragment.size <= 0 ||
-                        fragment.targetOffset < 0 || fragment.targetOffset > MAX_SPLIT - fragment.size || fragment.size > t.outputSize - position) throw new IOException("invalid texture fragment");
+                    boolean split = fragment.entry.matches(PREFIX + (cubemaps ? "sharedassets1" : "sharedassets[12]") + "\\.assets\\.split(?:0|[1-9][0-9]*)");
+                    boolean standalone = !cubemaps && fragment.entry.matches(PREFIX + "[0-9a-f]{32}");
+                    int entryLimit = split ? MAX_SPLIT : MAX_CLIP;
+                    if (!(split || standalone) || fragment.convertedOffset != position || fragment.size <= 0 ||
+                        fragment.targetOffset < 0 || fragment.targetOffset > entryLimit - fragment.size || fragment.size > t.outputSize - position) throw new IOException("invalid texture fragment");
                     position += fragment.size; byEntry.computeIfAbsent(fragment.entry, k -> new ArrayList<>()).add(fragment);
                 }
                 if (position != t.outputSize) throw new IOException("incomplete texture fragments"); textures.add(t);
@@ -188,7 +191,8 @@ public final class SteamPlannedTextures {
                     if (seen.size() >= MAX_ENTRIES || !seen.add(name) || entry.getSize() < 0 || entry.getSize() > MAX_FILE - total) throw new IOException("invalid template entry");
                     total += entry.getSize(); List<Fragment> fs = byEntry.get(name); byte[] patched = null; long crc = entry.getCrc();
                     if (fs != null) {
-                        if (entry.getSize() > MAX_SPLIT) throw new IOException("texture split too large");
+                        long entryLimit = name.matches(PREFIX + "[0-9a-f]{32}") ? MAX_CLIP : MAX_SPLIT;
+                        if (entry.getSize() > entryLimit) throw new IOException("texture entry too large");
                         patched = new byte[(int)entry.getSize()];
                         try (DataInputStream in = new DataInputStream(template.getInputStream(entry))) { in.readFully(patched); if (in.read() != -1) throw new IOException("oversized split"); }
                         for (Fragment f : fs) {

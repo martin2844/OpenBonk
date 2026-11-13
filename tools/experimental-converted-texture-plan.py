@@ -2,7 +2,7 @@
 """Generate and test local plans for Steam-to-Android texture conversion.
 
 Heuristic mappings can have visible errors. Templates and restored OBBs still
-contain other game data and must remain local. Not integrated with Android.
+contain other game data and must remain local. Android integration is experimental.
 Requires UnityPy and its texture conversion dependencies.
 """
 import argparse
@@ -20,7 +20,7 @@ spec = importlib.util.spec_from_file_location('texture_study', ROOT / 'tools/exp
 study = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(study)
 SOURCE = re.compile(r'sharedassets[12]\.assets(?:\.resS)?\Z')
-ENTRY = re.compile(re.escape(study.PREFIX) + r'sharedassets[12]\.assets\.split(?:0|[1-9]\d*)\Z')
+ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:sharedassets[12]\.assets\.split(?:0|[1-9]\d*)|[0-9a-f]{32})\Z')
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
@@ -91,8 +91,15 @@ def generate(args):
     chosen = {g: {} for g in study.GROUPS}
     for row in candidates:
         group, key = row['group'], row['target_id']
-        if group not in chosen or type(key) is not int or key in chosen[group]: raise ValueError('invalid texture record')
+        if group not in study.GROUPS and not re.fullmatch(r'[0-9a-f]{32}', group): raise ValueError('invalid texture group')
+        if type(key) is not int or key in chosen.setdefault(group, {}): raise ValueError('invalid texture record')
         chosen[group][key] = row
+    for group, records in chosen.items():
+        if group in study.GROUPS: continue
+        for row in records.values():
+            parent = chosen.get(row.get('alias_group'), {}).get(row.get('alias_target_id'))
+            if row.get('alias_group') not in study.GROUPS or parent is None or row.get('source_name') != parent['name'] or any(row.get(k) != parent.get(k) for k in ('source_format', 'target_format', 'normal', 'bytes')):
+                raise ValueError('invalid standalone texture alias')
     index = defaultdict(list)
     for group in study.GROUPS:
         path = source / (group + '.assets')
@@ -105,13 +112,13 @@ def generate(args):
         with zipfile.ZipFile(obb) as zin:
             infos = zin.infolist()
             if len(infos) != len({i.filename for i in infos}): raise ValueError('duplicate ZIP entry')
-            for group in study.GROUPS:
+            for group in chosen:
                 parts = study.parts(zin, group); data = b''.join(zin.read(info) for info in parts)
                 objects = {o.path_id: o for o in UnityPy.load(data).objects if o.type.name == 'Texture2D'}
                 for key, prior in chosen[group].items():
                     if key not in objects: raise ValueError('missing target texture')
                     obj = objects[key]; tex = obj.read()
-                    found = index[(tex.m_Name, tex.m_Width, tex.m_Height)]
+                    found = index[(prior.get('source_name', tex.m_Name), tex.m_Width, tex.m_Height)]
                     chosen_source = study.select_source(tex, found, texture=lambda item: item[2])
                     if chosen_source is None or tex.m_Name != prior['name']: raise ValueError('source mapping differs')
                     src_group, src_obj, src = chosen_source

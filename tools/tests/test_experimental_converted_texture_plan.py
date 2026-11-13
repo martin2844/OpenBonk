@@ -65,5 +65,14 @@ class ConvertedTexturePlanTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.restore()
         self.assertFalse(self.output.exists())
 
+    def test_reconstructs_standalone_hashed_entry(self):
+        entry = module.study.PREFIX + 'a' * 32
+        with zipfile.ZipFile(self.template, 'w') as z:
+            z.writestr(entry, b'header' + bytes(5) + b'tail')
+        self.plan['template_sha256'] = module.file_hash(self.template)
+        self.row['fragments'] = [{'entry': entry, 'target_offset': 6, 'size': 5, 'converted_offset': 0}]
+        self.restore()
+        with zipfile.ZipFile(self.output) as z: self.assertEqual(z.read(entry), b'headerABCDEtail')
+
 
 if __name__ == '__main__': unittest.main()
