@@ -20,7 +20,8 @@ class ResearchChainTests(unittest.TestCase):
             (data / 'sharedassets1.assets').write_bytes(b'shared')
             manifest = root / 'inputs.json'
             manifest.write_text(json.dumps({'platforms': {'linux': {
-                'sharedassets1.assets': {}, 'StreamingAssets/aa/StandaloneLinux64/table.bundle': {}}}}))
+                'sharedassets1.assets': {}, 'StreamingAssets/aa/StandaloneLinux64/table.bundle': {}}, 'windows': {
+                'sharedassets1.assets': {}, 'StreamingAssets/aa/StandaloneWindows64/table.bundle': {}}}}))
             archive = root / 'steam.zip'
             def write_zip(shared):
                 with zipfile.ZipFile(archive, 'w') as z:
@@ -31,12 +32,16 @@ class ResearchChainTests(unittest.TestCase):
                 write_zip(b'broken')
                 with self.assertRaisesRegex(ValueError, 'differs'): module.validate_steam_inputs(data, archive)
                 bundle.rename(data / 'StreamingAssets/aa/StandaloneWindows64')
-                with self.assertRaisesRegex(ValueError, 'Windows'): module.validate_steam_inputs(data, archive)
+                with self.assertRaisesRegex(ValueError, 'requires linux'): module.validate_steam_inputs(data, archive)
+                with zipfile.ZipFile(archive, 'w') as z:
+                    z.writestr('Megabonk_Data/sharedassets1.assets', b'shared')
+                    z.writestr('Megabonk_Data/StreamingAssets/aa/StandaloneWindows64/table.bundle', b'locale')
+                module.validate_steam_inputs(data, archive, 'windows')
 
     def args(self, root):
         paths = {name: root / name for name in ('output', 'steam_data', 'unity_editor', 'runtime_obb', 'runtime_apk',
                  'gradle_project', 'unity_project', 'json_jar', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home')}
-        return SimpleNamespace(**paths, runner='steam-run', application_id='com.example.research')
+        return SimpleNamespace(**paths, runner='steam-run', application_id='com.example.research', platform='linux')
 
     def test_stages_build_seven_stage_chain_in_order(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -60,6 +65,9 @@ class ResearchChainTests(unittest.TestCase):
             self.assertEqual(labels[:4], ['Steam ZIP', 'host texture converter', 'Android texture converter', 'Crunch decoder'])
             self.assertEqual(len(steps), 30)
             self.assertLess(labels.index('Crunch decoder'), labels.index('converted cubemaps'))
+            a.platform = 'windows'
+            first = module.commands(a)[0][1]
+            self.assertEqual(first[first.index('--platform') + 1], 'windows')
 
 
 if __name__ == '__main__': unittest.main()

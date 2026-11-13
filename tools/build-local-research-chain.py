@@ -25,20 +25,22 @@ FIXTURES = ROOT / 'tools/texture-native-comparison/com/openbonk/dataprep'
 STEAM_INPUTS = TOOLS / 'launcher-steam-inputs.json'
 
 
-def validate_steam_inputs(steam_data, steam_zip=None):
-    """Check the Linux data and an optional ZIP before costly conversions."""
-    inventory = json.loads(STEAM_INPUTS.read_text(encoding='utf-8'))['platforms']['linux']
-    if not (steam_data / 'StreamingAssets/aa/StandaloneLinux64').is_dir():
-        raise ValueError('research chain requires Linux Steam data; Windows data is not supported')
-    if not isinstance(inventory, dict) or not inventory: raise ValueError('invalid Linux input inventory')
+def validate_steam_inputs(steam_data, steam_zip=None, platform='linux'):
+    """Check the selected platform's data and optional ZIP before conversion."""
+    if platform not in ('linux', 'windows'): raise ValueError('invalid Steam platform')
+    inventory = json.loads(STEAM_INPUTS.read_text(encoding='utf-8'))['platforms'][platform]
+    folder = 'StandaloneLinux64' if platform == 'linux' else 'StandaloneWindows64'
+    if not (steam_data / 'StreamingAssets/aa' / folder).is_dir():
+        raise ValueError('research chain requires ' + platform + ' Steam data for the selected platform')
+    if not isinstance(inventory, dict) or not inventory: raise ValueError('invalid Steam input inventory')
     expected = {}; total = 0
     for name in inventory:
         parts = name.split('/')
         if any(not part or part in ('.', '..') or '\\' in part or ':' in part for part in parts): raise ValueError('invalid input inventory path')
         path = steam_data.joinpath(*parts)
-        if not path.is_file() or not path.resolve().is_relative_to(steam_data): raise ValueError('required Linux Steam input is missing')
+        if not path.is_file() or not path.resolve().is_relative_to(steam_data): raise ValueError('required Steam input is missing for ' + platform)
         size = path.stat().st_size; total += size
-        if size <= 0 or total > 1024 * 1024 * 1024: raise ValueError('Linux Steam inputs exceed size limit')
+        if size <= 0 or total > 1024 * 1024 * 1024: raise ValueError('Steam inputs exceed size limit')
         with path.open('rb') as stream:
             expected[name] = (size, hashlib.file_digest(stream, 'sha256').hexdigest())
     if steam_zip is None: return
@@ -52,13 +54,13 @@ def validate_steam_inputs(steam_data, steam_zip=None):
         root = None
         for name, (size, digest) in expected.items():
             matches = [i for i in infos if i.filename == name or i.filename == 'Megabonk_Data/' + name or i.filename.endswith('/Megabonk_Data/' + name)]
-            if len(matches) != 1: raise ValueError('Steam ZIP is missing or duplicates a required Linux input')
+            if len(matches) != 1: raise ValueError('Steam ZIP is missing or duplicates a required ' + platform + ' input')
             item = matches[0]; prefix = item.filename[:-len(name)]
             if root is not None and root != prefix: raise ValueError('Steam ZIP has conflicting game data roots')
             root = prefix
-            if item.file_size != size: raise ValueError('Steam ZIP input differs from local Linux data')
+            if item.file_size != size: raise ValueError('Steam ZIP input differs from local ' + platform + ' data')
             with archive.open(item) as stream:
-                if hashlib.file_digest(stream, 'sha256').hexdigest() != digest: raise ValueError('Steam ZIP input differs from local Linux data')
+                if hashlib.file_digest(stream, 'sha256').hexdigest() != digest: raise ValueError('Steam ZIP input differs from local ' + platform + ' data')
 
 
 def commands(a):
@@ -83,7 +85,7 @@ def commands(a):
         py(label, 'rebind-audio-plan.py', '--plan', plan, '--original-template', original, '--canonical-template', canonical, '--output', dest)
     def toolplan(label, script, source_obb, dest, *extra):
         py(label, script, 'generate', '--steam-data', steam, '--obb', source_obb, '--output', dest, *extra)
-    if a.steam_zip is None: py('Steam ZIP', 'create-launcher-steam-zip.py', steam, steamzip, '--platform', 'linux')
+    if a.steam_zip is None: py('Steam ZIP', 'create-launcher-steam-zip.py', steam, steamzip, '--platform', a.platform)
     if a.host_library is None: py('host texture converter', 'build-host-texture-library.py', '--java-home', jdk, '--output', hostlib, *wrapped)
     if a.android_library is None: py('Android texture converter', 'build-android-texture-library.py', '--ndk', android / 'NDK', '--output', armlib, *wrapped)
     if a.decoder is None: py('Crunch decoder', 'build-crunch-decoder.py', decoder)
@@ -139,6 +141,7 @@ def main():
     for name in ('steam-zip', 'host-library', 'android-library', 'decoder', 'gradle-user-home'):
         p.add_argument('--' + name, type=Path)
     p.add_argument('--application-id', required=True)
+    p.add_argument('--platform', choices=('linux', 'windows'), default='linux', help='Steam data platform (Windows support is experimental)')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()
@@ -163,7 +166,7 @@ def main():
         if value is not None and not value.is_file(): p.error(name + ' must be a file')
     if not zipfile.is_zipfile(a.runtime_obb) or not zipfile.is_zipfile(a.runtime_apk) or not zipfile.is_zipfile(a.json_jar): p.error('runtime and JSON inputs must be ZIP archives')
     if a.steam_zip and not zipfile.is_zipfile(a.steam_zip): p.error('Steam ZIP is invalid')
-    try: validate_steam_inputs(a.steam_data, a.steam_zip)
+    try: validate_steam_inputs(a.steam_data, a.steam_zip, a.platform)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error: p.error(str(error))
     if not (a.unity_editor / 'Data/PlaybackEngines/AndroidPlayer/OpenJDK/bin/java').is_file(): p.error('Unity Android JDK missing')
     if not (a.unity_editor / 'Data/PlaybackEngines/AndroidPlayer/OpenJDK/bin/javac').is_file(): p.error('Unity Android compiler missing')
