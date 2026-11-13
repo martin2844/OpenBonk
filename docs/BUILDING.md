@@ -25,6 +25,19 @@ This compiles the `Steam*.java` sources and checks that the three generated Java
 
 ## Isolated Unity workspace
 
+For an experimental local, data-embedded APK, `tools/build-local-unity-apk.py` runs the preparation stages described below in sequence from an AssetRipper 2.0.0 `ExportedProject` and a locally built Lua bridge:
+
+```sh
+python3 tools/build-local-unity-apk.py \
+  --base-project /path/to/ExportedProject \
+  --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
+  --lua-library /path/to/libmegabonk_lua.so \
+  --output /path/to/new-local-build \
+  --application-id com.example.openbonktest
+```
+
+Add `--runner steam-run` if needed. `--check` validates the initial inputs only. The tool requires a new output directory, retains local intermediates and backups on failure, and does not install the APK. A run from a fresh local export completed and its APK reached a Forest run on an iPlay tablet. The output contains game-derived assets; it is not the data-separated release APK. The sequence remains experimental and the smoke test does not establish full feature parity.
+
 An experimental local export step uses AssetRipper.GUI.Web 2.0.0 and a game installation provided by the user:
 
 ```sh
@@ -112,7 +125,7 @@ python3 tools/prepare-unity-characters.py \
   --backup /path/to/new-local-character-backup
 ```
 
-This verifies the 21 character assets and their model, weapon, passive and icon references, backs up Bandit and Clank before correcting their default meshes to match their animated prefabs, then creates Resources copies and a fallback prefab locally. `--check` validates prerequisites without writing, and `--runner steam-run` is available where needed. A full runtime and gameplay test of this path is still pending.
+This verifies the 21 character assets and their model, weapon, passive and icon references, backs up Bandit and Clank before correcting their default meshes to match their animated prefabs, then creates Resources copies and a fallback prefab locally. `--check` validates prerequisites without writing, and `--runner steam-run` is available where needed. One character was exercised in a short Android smoke test; the full roster and gameplay remain unverified.
 
 Restore post-processing shader references to the imported Unity package, preserving the original local asset:
 
