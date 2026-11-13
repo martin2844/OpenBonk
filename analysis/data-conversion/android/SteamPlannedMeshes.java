@@ -10,7 +10,7 @@ import org.json.*;
 /** Experimental offset-based mesh buffer restoration. Not a release build. */
 public final class SteamPlannedMeshes {
     private static final long MAX_FILE = 1024L * 1024 * 1024, MAX_TOTAL = 256L * 1024 * 1024;
-    private static final int MAX_SPLIT = 1024 * 1024, MAX_ENTRIES = 20000, MAX_ROWS = 10000;
+    private static final int MAX_SPLIT = 1024 * 1024, MAX_OBJECT_ENTRY = 32 * 1024 * 1024, MAX_ENTRIES = 20000, MAX_ROWS = 10000;
     private static final class Fragment { String entry, source, hash, maskedHash, originalHash; byte[] mask; long sourceOffset; int targetOffset, size; }
     private static MessageDigest sha() {
         try { return MessageDigest.getInstance("SHA-256"); } catch (NoSuchAlgorithmException e) { throw new AssertionError(e); }
@@ -56,12 +56,16 @@ public final class SteamPlannedMeshes {
         }
     }
     public static void restore(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
-        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, false);
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, 0);
     }
     public static void restoreAnimations(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
-        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, true);
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, 1);
     }
-    private static void restoreInternal(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output, boolean animations) throws IOException {
+    public static void restoreExactObjects(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, 2);
+    }
+    private static void restoreInternal(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output, int mode) throws IOException {
+        boolean animations = mode == 1, objects = mode == 2;
         Path target = output.toPath().toAbsolutePath(), parent = target.getParent();
         if (parent == null || !Files.isDirectory(parent) || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) throw new IOException("output must be new");
         byte[] data = planBytes(planFile);
@@ -69,12 +73,12 @@ public final class SteamPlannedMeshes {
         String templateHash; Map<String, String> sourceHashes = new HashMap<>(); Map<String, List<Fragment>> byEntry = new HashMap<>();
         try {
             JSONObject plan = new JSONObject(new String(data, "UTF-8"));
-            String kind = animations ? "experimental-animation-fragment-mask" : "experimental-steam-mesh-buffer-offsets";
+            String kind = animations ? "experimental-animation-fragment-mask" : objects ? "experimental-exact-steam-object-offsets" : "experimental-steam-mesh-buffer-offsets";
             if (plan.getInt("schema") != 1 || !plan.getString("kind").equals(kind)) throw new IOException("unsupported asset plan");
             templateHash = checkedHash(plan.getString("template_sha256")); JSONObject sources = plan.getJSONObject("sources");
             Iterator<String> keys = sources.keys();
             while (keys.hasNext()) {
-                String name = keys.next(); if (!name.matches("(?:sharedassets[0-9]+\\.assets|level[0-9]+)(?:\\.resS)?")) throw new IOException("invalid source name");
+                String name = keys.next(); if (!name.matches(objects ? "(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)" : "(?:sharedassets[0-9]+\\.assets|level[0-9]+)(?:\\.resS)?")) throw new IOException("invalid source name");
                 if (animations && !(name.equals("sharedassets1.assets") || name.equals("sharedassets2.assets"))) throw new IOException("invalid animation source");
                 sourceHashes.put(name, checkedHash(sources.getString(name)));
             }
@@ -87,9 +91,12 @@ public final class SteamPlannedMeshes {
                 if (animations) { f.maskedHash = checkedHash(row.getString("masked_sha256")); f.originalHash = checkedHash(row.getString("original_sha256")); }
                 else f.hash = checkedHash(row.getString("sha256"));
                 f.targetOffset = row.getInt("target_offset"); f.sourceOffset = row.getLong("source_offset"); f.size = row.getInt("size");
-                String pattern = animations ? "assets/bin/Data/(?:[0-9a-f]{32}|sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*))" : "assets/bin/Data/sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*)";
+                String pattern = animations ? "assets/bin/Data/(?:[0-9a-f]{32}|sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*))" : objects ?
+                        "assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)(?:\\.split(?:0|[1-9][0-9]*))?)" :
+                        "assets/bin/Data/sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*)";
+                int entryLimit = objects ? MAX_OBJECT_ENTRY : MAX_SPLIT;
                 if (!f.entry.matches(pattern) || !sourceHashes.containsKey(f.source) ||
-                        f.size <= 0 || f.size > MAX_SPLIT || f.targetOffset < 0 || f.targetOffset > MAX_SPLIT - f.size || f.sourceOffset < 0 || f.sourceOffset > MAX_FILE - f.size) throw new IOException("invalid mesh fragment");
+                        f.size <= 0 || f.size > entryLimit || f.targetOffset < 0 || f.targetOffset > entryLimit - f.size || f.sourceOffset < 0 || f.sourceOffset > MAX_FILE - f.size) throw new IOException("invalid mesh fragment");
                 if (animations) {
                     try { f.mask = Base64.getDecoder().decode(row.getString("mask")); }
                     catch (IllegalArgumentException e) { throw new IOException("invalid animation mask", e); }
@@ -136,7 +143,7 @@ public final class SteamPlannedMeshes {
                     if (seen.size() >= MAX_ENTRIES || !seen.add(name) || entry.getSize() < 0 || entry.getSize() > MAX_FILE - total) throw new IOException("invalid template entry");
                     total += entry.getSize(); List<Fragment> fs = byEntry.get(name); byte[] patched = null; long crc = entry.getCrc();
                     if (fs != null) {
-                        if (entry.getSize() > MAX_SPLIT) throw new IOException("mesh split too large");
+                        if (entry.getSize() > (objects ? MAX_OBJECT_ENTRY : MAX_SPLIT)) throw new IOException("asset entry too large");
                         patched = new byte[(int)entry.getSize()];
                         try (DataInputStream in = new DataInputStream(template.getInputStream(entry))) { in.readFully(patched); if (in.read() != -1) throw new IOException("oversized split"); }
                         for (Fragment f : fs) {
