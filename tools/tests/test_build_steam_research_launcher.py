@@ -29,7 +29,16 @@ class SteamResearchBuildTests(unittest.TestCase):
 
     def invoke(self, *extra):
         with patch.object(sys, 'argv', self.argv + list(extra)), patch.object(module.importlib.util, 'find_spec', return_value=object()), \
+                patch.object(module.research_chain, 'validate_steam_inputs'), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()): module.main()
+
+    def test_bad_steam_data_fails_before_unity_export(self):
+        with patch.object(sys, 'argv', self.argv), patch.object(module.importlib.util, 'find_spec', return_value=object()), \
+                patch.object(module.research_chain, 'validate_steam_inputs', side_effect=ValueError('unsupported data')), \
+                patch.object(module.subprocess, 'run') as run, contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit): module.main()
+            run.assert_not_called()
+            self.assertFalse(self.out.exists())
 
     @patch.object(module.subprocess, 'run')
     def test_check_only_performs_preflight(self, run):

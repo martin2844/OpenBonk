@@ -1,8 +1,11 @@
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
+import zipfile
 
 spec = importlib.util.spec_from_file_location('research_chain', Path(__file__).resolve().parents[1] / 'build-local-research-chain.py')
 module = importlib.util.module_from_spec(spec)
@@ -10,6 +13,26 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_preflight_checks_zip_against_local_linux_data(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); data = root / 'data'; bundle = data / 'StreamingAssets/aa/StandaloneLinux64'
+            bundle.mkdir(parents=True); (bundle / 'table.bundle').write_bytes(b'locale')
+            (data / 'sharedassets1.assets').write_bytes(b'shared')
+            manifest = root / 'inputs.json'
+            manifest.write_text(json.dumps({'platforms': {'linux': {
+                'sharedassets1.assets': {}, 'StreamingAssets/aa/StandaloneLinux64/table.bundle': {}}}}))
+            archive = root / 'steam.zip'
+            def write_zip(shared):
+                with zipfile.ZipFile(archive, 'w') as z:
+                    z.writestr('Megabonk_Data/sharedassets1.assets', shared)
+                    z.writestr('Megabonk_Data/StreamingAssets/aa/StandaloneLinux64/table.bundle', b'locale')
+            with patch.object(module, 'STEAM_INPUTS', manifest):
+                write_zip(b'shared'); module.validate_steam_inputs(data, archive)
+                write_zip(b'broken')
+                with self.assertRaisesRegex(ValueError, 'differs'): module.validate_steam_inputs(data, archive)
+                bundle.rename(data / 'StreamingAssets/aa/StandaloneWindows64')
+                with self.assertRaisesRegex(ValueError, 'Windows'): module.validate_steam_inputs(data, archive)
+
     def args(self, root):
         paths = {name: root / name for name in ('output', 'steam_data', 'unity_editor', 'runtime_obb', 'runtime_apk',
                  'gradle_project', 'unity_project', 'json_jar', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home')}

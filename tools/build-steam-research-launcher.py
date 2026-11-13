@@ -16,6 +16,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / 'tools'
+spec = importlib.util.spec_from_file_location('local_research_chain', TOOLS / 'build-local-research-chain.py')
+research_chain = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(research_chain)
 
 
 def commands(a):
@@ -71,6 +74,8 @@ def main():
     if a.gradle_user_home and not a.gradle_user_home.is_dir(): p.error('Gradle cache must be a directory')
     if not zipfile.is_zipfile(a.json_jar) or (a.steam_zip and not zipfile.is_zipfile(a.steam_zip)): p.error('invalid ZIP input')
     if importlib.util.find_spec('UnityPy') is None: p.error('UnityPy missing from active Python environment')
+    try: research_chain.validate_steam_inputs((a.game / 'Megabonk_Data').resolve(), a.steam_zip)
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error: p.error(str(error))
     steps = commands(a)
     # The output's parent already exists, so the nested preflight can run
     # before creating the outer output directory.

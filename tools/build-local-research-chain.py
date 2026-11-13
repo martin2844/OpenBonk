@@ -7,7 +7,9 @@ redistributable beta or construct the initial Unity runtime/Gradle export.
 Requires UnityPy and its texture dependencies in the active Python environment.
 """
 import argparse
+import hashlib
 import importlib.util
+import json
 import os
 from pathlib import Path
 import re
@@ -20,6 +22,43 @@ ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / 'tools'
 JAVA = ROOT / 'analysis/data-conversion/android'
 FIXTURES = ROOT / 'tools/texture-native-comparison/com/openbonk/dataprep'
+STEAM_INPUTS = TOOLS / 'launcher-steam-inputs.json'
+
+
+def validate_steam_inputs(steam_data, steam_zip=None):
+    """Check the Linux data and an optional ZIP before costly conversions."""
+    inventory = json.loads(STEAM_INPUTS.read_text(encoding='utf-8'))['platforms']['linux']
+    if not (steam_data / 'StreamingAssets/aa/StandaloneLinux64').is_dir():
+        raise ValueError('research chain requires Linux Steam data; Windows data is not supported')
+    if not isinstance(inventory, dict) or not inventory: raise ValueError('invalid Linux input inventory')
+    expected = {}; total = 0
+    for name in inventory:
+        parts = name.split('/')
+        if any(not part or part in ('.', '..') or '\\' in part or ':' in part for part in parts): raise ValueError('invalid input inventory path')
+        path = steam_data.joinpath(*parts)
+        if not path.is_file() or not path.resolve().is_relative_to(steam_data): raise ValueError('required Linux Steam input is missing')
+        size = path.stat().st_size; total += size
+        if size <= 0 or total > 1024 * 1024 * 1024: raise ValueError('Linux Steam inputs exceed size limit')
+        with path.open('rb') as stream:
+            expected[name] = (size, hashlib.file_digest(stream, 'sha256').hexdigest())
+    if steam_zip is None: return
+    with zipfile.ZipFile(steam_zip) as archive:
+        infos = archive.infolist(); names = [i.filename for i in infos]
+        if len(names) > 20000 or len(names) != len(set(names)): raise ValueError('invalid Steam ZIP entries')
+        for item in infos:
+            if item.is_dir(): continue
+            if any(not part or part in ('.', '..') or '\\' in part or ':' in part for part in item.filename.split('/')):
+                raise ValueError('unsafe Steam ZIP entry')
+        root = None
+        for name, (size, digest) in expected.items():
+            matches = [i for i in infos if i.filename == name or i.filename == 'Megabonk_Data/' + name or i.filename.endswith('/Megabonk_Data/' + name)]
+            if len(matches) != 1: raise ValueError('Steam ZIP is missing or duplicates a required Linux input')
+            item = matches[0]; prefix = item.filename[:-len(name)]
+            if root is not None and root != prefix: raise ValueError('Steam ZIP has conflicting game data roots')
+            root = prefix
+            if item.file_size != size: raise ValueError('Steam ZIP input differs from local Linux data')
+            with archive.open(item) as stream:
+                if hashlib.file_digest(stream, 'sha256').hexdigest() != digest: raise ValueError('Steam ZIP input differs from local Linux data')
 
 
 def commands(a):
@@ -124,6 +163,8 @@ def main():
         if value is not None and not value.is_file(): p.error(name + ' must be a file')
     if not zipfile.is_zipfile(a.runtime_obb) or not zipfile.is_zipfile(a.runtime_apk) or not zipfile.is_zipfile(a.json_jar): p.error('runtime and JSON inputs must be ZIP archives')
     if a.steam_zip and not zipfile.is_zipfile(a.steam_zip): p.error('Steam ZIP is invalid')
+    try: validate_steam_inputs(a.steam_data, a.steam_zip)
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error: p.error(str(error))
     if not (a.unity_editor / 'Data/PlaybackEngines/AndroidPlayer/OpenJDK/bin/java').is_file(): p.error('Unity Android JDK missing')
     if not (a.unity_editor / 'Data/PlaybackEngines/AndroidPlayer/OpenJDK/bin/javac').is_file(): p.error('Unity Android compiler missing')
     if importlib.util.find_spec('UnityPy') is None: p.error('UnityPy missing from active Python environment')
