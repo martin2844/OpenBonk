@@ -379,6 +379,8 @@ The additional `--normal-fallback` option on either research-chain builder tries
 
 The experimental `--font-fallback` option, which requires `--quality-textures`, also reconstructs the Liberation Sans SDF atlas from the user's Steam data. It accepts only the identified atlas and checks visible pixels, alpha error, and threshold crossings near glyph edges. In a local study the average alpha error was 0.738/255, the largest error was 10/255, and 4,615 of 292,511 edge pixels crossed the chosen threshold. Linux and Windows conversions matched across 922 archive entries; both Android texture stages reproduced all entries on an iPlay. These numerical checks are only a proxy for text appearance, which still needs visual review. The option is off by default and the resulting template and APK remain private.
 
+With this option enabled, both local research chains completed their seven desktop restoration checks and produced private APKs. A private dual-platform APK was also assembled from the two plans. These builds used an existing local Unity runtime and Gradle export; they do not establish a fresh end-to-end build or interactive gameplay fidelity.
+
 ```sh
 python3 tools/build-etc2-quality-jni.py --target host --java-home /path/to/Unity/Editor/Data/PlaybackEngines/AndroidPlayer/OpenJDK --output /path/to/new-host-library.so
 python3 tools/build-etc2-quality-jni.py --target android --ndk /path/to/Unity/Editor/Data/PlaybackEngines/AndroidPlayer/NDK --output /path/to/new-android-library.so
