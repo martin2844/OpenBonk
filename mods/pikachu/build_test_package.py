@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build the experimental local API 3 package; do not redistribute pending rights review."""
-import hashlib, json, pathlib, zipfile
+import argparse, hashlib, json, pathlib, zipfile
 root = pathlib.Path(__file__).resolve().parent
 files = {
     'main.lua': root / 'content/main.lua',
@@ -21,8 +21,16 @@ manifest = {
     'passive': {'name': 'Electric Energy', 'description': 'Gain 1% power-up drop chance and 1% duration per level gained.',
                 'perLevel': [{'stat': 'PowerupChance', 'amount': .01}, {'stat': 'DurationMultiplier', 'amount': .01}]},
 }
-output = root / 'study/pikachu-content-local-test.zip'
-with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as package:
-    package.writestr('manifest.json', json.dumps(manifest, separators=(',', ':')))
-    for name, path in files.items(): package.write(path, name)
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--output', type=pathlib.Path, default=root / 'pikachu-mod.zip',
+                    help='new ZIP path in an existing directory')
+output = parser.parse_args().output.expanduser().absolute()
+if output.exists() or output.is_symlink() or not output.parent.is_dir():
+    parser.error('output must be a new path in an existing directory')
+with zipfile.ZipFile(output, 'x', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as package:
+    for name, data in [('manifest.json', json.dumps(manifest, separators=(',', ':')).encode()),
+                       *((name, path.read_bytes()) for name, path in files.items())]:
+        info = zipfile.ZipInfo(name, (2020, 1, 1, 0, 0, 0))
+        info.compress_type = zipfile.ZIP_DEFLATED
+        package.writestr(info, data, compresslevel=9)
 print(output, output.stat().st_size, hashlib.sha256(output.read_bytes()).hexdigest())
