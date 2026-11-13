@@ -205,6 +205,8 @@ The experimental `tools/build-private-launcher-prototype.sh` accepts `OPENBONK_G
 
 Three version-specific position-only scrub plans are included under `analysis/data-conversion/`; `python3 tools/check-position-plans.py` validates their hashes and structure. They contain offsets, hashes and bit masks rather than the masked asset bytes. They are pinned to older intermediate builds and do not resolve the remaining plan generation and compatibility work for the newly built runtime.
 
+`tools/experimental-animation-mask.py` investigates generating masks for a newly built OBB instead of using the old animation layout. It requires UnityPy and local Steam `sharedassets1.assets` and `sharedassets2.assets`. On one new local build, it removed 2,056,359 nonzero bytes shared at identical positions across 108 animation clips; restoring those bytes from the same Steam input reproduced all 922 archive entries byte-for-byte. The generated template retains other game data and must stay local. This is not integrated with the Android launcher, does not remove all animation data, and does not reconstruct the other asset types or establish a redistributable APK.
+
 The ARM64 texture adapter can be built locally from the pinned source archive and the Unity Android NDK:
 
 ```sh
