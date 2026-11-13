@@ -60,7 +60,9 @@ public static class RebuildAndroidLocalization
 		try
 		{
 			string projectRoot = Directory.GetParent(Application.dataPath).FullName;
-			string exportPath = Path.GetFullPath(Path.Combine(projectRoot, "../../../build/android/localization-content.json"));
+			string configured = Environment.GetEnvironmentVariable("OPENBONK_BUILD_ROOT");
+			string buildRoot = string.IsNullOrEmpty(configured) ? Path.GetFullPath(Path.Combine(projectRoot, "../../../build")) : Path.GetFullPath(configured);
+			string exportPath = Path.Combine(buildRoot, "android/localization-content.json");
 			ExportData data = JsonUtility.FromJson<ExportData>(File.ReadAllText(exportPath));
 			if (data == null || data.locales == null || data.tables == null || data.tables.Count == 0)
 				throw new InvalidDataException("Localization export is empty: " + exportPath);
@@ -75,6 +77,11 @@ public static class RebuildAndroidLocalization
 
 			var locales = new Dictionary<string, Locale>(StringComparer.OrdinalIgnoreCase);
 			string localesDirectory = "Assets/Localization/Locales";
+			if (!Directory.Exists(localesDirectory))
+			{
+				Directory.CreateDirectory(localesDirectory);
+				AssetDatabase.Refresh();
+			}
 			foreach (LocaleData localeData in data.locales)
 			{
 				string assetPath = FindLocaleAsset(localesDirectory, localeData.code, localeData.name);
@@ -177,7 +184,10 @@ public static class RebuildAndroidLocalization
 			return asset;
 
 		string fullPath = Path.GetFullPath(assetPath);
-		string backupRoot = Path.GetFullPath(Path.Combine(Directory.GetParent(Application.dataPath).FullName, "../../../analysis/localization-placeholders"));
+		string projectRoot = Directory.GetParent(Application.dataPath).FullName;
+		string configured = Environment.GetEnvironmentVariable("OPENBONK_BUILD_ROOT");
+		string buildRoot = string.IsNullOrEmpty(configured) ? Path.GetFullPath(Path.Combine(projectRoot, "../../../build")) : Path.GetFullPath(configured);
+		string backupRoot = Path.Combine(buildRoot, "localization-placeholders");
 		string backupPath = Path.Combine(backupRoot, assetPath.Substring("Assets/".Length));
 		Directory.CreateDirectory(Path.GetDirectoryName(backupPath));
 		if (File.Exists(fullPath))
@@ -188,7 +198,12 @@ public static class RebuildAndroidLocalization
 			AssetDatabase.DeleteAsset(assetPath);
 		}
 
-		Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+		string assetDirectory = Path.GetDirectoryName(fullPath);
+		if (!Directory.Exists(assetDirectory))
+		{
+			Directory.CreateDirectory(assetDirectory);
+			AssetDatabase.Refresh();
+		}
 		asset = ScriptableObject.CreateInstance<T>();
 		AssetDatabase.CreateAsset(asset, assetPath);
 		return asset;

@@ -52,7 +52,10 @@ public static class LocalizationBundleExport
 	{
 		string projectRoot = Directory.GetParent(Application.dataPath).FullName;
 		string bundleRoot = Path.Combine(projectRoot, "Assets/StreamingAssets/aa/StandaloneLinux64");
-		string outputPath = Path.GetFullPath(Path.Combine(projectRoot, "../../../build/android/localization-content.json"));
+		string configured = Environment.GetEnvironmentVariable("OPENBONK_BUILD_ROOT");
+		string buildRoot = string.IsNullOrEmpty(configured) ? Path.GetFullPath(Path.Combine(projectRoot, "../../../build")) : Path.GetFullPath(configured);
+		string outputPath = Path.Combine(buildRoot, "android/localization-content.json");
+		if (File.Exists(outputPath)) throw new IOException("Localization export already exists: " + outputPath);
 		string[] bundlePaths = Directory.GetFiles(bundleRoot, "*.bundle");
 		Array.Sort(bundlePaths, StringComparer.Ordinal);
 		var bundles = new List<AssetBundle>();

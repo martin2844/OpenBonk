@@ -60,6 +60,17 @@ python3 tools/prepare-unity-workspace.py \
 
 This installs locally generated plugins, restores their checked-in metadata and backs up replaced files in `.openbonk-original-plugins` inside the workspace. The optional removal flag is intended for the observed AssetRipper 1.3.14 export: it backs up and removes specific DLLs that duplicate Unity packages. Use `--check` first and keep the original export. Preparing these files does not reconstruct the missing project configuration and assets.
 
+An experimental localization stage reconstructs Android localization from the 19 supported local Linux Steam bundles, without adding game text to this checkout:
+
+```sh
+python3 tools/rebuild-unity-localization.py \
+  --project /path/to/new-local-workspace \
+  --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
+  --build-root /path/to/new-localization-output
+```
+
+The project must already be prepared, and must contain the supported bundles under `Assets/StreamingAssets/aa/StandaloneLinux64`. The tool verifies their hashes, requires a new output directory, and offers `--check` and `--runner steam-run`. It modifies the isolated workspace and stores derived game data and logs locally. A manual run on a fresh export restored 17 locales and 867 tables and built Android Addressables; the complete APK and gameplay still need separate validation.
+
 The experimental runtime build stage can use that isolated workspace and a local directory containing the three managed DLLs named by the tool:
 
 ```sh
