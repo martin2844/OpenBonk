@@ -52,7 +52,7 @@ class LocalizationPreparationTests(unittest.TestCase):
             self.invoke()
         self.assertFalse(self.output.exists())
 
-    def test_runs_both_steps_and_cleans_response_file(self):
+    def test_repairs_guids_and_checks_localized_lookup(self):
         methods = []
         def run(cmd, env):
             method = cmd[cmd.index('-executeMethod') + 1]
@@ -63,12 +63,16 @@ class LocalizationPreparationTests(unittest.TestCase):
                 path = self.output / 'android/localization-content.json'
                 path.parent.mkdir()
                 path.write_text('{"locales":[1],"tables":[1]}')
+            elif method == 'LocalizationGuidPortCheck.Run':
+                Path(cmd[cmd.index('-logFile') + 1]).write_text('LocalizationGuidPortCheck passed: test')
             else:
                 Path(cmd[cmd.index('-logFile') + 1]).write_text('Android Addressables built.')
             return type('Result', (), {'returncode': 0})()
-        with patch.object(module.subprocess, 'run', side_effect=run):
+        with patch.object(module.subprocess, 'run', side_effect=run), patch.object(module.repair_guids, 'repair') as repair:
             self.invoke()
-        self.assertEqual(len(methods), 2)
+        self.assertEqual(methods, ['LocalizationBundleExport.ExportLinuxLocalizationBundles', 'RebuildAndroidLocalization.Build',
+                                   'RestoreLocalizationCollections.Run', 'RebuildAndroidLocalization.Build', 'LocalizationGuidPortCheck.Run'])
+        repair.assert_called_once_with(self.project, self.output / 'android/localization-content.json', self.output / 'guid-backup')
         self.assertFalse((self.project / 'Assets/csc.rsp').exists())
         self.assertFalse((self.project / 'Assets/csc.rsp.meta').exists())
 

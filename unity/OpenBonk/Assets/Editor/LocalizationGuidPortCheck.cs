@@ -18,7 +18,13 @@ public static class LocalizationGuidPortCheck
             var data = AssetDatabase.LoadAssetAtPath<SharedTableData>(AssetDatabase.GUIDToAssetPath(assetGuid));
             if (data == null || data.TableCollectionNameGuid == Guid.Empty) continue;
             if (!string.Equals(assetGuid, data.TableCollectionNameGuid.ToString("N"), StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Localization asset GUID differs from collection GUID: " + data.name);
+            {
+                string canonicalPath = AssetDatabase.GUIDToAssetPath(data.TableCollectionNameGuid.ToString("N"));
+                var canonical = AssetDatabase.LoadAssetAtPath<SharedTableData>(canonicalPath);
+                if (canonical == null || canonical.TableCollectionNameGuid != data.TableCollectionNameGuid || canonical.TableCollectionName != data.TableCollectionName)
+                    throw new Exception("Localization asset GUID differs from collection GUID: " + data.name);
+                continue; // An extracted duplicate can coexist with the canonical table.
+            }
             checkedTables++;
         }
         if (checkedTables != 51) throw new Exception("Expected 51 recovered shared tables; found " + checkedTables);

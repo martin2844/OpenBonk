@@ -59,6 +59,12 @@ class RuntimeBuildTest(unittest.TestCase):
         self.assertTrue(self.out.is_dir())
         self.assertFalse((self.project / 'Assets/csc.rsp').exists())
 
+    def test_include_rewired_uses_the_plugin_build_flags(self):
+        self.write_editor("import os,sys\nfrom pathlib import Path\nassert os.environ['OPENBONK_NO_REWIRED_CODE'] == '0'\nassert os.environ['OPENBONK_NO_REWIRED_PLUGINS'] == '0'\nassert (Path(sys.argv[sys.argv.index('-projectPath')+1])/'Assets/csc.rsp').read_text() == '-define:OPENBONK_BETA_NO_PROBES\\n'\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android'\n(p/'Megabonk-arm64-launcher-test.apk').write_bytes(b'apk')\n")
+        result = self.run_tool('--embedded', '--include-rewired')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.project / 'Assets/csc.rsp').exists())
+
     def test_existing_response_file_is_preserved(self):
         self.write_editor('pass\n')
         rsp = self.project / 'Assets/csc.rsp'

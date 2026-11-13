@@ -18,6 +18,7 @@ import sys
 PLUGINS = ('Rewired_Core.dll', 'Coffee.UIParticle.dll', 'com.rlabrecque.steamworks.net.dll')
 MARKER = {'schema': 1, 'kind': 'openbonk-local-unity-workspace'}
 DEFINES = b'-define:OPENBONK_NO_REWIRED\n-define:OPENBONK_BETA_NO_PROBES\n'
+REWIRED_DEFINES = b'-define:OPENBONK_BETA_NO_PROBES\n'
 
 
 def main():
@@ -27,6 +28,7 @@ def main():
     parser.add_argument('--plugins', type=Path, required=True, help='local directory with the three managed DLL inputs')
     parser.add_argument('--build-root', type=Path, required=True, help='new local directory for outputs and logs')
     parser.add_argument('--runner', help='optional single executable used to launch Unity, such as steam-run')
+    parser.add_argument('--include-rewired', action='store_true', help='experimental: include locally generated Rewired plugins; controller behavior is not yet verified')
     output_mode = parser.add_mutually_exclusive_group()
     output_mode.add_argument('--gradle-project', action='store_true', help='export a local Gradle project instead of an APK/OBB')
     output_mode.add_argument('--embedded', action='store_true', help='build a local APK containing the exported game data')
@@ -78,9 +80,10 @@ def main():
     for name in PLUGINS:
         shutil.copyfile(plugins / name, managed / name)
     env = os.environ.copy()
-    env.update({'OPENBONK_BUILD_ROOT': str(output), 'OPENBONK_NO_REWIRED_CODE': '1',
-                'OPENBONK_NO_REWIRED_PLUGINS': '1', 'OPENBONK_ANDROID_TARGET_SDK': '35',
+    env.update({'OPENBONK_BUILD_ROOT': str(output), 'OPENBONK_NO_REWIRED_CODE': '0' if args.include_rewired else '1',
+                'OPENBONK_NO_REWIRED_PLUGINS': '0' if args.include_rewired else '1', 'OPENBONK_ANDROID_TARGET_SDK': '35',
                 'OPENBONK_AAPT2_OVERRIDE': str(aapt2)})
+    defines = REWIRED_DEFINES if args.include_rewired else DEFINES
     if args.application_id:
         env['OPENBONK_RUNTIME_APPLICATION_ID'] = args.application_id
     else:
@@ -95,10 +98,10 @@ def main():
     fd = os.open(rsp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     try:
         with os.fdopen(fd, 'wb') as f:
-            f.write(DEFINES)
+            f.write(defines)
         status = subprocess.run(cmd, env=env).returncode
     finally:
-        if rsp.is_file() and not rsp.is_symlink() and rsp.read_bytes() == DEFINES:
+        if rsp.is_file() and not rsp.is_symlink() and rsp.read_bytes() == defines:
             rsp.unlink()
             # This metadata was absent before the build and can be generated
             # by Unity when importing our temporary response file.

@@ -6,6 +6,7 @@ The generated localization files contain game data and must remain local.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,9 @@ MARKER = {'schema': 1, 'kind': 'openbonk-local-unity-workspace'}
 DEFINES = b'-define:OPENBONK_NO_REWIRED\n-define:OPENBONK_BETA_NO_PROBES\n'
 LOCALES = ('localization-locales_assets_all.bundle', 3499,
            'f88c3d3b09b758b239ae08525cb3dd65b343f4ce966bad0c7852aba74e5e4a59')
+spec = importlib.util.spec_from_file_location('repair_localization_guids', Path(__file__).resolve().parent / 'repair-localization-guids.py')
+repair_guids = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(repair_guids)
 
 
 def main():
@@ -76,7 +80,10 @@ def main():
         with os.fdopen(fd, 'wb') as f:
             f.write(DEFINES)
         for method, log_name in (('LocalizationBundleExport.ExportLinuxLocalizationBundles', 'localization-export.log'),
-                                 ('RebuildAndroidLocalization.Build', 'localization-rebuild.log')):
+                                 ('RebuildAndroidLocalization.Build', 'localization-rebuild.log'),
+                                 ('RestoreLocalizationCollections.Run', 'localization-collections.log'),
+                                 ('RebuildAndroidLocalization.Build', 'localization-rebuild-final.log'),
+                                 ('LocalizationGuidPortCheck.Run', 'localization-guid-check.log')):
             log = output / log_name
             cmd = ([runner] if runner else []) + [str(editor), '-batchmode', '-nographics', '-quit',
                    '-projectPath', str(project), '-executeMethod', method, '-logFile', str(log)]
@@ -90,8 +97,14 @@ def main():
                 data = json.loads(data_path.read_text())
                 if not data.get('locales') or not data.get('tables'):
                     raise SystemExit(f'Unity produced incomplete localization data; inspect {log}')
-            elif not log.is_file() or 'Android Addressables built.' not in log.read_text(errors='replace'):
-                raise SystemExit(f'Unity did not confirm the localization rebuild; inspect {log}')
+            elif method == 'RebuildAndroidLocalization.Build':
+                if not log.is_file() or 'Android Addressables built.' not in log.read_text(errors='replace'):
+                    raise SystemExit(f'Unity did not confirm the localization rebuild; inspect {log}')
+                if log_name == 'localization-rebuild.log':
+                    repair_guids.repair(project, output / 'android/localization-content.json', output / 'guid-backup')
+            elif method == 'LocalizationGuidPortCheck.Run':
+                if not log.is_file() or 'LocalizationGuidPortCheck passed:' not in log.read_text(errors='replace'):
+                    raise SystemExit(f'Unity did not confirm localization lookups; inspect {log}')
     finally:
         if rsp.is_file() and not rsp.is_symlink() and rsp.read_bytes() == DEFINES:
             rsp.unlink()
