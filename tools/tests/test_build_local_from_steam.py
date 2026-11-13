@@ -62,6 +62,11 @@ class SteamBuildTest(unittest.TestCase):
         self.assertIn('com.example.steamcheck', command)
 
     @patch.object(MODULE.subprocess, 'run')
+    def test_prepare_only_passed_to_unity_workspace_builder(self, run):
+        self.run_main('--prepare-only')
+        self.assertIn('--prepare-only', run.call_args_list[2].args[0])
+
+    @patch.object(MODULE.subprocess, 'run')
     def test_builds_lua_in_output_when_no_library_is_given(self, run):
         unity = Path(self.argv[self.argv.index('--unity') + 1])
         compiler = unity.parent / 'Data/PlaybackEngines/AndroidPlayer/NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang'

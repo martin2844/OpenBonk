@@ -74,6 +74,11 @@ class LocalBuildTest(unittest.TestCase):
         self.assertIn('--embedded', commands[-1][2])
         self.assertIn('com.example.flowcheck', commands[-1][2])
 
+    def test_prepare_only_omits_embedded_build(self):
+        commands = MODULE.stages(self.base, self.editor, self.lua, self.out, None, 'com.example.flowcheck', prepare_only=True)
+        self.assertEqual(commands[-1][1], 'prepare-android-addressables.py')
+        self.assertNotIn('build-unity-runtime.py', [stage[1] for stage in commands])
+
 
 if __name__ == '__main__':
     unittest.main()

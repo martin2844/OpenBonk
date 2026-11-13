@@ -26,6 +26,7 @@ def main():
     p.add_argument('--output', type=Path, required=True, help='new directory outside the game and checkout')
     p.add_argument('--application-id', required=True, help='application ID for an isolated test package')
     p.add_argument('--runner', help='optional executable used to run AssetRipper, Unity and Mono')
+    p.add_argument('--prepare-only', action='store_true', help='export and prepare the Unity workspace without building the embedded APK')
     p.add_argument('--check', action='store_true', help='check initial inputs only; do not export or build')
     a = p.parse_args()
     game = a.game.expanduser().resolve(strict=True)
@@ -76,7 +77,8 @@ def main():
     build = [sys.executable, str(TOOLS / 'build-local-unity-apk.py'), '--base-project', str(out / 'export/ExportedProject'),
              '--unity', str(unity), '--lua-library', str(lua), '--output', str(out / 'build'),
              '--application-id', a.application_id, *runner]
-    for label, command in (('Steam export', export), ('local APK', build)):
+    if a.prepare_only: build.append('--prepare-only')
+    for label, command in (('Steam export', export), ('local Unity workspace' if a.prepare_only else 'local APK', build)):
         print('Starting ' + label, flush=True)
         try:
             subprocess.run(command, check=True)

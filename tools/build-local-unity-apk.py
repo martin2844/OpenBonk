@@ -17,13 +17,13 @@ ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / 'tools'
 
 
-def stages(base, editor, lua, output, runner, application_id):
+def stages(base, editor, lua, output, runner, application_id, prepare_only=False):
     project = output / 'workspace'
     plugins = output / 'managed-plugins'
     common = ['--project', str(project)]
     unity = ['--unity', str(editor)]
     wrapped = ['--runner', runner] if runner else []
-    return [
+    result = [
         ('managed plugins', 'prepare-managed-plugins.py', ['--project', str(base), *unity, '--output', str(plugins), *wrapped]),
         ('workspace', 'assemble-unity-workspace.py', ['--base-project', str(base), '--output', str(project), '--allow-guid-remap']),
         ('workspace plugins', 'prepare-unity-workspace.py', [*common, '--plugins', str(plugins), '--lua-library', str(lua), '--remove-duplicate-package-dlls']),
@@ -37,6 +37,7 @@ def stages(base, editor, lua, output, runner, application_id):
         ('Android Addressables', 'prepare-android-addressables.py', [*common, '--backup', str(output / 'addressables-backup')]),
         ('APK', 'build-unity-runtime.py', [*common, *unity, '--plugins', str(plugins), '--build-root', str(output / 'runtime'), '--embedded', '--application-id', application_id, *wrapped]),
     ]
+    return result[:-1] if prepare_only else result
 
 
 def main():
@@ -47,6 +48,7 @@ def main():
     p.add_argument('--output', required=True, type=Path, help='new local directory for workspace, backups and output')
     p.add_argument('--application-id', required=True, help='Android application ID for an isolated test package')
     p.add_argument('--runner', help='optional single executable used to launch Unity and Mono')
+    p.add_argument('--prepare-only', action='store_true', help='prepare the isolated Unity workspace without building the embedded APK')
     p.add_argument('--check', action='store_true', help='check initial inputs only without writing output')
     a = p.parse_args()
     base = a.base_project.expanduser().resolve(strict=True)
@@ -70,7 +72,7 @@ def main():
     for name in ('Assets', 'Packages', 'ProjectSettings'):
         if not (base / name).is_dir():
             p.error('base project is missing ' + name)
-    commands = stages(base, editor, lua, output, a.runner, a.application_id)
+    commands = stages(base, editor, lua, output, a.runner, a.application_id, a.prepare_only)
     # These stages can validate real source inputs before any output exists;
     # later stages depend on outputs created during the build.
     for index in (0, 1):
@@ -88,7 +90,10 @@ def main():
             subprocess.run([sys.executable, str(TOOLS / script), *args], check=True)
         except subprocess.CalledProcessError as error:
             raise SystemExit(f'Stage failed: {label} (status {error.returncode}); local output and backups retained at {output}') from error
-    print('Local embedded APK created:', output / 'runtime/android/Megabonk-arm64-launcher-test.apk', flush=True)
+    if a.prepare_only:
+        print('Local Unity workspace prepared:', output / 'workspace', flush=True)
+    else:
+        print('Local embedded APK created:', output / 'runtime/android/Megabonk-arm64-launcher-test.apk', flush=True)
     print('Contains local game data; this is not a data-separated release APK.', flush=True)
 
 
