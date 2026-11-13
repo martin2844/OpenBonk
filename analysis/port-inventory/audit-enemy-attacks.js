@@ -1,0 +1,4 @@
+const fs=require('fs'),cp=require('child_process'); const root='unity/OpenBonk/Assets';
+const metas=cp.execSync(`rg --files ${root} -g '*.meta'`,{encoding:'utf8'}).trim().split('\n'); const index={};for(const p of metas){const m=fs.readFileSync(p,'utf8').match(/\bguid:\s*([0-9a-f]+)/);if(m)index[m[1]]=p.slice(0,-5);}
+const assets=cp.execSync(`rg -l 'specialAttacks:' ${root}/MonoBehaviour -g '*.asset'`,{encoding:'utf8'}).trim().split('\n');
+for(const file of assets){const s=fs.readFileSync(file,'utf8');for(const m of s.matchAll(/attackPrefab: \{fileID: \d+, guid: ([0-9a-f]+)/g)){const path=index[m[1]];if(!path){console.log(file,'unknown',m[1]);continue;}const p=fs.readFileSync(path,'utf8');let components=[...p.matchAll(/m_Script: \{fileID: 11500000, guid: ([0-9a-f]+)/g)].map(x=>index[x[1]]?.split('/').pop()).filter(Boolean);console.log(file.split('/').pop(), path.split('/').pop(), [...new Set(components)].join(','));}}

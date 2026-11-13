@@ -1,0 +1,86 @@
+{
+  "Resources/unity_builtin_extra": {
+    "size": 613984,
+    "sha256": "cc516143255e3f8f075909519f9fecf67af2b058466155aeb376ca949d0561cf"
+  },
+  "globalgamemanagers.assets": {
+    "size": 4689332,
+    "sha256": "b3f7db2d847edd89f66e387a9bbc926b5c555314a23ca55a0531cf662c89bbe0"
+  },
+  "globalgamemanagers.assets.resS": {
+    "size": 2796240,
+    "sha256": "39dd38fcd8dd95d41d6d55fe16a448d29fe2c31d9a162c825c24c6d99a893d7a"
+  },
+  "level1": {
+    "size": 2101944,
+    "sha256": "fe6e50ab3323b523dc53a4151fcc12dcf4d5fd0076d14b5150ba16dd64371551"
+  },
+  "level1.resS": {
+    "size": 116112,
+    "sha256": "bb81d103c119b2c62abd68766cdb58de392922911b877a6b737d8e46090313e6"
+  },
+  "level2": {
+    "size": 10417064,
+    "sha256": "1bb0eafb262237c2e1cee771bde78f3e7727ab574fc01f5a60977d0098b406f8"
+  },
+  "level2.resS": {
+    "size": 74576,
+    "sha256": "544f0a484be350056444c7776f157aab9da9f467df611ebdbf9a7f1da0181b51"
+  },
+  "level4": {
+    "size": 2701232,
+    "sha256": "df80b6b32996444082b7ddce3e0cbe3573dbe25d90184f28a10bda9413e88600"
+  },
+  "resources.assets": {
+    "size": 4092292,
+    "sha256": "a71923a420e792cd46c107eb8e607443ceb9357ef988e4efb73caafa3d35a366"
+  },
+  "resources.assets.resS": {
+    "size": 2621536,
+    "sha256": "58b5f2965eb4a325f77fad08df75c036334e5625e58833fd02cf42fa8ee16d50"
+  },
+  "sharedassets0.assets": {
+    "size": 131481128,
+    "sha256": "01ff22507aa0ef446543b038429039deb92f817b89668bed858bafe99235c19a"
+  },
+  "sharedassets0.assets.resS": {
+    "size": 888864,
+    "sha256": "374d7bd078c7428c9a1815d3ef3d942a26353c7e3af63258aa55dbb9837cee7b"
+  },
+  "sharedassets1.assets": {
+    "size": 56239204,
+    "sha256": "d9c955e43af9151f4d9d4e3ae9328ff2582bde7a1c9aa4580ddb2ba95ad66b35"
+  },
+  "sharedassets1.assets.resS": {
+    "size": 113115008,
+    "sha256": "43c08c5f3228f725f01567bacfabfbb6d2ff50afd7a0536c5a9e1953f6e86fea"
+  },
+  "sharedassets1.resource": {
+    "size": 60845700,
+    "sha256": "28f6806a1ca59ab2b7aa77b6d7ba1492b0cbd76d6518caa6bad70e4762c45d5c"
+  },
+  "sharedassets2.assets": {
+    "size": 5824160,
+    "sha256": "e4c4298e57fe5aaa76836132e6821b297199c60b2106fa12a0db4ef17a67f5da"
+  },
+  "sharedassets2.assets.resS": {
+    "size": 10434976,
+    "sha256": "e2444f63f9950a81858a74fdeaa9c219277d30cb1a5361ca7b206ab2667a9a84"
+  },
+  "sharedassets2.resource": {
+    "size": 5365152,
+    "sha256": "79f5dc7f17f979dc841accec3ed48744cfe78f787001f308b94632e2166503fa"
+  },
+  "sharedassets4.assets": {
+    "size": 693868,
+    "sha256": "cfbc8731afc9dfb6137b85e63d324d5376b4a7d066b7ffdce2cef32c5ca233e3"
+  },
+  "sharedassets4.assets.resS": {
+    "size": 564048,
+    "sha256": "862c2f10062861982d7dd0593fa9345811147c3f3018a91365c3fe8260067127"
+  },
+  "sharedassets4.resource": {
+    "size": 1780640,
+    "sha256": "aa7cba281dd84a509bc1c0f200fa69cb21640615d92f16a65e9959db69a3b78b"
+  }
+}
