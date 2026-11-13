@@ -22,8 +22,14 @@ public static class AndroidControllerBindingsCheck
         float Analog(string action, float left, float right) => (float)analog.Invoke(null, new object[] { action, left, right });
         try
         {
-            foreach (string localePath in new[] { "Assets/Localization/Locales/Spanish (es).asset", "Assets/Localization/Locales/Spanish_LatAm (es-419).asset" }) {
-                var locale = AssetDatabase.LoadAssetAtPath<Locale>(localePath); Check(locale != null, "Spanish locale asset " + localePath); LocalizationSettings.SelectedLocale = locale;
+            foreach (string code in new[] { "es", "es-419" }) {
+                Locale locale = null;
+                foreach (string guid in AssetDatabase.FindAssets("t:Locale", new[] { "Assets/Localization/Locales" })) {
+                    var candidate = AssetDatabase.LoadAssetAtPath<Locale>(AssetDatabase.GUIDToAssetPath(guid));
+                    if (candidate == null || !string.Equals(candidate.Identifier.Code, code, StringComparison.OrdinalIgnoreCase)) continue;
+                    Check(locale == null, "duplicate locale " + code); locale = candidate;
+                }
+                Check(locale != null, "Spanish locale " + code); LocalizationSettings.SelectedLocale = locale;
                 Check(AndroidControllerBindings.ButtonName(-2) == "Sin asignar" && AndroidControlText.PressButton == "Pulsa un botón" && AndroidControlText.Fixed == "Fijo" && AndroidControlText.SwapMenuButtons == "Intercambiar A/B en menús" && AndroidControllerBindings.ButtonName(8) == "Botón 8", "Spanish controller labels");
             }
             LocalizationSettings.SelectedLocale = AssetDatabase.LoadAssetAtPath<Locale>("Assets/Localization/Locales/English (en).asset");

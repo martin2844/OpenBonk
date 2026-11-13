@@ -6,6 +6,7 @@ an already assembled local Unity project and managed third-party plugins.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -19,6 +20,9 @@ PLUGINS = ('Rewired_Core.dll', 'Coffee.UIParticle.dll', 'com.rlabrecque.steamwor
 MARKER = {'schema': 1, 'kind': 'openbonk-local-unity-workspace'}
 DEFINES = b'-define:OPENBONK_NO_REWIRED\n-define:OPENBONK_BETA_NO_PROBES\n'
 REWIRED_DEFINES = b'-define:OPENBONK_BETA_NO_PROBES\n'
+spec = importlib.util.spec_from_file_location('prepare_android_input', Path(__file__).resolve().parent / 'prepare-android-input.py')
+android_input = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(android_input)
 
 
 def main():
@@ -61,6 +65,10 @@ def main():
     lock = project / 'Temp/UnityLockfile'
     if lock.exists():
         parser.error('Unity workspace has a lock file; close Unity and inspect it before retrying')
+    try:
+        android_input.verify(project)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
     for name in PLUGINS:
         if not (plugins / name).is_file() or (plugins / name).is_symlink():
             parser.error('missing regular plugin input: ' + name)

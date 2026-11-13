@@ -1,4 +1,5 @@
 import json
+import importlib.util
 import os
 from pathlib import Path
 import subprocess
@@ -9,6 +10,9 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'build-unity-runtime.py'
 PLUGINS = ('Rewired_Core.dll', 'Coffee.UIParticle.dll', 'com.rlabrecque.steamworks.net.dll')
+spec = importlib.util.spec_from_file_location('input_axes', SCRIPT.parent / 'prepare-android-input.py')
+input_axes = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(input_axes)
 
 
 class RuntimeBuildTest(unittest.TestCase):
@@ -20,6 +24,8 @@ class RuntimeBuildTest(unittest.TestCase):
         (self.project / 'Assets').mkdir(parents=True)
         (self.project / 'ProjectSettings').mkdir()
         (self.project / 'ProjectSettings/ProjectVersion.txt').write_text('m_EditorVersion: 2023.2.22f1\n')
+        empty = '%YAML 1.1\nInputManager:\n  m_Axes:\n  m_UsePhysicalKeys: 0\n'
+        (self.project / 'ProjectSettings/InputManager.asset').write_text(input_axes.render(empty, input_axes.definitions()))
         (self.project / '.openbonk-workspace.json').write_text(json.dumps({'schema': 1, 'kind': 'openbonk-local-unity-workspace'}))
         self.editor = self.root / 'Editor/Unity'
         self.editor.parent.mkdir()
@@ -97,6 +103,14 @@ class RuntimeBuildTest(unittest.TestCase):
         self.write_editor('pass\n')
         result = self.run_tool('--application-id', 'invalid/id')
         self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.out.exists())
+
+    def test_missing_android_axes_are_rejected_before_build(self):
+        self.write_editor('pass\n')
+        (self.project / 'ProjectSettings/InputManager.asset').write_text('%YAML 1.1\nInputManager:\n  m_Axes:\n  m_UsePhysicalKeys: 0\n')
+        result = self.run_tool()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Android input axes are missing or differ', result.stderr)
         self.assertFalse(self.out.exists())
 
     def test_embedded_build_uses_single_apk_entry_point(self):

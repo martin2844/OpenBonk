@@ -27,6 +27,7 @@ def stages(base, editor, lua, output, runner, application_id, prepare_only=False
         ('managed plugins', 'prepare-managed-plugins.py', ['--project', str(base), *unity, '--output', str(plugins), *wrapped]),
         ('workspace', 'assemble-unity-workspace.py', ['--base-project', str(base), '--output', str(project), '--allow-guid-remap']),
         ('workspace plugins', 'prepare-unity-workspace.py', [*common, '--plugins', str(plugins), '--lua-library', str(lua), '--remove-duplicate-package-dlls']),
+        ('Android input axes', 'prepare-android-input.py', [*common, '--backup', str(output / 'input-manager.original.asset')]),
         ('texture path collisions', 'resolve-unity-texture-case-collisions.py', [*common, '--manifest', str(output / 'texture-renames.json')]),
         ('Unity import', 'import-unity-workspace.py', [*common, *unity, '--log', str(output / 'import.log'), *wrapped]),
         ('package script references', 'remap-unity-package-scripts.py', [*common, '--backup', str(output / 'script-backup')]),

@@ -99,6 +99,16 @@ python3 tools/prepare-unity-workspace.py \
 
 This installs locally generated plugins, restores their checked-in metadata and backs up replaced files in `.openbonk-original-plugins` inside the workspace. The optional removal flag is intended for the observed AssetRipper 1.3.14 export: it backs up and removes specific DLLs that duplicate Unity packages. Use `--check` first and keep the original export. Preparing these files does not reconstruct the missing project configuration and assets.
 
+The clean Steam export does not contain the Android input axes used by the native controller code, and several existing joystick axes differ from the locally tested project. Before importing Unity, restore the checked-in Android input configuration in the isolated workspace:
+
+```sh
+python3 tools/prepare-android-input.py \
+  --project /path/to/new-local-workspace \
+  --backup /path/to/new-local-input-manager-backup.asset
+```
+
+The tool preserves unrelated axes and writes the original file to the local backup. `--check` verifies the expected configuration without changing it. `build-local-unity-apk.py` runs this step automatically, and `build-unity-runtime.py` rejects a workspace whose Android axes are absent or different. In editor tests, the clean export failed the chest navigation axis check before preparation; after preparation, chest navigation, controller bindings, menu A/B inversion, challenge-shrine and boss-bar checks passed. These checks do not replace physical controller testing on Android.
+
 The observed 2.0.0 export contains three pairs of textures whose paths differ only in letter case; Unity can fail to import both. Before opening the workspace in Unity, rename the conflicting texture copies and their metadata together:
 
 ```sh

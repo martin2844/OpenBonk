@@ -69,6 +69,7 @@ class LocalBuildTest(unittest.TestCase):
         commands = MODULE.stages(self.base, self.editor, self.lua, self.out, None, 'com.example.flowcheck')
         names = [command[1] for command in commands]
         self.assertLess(names.index('remap-unity-package-scripts.py'), names.index('prepare-unity-characters.py'))
+        self.assertLess(names.index('prepare-android-input.py'), names.index('import-unity-workspace.py'))
         self.assertLess(names.index('rebuild-unity-localization.py'), names.index('prepare-android-addressables.py'))
         self.assertEqual(names[-1], 'build-unity-runtime.py')
         self.assertIn('--embedded', commands[-1][2])
