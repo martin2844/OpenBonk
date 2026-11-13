@@ -286,6 +286,20 @@ That `3f06c4b` research build predates the Android input-axis preparation docume
 
 A subsequent local end-to-end research build at `04b9e84` included the input-axis preparation, updated texture quality gate and smaller exact objects. It reused a locally built Lua library, texture libraries, decoder, Steam ZIP and Gradle cache. Each of the seven desktop Java restoration checks reproduced all 922 expected OBB entries, and the resulting private APK installed and started a process under a separate package ID on an iPlay. The device was locked: the launcher UI, import, gameplay, visual fidelity and physical controls were not verified. Its template and APK still contain game data and must remain private.
 
+The same build's seven restoration stages were also run in sequence on the iPlay; each reproduced the 922 expected entries. To repeat this private device check with a completed research directory and authorized Android device:
+
+```sh
+python3 tools/check-research-chain-android.py \
+  --research /path/to/local-build/research \
+  --steam-zip /path/to/private-steam.zip \
+  --library /path/to/arm64/libopenbonk_texture_arm64.so \
+  --sdk /path/to/Unity/Editor/Data/PlaybackEngines/AndroidPlayer/SDK \
+  --java-home /path/to/Unity/Editor/Data/PlaybackEngines/AndroidPlayer/OpenJDK \
+  --device DEVICE_SERIAL
+```
+
+Add `--runner steam-run` when needed. The check transfers game data to a temporary directory on the selected device and attempts to remove it afterward. It checks reconstruction only; it does not test the launcher, appearance, controls or gameplay. All build artifacts and game data remain private.
+
 The exact-object stage now considers objects as small as 64 bytes and selects source files only from those listed for both supported minimal Steam ZIPs. In a local study it masked 92 exact objects versus 43 with the previous 256-byte threshold; the desktop Java restorer reproduced all 922 archive entries from the minimal Linux ZIP. This is a small reduction in retained data, not a distributable template or an Android gameplay test.
 
 The current texture study applies the same level-zero mean-error threshold to shared textures and standalone textures before allowing aliases. In a local run it converted 783 candidates and rejected 174 high-error candidates; in particular, the shared `sprite_0091` and its standalone copy stayed unchanged rather than receiving the visibly banded conversion described in earlier studies below. This keeps more original game data in the private template. The threshold is only a heuristic: accepted conversions may still have visible defects, and gameplay has not been verified.
