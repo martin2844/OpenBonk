@@ -150,6 +150,13 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-animation-fragment-mask',
                                     'template_sha256': MODULE.digest(template), 'records': [row]}))
         MODULE.verify_animations(template, plan, intermediate)
+        scene = 'assets/bin/Data/level1.split0'
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(scene, b'x\0b\0y')
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(scene, b'xAbCy')
+        row['entry'] = scene
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-animation-fragment-mask',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        MODULE.verify_animations(template, plan, intermediate)
         row['mask'] = base64.b64encode(b'\x85').decode()
         plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-animation-fragment-mask',
                                     'template_sha256': MODULE.digest(template), 'records': [row]}))

@@ -22,7 +22,10 @@ spec.loader.exec_module(animation)
 spec2 = importlib.util.spec_from_file_location('texture_study', ROOT / 'tools/experimental-converted-textures.py')
 study = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(study)
-ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:[0-9a-f]{32}|sharedassets[12]\.assets\.split(?:0|[1-9]\d*))\Z')
+spec3 = importlib.util.spec_from_file_location('object_plan', ROOT / 'tools/experimental-exact-object-plan.py')
+objects_plan = importlib.util.module_from_spec(spec3)
+spec3.loader.exec_module(objects_plan)
+ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:[0-9a-f]{32}|(?:sharedassets\d+\.assets|level\d+|resources\.assets)(?:\.split(?:0|[1-9]\d*))?)\Z')
 
 
 def make_fragments(parts, target_offset, target, source_name, source_offset, source):
@@ -97,8 +100,7 @@ def generate(args):
     try:
         with zipfile.ZipFile(original) as zin:
             infos = animation.zip_entries(zin)
-            groups = [(study.parts(zin, group), group) for group in study.GROUPS]
-            groups += [([info], info.filename) for info in infos if re.fullmatch(re.escape(study.PREFIX) + r'[0-9a-f]{32}', info.filename)]
+            groups = [(parts, name) for name, parts in objects_plan.asset_groups(zin).items()]
             for parts, _ in groups:
                 data = b''.join(zin.read(info) for info in parts)
                 try: objects = UnityPy.load(data).objects

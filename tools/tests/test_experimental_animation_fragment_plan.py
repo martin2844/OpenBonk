@@ -30,6 +30,12 @@ class AnimationFragmentTests(unittest.TestCase):
             self.assertEqual(module.apply(masked, [row], sources, restore=True), raw)
         with self.assertRaises(ValueError): module.apply(b'123AB', [rows[0], dict(rows[0])], sources)
 
+    def test_scene_entry_names_are_bounded(self):
+        for name in ('level1.split0', 'level2', 'sharedassets4.assets.split2', 'resources.assets'):
+            self.assertIsNotNone(module.ENTRY.fullmatch(module.study.PREFIX + name))
+        for name in ('level1.split01', '../level1', 'level1.untrusted', 'sharedassetsX.assets'):
+            self.assertIsNone(module.ENTRY.fullmatch(module.study.PREFIX + name))
+
     def test_restore_validates_masks_and_cleans_partial_output(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); source = root / 'steam'; source.mkdir()

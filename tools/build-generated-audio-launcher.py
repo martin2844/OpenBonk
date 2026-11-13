@@ -198,7 +198,7 @@ def verify_animations(template, plan_path, intermediate):
     grouped = {}
     for row in rows:
         entry = row.get('entry')
-        if not isinstance(entry, str) or not re.fullmatch(r'assets/bin/Data/(?:[0-9a-f]{32}|sharedassets[12]\.assets\.split(?:0|[1-9]\d*))', entry):
+        if not isinstance(entry, str) or not re.fullmatch(r'assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets\d+\.assets|level\d+|resources\.assets)(?:\.split(?:0|[1-9]\d*))?)', entry):
             raise ValueError('invalid animation entry')
         grouped.setdefault(entry, []).append(row)
     with zipfile.ZipFile(template) as base, zipfile.ZipFile(intermediate) as result:
