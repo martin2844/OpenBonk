@@ -175,6 +175,8 @@ To generate a local Android Gradle project instead, use the same command with `-
 
 The experimental `tools/build-private-launcher-prototype.sh` accepts `OPENBONK_GRADLE_TEMPLATE` and `OPENBONK_UNITY_PROJECT` for these local paths, and `OPENBONK_TEXTURE_LIBRARY` for the locally built ARM64 texture adapter. It still requires its pinned runtime, OBB and conversion plans and intentionally rejects incompatible inputs; setting those paths does not make it a verified clean APK build.
 
+Three version-specific position-only scrub plans are included under `analysis/data-conversion/`; `python3 tools/check-position-plans.py` validates their hashes and structure. They contain offsets, hashes and bit masks rather than the masked asset bytes. They are pinned to older intermediate builds and do not resolve the remaining plan generation and compatibility work for the newly built runtime.
+
 The ARM64 texture adapter can be built locally from the pinned source archive and the Unity Android NDK:
 
 ```sh
