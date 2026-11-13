@@ -37,6 +37,8 @@ Use `--check` to validate without writing. Both projects must specify Unity 2023
 
 A fresh local Steam export with AssetRipper 1.3.14 was also tried: 69 GUIDs differed. The optional `--allow-guid-remap` reconciled those GUID references in 623 local text files while preserving the original export. This is experimental: it does not prove that every asset or binary reference is correct, and the resulting fresh-export project still lacks configuration and build inputs. Without the flag the tool rejects mismatched GUIDs.
 
+AssetRipper 2.0.0 was also tested with a fresh local export. In a comparison of 1,093 `MonoBehaviour` assets, none of the 741 assets that were empty in the 1.3.14 export remained empty while populated in the reference project. Its export still required the same 69 GUID remappings; a complete APK built from it has not yet been validated.
+
 To generate the managed Android build inputs locally from the exported project rather than copying another developer's DLLs:
 
 ```sh
@@ -60,7 +62,26 @@ python3 tools/prepare-unity-workspace.py \
 
 This installs locally generated plugins, restores their checked-in metadata and backs up replaced files in `.openbonk-original-plugins` inside the workspace. The optional removal flag is intended for the observed AssetRipper 1.3.14 export: it backs up and removes specific DLLs that duplicate Unity packages. Use `--check` first and keep the original export. Preparing these files does not reconstruct the missing project configuration and assets.
 
-After importing the prepared workspace once in Unity, remap references from those exported package DLLs to scripts in the imported Unity packages:
+The observed 2.0.0 export contains three pairs of textures whose paths differ only in letter case; Unity can fail to import both. Before opening the workspace in Unity, rename the conflicting texture copies and their metadata together:
+
+```sh
+python3 tools/resolve-unity-texture-case-collisions.py \
+  --project /path/to/new-local-workspace \
+  --manifest /path/to/new-local-texture-renames.json
+```
+
+The tool preserves asset GUIDs, records the local renames and hashes, rejects unsupported collision types, and supports `--check`. The original export is unchanged. Paths should be reviewed if a different game version adds case collisions.
+
+Import the prepared workspace in Unity with the required build defines:
+
+```sh
+python3 tools/import-unity-workspace.py \
+  --project /path/to/new-local-workspace \
+  --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
+  --log /path/to/new-local-import-log
+```
+
+The import keeps game data local, offers `--check` and `--runner steam-run`, and retains the log if Unity fails. After importing, remap references from the exported package DLLs to scripts in the imported Unity packages:
 
 ```sh
 python3 tools/remap-unity-package-scripts.py \
@@ -68,7 +89,18 @@ python3 tools/remap-unity-package-scripts.py \
   --backup /path/to/new-local-script-backup
 ```
 
-The 41 mappings were compared against corresponding component references in the existing working project. On one fresh export they covered 13,738 references in 86 files. The tool checks the installed package GUIDs, rejects unknown references to removed package DLLs, backs up every changed file, and supports `--check`. This is a version-specific reconstruction step, not proof that every scene or component behaves correctly.
+The 43 mappings were compared against corresponding component references in the existing working project. On the 1.3.14 export, 41 mappings covered 13,738 references in 86 files; the 2.0.0 export also needed two localization mappings. The tool checks the installed package GUIDs, rejects unknown references to removed package DLLs, backs up every changed file, and supports `--check`. This is a version-specific reconstruction step, not proof that every scene or component behaves correctly.
+
+On the populated 2.0.0 export, generate the local character Resources after importing and remapping the workspace:
+
+```sh
+python3 tools/prepare-unity-characters.py \
+  --project /path/to/new-local-workspace \
+  --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
+  --log /path/to/new-local-character-log
+```
+
+This verifies the 21 character assets and their model, weapon, passive and icon references, then creates Resources copies and a fallback prefab locally. A local test produced all 21 character files with content matching the reference after GUID normalization; a full runtime and gameplay test of this path is still pending. `--check` validates prerequisites without writing, and `--runner steam-run` is available where needed.
 
 An experimental localization stage reconstructs Android localization from the 19 supported local Linux Steam bundles, without adding game text to this checkout:
 
@@ -103,7 +135,7 @@ python3 tools/build-unity-runtime.py \
 
 On a system that needs a compatibility wrapper, add e.g. `--runner steam-run`; any required system libraries must also be configured locally. The tool has a `--check` option, refuses an existing output or response file, and retains its output and log on build failure. It invokes Unity's ARM64 runtime entry point with Android target SDK 35 and explicit no-Rewired and no-probe defines. Its inputs and outputs can contain game-derived and third-party material. A runtime APK plus OBB is an intermediate stage, not the final OpenBonk launcher APK; the clean end-to-end build and independent reconstruction of the inputs remain unverified.
 
-A local runtime build from a fresh export succeeded after the package-script and Addressables preparation above. Its script registry matched the 2,349 script IDs and identities in the previous runtime, but three empty script components remained in the scene build and its OBB had 207 ZIP entries versus 946 in the reference. One concrete gap is that the fresh export lacks the 21 populated `Resources/AndroidCharacters` assets used by the gameplay bootstrap. A comparison of 1,093 corresponding `MonoBehaviour` assets also found 741 whose fresh exports contain only an empty script header while the reference assets have additional serialized fields. Many asset entries therefore remain different or absent; neither gameplay equivalence nor a distributable APK has been established. The local Steam bundles must not be published as part of this experiment.
+A local runtime build from the 1.3.14 export succeeded after the package-script and Addressables preparation above. Its script registry matched the 2,349 script IDs and identities in the previous runtime, but three empty script components remained in the scene build and its OBB had 207 ZIP entries versus 946 in the reference. One concrete gap is that the fresh export lacks the 21 populated `Resources/AndroidCharacters` assets used by the gameplay bootstrap. A comparison of 1,093 corresponding `MonoBehaviour` assets also found 741 whose 1.3.14 exports contain only an empty script header while the reference assets have additional serialized fields. Many asset entries therefore remain different or absent; neither gameplay equivalence nor a distributable APK has been established. The local Steam bundles must not be published as part of this experiment.
 
 `tools/extract-steam-character-data.py` is an experimental investigation into this gap. With local `GameAssemblies` and Python dependencies `UnityPy==1.25.4` and `TypeTreeGeneratorAPI==0.0.10`, it decoded 21 character records from a local Steam installation. Their character IDs and collider values matched the 21 reference resources. The output contains game data and must stay local; its Unity pointers have not yet been mapped to project assets, so it cannot currently restore the characters or make the build playable.
 
