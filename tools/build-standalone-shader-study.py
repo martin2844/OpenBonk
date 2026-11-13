@@ -13,7 +13,7 @@ parser.add_argument('--keep-instancing', action='store_true', help='include inst
 parser.add_argument('--fog-exp2', action='store_true', help='keep exponential squared fog variants')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
-project = root / 'reconstruction/AssetRipperExport/ExportedProject'
+project = root / 'unity/OpenBonk'
 source = root / 'analysis/port-inventory/OpenBonkStandaloneShaderStudy.cs'
 temporary = project / 'Assets/Editor/OpenBonkStandaloneShaderStudy.cs'
 meta = Path(str(temporary) + '.meta')

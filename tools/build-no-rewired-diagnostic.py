@@ -18,7 +18,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-PROJECT = ROOT / 'reconstruction/AssetRipperExport/ExportedProject'
+PROJECT = ROOT / 'unity/OpenBonk'
 EDITOR = Path.home() / 'Unity/Hub/Editor/2023.2.22f1/Editor/Unity'
 PLAYER = EDITOR.parent / 'Data/PlaybackEngines/AndroidPlayer'
 BUILD_APK = ROOT / 'build/android/Megabonk-arm64-launcher-test.apk'

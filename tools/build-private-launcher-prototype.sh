@@ -10,7 +10,7 @@ if [ ! -d "$plan_dir" ] || [ -e "$out_dir" ] || [ ! -d "$(dirname "$out_dir")" ]
 case "$out_dir/" in "$plan_dir/"*) echo 'Output must not be inside plans' >&2; exit 2;; esac
 unity_editor="${OPENBONK_UNITY_EDITOR:-$HOME/Unity/Hub/Editor/2023.2.22f1/Editor}"
 unity_android="$unity_editor/Data/PlaybackEngines/AndroidPlayer"
-launcher_src="$repo_root/reconstruction/AssetRipperExport/ExportedProject/Assets/AndroidSplitLauncher"
+launcher_src="$repo_root/unity/OpenBonk/Assets/AndroidSplitLauncher"
 template="$repo_root/build/android/launcher-cleanup-gradle"
 base="$repo_root/build/android/launcher-steam-picker-integrated/OpenBonk-diagnostic.apk"
 runtime_mode="${OPENBONK_RUNTIME_RESEARCH:-0}"
@@ -52,7 +52,7 @@ python_cmd="${OPENBONK_PYTHON:-python3}"
 # The pinned runtimes below read the legacy cache profile path. Never assemble
 # them with a launcher that writes the new persistent queue: that combination
 # would report a queued profile which the game cannot consume.
-if grep -Fq 'string dir = files.Call<string>("getAbsolutePath")' "$repo_root/reconstruction/AssetRipperExport/ExportedProject/Assets/Scripts/Assembly-CSharp/AndroidProfileImport.cs"; then
+if grep -Fq 'string dir = files.Call<string>("getAbsolutePath")' "$repo_root/unity/OpenBonk/Assets/Scripts/Assembly-CSharp/AndroidProfileImport.cs"; then
  if [ "$runtime_mode" = 1 ]; then expected_runtime=f30a535b8f36151d0a80714e869d45ed7270aee17c55e415ad3d65240ce56ca4
  elif [ "$runtime_mode" = 2 ]; then expected_runtime=435618a799dc8821f713d28f3005d2338315916cc3fd604ad3ac521e9e7691be
  else expected_runtime=none; fi
@@ -112,7 +112,7 @@ cmp "$out_dir/SteamShared1ParticleMasks.java" "$repo_root/analysis/data-conversi
 mkdir "$out_dir/gradle"
 rsync -a --exclude='build/' --exclude='.gradle/' --exclude='symbols/' "$template/" "$out_dir/gradle/"
 work="$out_dir/gradle"
-"$python_cmd" - "$work" "$unity_android" "$repo_root/reconstruction/AssetRipperExport/ExportedProject" <<'PY'
+"$python_cmd" - "$work" "$unity_android" "$repo_root/unity/OpenBonk" <<'PY'
 import pathlib, re, sys
 work, unity_android, project = map(pathlib.Path, sys.argv[1:])
 
@@ -178,7 +178,7 @@ package com.megabonk.launcher;
 final class SplitExpectedData { static final String SHA256 = "$obb_sha", LEGACY_SHA256 = "$legacy_sha", SECOND_LEGACY_SHA256 = "$second_legacy_sha", THIRD_LEGACY_SHA256 = "$third_legacy_sha", FOURTH_LEGACY_SHA256 = "$fourth_legacy_sha", FIFTH_LEGACY_SHA256 = "$fifth_legacy_sha", SIXTH_LEGACY_SHA256 = "$sixth_legacy_sha"; }
 JAVA
 cp "$minimal_shared0" "$assets/shared0.zip"
-cp "$repo_root/reconstruction/AssetRipperExport/ExportedProject/Assets/Plugins/Android/OpenBonkArt.androidlib/res/drawable-nodpi/openbonk_mascot.png" "$assets/openbonk_mascot.png"
+cp "$repo_root/unity/OpenBonk/Assets/Plugins/Android/OpenBonkArt.androidlib/res/drawable-nodpi/openbonk_mascot.png" "$assets/openbonk_mascot.png"
 standalone_base="${OPENBONK_STANDALONE_SCRUBBED_BASE:-}"
 standalone_pack="${OPENBONK_STANDALONE_SHADER_PACK:-}"
 particle_base="${OPENBONK_PARTICLE_SCRUBBED_BASE:-}"
@@ -244,7 +244,7 @@ if [ "$runtime_mode" = 2 ]; then printf %s OPENBONK_VIDEO_ONLY_V1 > "$assets/run
 printf %s OPENBONK_PRIVATE_DIAGNOSTIC_V1 > "$assets/marker"
 mkdir "$assets/notices"
 cp "$repo_root"/third_party/openbonk-texture-notices/* "$assets/notices/"
-lua_notice="$repo_root/reconstruction/AssetRipperExport/ExportedProject/Assets/StreamingAssets/ThirdPartyNotices/Lua.txt"
+lua_notice="$repo_root/unity/OpenBonk/Assets/StreamingAssets/ThirdPartyNotices/Lua.txt"
 if [ ! -f "$lua_notice" ] || [ "$(sha256sum "$lua_notice" | cut -d' ' -f1)" != d14fe4a91721fd1d0f6650137594ee83c692f422864a00e69bd6a9b42cdda005 ]; then
  echo 'Missing or unexpected Lua notice' >&2; exit 1
 fi

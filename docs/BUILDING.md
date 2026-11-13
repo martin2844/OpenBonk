@@ -4,11 +4,11 @@ This checkout exposes the current reconstruction and tools for inspection and de
 
 ## Layout
 
-- `reconstruction/AssetRipperExport/ExportedProject/Assets/Scripts/` — reconstructed C# game and Android integration scripts.
-- `reconstruction/AssetRipperExport/ExportedProject/Assets/AndroidSplitLauncher/` — Android launcher, Steam ZIP import, profiles and mods.
-- `reconstruction/AssetRipperExport/ExportedProject/Assets/AndroidModPicker/` — Android mod picker integration.
-- `reconstruction/AssetRipperExport/ExportedProject/Assets/Editor/` — editor tooling and diagnostic scripts; some require omitted assets or local inputs.
-- `reconstruction/AssetRipperExport/ExportedProject/Assets/Shader/` — available reconstructed shader sources and metadata; provenance varies.
+- `unity/OpenBonk/Assets/Scripts/` — reconstructed C# game and Android integration scripts.
+- `unity/OpenBonk/Assets/AndroidSplitLauncher/` — Android launcher, Steam ZIP import, profiles and mods.
+- `unity/OpenBonk/Assets/AndroidModPicker/` — Android mod picker integration.
+- `unity/OpenBonk/Assets/Editor/` — editor tooling and diagnostic scripts; some require omitted assets or local inputs.
+- `unity/OpenBonk/Assets/Shader/` — available reconstructed shader sources and metadata; provenance varies.
 - `native/lua/` — Lua bridge, Lua 5.4.9 source archive, smoke test and example packages.
 - `native/stable-zlib/`, `tools/`, `analysis/data-conversion/` — native support and experimental preparation, validation and reconstruction tools. Many research scripts depend on local generated intermediates and are not standalone build commands.
 - `mods/` — example Lua mods and the experimental Pikachu package.

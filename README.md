@@ -31,6 +31,11 @@ The Lua interface is in development: it has specific stat hooks and experimental
 
 This repository includes the reconstructed C# game scripts, Android launcher and import code, native Lua bridge, and development tools. The current checkout **cannot yet reproduce the release APK on its own**: parts of the Unity project, third-party dependencies, generated plans, and game-derived data are not included. See [BUILDING.md](docs/BUILDING.md) for the layout and limitations. The code is a reconstruction, not a byte-for-byte decompilation.
 
+- [Unity project source](unity/OpenBonk/Assets/) — reconstructed game scripts, Android launcher, and shaders.
+- [Lua runtime](native/lua/) — native bridge and API reference.
+- [Mod examples](mods/) — example packages and Pikachu.
+- [Preparation tools](tools/) — game-data import helpers and development scripts.
+
 ## Privacy and project status
 
 The APK does not request Android's Internet permission, although Android's system backup may include app data according to device settings. Do not attach your Steam game-data ZIP, profile, signing keys, or account information to a report. Back up your progress before changing installations.

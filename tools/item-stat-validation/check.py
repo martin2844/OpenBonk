@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parents[2]
-assets = root / 'reconstruction/AssetRipperExport/ExportedProject/Assets'
+assets = root / 'unity/OpenBonk/Assets'
 source = assets / 'Scripts/Assembly-CSharp/Assets/Scripts/Menu/Shop/EStat.cs'
 launcher = assets / 'AndroidSplitLauncher'
 sdk = Path(os.environ.get('ANDROID_JAR', '/home/your-user/Unity/Hub/Editor/2023.2.22f1/Editor/Data/PlaybackEngines/AndroidPlayer/SDK/platforms/android-35/android.jar'))

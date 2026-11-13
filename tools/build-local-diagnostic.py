@@ -66,7 +66,7 @@ SHARED2_MATCHED_AUDIO='42a617421d3feaca2907addb8362f0613ca48d5675171a677f8b66957
 SHARED2_MATCHED_TEMPLATE='30cdfbeb91acec299954bdbe38502980afa4962dc073e349ca1bc2120d5182da'
 PACKAGE='com.megabonk.nativeport.splittest'
 UNITY_ANDROID=Path(os.environ.get('OPENBONK_UNITY_EDITOR',str(Path.home()/'Unity/Hub/Editor/2023.2.22f1/Editor'))).expanduser()/'Data/PlaybackEngines/AndroidPlayer'
-NEWTONSOFT_NOTICE_DIR=ROOT/'reconstruction/AssetRipperExport/ExportedProject/Library/PackageCache/com.unity.nuget.newtonsoft-json@3.0.2'
+NEWTONSOFT_NOTICE_DIR=ROOT/'unity/OpenBonk/Library/PackageCache/com.unity.nuget.newtonsoft-json@3.0.2'
 NEWTONSOFT_NOTICES={'assets/ThirdPartyNotices/Unity-Newtonsoft-License.md':'a5177bfecfea04d225e4a26a631db86721a03b4080350867847e71dc26b44f85','assets/ThirdPartyNotices/Unity-Newtonsoft-Third-Party-Notices.md':'f07d2ea4af53fd1c9800b345bb4fbfa3ab0181d8c87625d6c265cd65142df097'}
 def sha(path):
  h=hashlib.sha256()

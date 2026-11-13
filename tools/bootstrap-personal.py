@@ -38,7 +38,7 @@ def verify_local_inputs(compile_shaders=False, unity_editor=None):
     cache = None
     if compile_shaders:
         editor = Path(unity_editor or os.environ.get('OPENBONK_UNITY_EDITOR', str(Path.home()/'Unity/Hub/Editor/2023.2.22f1/Editor'))).expanduser().resolve()
-        project = ROOT/'reconstruction/AssetRipperExport/ExportedProject'
+        project = ROOT/'unity/OpenBonk'
         if not (editor/'Unity').is_file() or not (project/'ProjectSettings/GraphicsSettings.asset').is_file() or not (ROOT/'analysis/port-inventory/OpenBonkComputeStudy.cs').is_file():
             raise ValueError('faltan el editor Unity o el proyecto y fuentes de shaders')
         builder = load('bootstrap_shader_builder', ROOT/'tools/build-compute-shaders-local.py')

@@ -5,7 +5,7 @@ This is not a distributable package; Unity and third-party terms require review.
 """
 import argparse,hashlib,importlib.util,json,os,shutil,signal,subprocess,sys,tempfile
 from pathlib import Path
-ROOT=Path(__file__).resolve().parents[1];PROJECT=ROOT/'reconstruction/AssetRipperExport/ExportedProject'
+ROOT=Path(__file__).resolve().parents[1];PROJECT=ROOT/'unity/OpenBonk'
 EDITOR=Path(os.environ.get('OPENBONK_UNITY_EDITOR',str(Path.home()/'Unity/Hub/Editor/2023.2.22f1/Editor'))).expanduser()/'Unity'
 RUNNER=os.environ.get('OPENBONK_TOOL_RUNNER','steam-run' if shutil.which('steam-run') else 'none')
 PREFIX=[] if RUNNER=='none' else [RUNNER]
