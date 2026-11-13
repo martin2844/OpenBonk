@@ -67,6 +67,13 @@ class RuntimeBuildTest(unittest.TestCase):
         self.assertEqual(rsp.read_text(), 'keep')
         self.assertFalse(self.out.exists())
 
+    def test_gradle_export_requires_expected_files(self):
+        self.write_editor("import os,sys\nfrom pathlib import Path\nassert sys.argv[sys.argv.index('-executeMethod')+1] == 'NativeAndroidBuild.ExportArm64RuntimeGradleProject'\np=Path(os.environ['OPENBONK_BUILD_ROOT'])/'android/OpenBonk-gradle-project'\nfor f in ('settings.gradle','launcher/build.gradle','unityLibrary/build.gradle'):\n q=p/f; q.parent.mkdir(parents=True,exist_ok=True); q.write_text('fixture')\n")
+        result = self.run_tool('--gradle-project')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.out / 'android/OpenBonk-gradle-project/settings.gradle').is_file())
+        self.assertFalse((self.project / 'Assets/csc.rsp').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

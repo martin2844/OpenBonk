@@ -69,6 +69,38 @@ public static class NativeAndroidBuild
 		}
 	}
 
+	// Experimental local Gradle export for assembling the launcher. The export
+	// includes game-derived data and is not a distributable APK.
+	public static void ExportArm64RuntimeGradleProject()
+	{
+		string oldName = PlayerSettings.productName;
+		string oldId = PlayerSettings.GetApplicationIdentifier(BuildTargetGroup.Android);
+		bool oldSplit = PlayerSettings.Android.splitApplicationBinary;
+		bool oldExport = EditorUserBuildSettings.exportAsGoogleAndroidProject;
+		AndroidSdkVersions oldTargetSdk = PlayerSettings.Android.targetSdkVersion;
+		string root = Directory.GetParent(Application.dataPath).FullName;
+		string output = BuildPath(root, "android/OpenBonk-gradle-project");
+		if (File.Exists(output) || Directory.Exists(output))
+			throw new System.InvalidOperationException("Gradle export output already exists");
+		try
+		{
+			PlayerSettings.productName = "OpenBonk";
+			PlayerSettings.Android.splitApplicationBinary = true;
+			EditorUserBuildSettings.exportAsGoogleAndroidProject = true;
+			SplitLauncherProbeEnabled = true;
+			BuildApk(ScriptingImplementation.IL2CPP, AndroidArchitecture.ARM64, "OpenBonk-gradle-project", true, "com.megabonk.nativeport.splittest");
+		}
+		finally
+		{
+			SplitLauncherProbeEnabled = false;
+			EditorUserBuildSettings.exportAsGoogleAndroidProject = oldExport;
+			PlayerSettings.Android.splitApplicationBinary = oldSplit;
+			PlayerSettings.Android.targetSdkVersion = oldTargetSdk;
+			PlayerSettings.productName = oldName;
+			PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, oldId);
+		}
+	}
+
 	public static void BuildArm64ArrowResearchApk()
 	{
 		string oldName = PlayerSettings.productName;
@@ -311,7 +343,8 @@ public static class NativeAndroidBuild
 			throw new System.Exception("Native Android APK build failed: " + report.summary.result);
 		}
 
-		Debug.Log("Built native Android APK (" + architecture + ", " + backend + "): " + absoluteOutput + " (" + report.summary.totalSize + " bytes)");
+		string outputKind = EditorUserBuildSettings.exportAsGoogleAndroidProject ? "Gradle project" : "APK";
+		Debug.Log("Built native Android " + outputKind + " (" + architecture + ", " + backend + "): " + absoluteOutput + " (" + report.summary.totalSize + " bytes)");
 	}
 
 	private static BuildReport BuildPlayer(string[] scenes, string absoluteOutput)

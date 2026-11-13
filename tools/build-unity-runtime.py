@@ -26,6 +26,7 @@ def main():
     parser.add_argument('--plugins', type=Path, required=True, help='local directory with the three managed DLL inputs')
     parser.add_argument('--build-root', type=Path, required=True, help='new local directory for outputs and logs')
     parser.add_argument('--runner', help='optional single executable used to launch Unity, such as steam-run')
+    parser.add_argument('--gradle-project', action='store_true', help='export a local Gradle project instead of an APK/OBB')
     parser.add_argument('--check', action='store_true', help='validate prerequisites without writing files')
     args = parser.parse_args()
     project = args.project.expanduser().resolve(strict=True)
@@ -75,8 +76,10 @@ def main():
                 'OPENBONK_NO_REWIRED_PLUGINS': '1', 'OPENBONK_ANDROID_TARGET_SDK': '35',
                 'OPENBONK_AAPT2_OVERRIDE': str(aapt2)})
     log = output / 'runtime-build.log'
+    method = ('NativeAndroidBuild.ExportArm64RuntimeGradleProject' if args.gradle_project else
+              'NativeAndroidBuild.BuildArm64RuntimeResearchApk')
     cmd = ([runner] if runner else []) + [str(editor), '-batchmode', '-nographics', '-quit',
-           '-projectPath', str(project), '-executeMethod', 'NativeAndroidBuild.BuildArm64RuntimeResearchApk',
+           '-projectPath', str(project), '-executeMethod', method,
            '-logFile', str(log)]
     fd = os.open(rsp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     try:
@@ -92,6 +95,14 @@ def main():
                 rsp_meta.unlink()
     if status:
         raise SystemExit(f'Unity exited with status {status}; inspect the local log: {log}')
+    if args.gradle_project:
+        gradle = output / 'android/OpenBonk-gradle-project'
+        for relative in ('settings.gradle', 'launcher/build.gradle', 'unityLibrary/build.gradle'):
+            path = gradle / relative
+            if not path.is_file() or not path.stat().st_size:
+                raise SystemExit(f'Unity did not create the expected Gradle file: {relative}; inspect {log}')
+        print('Local Gradle project created. It contains game data and is not a final APK.')
+        return
     for name in ('Megabonk-arm64-runtime-research.apk', 'Megabonk-arm64-runtime-research.main.obb'):
         path = output / 'android' / name
         if not path.is_file() or path.stat().st_size == 0:

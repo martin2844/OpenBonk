@@ -114,6 +114,18 @@ python3 tools/prepare-unity-characters.py \
 
 This verifies the 21 character assets and their model, weapon, passive and icon references, backs up Bandit and Clank before correcting their default meshes to match their animated prefabs, then creates Resources copies and a fallback prefab locally. `--check` validates prerequisites without writing, and `--runner steam-run` is available where needed. A full runtime and gameplay test of this path is still pending.
 
+Restore post-processing compute shader references to the imported Unity package, preserving the original local asset:
+
+```sh
+python3 tools/prepare-unity-postprocessing.py \
+  --project /path/to/new-local-workspace \
+  --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
+  --log /path/to/new-local-postprocessing-log \
+  --backup /path/to/new-local-postprocessing-backup
+```
+
+A local test restored the same 12 package compute shader references as the reference project. `--check` and `--runner steam-run` are supported; this check does not establish rendering equivalence.
+
 An experimental localization stage reconstructs Android localization from the 19 supported local Linux Steam bundles, without adding game text to this checkout:
 
 ```sh
@@ -146,6 +158,8 @@ python3 tools/build-unity-runtime.py \
 ```
 
 On a system that needs a compatibility wrapper, add e.g. `--runner steam-run`; any required system libraries must also be configured locally. The tool has a `--check` option, refuses an existing output or response file, and retains its output and log on build failure. It invokes Unity's ARM64 runtime entry point with Android target SDK 35 and explicit no-Rewired and no-probe defines. Its inputs and outputs can contain game-derived and third-party material. A runtime APK plus OBB is an intermediate stage, not the final OpenBonk launcher APK; the clean end-to-end build and independent reconstruction of the inputs remain unverified.
+
+To generate a local Android Gradle project instead, use the same command with `--gradle-project`. A local Unity export created the expected Gradle modules and Unity library; integrating it with the launcher, generated conversion plans and signing has not yet been validated. The exported project contains game-derived data and should remain local.
 
 A local runtime build from the 1.3.14 export succeeded after the package-script and Addressables preparation above. Its script registry matched the 2,349 script IDs and identities in the previous runtime, but three empty script components remained in the scene build and its OBB had 207 ZIP entries versus 946 in the reference. One concrete gap is that the fresh export lacks the 21 populated `Resources/AndroidCharacters` assets used by the gameplay bootstrap. A comparison of 1,093 corresponding `MonoBehaviour` assets also found 741 whose 1.3.14 exports contain only an empty script header while the reference assets have additional serialized fields. Many asset entries therefore remain different or absent; neither gameplay equivalence nor a distributable APK has been established. The local Steam bundles must not be published as part of this experiment.
 
