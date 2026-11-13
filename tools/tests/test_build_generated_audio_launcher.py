@@ -139,6 +139,18 @@ class GeneratedAudioBuildTest(unittest.TestCase):
                                     'template_sha256': MODULE.digest(template), 'records': [row]}))
         with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, intermediate)
 
+    def test_exact_object_plan_checks_standalone_entry(self):
+        template, intermediate, plan = (self.root / n for n in ('obj-template.obb', 'obj-intermediate.obb', 'obj.json'))
+        entry = 'assets/bin/Data/' + 'b' * 32
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, b'x' + bytes(4) + b'y')
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'xmesh' + b'y')
+        row = {'entry': entry, 'target_offset': 1, 'size': 4, 'sha256': hashlib.sha256(b'mesh').hexdigest()}
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-exact-steam-object-offsets',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        MODULE.verify_meshes(template, plan, intermediate, objects=True)
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'xmesh' + b'z')
+        with self.assertRaises(ValueError): MODULE.verify_meshes(template, plan, intermediate, objects=True)
+
 
 if __name__ == '__main__':
     unittest.main()

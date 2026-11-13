@@ -153,16 +153,19 @@ def verify_textures(template, plan_path, intermediate, cubemaps=False):
         raise ValueError('converted texture checksum differs')
 
 
-def verify_meshes(template, plan_path, intermediate):
+def verify_meshes(template, plan_path, intermediate, objects=False):
     plan = json.loads(plan_path.read_text())
-    if plan.get('schema') != 1 or plan.get('kind') != 'experimental-steam-mesh-buffer-offsets' or plan.get('template_sha256') != digest(template):
+    kind = 'experimental-exact-steam-object-offsets' if objects else 'experimental-steam-mesh-buffer-offsets'
+    if plan.get('schema') != 1 or plan.get('kind') != kind or plan.get('template_sha256') != digest(template):
         raise ValueError('mesh plan or template differs')
     rows = plan.get('records')
     if not isinstance(rows, list) or not rows or len(rows) > 10000: raise ValueError('invalid mesh records')
     grouped = {}
     for row in rows:
         entry = row.get('entry')
-        if not isinstance(entry, str) or not re.fullmatch(r'assets/bin/Data/sharedassets[12]\.assets\.split(?:0|[1-9]\d*)', entry):
+        pattern = (r'assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets\d+\.assets|level\d+|resources\.assets)(?:\.split(?:0|[1-9]\d*))?)'
+                   if objects else r'assets/bin/Data/sharedassets[12]\.assets\.split(?:0|[1-9]\d*)')
+        if not isinstance(entry, str) or not re.fullmatch(pattern, entry):
             raise ValueError('invalid mesh entry')
         grouped.setdefault(entry, []).append(row)
     with zipfile.ZipFile(template) as base, zipfile.ZipFile(intermediate) as result:
@@ -261,6 +264,8 @@ def main():
     p.add_argument('--cubemap-intermediate-obb', type=Path, help='canonical cubemap restoration used by the mesh plan')
     p.add_argument('--animation-plan', type=Path, help='optional animation mask plan for combined research mode')
     p.add_argument('--animation-intermediate-obb', type=Path, help='canonical animation restoration used by the cubemap plan')
+    p.add_argument('--object-plan', type=Path, help='optional exact object plan for combined research mode')
+    p.add_argument('--object-intermediate-obb', type=Path, help='canonical object restoration used by the animation plan')
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
     gradle, project, runtime, template, plan, expected, editor = [x.expanduser().resolve(strict=True) for x in
@@ -280,10 +285,13 @@ def main():
     if bool(a.animation_plan) != bool(a.animation_intermediate_obb) or (a.animation_plan and not cubemap_plan): p.error('animation mode requires both animation inputs and cubemap mode')
     animation_plan = a.animation_plan.expanduser().resolve(strict=True) if a.animation_plan else None
     animation_intermediate = a.animation_intermediate_obb.expanduser().resolve(strict=True) if a.animation_intermediate_obb else None
+    if bool(a.object_plan) != bool(a.object_intermediate_obb) or (a.object_plan and not animation_plan): p.error('object mode requires both object inputs and animation mode')
+    object_plan = a.object_plan.expanduser().resolve(strict=True) if a.object_plan else None
+    object_intermediate = a.object_intermediate_obb.expanduser().resolve(strict=True) if a.object_intermediate_obb else None
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be a new directory')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []), *([cubemap_plan, cubemap_intermediate] if cubemap_plan else []), *([animation_plan, animation_intermediate] if animation_plan else []))):
+    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []), *([cubemap_plan, cubemap_intermediate] if cubemap_plan else []), *([animation_plan, animation_intermediate] if animation_plan else []), *([object_plan, object_intermediate] if object_plan else []))):
         p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
     if a.runner and not shutil.which(a.runner): p.error('configured runner not found')
@@ -300,8 +308,10 @@ def main():
     if a.gradle_user_home and not a.gradle_user_home.expanduser().resolve(strict=True).is_dir(): p.error('Gradle cache must be a directory')
     for path in gradle.rglob('*'):
         if path.is_symlink(): p.error('Gradle project must not contain symbolic links')
+    if object_plan:
+        verify_meshes(template, object_plan, object_intermediate, objects=True)
     if animation_plan:
-        verify_animations(template, animation_plan, animation_intermediate)
+        verify_animations(object_intermediate or template, animation_plan, animation_intermediate)
     if cubemap_plan:
         verify_textures(animation_intermediate or template, cubemap_plan, cubemap_intermediate, cubemaps=True)
     if mesh_plan:
@@ -330,7 +340,7 @@ def main():
     assets = library / 'src/main/assets/openbonk-diagnostic'
     assets.mkdir()
     (assets / 'marker').write_bytes(b'OPENBONK_PRIVATE_DIAGNOSTIC_V1')
-    mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V6' if animation_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V5' if cubemap_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V4' if mesh_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
+    mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7' if object_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V6' if animation_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V5' if cubemap_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V4' if mesh_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
     (assets / 'generated-audio-mode').write_bytes(mode)
     shutil.copyfile(template, assets / 'generated-audio-template.obb')
     shutil.copyfile(plan, assets / 'generated-audio-plan.json')
@@ -353,6 +363,9 @@ def main():
     if animation_plan:
         shutil.copyfile(animation_plan, assets / 'animation-plan.json')
         (assets / 'animation-plan.sha256').write_text(digest(animation_plan), encoding='ascii')
+    if object_plan:
+        shutil.copyfile(object_plan, assets / 'object-plan.json')
+        (assets / 'object-plan.sha256').write_text(digest(object_plan), encoding='ascii')
     (library / 'src/main/assets/unity_obb_guid').write_bytes(guid)
     result_hash = digest(expected)
     (launcher / 'SplitExpectedData.java').write_text('package com.megabonk.launcher;\nfinal class SplitExpectedData { static final String SHA256 = "' + result_hash + '", LEGACY_SHA256 = "", SECOND_LEGACY_SHA256 = "", THIRD_LEGACY_SHA256 = "", FOURTH_LEGACY_SHA256 = "", FIFTH_LEGACY_SHA256 = "", SIXTH_LEGACY_SHA256 = ""; }\n', encoding='ascii')
