@@ -9,6 +9,11 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_standalone_error_gate_rejects_large_or_invalid_errors(self):
+        self.assertTrue(module.acceptable_standalone_error([0.0, 2.0, 10.0, 0.0]))
+        for error in ([0, 0, 10.01, 0], [0, 0, float('nan'), 0], [0, 0, -1, 0], [0, 0, 0]):
+            self.assertFalse(module.acceptable_standalone_error(error))
+
     def test_duplicate_sources_must_have_identical_payload_and_format(self):
         class Texture:
             m_MipCount, m_ImageCount, m_ColorSpace = 1, 1, 0

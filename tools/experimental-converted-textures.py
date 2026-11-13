@@ -9,6 +9,7 @@ import argparse
 from collections import Counter, defaultdict
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 import shutil
@@ -18,6 +19,11 @@ ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'assets/bin/Data/'
 GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
+STANDALONE_MAX_MEAN_ERROR = 10.0
+
+
+def acceptable_standalone_error(mean):
+    return len(mean) == 4 and all(math.isfinite(v) and 0 <= v <= STANDALONE_MAX_MEAN_ERROR for v in mean)
 
 
 def select_source(target, candidates, texture=lambda item: item):
@@ -55,7 +61,6 @@ def mip_slices(data, fmt, width, height, count):
 def normal_image(image):
     """Convert DXT5nm's alpha/green channels to an RGB normal map."""
     from PIL import Image
-    import math
     image = image.convert('RGBA')
     x, y = image.getchannel('A'), image.getchannel('G')
     lut = bytes(round(math.sqrt(max(0, 1 - (a / 127.5 - 1) ** 2 - (b / 127.5 - 1) ** 2)) * 127.5 + 127.5)
@@ -97,17 +102,25 @@ def run(args):
                 tex = obj.read()
                 index[(tex.m_Name, tex.m_Width, tex.m_Height)].append(tex)
     changes, outcomes, failures, rows = {}, Counter(), Counter(), []
-    aliases = defaultdict(list)
+    aliases = defaultdict(list); quality_excluded = set()
     output.mkdir(mode=0o700)
     try:
         with zipfile.ZipFile(obb) as zin:
             infos = zin.infolist()
             if len(infos) != len({i.filename for i in infos}): raise ValueError('duplicate OBB entry')
-            for group in GROUPS:
+            standalone = [info.filename[len(PREFIX):] for info in infos
+                          if re.fullmatch(re.escape(PREFIX) + r'[0-9a-f]{32}', info.filename) and info.file_size <= 64 * 1024 * 1024]
+            for group in (*GROUPS, *standalone):
                 splits = parts(zin, group)
                 asset = b''.join(zin.read(info) for info in splits)
                 modified = bytearray(asset)
-                for obj in UnityPy.load(asset).objects:
+                try: objects = UnityPy.load(asset).objects
+                except Exception:
+                    if group in GROUPS: raise
+                    outcomes['standalone_unreadable'] += 1; continue
+                if group not in GROUPS and (len(objects) != 1 or objects[0].type.name != 'Texture2D'): continue
+                converted_before = len(rows)
+                for obj in objects:
                     if obj.type.name != 'Texture2D': continue
                     target = obj.read()
                     candidates = index[(target.m_Name, target.m_Width, target.m_Height)]
@@ -142,6 +155,11 @@ def run(args):
                         outcomes['conversion_failed_' + type(error).__name__] += 1
                         failures[type(error).__name__ + ': ' + str(error)[:160]] += 1
                         continue
+                    # A high level-zero error indicates a questionable match or
+                    # conversion; keep the existing texture for local review.
+                    if group not in GROUPS and not acceptable_standalone_error(mean):
+                        quality_excluded.add(PREFIX + group)
+                        outcomes['standalone_high_error'] += 1; continue
                     start = obj.byte_start + pos
                     if asset[start:start + len(old)] != old or modified[start:start + len(old)] != old: raise ValueError('target texture offset differs or overlaps')
                     modified[start:start + len(old)] = new
@@ -149,8 +167,9 @@ def run(args):
                                  'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat), 'normal': normal,
                                  'bytes': len(old), 'top_mean_rgba_error': [round(x, 3) for x in mean]})
                     alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
-                    aliases[alias_key].append((rows[-1], new))
+                    if group in GROUPS: aliases[alias_key].append((rows[-1], new))
                     outcomes['converted'] += 1
+                if group not in GROUPS and len(rows) == converted_before: continue
                 offset = 0
                 for info in splits:
                     changes[info.filename] = bytes(modified[offset:offset + info.file_size])
@@ -159,7 +178,8 @@ def run(args):
             # Some standalone assets duplicate an inline texture already converted
             # above. Reuse it only if all matching candidates yield the same bytes.
             for info in infos:
-                if not re.fullmatch(re.escape(PREFIX) + r'[0-9a-f]{32}', info.filename) or info.file_size > 64 * 1024 * 1024: continue
+                if (not re.fullmatch(re.escape(PREFIX) + r'[0-9a-f]{32}', info.filename) or
+                        info.file_size > 64 * 1024 * 1024 or info.filename in changes or info.filename in quality_excluded): continue
                 asset = zin.read(info)
                 try:
                     objects = UnityPy.load(asset).objects

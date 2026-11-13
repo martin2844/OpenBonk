@@ -97,6 +97,7 @@ def generate(args):
     for group, records in chosen.items():
         if group in study.GROUPS: continue
         for row in records.values():
+            if not any(k in row for k in ('alias_group', 'alias_target_id', 'source_name')): continue
             parent = chosen.get(row.get('alias_group'), {}).get(row.get('alias_target_id'))
             if row.get('alias_group') not in study.GROUPS or parent is None or row.get('source_name') != parent['name'] or any(row.get(k) != parent.get(k) for k in ('source_format', 'target_format', 'normal', 'bytes')):
                 raise ValueError('invalid standalone texture alias')
