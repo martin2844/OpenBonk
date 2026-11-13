@@ -5,7 +5,7 @@ import java.nio.file.*;
 import java.security.*;
 import java.util.*;
 
-/** Private standalone check of the experimental mesh, texture and audio chain. */
+/** Private standalone check of the experimental asset preparation chain. */
 public final class SteamThreeStageCheck {
     private static String hash(File file) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256"); byte[] buffer = new byte[65536];
@@ -13,22 +13,27 @@ public final class SteamThreeStageCheck {
         StringBuilder s = new StringBuilder(); for (byte b : digest.digest()) s.append(String.format("%02x", b & 255)); return s.toString();
     }
     public static void main(String[] args) throws Exception {
-        if ((args.length != 8 && args.length != 9) || !args[7].matches("[0-9a-f]{64}")) throw new IllegalArgumentException("library template SteamZIP texturePlan packedPlan audioPlan new-work-dir expected-output-SHA256 [meshPlan]");
+        if ((args.length < 8 || args.length > 10) || !args[7].matches("[0-9a-f]{64}")) throw new IllegalArgumentException("library template SteamZIP texturePlan packedPlan audioPlan new-work-dir expected-output-SHA256 [meshPlan [cubemapPlan]]");
         System.load(new File(args[0]).getCanonicalPath());
         Path root = Paths.get(args[6]); Files.createDirectory(root);
         try {
             File texture = root.resolve("texture.obb").toFile(), packed = root.resolve("packed.obb").toFile(), result = root.resolve("result.obb").toFile();
             File steam = new File(args[2]);
-            File textureInput = new File(args[1]);
-            if (args.length == 9) {
+            File meshInput = new File(args[1]);
+            if (args.length == 10) {
+                meshInput = root.resolve("cubemap.obb").toFile();
+                SteamPlannedTextures.restoreCubemaps(new File(args[1]), steam, new File(args[9]), hash(new File(args[9])), meshInput);
+            }
+            File textureInput = meshInput;
+            if (args.length >= 9) {
                 textureInput = root.resolve("mesh.obb").toFile();
-                SteamPlannedMeshes.restore(new File(args[1]), steam, new File(args[8]), hash(new File(args[8])), textureInput);
+                SteamPlannedMeshes.restore(meshInput, steam, new File(args[8]), hash(new File(args[8])), textureInput);
             }
             SteamPlannedTextures.restore(textureInput, steam, new File(args[3]), hash(new File(args[3])), texture);
             SteamPackedAudio.restore(texture, steam, new File(args[4]), hash(new File(args[4])), packed);
             SteamGeneratedAudio.restore(packed, steam, new File(args[5]), hash(new File(args[5])), result);
             if (!hash(result).equals(args[7])) throw new IOException("final output checksum differs");
-            System.out.println("PASS: all " + (args.length == 9 ? "four" : "three") + " preparation stages reproduced the expected OBB checksum");
+            System.out.println("PASS: all " + (args.length == 10 ? "five" : args.length == 9 ? "four" : "three") + " preparation stages reproduced the expected OBB checksum");
         } finally {
             try (java.util.stream.Stream<Path> paths = Files.walk(root)) {
                 paths.sorted(Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (IOException ignored) {} });

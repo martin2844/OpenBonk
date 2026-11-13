@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bind a research audio or texture plan to a byte-different, entry-identical ZIP.
+"""Bind a research reconstruction plan to a byte-different, entry-identical ZIP.
 
 Inputs contain game data and stay local. The output plan contains only metadata.
 """
@@ -23,7 +23,7 @@ def hash_file(path):
 
 def rebind(plan, original, canonical, output):
     data = json.loads(plan.read_text())
-    if (data.get('schema') != 1 or data.get('kind') not in ('experimental-steam-audio-offsets', 'experimental-packed-steam-audio-offsets', 'experimental-converted-steam-texture-offsets') or
+    if (data.get('schema') != 1 or data.get('kind') not in ('experimental-steam-audio-offsets', 'experimental-packed-steam-audio-offsets', 'experimental-converted-steam-texture-offsets', 'experimental-steam-mesh-buffer-offsets') or
             data.get('template_sha256') != hash_file(original)):
         raise ValueError('plan does not match original template')
     with zipfile.ZipFile(original) as a, zipfile.ZipFile(canonical) as b:

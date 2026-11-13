@@ -107,6 +107,21 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'headmesh' + b'nope')
         with self.assertRaises(ValueError): MODULE.verify_meshes(template, plan, intermediate)
 
+    def test_cubemap_plan_checks_full_target_and_blank_template(self):
+        template, intermediate, plan = (self.root / n for n in ('cube-template.obb', 'cube-intermediate.obb', 'cube.json'))
+        entry = 'assets/bin/Data/sharedassets1.assets.split0'; payload = b'a' * (6 * 131072)
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, b'x' + bytes(len(payload)))
+        with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'x' + payload)
+        row = {'id': 0, 'target_size': len(payload), 'target_sha256': hashlib.sha256(payload).hexdigest(),
+               'fragments': [{'entry': entry, 'target_offset': 1, 'size': len(payload), 'converted_offset': 0}]}
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-converted-steam-cubemap-offsets',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        MODULE.verify_textures(template, plan, intermediate, cubemaps=True)
+        row['target_sha256'] = '0' * 64
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-converted-steam-cubemap-offsets',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        with self.assertRaises(ValueError): MODULE.verify_textures(template, plan, intermediate, cubemaps=True)
+
 
 if __name__ == '__main__':
     unittest.main()
