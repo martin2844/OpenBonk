@@ -12,6 +12,15 @@ spec.loader.exec_module(module)
 
 
 class ConvertedTexturePlanTests(unittest.TestCase):
+    def test_resource_mapping_only_accepts_known_quality_textures(self):
+        row = {'name': 'GridBox_Collider', 'source_name': 'GridBox_Collider', 'source_format': 12,
+               'target_format': 47, 'quality': True, 'normal': False, 'direct_normal': False}
+        self.assertTrue(module.valid_resource_record(row))
+        for change in ({'name': 'other'}, {'source_name': 'other'}, {'source_format': 10},
+                       {'target_format': 45}, {'quality': False}, {'normal': True}, {'font': True},
+                       {'alias_group': 'sharedassets1'}):
+            self.assertFalse(module.valid_resource_record(dict(row, **change)))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         root = Path(self.temp.name); self.source = root / 'steam'; self.source.mkdir()

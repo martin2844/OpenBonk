@@ -26,6 +26,13 @@ ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:sharedassets[12]\.assets\.spli
 def sha(data): return hashlib.sha256(data).hexdigest()
 
 
+def valid_resource_record(row):
+    return (row.get('name') in study.RESOURCE_TEXTURES and row.get('source_name') == row['name'] and
+            row.get('source_format') == 12 and row.get('target_format') == 47 and row.get('quality') is True and
+            row.get('normal') is False and row.get('direct_normal') is False and
+            not any(k in row for k in ('font', 'alias_group', 'alias_target_id')))
+
+
 def file_hash(path):
     with path.open('rb') as stream: return hashlib.file_digest(stream, 'sha256').hexdigest()
 
@@ -97,11 +104,16 @@ def generate(args):
     for row in candidates:
         group, key = row['group'], row['target_id']
         if group not in study.GROUPS and not re.fullmatch(r'[0-9a-f]{32}', group): raise ValueError('invalid texture group')
+        if group in study.GROUPS and ('font' in row or 'resource' in row): raise ValueError('resource markers require a standalone texture')
         if type(key) is not int or key in chosen.setdefault(group, {}): raise ValueError('invalid texture record')
         chosen[group][key] = row
     for group, records in chosen.items():
         if group in study.GROUPS: continue
         for row in records.values():
+            if row.get('resource') is True:
+                if not valid_resource_record(row): raise ValueError('invalid resource texture mapping')
+                continue
+            if 'resource' in row: raise ValueError('invalid resource marker')
             if row.get('font') is True:
                 if (row.get('name') not in study.FONT_ALIASES or row.get('source_name') != study.FONT_ALIASES[row['name']] or
                         row.get('source_format') != 1 or row.get('target_format') != 47 or row.get('quality') is not True or
@@ -114,15 +126,15 @@ def generate(args):
             parent = chosen.get(row.get('alias_group'), {}).get(row.get('alias_target_id'))
             if row.get('alias_group') not in study.GROUPS or parent is None or row.get('source_name') != parent['name'] or any(row.get(k) != parent.get(k) for k in ('source_format', 'target_format', 'normal', 'bytes')) or any(row.get(k, False) != parent.get(k, False) for k in ('quality', 'direct_normal')):
                 raise ValueError('invalid standalone texture alias')
-    index = defaultdict(list); font_index = defaultdict(list)
-    for group in (*study.GROUPS, *(['resources'] if any(r.get('font') is True for r in candidates) else [])):
+    index = defaultdict(list); resources_index = defaultdict(list)
+    for group in (*study.GROUPS, *(['resources'] if any(r.get('font') is True or r.get('resource') is True for r in candidates) else [])):
         path = source / (group + '.assets')
         if not path.is_file() or path.is_symlink(): raise ValueError('missing Steam asset file')
         for obj in UnityPy.load(str(path)).objects:
             if obj.type.name == 'Texture2D':
                 tex = obj.read()
-                if group == 'resources' and tex.m_Name not in study.FONT_ALIASES.values(): continue
-                (font_index if group == 'resources' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append((group, obj, tex))
+                if group == 'resources' and tex.m_Name not in set(study.FONT_ALIASES.values()) | study.RESOURCE_TEXTURES: continue
+                (resources_index if group == 'resources' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append((group, obj, tex))
     rows = []; output.mkdir(mode=0o700)
     try:
         with zipfile.ZipFile(obb) as zin:
@@ -134,12 +146,14 @@ def generate(args):
                 for key, prior in chosen[group].items():
                     if key not in objects: raise ValueError('missing target texture')
                     obj = objects[key]; tex = obj.read()
-                    found = (font_index if prior.get('font') is True else index)[(prior.get('source_name', tex.m_Name), tex.m_Width, tex.m_Height)]
+                    found = (resources_index if prior.get('font') is True or prior.get('resource') is True else index)[(prior.get('source_name', tex.m_Name), tex.m_Width, tex.m_Height)]
                     chosen_source = study.select_source(tex, found, texture=lambda item: item[2])
                     if chosen_source is None or tex.m_Name != prior['name']: raise ValueError('source mapping differs')
                     src_group, src_obj, src = chosen_source
                     if prior.get('font') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (1024, 1024, 1)):
                         raise ValueError('font texture metadata differs')
+                    if prior.get('resource') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (512, 512, 10)):
+                        raise ValueError('resource texture metadata differs')
                     if (any(getattr(tex, k, None) != getattr(src, k, None) for k in ('m_MipCount', 'm_ImageCount', 'm_ColorSpace')) or
                             int(tex.m_TextureFormat) != prior['target_format'] or int(src.m_TextureFormat) != prior['source_format']):
                         raise ValueError('texture metadata differs')

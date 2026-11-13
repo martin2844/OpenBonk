@@ -82,6 +82,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn('--normal-fallback', dict(module.commands(a))['converted textures'])
             a.font_fallback = True
             self.assertIn('--font-fallback', dict(module.commands(a))['converted textures'])
+            a.resource_fallback = True
+            self.assertIn('--resource-fallback', dict(module.commands(a))['converted textures'])
 
 
 if __name__ == '__main__': unittest.main()

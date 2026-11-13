@@ -21,11 +21,16 @@ PREFIX = 'assets/bin/Data/'
 GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
 FONT_ALIASES = {'LiberationSans SDF Atlas_0': 'LiberationSans SDF Atlas'}
+RESOURCE_TEXTURES = frozenset(('GridBox_Collider', 'GridBox_Trigger'))
 MAX_MEAN_ERROR = 10.0
 MAX_NORMAL_ANGLE = 10.0
 
 
 class NormalQualityError(ValueError):
+    pass
+
+
+class ResourceQualityError(ValueError):
     pass
 
 
@@ -152,20 +157,21 @@ def run(args):
     if getattr(args, 'quality_library', None):
         quality = load_quality_encoder(args.quality_library)
     font_fallback = getattr(args, 'font_fallback', False)
-    if font_fallback and quality is None: raise ValueError('font fallback requires the quality encoder')
+    resource_fallback = getattr(args, 'resource_fallback', False)
+    if (font_fallback or resource_fallback) and quality is None: raise ValueError('resource or font fallback requires the quality encoder')
     output = args.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): raise ValueError('output must be a new directory')
     output = output.parent.resolve() / output.name
     if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (source, obb, ROOT)): raise ValueError('output must be separate from inputs and checkout')
-    index = defaultdict(list); font_index = defaultdict(list)
-    for group in (*GROUPS, *(['resources'] if font_fallback else [])):
+    index = defaultdict(list); resources_index = defaultdict(list)
+    for group in (*GROUPS, *(['resources'] if font_fallback or resource_fallback else [])):
         file = source / (group + '.assets')
         if not file.is_file() or file.is_symlink(): raise ValueError('missing regular Steam asset file')
         for obj in UnityPy.load(str(file)).objects:
             if obj.type.name == 'Texture2D':
                 tex = obj.read()
-                if group == 'resources' and tex.m_Name not in FONT_ALIASES.values(): continue
-                (font_index if group == 'resources' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append(tex)
+                if group == 'resources' and tex.m_Name not in set(FONT_ALIASES.values()) | RESOURCE_TEXTURES: continue
+                (resources_index if group == 'resources' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append(tex)
     changes, outcomes, failures, rows = {}, Counter(), Counter(), []
     aliases = defaultdict(list); quality_excluded = set()
     output.mkdir(mode=0o700)
@@ -189,14 +195,24 @@ def run(args):
                     if obj.type.name != 'Texture2D': continue
                     target = obj.read()
                     font_candidate = bool(font_fallback and group not in GROUPS and target.m_Name in FONT_ALIASES)
+                    resource_candidate = bool(resource_fallback and group not in GROUPS and target.m_Name in RESOURCE_TEXTURES)
                     source_name = FONT_ALIASES[target.m_Name] if font_candidate else target.m_Name
-                    candidates = (font_index if font_candidate else index)[(source_name, target.m_Width, target.m_Height)]
+                    candidates = (resources_index if font_candidate or resource_candidate else index)[(source_name, target.m_Width, target.m_Height)]
                     src = select_source(target, candidates)
-                    if src is None: outcomes['missing_or_ambiguous'] += 1; continue
+                    if src is None:
+                        if font_candidate or resource_candidate: quality_excluded.add(PREFIX + group)
+                        outcomes['missing_or_ambiguous'] += 1; continue
                     font = bool(font_candidate and
                                 source_name == src.m_Name and int(src.m_TextureFormat) == 1 and int(target.m_TextureFormat) == 47 and
                                 (target.m_Width, target.m_Height, target.m_MipCount) == (1024, 1024, 1))
-                    if font_candidate and not font: outcomes['font_metadata_differs'] += 1; continue
+                    if font_candidate and not font:
+                        quality_excluded.add(PREFIX + group)
+                        outcomes['font_metadata_differs'] += 1; continue
+                    resource = bool(resource_candidate and source_name == src.m_Name and int(src.m_TextureFormat) == 12 and
+                                    int(target.m_TextureFormat) == 47 and (target.m_Width, target.m_Height, target.m_MipCount) == (512, 512, 10))
+                    if resource_candidate and not resource:
+                        quality_excluded.add(PREFIX + group)
+                        outcomes['resource_metadata_differs'] += 1; continue
                     normal = target.m_Name in NORMAL_MAPS and src.m_TextureFormat == 12 and target.m_TextureFormat == 34
                     high_quality = False
                     if target.m_TextureFormat not in (4, 45, 47) and not normal or src.m_TextureFormat not in (1, 3, 4, 10, 12, 25):
@@ -226,16 +242,20 @@ def run(args):
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     if not acceptable_normal_image(original, converted): raise NormalQualityError('normal direction differs')
+                                if resource:
+                                    original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                    converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                    if not acceptable_quality_image(original, converted): raise ResourceQualityError('resource mip quality differs')
                                 encoded_mips.append(encoded)
                             return encoded_mips
-                        chunks = encode_mips(font); high_quality = font
+                        chunks = encode_mips(font or resource); high_quality = font or resource
                         new = b''.join(chunks)
                         if len(new) != len(old): raise ValueError('converted size differs')
                         w, h, old_top = target_mips[0]
                         original_image = converter.parse_image_data(old_top, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                         converted_image = converter.parse_image_data(chunks[0], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                         mean = ImageStat.Stat(ImageChops.difference(original_image, converted_image)).mean
-                        if not font and should_try_quality(mean, quality, normal, target.m_TextureFormat, target.m_Width, target.m_Height):
+                        if not font and not resource and should_try_quality(mean, quality, normal, target.m_TextureFormat, target.m_Width, target.m_Height):
                             chunks = encode_mips(True); new = b''.join(chunks); high_quality = True
                             if len(new) != len(old): raise ValueError('quality converted size differs')
                             converted_image = converter.parse_image_data(chunks[0], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
@@ -243,7 +263,11 @@ def run(args):
                     except NormalQualityError:
                         if group not in GROUPS: quality_excluded.add(PREFIX + group)
                         outcomes['normal_high_angle'] += 1; continue
+                    except ResourceQualityError:
+                        quality_excluded.add(PREFIX + group)
+                        outcomes['resource_high_error'] += 1; continue
                     except (ValueError, NotImplementedError, TypeError, IndexError, RuntimeError) as error:
+                        if font_candidate or resource_candidate: quality_excluded.add(PREFIX + group)
                         outcomes['conversion_failed_' + type(error).__name__] += 1
                         failures[type(error).__name__ + ': ' + str(error)[:160]] += 1
                         continue
@@ -260,6 +284,7 @@ def run(args):
                                  'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat), 'normal': normal, 'quality': high_quality, 'direct_normal': direct_normal,
                                  'bytes': len(old), 'top_mean_rgba_error': [round(x, 3) for x in mean]})
                     if font: rows[-1].update(font=True, source_name=source_name)
+                    if resource: rows[-1].update(resource=True, source_name=source_name)
                     alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
                     if group in GROUPS: aliases[alias_key].append((rows[-1], new))
                     outcomes['converted'] += 1
@@ -316,6 +341,7 @@ def main():
     p.add_argument('--quality-library', type=Path, help='optional experimental desktop quality encoder')
     p.add_argument('--normal-fallback', action='store_true', help='experimentally convert RGB normal maps after checking every mip')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct an SDF font atlas with the quality encoder')
+    p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures with per-mip quality checks')
     run(p.parse_args())
 
 
