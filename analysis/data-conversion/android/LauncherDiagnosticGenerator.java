@@ -62,7 +62,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      try(InputStream in=context.getAssets().open(ROOT+"animation-plan.sha256")){animationExpected=smallAscii(in,64);}
      if(!animationExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid animation checksum");
      File animationPlan=temp.resolve("animation-plan.json").toFile();cubeTemplate=temp.resolve("animation-intermediate.obb").toFile();
-     try(InputStream in=context.getAssets().open(ROOT+"animation-plan.json")){copy(in,animationPlan,2L*1024*1024);}
+     try(InputStream in=context.getAssets().open(ROOT+"animation-plan.json")){copy(in,animationPlan,8L*1024*1024);}
      if(progress!=null)progress.accept("Preparando animaciones");
      SteamPlannedMeshes.restoreAnimations(animationTemplate,steam,animationPlan,animationExpected,cubeTemplate);
     }

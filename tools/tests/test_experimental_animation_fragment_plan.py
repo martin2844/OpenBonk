@@ -12,6 +12,13 @@ spec.loader.exec_module(module)
 
 
 class AnimationFragmentTests(unittest.TestCase):
+    def test_particle_selection_prefers_matching_blocks(self):
+        target = b'A' * 64 + b'B' * 64
+        wrong = ('sharedassets1.assets', 1, 0, b'C' * 128)
+        best = ('sharedassets1.assets', 2, 128, b'A' * 64 + b'D' * 64)
+        self.assertIs(module.best_particle(target, [wrong, best]), best)
+        self.assertIsNone(module.best_particle(target, []))
+
     def test_split_mask_round_trip_and_overlap_rejection(self):
         parts = [SimpleNamespace(filename='one', file_size=5), SimpleNamespace(filename='two', file_size=5)]
         target, source = b'ABCDE', b'ABxDE'

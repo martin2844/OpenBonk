@@ -24,10 +24,10 @@ public final class SteamPlannedMeshes {
         if (value == null || !value.matches("[0-9a-f]{64}")) throw new IOException("invalid checksum"); return value;
     }
     private static byte[] planBytes(File file) throws IOException {
-        if (!file.isFile() || file.length() <= 0 || file.length() > 2 * 1024 * 1024) throw new IOException("invalid plan size");
+        if (!file.isFile() || file.length() <= 0 || file.length() > 8 * 1024 * 1024) throw new IOException("invalid plan size");
         try (InputStream in = new FileInputStream(file); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] b = new byte[8192]; int total = 0;
-            for (int n; (n = in.read(b)) != -1;) { if (n == 0) continue; total += n; if (total > 2 * 1024 * 1024) throw new IOException("plan too large"); out.write(b, 0, n); }
+            for (int n; (n = in.read(b)) != -1;) { if (n == 0) continue; total += n; if (total > 8 * 1024 * 1024) throw new IOException("plan too large"); out.write(b, 0, n); }
             return out.toByteArray();
         }
     }
