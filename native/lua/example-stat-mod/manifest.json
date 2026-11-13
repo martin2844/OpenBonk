@@ -1,0 +1,6 @@
+{
+  "id": "example-stat-mod",
+  "api": 2,
+  "enabled": false,
+  "hooks": ["stat_add:MaxHealth", "stat_mul:DurationMultiplier", "stat_add:ExtraJumps"]
+}

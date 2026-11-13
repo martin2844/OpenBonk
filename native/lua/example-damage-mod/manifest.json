@@ -1,0 +1,6 @@
+{
+  "id": "example-damage-mod",
+  "api": 1,
+  "enabled": false,
+  "hook": "damage_multiplier"
+}

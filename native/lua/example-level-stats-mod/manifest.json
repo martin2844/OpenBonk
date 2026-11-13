@@ -1,0 +1,7 @@
+{
+  "id": "example-level-stats-mod",
+  "api": 2,
+  "enabled": false,
+  "refresh": "level_up",
+  "hooks": ["stat_add:MaxHealth", "stat_mul:DurationMultiplier"]
+}

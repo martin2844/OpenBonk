@@ -1,0 +1,6 @@
+{
+  "id": "example-table-mod",
+  "api": 1,
+  "enabled": false,
+  "hook": "pickup_range_multiplier"
+}

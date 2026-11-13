@@ -1,0 +1,6 @@
+{
+  "id": "example-balanced-mod",
+  "api": 2,
+  "enabled": false,
+  "hooks": ["move_speed_multiplier", "damage_multiplier"]
+}

@@ -1,0 +1,6 @@
+{
+  "id": "example-speed-mod",
+  "api": 1,
+  "enabled": false,
+  "hook": "move_speed_multiplier"
+}

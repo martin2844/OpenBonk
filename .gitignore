@@ -1,0 +1,16 @@
+# Local and generated data must not enter source control.
+/build/
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+**/__pycache__/
+*.apk
+*.aab
+*.obb
+*.keystore
+*.jks
+*.p12
+*.pfx
+**/Saves/
+*.zip
+!mods/pikachu/study/pikachu-content-local-test.zip
