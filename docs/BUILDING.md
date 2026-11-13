@@ -74,7 +74,7 @@ Use `--check` to validate without writing. Both projects must specify Unity 2023
 
 A fresh local Steam export with AssetRipper 1.3.14 was also tried: 69 GUIDs differed. The optional `--allow-guid-remap` reconciled those GUID references in 623 local text files while preserving the original export. This is experimental: it does not prove that every asset or binary reference is correct, and the resulting fresh-export project still lacks configuration and build inputs. Without the flag the tool rejects mismatched GUIDs.
 
-AssetRipper 2.0.0 was also tested with a fresh local export. In a comparison of 1,093 `MonoBehaviour` assets, none of the 741 assets that were empty in the 1.3.14 export remained empty while populated in the reference project. Its export still required the same 69 GUID remappings; a complete APK built from it has not yet been validated.
+AssetRipper 2.0.0 was also tested with a fresh local export. In a comparison of 1,093 `MonoBehaviour` assets, none of the 741 assets that were empty in the 1.3.14 export remained empty while populated in the reference project. Its export still required the same 69 GUID remappings. A local APK built from a 2.0.0 export reached a brief Forest run; this does not establish full gameplay fidelity.
 
 To generate the managed Android build inputs locally from the exported project rather than copying another developer's DLLs:
 
@@ -85,7 +85,7 @@ python3 tools/prepare-managed-plugins.py \
   --output /path/to/new-managed-plugins
 ```
 
-The tool uses Unity's Mono and Mono.Cecil to normalize two assemblies and create the Android Steamworks stub; `--runner steam-run` is available where needed. The generated inputs contain derived third-party code and should remain local. Outputs generated from a fresh Steam export are not byte-identical to the previous local reference and have not yet been validated in an end-to-end build.
+The tool uses Unity's Mono and Mono.Cecil to normalize two assemblies and create the Android Steamworks stub; `--runner steam-run` is available where needed. The generated inputs contain derived third-party code and should remain local. Outputs generated from a fresh Steam export are not byte-identical to the previous local reference; a local APK built with them reached a brief Forest run, but full gameplay fidelity remains unverified.
 
 Build the Lua bridge as described below, then prepare the isolated workspace before opening it in Unity:
 
@@ -236,7 +236,21 @@ python3 tools/build-local-research-chain.py \
 
 The active Python environment needs UnityPy and its texture dependencies; a C++ compiler, the Unity Android NDK and an existing compatible Gradle cache are also required. Add `--runner steam-run` where needed, and run Python within a compatible environment if its native libraries require one. Optional `--steam-zip`, `--host-library`, `--android-library`, `--decoder` and `--gradle-user-home` reuse local inputs; otherwise the script creates the ZIP and builds its native tools. `--check` validates only initial inputs. One local run with supplied ZIP and libraries completed all 26 stages; another generated those inputs and completed all 30 stages. Both seven-stage preparations reproduced the expected OBB on an iPlay. The command does not create the initial Unity workspace, runtime or Gradle export, establish visual/gameplay fidelity, or remove all game content. Its output directory, logs, ZIP and APK must remain private.
 
-`tools/build-steam-research-launcher.py` also orchestrates the preceding Steam export, isolated Unity workspace preparation, runtime build and Gradle export before invoking the research chain. Its inputs include the local game installation, AssetRipper 2.0.0, Unity 2023.2.22f1, `json-20180813.jar`, an application ID and a new local output directory; `--help` lists the options. The `--check` flag validates initial inputs only. The generated APK and intermediate files contain game data and must remain private; this workflow does not yet establish a redistributable build or gameplay fidelity.
+`tools/build-steam-research-launcher.py` also orchestrates the preceding Steam export, isolated Unity workspace preparation, runtime build and Gradle export before invoking the research chain. From the repository root, with the dependencies described above available:
+
+```sh
+python3 -m venv /path/to/openbonk-venv
+/path/to/openbonk-venv/bin/python -m pip install -r tools/requirements-conversion.txt
+/path/to/openbonk-venv/bin/python tools/build-steam-research-launcher.py \
+  --game /path/to/Steam/steamapps/common/Megabonk \
+  --assetripper /path/to/AssetRipper.GUI.Free \
+  --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
+  --json-jar /path/to/json-20180813.jar \
+  --application-id com.example.openbonkresearch \
+  --output /path/to/new-local-research-directory
+```
+
+The pinned conversion environment was tested on Linux x86-64 with Python 3.13. Unity needs its Android build support, SDK, NDK and OpenJDK modules; the native conversion tools also need a host C++ compiler. The JSON JAR and an existing compatible Gradle cache are local prerequisites. Optional `--gradle-user-home` selects that cache and `--runner steam-run` wraps tools where needed. Use a new output directory outside the checkout and game installation. `--check` validates initial inputs only; `--help` lists the other options. On success the APK is at `research/launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk` inside the output directory. The APK and intermediate files contain game data and must remain private; this workflow does not yet establish a redistributable build or gameplay fidelity.
 
 A clean local run completed all of these steps and produced a private research APK. Its seven data-preparation stages were also checked on an Android device against the expected OBB checksum; this does not verify interactive gameplay. Unity's native dependencies, including `libxml2.so.2`, must be available in the environment running the editor.
 
