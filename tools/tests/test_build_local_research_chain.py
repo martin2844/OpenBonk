@@ -78,6 +78,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn('--target', steps['Android texture converter'])
             for name in ('converted textures', 'texture plan'):
                 self.assertIn('--quality-library', steps[name])
+            a.normal_fallback = True
+            self.assertIn('--normal-fallback', dict(module.commands(a))['converted textures'])
 
 
 if __name__ == '__main__': unittest.main()

@@ -104,7 +104,7 @@ def generate(args):
         for row in records.values():
             if not any(k in row for k in ('alias_group', 'alias_target_id', 'source_name')): continue
             parent = chosen.get(row.get('alias_group'), {}).get(row.get('alias_target_id'))
-            if row.get('alias_group') not in study.GROUPS or parent is None or row.get('source_name') != parent['name'] or any(row.get(k) != parent.get(k) for k in ('source_format', 'target_format', 'normal', 'bytes')) or row.get('quality', False) != parent.get('quality', False):
+            if row.get('alias_group') not in study.GROUPS or parent is None or row.get('source_name') != parent['name'] or any(row.get(k) != parent.get(k) for k in ('source_format', 'target_format', 'normal', 'bytes')) or any(row.get(k, False) != parent.get(k, False) for k in ('quality', 'direct_normal')):
                 raise ValueError('invalid standalone texture alias')
     index = defaultdict(list)
     for group in study.GROUPS:
@@ -150,12 +150,14 @@ def generate(args):
                     if not target or target_pos < 0 or target_body.count(target) != 1: raise ValueError('unsupported target layout')
                     row = {'id': len(rows), 'source': name, 'source_offset': offset, 'source_size': len(payload),
                            'source_sha256': sha(payload), 'width': tex.m_Width, 'height': tex.m_Height,
-                           'mips': tex.m_MipCount, 'source_format': int(src.m_TextureFormat), 'target_format': int(tex.m_TextureFormat), 'normal': prior.get('normal', False), 'quality': prior.get('quality', False),
+                           'mips': tex.m_MipCount, 'source_format': int(src.m_TextureFormat), 'target_format': int(tex.m_TextureFormat), 'normal': prior.get('normal', False), 'quality': prior.get('quality', False), 'direct_normal': prior.get('direct_normal', False),
                            'target_size': len(target), 'target_sha256': sha(target),
                            'fragments': fragments(parts, obj.byte_start + target_pos, len(target))}
                     # Verify the record is actually reproducible before blanking it.
                     if type(row['quality']) is not bool or (row['quality'] and (row['normal'] or row['target_format'] != 47)):
                         raise ValueError('invalid quality texture metadata')
+                    if type(row['direct_normal']) is not bool or (row['direct_normal'] and (row['normal'] or row['quality'] or row['target_format'] != 45 or row['source_format'] not in (3, 4, 10, 25))):
+                        raise ValueError('invalid direct normal metadata')
                     if convert_texture(payload, row, quality) != target: raise ValueError('converted target differs')
                     rows.append(row)
             if not rows: raise ValueError('no textures selected')
@@ -197,6 +199,8 @@ def restore(args, convert=convert_texture):
                     not 0 < row['width'] <= 4096 or not 0 < row['height'] <= 4096 or not 0 < row['mips'] <= 32 or
                     row['source_format'] not in (1, 3, 4, 10, 12, 25) or type(row.get('normal', False)) is not bool or
                     type(row.get('quality', False)) is not bool or
+                    type(row.get('direct_normal', False)) is not bool or
+                    (row.get('direct_normal', False) and (row.get('normal', False) or row.get('quality', False) or row['target_format'] != 45 or row['source_format'] not in (3, 4, 10, 25))) or
                     (row.get('quality', False) and (row.get('normal', False) or row['target_format'] != 47 or row['width'] > 2048 or row['height'] > 2048)) or
                     (row.get('normal', False) and (row['source_format'], row['target_format']) != (12, 34)) or
                     (not row.get('normal', False) and row['target_format'] not in (4, 45, 47))):

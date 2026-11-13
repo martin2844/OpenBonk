@@ -375,6 +375,8 @@ Pass `--quality-textures` to `build-local-research-chain.py` or `build-steam-res
 
 A later expanded local study accepted 16 quality-encoded records (5,644,896 bytes) and converted 799 records in total. Linux and Windows produced identical final OBBs, and both seven-stage Android checks reproduced all 922 entries on an iPlay. A private dual APK was built and its packaged assets restored the expected OBB from both ZIPs in a desktop launcher check. This selection has not been reviewed during gameplay. The quality check is a heuristic, not proof of visual fidelity; all artifacts remain private. Without the option, the earlier default conversion is retained and produced identical archive entries in a local comparison.
 
+The additional `--normal-fallback` option on either research-chain builder tries RGB normal maps whose Steam source and Android target use compatible direct RGB encoding. It rejects a candidate if any decoded mip contains a near-zero vector or any pixel differs by more than 10 degrees from the prior Android normal direction. One local study accepted one 43,704-byte portal normal map and rejected four candidates; Linux and Windows conversion outputs matched across all 922 entries, and the Linux texture stage reproduced all entries on an iPlay. This numerical comparison is not a lighting or gameplay review. The option is disabled by default and does not make the private template redistributable.
+
 ```sh
 python3 tools/build-etc2-quality-jni.py --target host --java-home /path/to/Unity/Editor/Data/PlaybackEngines/AndroidPlayer/OpenJDK --output /path/to/new-host-library.so
 python3 tools/build-etc2-quality-jni.py --target android --ndk /path/to/Unity/Editor/Data/PlaybackEngines/AndroidPlayer/NDK --output /path/to/new-android-library.so

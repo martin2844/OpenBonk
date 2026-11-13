@@ -9,6 +9,15 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_normal_direction_gate_rejects_large_rotation_and_degenerate_vectors(self):
+        from PIL import Image
+        original = Image.new('RGB', (2, 1), (128, 128, 255))
+        nearby = Image.new('RGB', (2, 1), (130, 128, 255))
+        self.assertTrue(module.acceptable_normal_image(original, nearby))
+        nearby.putpixel((1, 0), (255, 128, 128))
+        self.assertFalse(module.acceptable_normal_image(original, nearby))
+        self.assertFalse(module.acceptable_normal_image(original, Image.new('RGB', (2, 1), (128, 128, 128))))
+
     def test_quality_fallback_only_runs_for_eligible_high_error(self):
         high, low = [11, 0, 0, 0], [1, 0, 0, 0]
         self.assertTrue(module.should_try_quality(high, object(), False, 47, 1024, 1024))

@@ -72,6 +72,11 @@ class ConvertedTexturePlanTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'quality encoder is required'): self.restore()
         self.assertFalse(self.output.exists())
 
+    def test_direct_normal_rejects_unsupported_encoding(self):
+        self.row.update(direct_normal=True, source_format=12, target_format=45)
+        with self.assertRaises(ValueError): self.restore()
+        self.assertFalse(self.output.exists())
+
     def test_reconstructs_standalone_hashed_entry(self):
         entry = module.study.PREFIX + 'a' * 32
         with zipfile.ZipFile(self.template, 'w') as z:

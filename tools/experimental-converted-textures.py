@@ -21,6 +21,11 @@ PREFIX = 'assets/bin/Data/'
 GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
 MAX_MEAN_ERROR = 10.0
+MAX_NORMAL_ANGLE = 10.0
+
+
+class NormalQualityError(ValueError):
+    pass
 
 
 def acceptable_texture_error(mean):
@@ -50,6 +55,20 @@ def acceptable_quality_image(original, converted):
 def should_try_quality(mean, encoder, normal, target_format, width, height):
     return bool(not acceptable_texture_error(mean) and encoder and not normal and target_format == 47 and
                 1 <= width <= 2048 and 1 <= height <= 2048)
+
+
+def acceptable_normal_image(original, converted):
+    """Compare decoded RGB normal directions, rejecting any unsafe pixel."""
+    if original.size != converted.size or original.width < 1 or original.height < 1: return False
+    a, b = original.convert('RGB').tobytes(), converted.convert('RGB').tobytes()
+    cosine = math.cos(math.radians(MAX_NORMAL_ANGLE))
+    for i in range(0, len(a), 3):
+        u = (2 * a[i] - 255, 2 * a[i + 1] - 255, 2 * a[i + 2] - 255)
+        v = (2 * b[i] - 255, 2 * b[i + 1] - 255, 2 * b[i + 2] - 255)
+        u2 = sum(x * x for x in u); v2 = sum(x * x for x in v)
+        if u2 < 26 * 26 or v2 < 26 * 26 or sum(x * y for x, y in zip(u, v)) < cosine * math.sqrt(u2 * v2):
+            return False
+    return True
 
 
 def select_source(target, candidates, texture=lambda item: item):
@@ -159,7 +178,9 @@ def run(args):
                     high_quality = False
                     if target.m_TextureFormat not in (4, 45, 47) and not normal or src.m_TextureFormat not in (1, 3, 4, 10, 12, 25):
                         outcomes['unsupported_format'] += 1; continue
-                    if 'normal' in target.m_Name.lower() and not normal: outcomes['normal_excluded'] += 1; continue
+                    direct_normal = bool(getattr(args, 'normal_fallback', False) and not normal and 'normal' in target.m_Name.lower() and
+                                         int(src.m_TextureFormat) in (3, 4, 10, 25) and int(target.m_TextureFormat) == 45)
+                    if 'normal' in target.m_Name.lower() and not normal and not direct_normal: outcomes['normal_excluded'] += 1; continue
                     old = bytes(target.image_data)
                     body = obj.get_raw_data()
                     pos = body.find(old)
@@ -170,7 +191,7 @@ def run(args):
                         target_mips = mip_slices(old, target.m_TextureFormat, target.m_Width, target.m_Height, target.m_MipCount)
                         def encode_mips(use_quality):
                             encoded_mips = []
-                            for w, h, payload in source_mips:
+                            for level, (w, h, payload) in enumerate(source_mips):
                                 if use_quality:
                                     encoded, fmt = quality.encode(payload, w, h, int(src.m_TextureFormat)), target.m_TextureFormat
                                 else:
@@ -178,6 +199,10 @@ def run(args):
                                     if normal: image = normal_image(image)
                                     encoded, fmt = converter.image_to_texture2d(image, target.m_TextureFormat, target.object_reader.platform, target.m_PlatformBlob)
                                 if int(fmt) != target.m_TextureFormat or len(encoded) != mip_size(target.m_TextureFormat, w, h): raise ValueError('encoded mip differs')
+                                if direct_normal:
+                                    original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                    converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                    if not acceptable_normal_image(original, converted): raise NormalQualityError('normal direction differs')
                                 encoded_mips.append(encoded)
                             return encoded_mips
                         chunks = encode_mips(False)
@@ -192,6 +217,9 @@ def run(args):
                             if len(new) != len(old): raise ValueError('quality converted size differs')
                             converted_image = converter.parse_image_data(chunks[0], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                             mean = ImageStat.Stat(ImageChops.difference(original_image, converted_image)).mean
+                    except NormalQualityError:
+                        if group not in GROUPS: quality_excluded.add(PREFIX + group)
+                        outcomes['normal_high_angle'] += 1; continue
                     except (ValueError, NotImplementedError, TypeError, IndexError, RuntimeError) as error:
                         outcomes['conversion_failed_' + type(error).__name__] += 1
                         failures[type(error).__name__ + ': ' + str(error)[:160]] += 1
@@ -205,7 +233,7 @@ def run(args):
                     if asset[start:start + len(old)] != old or modified[start:start + len(old)] != old: raise ValueError('target texture offset differs or overlaps')
                     modified[start:start + len(old)] = new
                     rows.append({'group': group, 'target_id': obj.path_id, 'name': target.m_Name,
-                                 'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat), 'normal': normal, 'quality': high_quality,
+                                 'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat), 'normal': normal, 'quality': high_quality, 'direct_normal': direct_normal,
                                  'bytes': len(old), 'top_mean_rgba_error': [round(x, 3) for x in mean]})
                     alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
                     if group in GROUPS: aliases[alias_key].append((rows[-1], new))
@@ -261,6 +289,7 @@ def main():
     p.add_argument('--steam-data', required=True, type=Path)
     p.add_argument('--output', required=True, type=Path)
     p.add_argument('--quality-library', type=Path, help='optional experimental desktop quality encoder')
+    p.add_argument('--normal-fallback', action='store_true', help='experimentally convert RGB normal maps after checking every mip')
     run(p.parse_args())
 
 
