@@ -71,6 +71,16 @@ python3 tools/rebuild-unity-localization.py \
 
 The project must already be prepared, and must contain the supported bundles under `Assets/StreamingAssets/aa/StandaloneLinux64`. The tool verifies their hashes, requires a new output directory, and offers `--check` and `--runner steam-run`. It modifies the isolated workspace and stores derived game data and logs locally. A manual run on a fresh export restored 17 locales and 867 tables and built Android Addressables; the complete APK and gameplay still need separate validation.
 
+The observed Steam export also has Linux catalog and settings files that conflict with Unity's newly generated Android files at player build time. After successfully rebuilding Android Addressables, back up and remove those four exported files from the isolated workspace:
+
+```sh
+python3 tools/prepare-android-addressables.py \
+  --project /path/to/new-local-workspace \
+  --backup /path/to/new-local-catalog-backup
+```
+
+This checks for generated Android catalogs and records hashes of the original files in the local backup; `--check` makes no changes. The original Steam export remains untouched. Retain the backup and the Steam-derived bundles locally.
+
 The experimental runtime build stage can use that isolated workspace and a local directory containing the three managed DLLs named by the tool:
 
 ```sh
