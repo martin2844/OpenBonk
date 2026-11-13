@@ -18,6 +18,16 @@ PROJECT_DIRS = ('Assets', 'Packages', 'ProjectSettings')
 GUID = re.compile(rb'^guid:\s*([0-9a-fA-F]{32})\s*$', re.MULTILINE)
 GUID_REFERENCE = re.compile(rb'(?i)(?<![a-z0-9_])guid\s*:\s*([0-9a-f]{32})(?![a-z0-9])')
 VERSION = 'm_EditorVersion: 2023.2.22f1'
+LEGACY_AUDIO = Path('Assets/Editor/AssetRipperPatches')
+AUDIO = Path('Assets/Editor/AudioImport')
+
+
+def overlay_path(relative):
+    if relative == LEGACY_AUDIO.with_suffix('.meta'):
+        return AUDIO.with_suffix('.meta')
+    if relative.is_relative_to(LEGACY_AUDIO):
+        return AUDIO / relative.relative_to(LEGACY_AUDIO)
+    return relative
 
 
 def reject_links(root):
@@ -57,6 +67,16 @@ def main():
     for name in PROJECT_DIRS:
         reject_links(base / name)
     reject_links(OVERLAY)
+    legacy = base / LEGACY_AUDIO
+    legacy_meta = base / LEGACY_AUDIO.with_suffix('.meta')
+    if legacy.exists() or legacy_meta.exists():
+        if not legacy.is_dir() or (legacy_meta.exists() and not legacy_meta.is_file()):
+            parser.error('incomplete legacy audio patch directory')
+        if (base / AUDIO).exists() or (base / AUDIO.with_suffix('.meta')).exists():
+            parser.error('both legacy and renamed audio patch directories exist')
+        names = {p.name for p in legacy.iterdir()}
+        if 'AudioMixerPostprocessor.cs' not in names or names - {'AudioMixerPostprocessor.cs', 'AudioMixerPostprocessor.cs.meta'}:
+            parser.error('unexpected files in legacy audio patch directory')
     checked = 0
     mapping, destinations, overlay_owners = {}, {}, {}
     for meta in OVERLAY.rglob('*.meta'):
@@ -68,6 +88,12 @@ def main():
             parser.error('duplicate GUID in source overlay')
         overlay_owners[replacement] = relative
         counterpart = base / meta.relative_to(OVERLAY)
+        if not counterpart.exists() and legacy.is_dir():
+            relative = meta.relative_to(OVERLAY)
+            if relative == AUDIO.with_suffix('.meta'):
+                counterpart = legacy_meta
+            elif relative.is_relative_to(AUDIO):
+                counterpart = legacy / relative.relative_to(AUDIO)
         if not counterpart.exists():
             continue
         if not counterpart.is_file():
@@ -92,7 +118,7 @@ def main():
         for meta in (base / name).rglob('*.meta'):
             guid = meta_guid(meta)
             relative = meta.relative_to(base)
-            if guid in overlay_owners and overlay_owners[guid] != relative:
+            if guid in overlay_owners and overlay_owners[guid] != overlay_path(relative):
                 parser.error('source GUID is already owned by a different base asset')
             if guid in mapping:
                 owners.setdefault(guid, []).append(relative)
@@ -140,6 +166,10 @@ def main():
             if count[0] != expected_count:
                 raise ValueError('base project changed during copy: ' + str(relative))
             path.write_bytes(updated)
+        if legacy.is_dir():
+            shutil.move(str(output / LEGACY_AUDIO), str(output / AUDIO))
+            if legacy_meta.is_file():
+                shutil.move(str(output / LEGACY_AUDIO.with_suffix('.meta')), str(output / AUDIO.with_suffix('.meta')))
         for name in PROJECT_DIRS:
             source = OVERLAY / name
             if source.is_dir():

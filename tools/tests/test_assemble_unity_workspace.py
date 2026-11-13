@@ -81,6 +81,27 @@ class AssembleTest(unittest.TestCase):
             self.run_tool()
         self.assertFalse(self.out.exists())
 
+    def test_legacy_audio_patch_is_moved_only_in_workspace(self):
+        for project, directory in ((self.base, MODULE.LEGACY_AUDIO), (self.overlay, MODULE.AUDIO)):
+            folder = project / directory
+            folder.mkdir(parents=True)
+            folder.with_suffix('.meta').write_text('guid: ' + 'c' * 32 + '\n')
+            (folder / 'AudioMixerPostprocessor.cs').write_text('audio patch')
+            (folder / 'AudioMixerPostprocessor.cs.meta').write_text('guid: ' + 'd' * 32 + '\n')
+        self.run_tool()
+        self.assertTrue((self.out / MODULE.AUDIO / 'AudioMixerPostprocessor.cs').is_file())
+        self.assertFalse((self.out / MODULE.LEGACY_AUDIO).exists())
+        self.assertTrue((self.base / MODULE.LEGACY_AUDIO).is_dir())
+
+    def test_legacy_audio_patch_rejects_unexpected_files(self):
+        folder = self.base / MODULE.LEGACY_AUDIO
+        folder.mkdir(parents=True)
+        folder.with_suffix('.meta').write_text('guid: ' + 'c' * 32 + '\n')
+        (folder / 'keep.txt').write_text('user data')
+        with self.assertRaises(SystemExit):
+            self.run_tool()
+        self.assertTrue((folder / 'keep.txt').exists())
+
 
 if __name__ == '__main__':
     unittest.main()
