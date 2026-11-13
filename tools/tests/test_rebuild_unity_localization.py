@@ -65,13 +65,16 @@ class LocalizationPreparationTests(unittest.TestCase):
                 path.write_text('{"locales":[1],"tables":[1]}')
             elif method == 'LocalizationGuidPortCheck.Run':
                 Path(cmd[cmd.index('-logFile') + 1]).write_text('LocalizationGuidPortCheck passed: test')
+            elif method == 'MissingItemDescriptionsCheck.RunDefaultTables':
+                Path(cmd[cmd.index('-logFile') + 1]).write_text('MissingItemDescriptionsCheck default table lookup PASS: test')
             else:
                 Path(cmd[cmd.index('-logFile') + 1]).write_text('Android Addressables built.')
             return type('Result', (), {'returncode': 0})()
         with patch.object(module.subprocess, 'run', side_effect=run), patch.object(module.repair_guids, 'repair') as repair:
             self.invoke()
         self.assertEqual(methods, ['LocalizationBundleExport.ExportLinuxLocalizationBundles', 'RebuildAndroidLocalization.Build',
-                                   'RestoreLocalizationCollections.Run', 'RebuildAndroidLocalization.Build', 'LocalizationGuidPortCheck.Run'])
+                                   'RestoreLocalizationCollections.Run', 'RebuildAndroidLocalization.Build', 'LocalizationGuidPortCheck.Run',
+                                   'MissingItemDescriptionsCheck.RunDefaultTables'])
         repair.assert_called_once_with(self.project, self.output / 'android/localization-content.json', self.output / 'guid-backup')
         self.assertFalse((self.project / 'Assets/csc.rsp').exists())
         self.assertFalse((self.project / 'Assets/csc.rsp.meta').exists())
@@ -80,6 +83,22 @@ class LocalizationPreparationTests(unittest.TestCase):
         with patch.object(module.subprocess, 'run', return_value=type('Result', (), {'returncode': 1})()):
             with self.assertRaises(SystemExit):
                 self.invoke()
+        self.assertTrue(self.output.is_dir())
+        self.assertFalse((self.project / 'Assets/csc.rsp').exists())
+
+    def test_missing_item_check_marker_fails_and_cleans_response_file(self):
+        def run(cmd, env):
+            method = cmd[cmd.index('-executeMethod') + 1]
+            log = Path(cmd[cmd.index('-logFile') + 1])
+            if method.startswith('LocalizationBundleExport'):
+                path = self.output / 'android/localization-content.json'; path.parent.mkdir()
+                path.write_text('{"locales":[1],"tables":[1]}')
+            elif method == 'LocalizationGuidPortCheck.Run': log.write_text('LocalizationGuidPortCheck passed: test')
+            elif method == 'MissingItemDescriptionsCheck.RunDefaultTables': log.write_text('no success marker')
+            else: log.write_text('Android Addressables built.')
+            return type('Result', (), {'returncode': 0})()
+        with patch.object(module.subprocess, 'run', side_effect=run), patch.object(module.repair_guids, 'repair'):
+            with self.assertRaises(SystemExit): self.invoke()
         self.assertTrue(self.output.is_dir())
         self.assertFalse((self.project / 'Assets/csc.rsp').exists())
 

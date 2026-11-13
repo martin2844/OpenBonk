@@ -83,7 +83,8 @@ def main():
                                  ('RebuildAndroidLocalization.Build', 'localization-rebuild.log'),
                                  ('RestoreLocalizationCollections.Run', 'localization-collections.log'),
                                  ('RebuildAndroidLocalization.Build', 'localization-rebuild-final.log'),
-                                 ('LocalizationGuidPortCheck.Run', 'localization-guid-check.log')):
+                                 ('LocalizationGuidPortCheck.Run', 'localization-guid-check.log'),
+                                 ('MissingItemDescriptionsCheck.RunDefaultTables', 'localization-item-check.log')):
             log = output / log_name
             cmd = ([runner] if runner else []) + [str(editor), '-batchmode', '-nographics', '-quit',
                    '-projectPath', str(project), '-executeMethod', method, '-logFile', str(log)]
@@ -105,6 +106,9 @@ def main():
             elif method == 'LocalizationGuidPortCheck.Run':
                 if not log.is_file() or 'LocalizationGuidPortCheck passed:' not in log.read_text(errors='replace'):
                     raise SystemExit(f'Unity did not confirm localization lookups; inspect {log}')
+            elif method == 'MissingItemDescriptionsCheck.RunDefaultTables':
+                if not log.is_file() or 'MissingItemDescriptionsCheck default table lookup PASS:' not in log.read_text(errors='replace'):
+                    raise SystemExit(f'Unity did not confirm item descriptions; inspect {log}')
     finally:
         if rsp.is_file() and not rsp.is_symlink() and rsp.read_bytes() == DEFINES:
             rsp.unlink()

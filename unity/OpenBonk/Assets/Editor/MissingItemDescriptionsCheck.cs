@@ -55,6 +55,15 @@ public static class MissingItemDescriptionsCheck
         CheckLocale("en"); CheckLocale("es");
         Debug.Log("MissingItemDescriptionsCheck PASS: English and Spanish");
     }
+    public static void RunDefaultTables()
+    {
+        var settings = AssetDatabase.LoadAssetAtPath<LocalizationSettings>("Assets/MonoBehaviour/Localization Settings.asset");
+        if (settings == null) throw new Exception("Project localization settings are missing");
+        LocalizationSettings.Instance = settings;
+        if (LocalizationSettings.StringDatabase.TableProvider != null) throw new Exception("Expected default table lookup");
+        CheckLocale("en"); CheckLocale("es");
+        Debug.Log("MissingItemDescriptionsCheck default table lookup PASS: English and Spanish");
+    }
     [Serializable] sealed class InventoryEntry { public string name; public string asset; public bool enabled; }
     [Serializable] sealed class InventoryManifest { public InventoryEntry[] items; }
     public static void AuditInventory()
