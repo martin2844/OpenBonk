@@ -19,11 +19,11 @@ ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'assets/bin/Data/'
 GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
-STANDALONE_MAX_MEAN_ERROR = 10.0
+MAX_MEAN_ERROR = 10.0
 
 
-def acceptable_standalone_error(mean):
-    return len(mean) == 4 and all(math.isfinite(v) and 0 <= v <= STANDALONE_MAX_MEAN_ERROR for v in mean)
+def acceptable_texture_error(mean):
+    return len(mean) == 4 and all(math.isfinite(v) and 0 <= v <= MAX_MEAN_ERROR for v in mean)
 
 
 def select_source(target, candidates, texture=lambda item: item):
@@ -157,9 +157,9 @@ def run(args):
                         continue
                     # A high level-zero error indicates a questionable match or
                     # conversion; keep the existing texture for local review.
-                    if group not in GROUPS and not acceptable_standalone_error(mean):
-                        quality_excluded.add(PREFIX + group)
-                        outcomes['standalone_high_error'] += 1; continue
+                    if not acceptable_texture_error(mean):
+                        if group not in GROUPS: quality_excluded.add(PREFIX + group)
+                        outcomes['high_error'] += 1; continue
                     start = obj.byte_start + pos
                     if asset[start:start + len(old)] != old or modified[start:start + len(old)] != old: raise ValueError('target texture offset differs or overlaps')
                     modified[start:start + len(old)] = new
