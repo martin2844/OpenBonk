@@ -43,7 +43,7 @@ class ManagerPreparationTest(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.project = self.root / 'workspace'
-        self.scenes = self.project / 'Assets/ScenesAndroid'
+        self.scenes = self.project / 'Assets/Scenes'
         self.scenes.mkdir(parents=True)
         (self.project / '.openbonk-workspace.json').write_text(json.dumps(module.MARKER))
         self.backup = self.root / 'backup'
@@ -85,5 +85,9 @@ class ManagerPreparationTest(unittest.TestCase):
         self.backup.mkdir()
         with self.assertRaises(SystemExit): self.invoke('--backup', str(self.backup))
         self.assertEqual((self.scenes / 'MainMenu.unity').read_bytes(), GO + EMPTY)
+
+    def test_accepts_unsaved_source_scene_empty_scalars(self):
+        source = (GO + EMPTY).replace(b'  m_Name: \n', b'  m_Name:\n').replace(b'  m_EditorClassIdentifier: \n', b'  m_EditorClassIdentifier:\n')
+        self.assertEqual(module.render(source), GO.replace(b'  - component: {fileID: 30}\n', b''))
 
 if __name__ == '__main__': unittest.main()

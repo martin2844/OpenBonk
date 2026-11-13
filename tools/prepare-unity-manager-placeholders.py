@@ -37,8 +37,11 @@ def render(data):
                     f'  m_CorrespondingSourceObject: {{fileID: 0}}\n  m_PrefabInstance: {{fileID: 0}}\n'
                     f'  m_PrefabAsset: {{fileID: 0}}\n  m_GameObject: {{fileID: {owner}}}\n'
                     f'  m_Enabled: 1\n  m_EditorHideFlags: 0\n  m_Script: {{fileID: 0}}\n'
-                    f'  m_Name: \n  m_EditorClassIdentifier: \n').encode()
-        if block != expected: raise ValueError('missing manager component is not an empty placeholder')
+                    f'  m_Name:\n  m_EditorClassIdentifier:\n').encode()
+        # Unity may add a trailing space to empty YAML scalars when it saves
+        # a scene. Both forms represent the same empty placeholder.
+        normalized = re.sub(rb'(?m)^(  m_(?:Name|EditorClassIdentifier):) +$', rb'\1', block)
+        if normalized != expected: raise ValueError('missing manager component is not an empty placeholder')
         if len(re.findall(rb'(?<!\d)fileID: ' + str(key).encode() + rb'(?=[,}])', data)) != 1:
             raise ValueError('placeholder has unexpected references')
         missing.append((key, start, end))
@@ -56,8 +59,8 @@ def render(data):
 
 def verify(project):
     for name in SCENES:
-        path = project / 'Assets/ScenesAndroid' / (name + '.unity')
-        if path.is_symlink() or not path.is_file(): raise ValueError('Android scene missing: ' + name)
+        path = project / 'Assets/Scenes' / (name + '.unity')
+        if path.is_symlink() or not path.is_file(): raise ValueError('source scene missing: ' + name)
         data = path.read_bytes()
         if render(data) != data: raise ValueError('empty AlwaysManagers component remains in ' + name)
 
@@ -73,8 +76,8 @@ def main():
     if (project / 'Temp/UnityLockfile').exists(): p.error('Unity workspace is locked')
     originals, updates = {}, {}
     for name in SCENES:
-        path = project / 'Assets/ScenesAndroid' / (name + '.unity')
-        if path.is_symlink() or not path.is_file(): p.error('Android scene missing: ' + name)
+        path = project / 'Assets/Scenes' / (name + '.unity')
+        if path.is_symlink() or not path.is_file(): p.error('source scene missing: ' + name)
         originals[path] = path.read_bytes(); updates[path] = render(originals[path])
     changed = [path for path in originals if originals[path] != updates[path]]
     if a.check:
