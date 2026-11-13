@@ -9,6 +9,16 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_sdf_gate_limits_threshold_crossings_and_outliers(self):
+        from PIL import Image
+        original = Image.new('RGBA', (10, 10), (255, 255, 255, 128))
+        changed = original.copy(); changed.putpixel((0, 0), (255, 255, 255, 127))
+        self.assertTrue(module.acceptable_sdf_image(original, changed))
+        for x in (1, 2): changed.putpixel((x, 0), (255, 255, 255, 127))
+        self.assertFalse(module.acceptable_sdf_image(original, changed))
+        changed = original.copy(); changed.putpixel((0, 0), (255, 255, 255, 139))
+        self.assertFalse(module.acceptable_sdf_image(original, changed))
+
     def test_normal_direction_gate_rejects_large_rotation_and_degenerate_vectors(self):
         from PIL import Image
         original = Image.new('RGB', (2, 1), (128, 128, 255))

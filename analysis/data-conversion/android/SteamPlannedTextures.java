@@ -89,7 +89,7 @@ public final class SteamPlannedTextures {
             if (plan.getInt("schema") != 1 || !plan.getString("kind").equals(kind)) throw new IOException("unsupported texture plan");
             templateHash = checkedHash(plan.getString("template_sha256")); JSONObject sources = plan.getJSONObject("sources");
             Iterator<String> keys = sources.keys();
-            while (keys.hasNext()) { String name = keys.next(); if (!name.matches("sharedassets[12]\\.assets(?:\\.resS)?")) throw new IOException("invalid Steam source"); sourceHashes.put(name, checkedHash(sources.getString(name))); }
+            while (keys.hasNext()) { String name = keys.next(); if (!name.matches("(?:sharedassets[12]|resources)\\.assets(?:\\.resS)?")) throw new IOException("invalid Steam source"); sourceHashes.put(name, checkedHash(sources.getString(name))); }
             if (sourceHashes.isEmpty() || sourceHashes.size() > 4) throw new IOException("invalid source count");
             JSONArray rows = plan.getJSONArray("records"); long total = 0;
             if (rows.length() == 0 || rows.length() > (cubemaps ? 32 : MAX_RECORDS)) throw new IOException("invalid texture count");

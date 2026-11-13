@@ -80,6 +80,8 @@ class ResearchChainTests(unittest.TestCase):
                 self.assertIn('--quality-library', steps[name])
             a.normal_fallback = True
             self.assertIn('--normal-fallback', dict(module.commands(a))['converted textures'])
+            a.font_fallback = True
+            self.assertIn('--font-fallback', dict(module.commands(a))['converted textures'])
 
 
 if __name__ == '__main__': unittest.main()

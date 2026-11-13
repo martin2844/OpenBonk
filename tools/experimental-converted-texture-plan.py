@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location('texture_study', ROOT / 'tools/experimental-converted-textures.py')
 study = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(study)
-SOURCE = re.compile(r'sharedassets[12]\.assets(?:\.resS)?\Z')
+SOURCE = re.compile(r'(?:sharedassets[12]|resources)\.assets(?:\.resS)?\Z')
 ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:sharedassets[12]\.assets\.split(?:0|[1-9]\d*)|[0-9a-f]{32})\Z')
 
 
@@ -102,17 +102,27 @@ def generate(args):
     for group, records in chosen.items():
         if group in study.GROUPS: continue
         for row in records.values():
+            if row.get('font') is True:
+                if (row.get('name') not in study.FONT_ALIASES or row.get('source_name') != study.FONT_ALIASES[row['name']] or
+                        row.get('source_format') != 1 or row.get('target_format') != 47 or row.get('quality') is not True or
+                        row.get('normal') is not False or row.get('direct_normal') is not False or
+                        any(k in row for k in ('alias_group', 'alias_target_id'))):
+                    raise ValueError('invalid font texture mapping')
+                continue
+            if 'font' in row: raise ValueError('invalid font marker')
             if not any(k in row for k in ('alias_group', 'alias_target_id', 'source_name')): continue
             parent = chosen.get(row.get('alias_group'), {}).get(row.get('alias_target_id'))
             if row.get('alias_group') not in study.GROUPS or parent is None or row.get('source_name') != parent['name'] or any(row.get(k) != parent.get(k) for k in ('source_format', 'target_format', 'normal', 'bytes')) or any(row.get(k, False) != parent.get(k, False) for k in ('quality', 'direct_normal')):
                 raise ValueError('invalid standalone texture alias')
-    index = defaultdict(list)
-    for group in study.GROUPS:
+    index = defaultdict(list); font_index = defaultdict(list)
+    for group in (*study.GROUPS, *(['resources'] if any(r.get('font') is True for r in candidates) else [])):
         path = source / (group + '.assets')
         if not path.is_file() or path.is_symlink(): raise ValueError('missing Steam asset file')
         for obj in UnityPy.load(str(path)).objects:
             if obj.type.name == 'Texture2D':
-                tex = obj.read(); index[(tex.m_Name, tex.m_Width, tex.m_Height)].append((group, obj, tex))
+                tex = obj.read()
+                if group == 'resources' and tex.m_Name not in study.FONT_ALIASES.values(): continue
+                (font_index if group == 'resources' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append((group, obj, tex))
     rows = []; output.mkdir(mode=0o700)
     try:
         with zipfile.ZipFile(obb) as zin:
@@ -124,10 +134,12 @@ def generate(args):
                 for key, prior in chosen[group].items():
                     if key not in objects: raise ValueError('missing target texture')
                     obj = objects[key]; tex = obj.read()
-                    found = index[(prior.get('source_name', tex.m_Name), tex.m_Width, tex.m_Height)]
+                    found = (font_index if prior.get('font') is True else index)[(prior.get('source_name', tex.m_Name), tex.m_Width, tex.m_Height)]
                     chosen_source = study.select_source(tex, found, texture=lambda item: item[2])
                     if chosen_source is None or tex.m_Name != prior['name']: raise ValueError('source mapping differs')
                     src_group, src_obj, src = chosen_source
+                    if prior.get('font') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (1024, 1024, 1)):
+                        raise ValueError('font texture metadata differs')
                     if (any(getattr(tex, k, None) != getattr(src, k, None) for k in ('m_MipCount', 'm_ImageCount', 'm_ColorSpace')) or
                             int(tex.m_TextureFormat) != prior['target_format'] or int(src.m_TextureFormat) != prior['source_format']):
                         raise ValueError('texture metadata differs')
