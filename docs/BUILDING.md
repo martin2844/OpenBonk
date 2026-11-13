@@ -215,6 +215,8 @@ For local audio research, `tools/experimental-steam-audio.py` substitutes matchi
 
 `tools/experimental-steam-audio-plan.py` can create a local offset-and-hash plan and an OBB template with those 63 audio resources blanked, then restore them from the matching Steam data. One local round trip restored 9,996,992 audio bytes and reproduced all 922 OBB entries byte-for-byte. The template still contains other game data, the plan targets that specific build and Steam input, and neither tool is integrated with the launcher or produces a redistributable APK.
 
+The experimental Android preparation source `SteamGeneratedAudio.java` can restore that generated plan from a Steam ZIP into a new OBB. A standalone run on an iPlay tablet reproduced the same 922 archive entries, and rejected an incorrect plan, template and Steam ZIP without creating output. It validates the expected plan and input hashes; the caller must supply a trusted expected plan hash. The source is compiled with the other preparation code, but the launcher does not yet call it and the complete data-separated build is not verified.
+
 The ARM64 texture adapter can be built locally from the pinned source archive and the Unity Android NDK:
 
 ```sh
