@@ -22,6 +22,8 @@ class RuntimeBuildTest(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.project = self.root / 'project'
         (self.project / 'Assets').mkdir(parents=True)
+        (self.project / 'Assets/Mesh').mkdir()
+        (self.project / 'Assets/Mesh/GrassQuads.asset').write_text('Mesh:\n  m_Name: GrassQuads\n  m_IsReadable: 1\n  m_IndexBuffer: 001122\n  m_VertexData:\n    m_VertexCount: 8\n')
         (self.project / 'ProjectSettings').mkdir()
         (self.project / 'ProjectSettings/ProjectVersion.txt').write_text('m_EditorVersion: 2023.2.22f1\n')
         empty = '%YAML 1.1\nInputManager:\n  m_Axes:\n  m_UsePhysicalKeys: 0\n'
@@ -111,6 +113,15 @@ class RuntimeBuildTest(unittest.TestCase):
         result = self.run_tool()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Android input axes are missing or differ', result.stderr)
+        self.assertFalse(self.out.exists())
+
+    def test_unreadable_grass_is_rejected_before_build(self):
+        self.write_editor('pass\n')
+        path = self.project / 'Assets/Mesh/GrassQuads.asset'
+        path.write_text(path.read_text().replace('m_IsReadable: 1', 'm_IsReadable: 0'))
+        result = self.run_tool()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('GrassQuads is not readable', result.stderr)
         self.assertFalse(self.out.exists())
 
     def test_embedded_build_uses_single_apk_entry_point(self):

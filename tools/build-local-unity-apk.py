@@ -29,6 +29,7 @@ def stages(base, editor, lua, output, runner, application_id, prepare_only=False
         ('workspace plugins', 'prepare-unity-workspace.py', [*common, '--plugins', str(plugins), '--lua-library', str(lua), '--remove-duplicate-package-dlls']),
         ('Android input axes', 'prepare-android-input.py', [*common, '--backup', str(output / 'input-manager.original.asset')]),
         ('texture path collisions', 'resolve-unity-texture-case-collisions.py', [*common, '--manifest', str(output / 'texture-renames.json')]),
+        ('readable grass mesh', 'prepare-unity-grass-mesh.py', [*common, '--backup', str(output / 'grass-mesh.original.asset')]),
         ('Unity import', 'import-unity-workspace.py', [*common, *unity, '--log', str(output / 'import.log'), *wrapped]),
         ('package script references', 'remap-unity-package-scripts.py', [*common, '--backup', str(output / 'script-backup')]),
         ('characters', 'prepare-unity-characters.py', [*common, *unity, '--log', str(output / 'characters.log'), '--backup', str(output / 'character-backup'), *wrapped]),

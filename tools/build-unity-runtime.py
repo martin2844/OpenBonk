@@ -23,6 +23,9 @@ REWIRED_DEFINES = b'-define:OPENBONK_BETA_NO_PROBES\n'
 spec = importlib.util.spec_from_file_location('prepare_android_input', Path(__file__).resolve().parent / 'prepare-android-input.py')
 android_input = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(android_input)
+spec = importlib.util.spec_from_file_location('prepare_grass_mesh', Path(__file__).resolve().parent / 'prepare-unity-grass-mesh.py')
+grass_mesh = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(grass_mesh)
 
 
 def main():
@@ -67,6 +70,7 @@ def main():
         parser.error('Unity workspace has a lock file; close Unity and inspect it before retrying')
     try:
         android_input.verify(project)
+        grass_mesh.verify(project)
     except (OSError, ValueError) as error:
         parser.error(str(error))
     for name in PLUGINS:
