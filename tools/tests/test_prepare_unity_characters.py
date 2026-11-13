@@ -28,7 +28,8 @@ class CharacterPreparationTests(unittest.TestCase):
         self.editor.write_text('test')
         self.editor.chmod(0o755)
         self.log = root / 'unity.log'
-        self.argv = ['program', '--project', str(self.project), '--unity', str(self.editor), '--log', str(self.log)]
+        self.backup = root / 'backup'
+        self.argv = ['program', '--project', str(self.project), '--unity', str(self.editor), '--log', str(self.log), '--backup', str(self.backup)]
 
     def invoke(self, extra=()):
         with patch.object(sys, 'argv', self.argv + list(extra)):
@@ -39,6 +40,7 @@ class CharacterPreparationTests(unittest.TestCase):
         self.assertFalse(self.log.exists())
         def run(cmd, env):
             self.assertEqual((self.project / 'Assets/csc.rsp').read_bytes(), module.DEFINES)
+            self.assertEqual(env['OPENBONK_CHARACTER_BACKUP'], str(self.backup))
             (self.project / 'Assets/csc.rsp.meta').write_text('generated')
             self.log.write_text('Created 21 local character Resources and the fallback prefab.')
             return type('Result', (), {'returncode': 0})()
@@ -51,6 +53,14 @@ class CharacterPreparationTests(unittest.TestCase):
         (self.project / 'Assets/Resources/AndroidCharacters').mkdir()
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             self.invoke()
+        self.assertFalse(self.log.exists())
+
+    def test_existing_backup_is_never_overwritten(self):
+        self.backup.mkdir()
+        (self.backup / 'original').write_text('preserve')
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            self.invoke()
+        self.assertEqual((self.backup / 'original').read_text(), 'preserve')
         self.assertFalse(self.log.exists())
 
     def test_failure_cleans_response_file(self):
