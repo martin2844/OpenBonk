@@ -58,5 +58,13 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertEqual(run.call_count, 2)
         self.assertTrue((self.out / 'build.log').is_file())
 
+    @patch.object(module.subprocess, 'run')
+    def test_rewired_flag_is_used_for_both_unity_outputs(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        self.invoke('--include-rewired')
+        commands = [call.args[0] for call in run.call_args_list[1:]]
+        self.assertIn('--include-rewired', commands[1])
+        self.assertIn('--include-rewired', commands[2])
+
 
 if __name__ == '__main__': unittest.main()

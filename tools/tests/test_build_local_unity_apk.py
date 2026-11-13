@@ -79,6 +79,10 @@ class LocalBuildTest(unittest.TestCase):
         self.assertEqual(commands[-1][1], 'prepare-android-addressables.py')
         self.assertNotIn('build-unity-runtime.py', [stage[1] for stage in commands])
 
+    def test_rewired_flag_reaches_runtime_stage(self):
+        commands = MODULE.stages(self.base, self.editor, self.lua, self.out, None, 'com.example.flowcheck', include_rewired=True)
+        self.assertIn('--include-rewired', commands[-1][2])
+
 
 if __name__ == '__main__':
     unittest.main()

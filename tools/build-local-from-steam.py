@@ -26,6 +26,7 @@ def main():
     p.add_argument('--output', type=Path, required=True, help='new directory outside the game and checkout')
     p.add_argument('--application-id', required=True, help='application ID for an isolated test package')
     p.add_argument('--runner', help='optional executable used to run AssetRipper, Unity and Mono')
+    p.add_argument('--include-rewired', action='store_true', help='experimentally include local Rewired plugins in the runtime')
     p.add_argument('--prepare-only', action='store_true', help='export and prepare the Unity workspace without building the embedded APK')
     p.add_argument('--check', action='store_true', help='check initial inputs only; do not export or build')
     a = p.parse_args()
@@ -78,6 +79,7 @@ def main():
              '--unity', str(unity), '--lua-library', str(lua), '--output', str(out / 'build'),
              '--application-id', a.application_id, *runner]
     if a.prepare_only: build.append('--prepare-only')
+    if a.include_rewired: build.append('--include-rewired')
     for label, command in (('Steam export', export), ('local Unity workspace' if a.prepare_only else 'local APK', build)):
         print('Starting ' + label, flush=True)
         try:

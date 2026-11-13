@@ -67,6 +67,11 @@ class SteamBuildTest(unittest.TestCase):
         self.assertIn('--prepare-only', run.call_args_list[2].args[0])
 
     @patch.object(MODULE.subprocess, 'run')
+    def test_rewired_flag_reaches_unity_build(self, run):
+        self.run_main('--include-rewired')
+        self.assertIn('--include-rewired', run.call_args_list[2].args[0])
+
+    @patch.object(MODULE.subprocess, 'run')
     def test_builds_lua_in_output_when_no_library_is_given(self, run):
         unity = Path(self.argv[self.argv.index('--unity') + 1])
         compiler = unity.parent / 'Data/PlaybackEngines/AndroidPlayer/NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang'

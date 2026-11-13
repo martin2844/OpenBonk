@@ -26,7 +26,8 @@ def commands(a):
     steam = ['--game', a.game, '--assetripper', a.assetripper, '--unity', a.unity, '--output', out / 'steam',
              '--application-id', a.application_id, '--prepare-only', *wrapped]
     if a.lua_library: steam += ['--lua-library', a.lua_library]
-    common = ['--project', workspace, '--unity', a.unity, '--plugins', plugins, '--application-id', a.application_id, *wrapped]
+    common = ['--project', workspace, '--unity', a.unity, '--plugins', plugins, '--application-id', a.application_id,
+              *(['--include-rewired'] if a.include_rewired else []), *wrapped]
     runtime = [*common, '--build-root', out / 'runtime']
     gradle = [*common, '--build-root', out / 'gradle', '--gradle-project']
     chain = ['--steam-data', a.game / 'Megabonk_Data', '--runtime-obb', out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
@@ -49,6 +50,7 @@ def main():
     for name in ('lua-library', 'steam-zip', 'host-library', 'android-library', 'decoder', 'gradle-user-home'): p.add_argument('--' + name, type=Path)
     p.add_argument('--application-id', required=True)
     p.add_argument('--runner', help='optional wrapper for AssetRipper, Unity and native tools')
+    p.add_argument('--include-rewired', action='store_true', help='experimentally include local Rewired plugins in both Unity builds')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')

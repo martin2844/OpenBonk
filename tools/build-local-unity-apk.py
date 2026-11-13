@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / 'tools'
 
 
-def stages(base, editor, lua, output, runner, application_id, prepare_only=False):
+def stages(base, editor, lua, output, runner, application_id, prepare_only=False, include_rewired=False):
     project = output / 'workspace'
     plugins = output / 'managed-plugins'
     common = ['--project', str(project)]
@@ -35,7 +35,7 @@ def stages(base, editor, lua, output, runner, application_id, prepare_only=False
         ('skyboxes', 'prepare-unity-skyboxes.py', [*common, '--backup', str(output / 'skybox-backup')]),
         ('localization', 'rebuild-unity-localization.py', [*common, *unity, '--build-root', str(output / 'localization'), *wrapped]),
         ('Android Addressables', 'prepare-android-addressables.py', [*common, '--backup', str(output / 'addressables-backup')]),
-        ('APK', 'build-unity-runtime.py', [*common, *unity, '--plugins', str(plugins), '--build-root', str(output / 'runtime'), '--embedded', '--application-id', application_id, *wrapped]),
+        ('APK', 'build-unity-runtime.py', [*common, *unity, '--plugins', str(plugins), '--build-root', str(output / 'runtime'), '--embedded', '--application-id', application_id, *(['--include-rewired'] if include_rewired else []), *wrapped]),
     ]
     return result[:-1] if prepare_only else result
 
@@ -48,6 +48,7 @@ def main():
     p.add_argument('--output', required=True, type=Path, help='new local directory for workspace, backups and output')
     p.add_argument('--application-id', required=True, help='Android application ID for an isolated test package')
     p.add_argument('--runner', help='optional single executable used to launch Unity and Mono')
+    p.add_argument('--include-rewired', action='store_true', help='experimentally include local Rewired plugins in the runtime')
     p.add_argument('--prepare-only', action='store_true', help='prepare the isolated Unity workspace without building the embedded APK')
     p.add_argument('--check', action='store_true', help='check initial inputs only without writing output')
     a = p.parse_args()
@@ -72,7 +73,7 @@ def main():
     for name in ('Assets', 'Packages', 'ProjectSettings'):
         if not (base / name).is_dir():
             p.error('base project is missing ' + name)
-    commands = stages(base, editor, lua, output, a.runner, a.application_id, a.prepare_only)
+    commands = stages(base, editor, lua, output, a.runner, a.application_id, a.prepare_only, a.include_rewired)
     # These stages can validate real source inputs before any output exists;
     # later stages depend on outputs created during the build.
     for index in (0, 1):
