@@ -11,7 +11,12 @@ case "$out_dir/" in "$plan_dir/"*) echo 'Output must not be inside plans' >&2; e
 unity_editor="${OPENBONK_UNITY_EDITOR:-$HOME/Unity/Hub/Editor/2023.2.22f1/Editor}"
 unity_android="$unity_editor/Data/PlaybackEngines/AndroidPlayer"
 launcher_src="$repo_root/unity/OpenBonk/Assets/AndroidSplitLauncher"
-template="$repo_root/build/android/launcher-cleanup-gradle"
+unity_project="${OPENBONK_UNITY_PROJECT:-$repo_root/unity/OpenBonk}"
+template="${OPENBONK_GRADLE_TEMPLATE:-$repo_root/build/android/launcher-cleanup-gradle}"
+if [ ! -d "$unity_project" ] || [ ! -d "$template" ]; then echo 'Missing Unity project or Gradle template' >&2; exit 1; fi
+unity_project="$(realpath "$unity_project")"
+template="$(realpath "$template")"
+case "$out_dir/" in "$template/"*|"$unity_project/"*) echo 'Output must be outside the Unity project and Gradle template' >&2; exit 2;; esac
 base="$repo_root/build/android/launcher-steam-picker-integrated/OpenBonk-diagnostic.apk"
 runtime_mode="${OPENBONK_RUNTIME_RESEARCH:-0}"
 if [ "$runtime_mode" != 0 ] && [ "$runtime_mode" != 1 ] && [ "$runtime_mode" != 2 ]; then echo 'Invalid OPENBONK_RUNTIME_RESEARCH' >&2; exit 2; fi
@@ -52,7 +57,7 @@ python_cmd="${OPENBONK_PYTHON:-python3}"
 # The pinned runtimes below read the legacy cache profile path. Never assemble
 # them with a launcher that writes the new persistent queue: that combination
 # would report a queued profile which the game cannot consume.
-if grep -Fq 'string dir = files.Call<string>("getAbsolutePath")' "$repo_root/unity/OpenBonk/Assets/Scripts/Assembly-CSharp/AndroidProfileImport.cs"; then
+if grep -Fq 'string dir = files.Call<string>("getAbsolutePath")' "$unity_project/Assets/Scripts/Assembly-CSharp/AndroidProfileImport.cs"; then
  if [ "$runtime_mode" = 1 ]; then expected_runtime=f30a535b8f36151d0a80714e869d45ed7270aee17c55e415ad3d65240ce56ca4
  elif [ "$runtime_mode" = 2 ]; then expected_runtime=435618a799dc8821f713d28f3005d2338315916cc3fd604ad3ac521e9e7691be
  else expected_runtime=none; fi
@@ -112,7 +117,7 @@ cmp "$out_dir/SteamShared1ParticleMasks.java" "$repo_root/analysis/data-conversi
 mkdir "$out_dir/gradle"
 rsync -a --exclude='build/' --exclude='.gradle/' --exclude='symbols/' "$template/" "$out_dir/gradle/"
 work="$out_dir/gradle"
-"$python_cmd" - "$work" "$unity_android" "$repo_root/unity/OpenBonk" <<'PY'
+"$python_cmd" - "$work" "$unity_android" "$unity_project" <<'PY'
 import pathlib, re, sys
 work, unity_android, project = map(pathlib.Path, sys.argv[1:])
 
