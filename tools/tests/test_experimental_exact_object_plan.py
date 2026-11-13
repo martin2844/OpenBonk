@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 import zipfile
 
 spec = importlib.util.spec_from_file_location('exact_objects', Path(__file__).resolve().parents[1] / 'experimental-exact-object-plan.py')
@@ -13,6 +14,16 @@ spec.loader.exec_module(module)
 
 
 class ExactObjectTests(unittest.TestCase):
+    def test_source_files_are_available_in_both_minimal_launcher_zips(self):
+        with tempfile.TemporaryDirectory() as t:
+            manifest = Path(t) / 'inputs.json'
+            manifest.write_text(json.dumps({'platforms': {
+                'linux': {'level0': {}, 'level2': {}, 'other': {}},
+                'windows': {'level2': {}, 'level3': {}, 'other': {}},
+            }}))
+            with patch.object(module, 'STEAM_INPUTS', manifest):
+                self.assertEqual(module.launcher_source_names(), {'level2'})
+
     def test_fragments_preserve_split_boundaries(self):
         parts = [SimpleNamespace(filename='one', file_size=5), SimpleNamespace(filename='two', file_size=5)]
         rows = module.fragments(parts, 3, b'ABCDE', 'resources.assets', 2)

@@ -19,7 +19,14 @@ PREFIX = 'assets/bin/Data/'
 SOURCE = re.compile(r'(?:sharedassets\d+\.assets|level\d+|resources\.assets)\Z')
 SINGLE = re.compile(r'(?:[0-9a-f]{32}|level\d+|resources\.assets|sharedassets\d+\.assets)\Z')
 SPLIT = re.compile(r'((?:sharedassets\d+\.assets|level\d+|resources\.assets))\.split(0|[1-9]\d*)\Z')
-MIN_OBJECT = 256
+MIN_OBJECT = 64
+STEAM_INPUTS = ROOT / 'tools/launcher-steam-inputs.json'
+
+
+def launcher_source_names():
+    """Use only files present in both supported minimal launcher ZIPs."""
+    platforms = json.loads(STEAM_INPUTS.read_text(encoding='utf-8'))['platforms']
+    return {name for name in platforms['linux'].keys() & platforms['windows'].keys() if SOURCE.fullmatch(name)}
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
@@ -102,7 +109,8 @@ def generate(args):
                 if len(raw) != obj.byte_size or data[offset:offset + len(raw)] != raw: raise ValueError('target object bounds differ')
                 if not any(raw): continue
                 targets[(obj.type.name, len(raw), sha(raw))].append((name, offset))
-    source_files = sorted(p for p in source.iterdir() if SOURCE.fullmatch(p.name) and p.is_file() and not p.is_symlink())
+    allowed_sources = launcher_source_names()
+    source_files = sorted(p for p in source.iterdir() if p.name in allowed_sources and p.is_file() and not p.is_symlink())
     if not source_files: raise ValueError('no Steam serialized assets')
     found = {}
     for path in source_files:
