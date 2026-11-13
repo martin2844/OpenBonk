@@ -13,7 +13,7 @@ public final class SteamPlannedTextures {
     private static final int MAX_ENTRIES = 20000, MAX_RECORDS = 5000, MAX_CLIP = 64 * 1024 * 1024, MAX_SPLIT = 1024 * 1024;
     private static final String PREFIX = "assets/bin/Data/";
     private static final class Texture {
-        String source, inputHash, outputHash; long inputOffset, convertedOffset;
+        String source, inputHash, outputHash, decodedHash; long inputOffset, convertedOffset;
         int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat;
     }
     private static final class Fragment {
@@ -72,6 +72,12 @@ public final class SteamPlannedTextures {
         if (n <= 0 || n > MAX_CLIP) throw new IOException("invalid mip size"); return (int)n;
     }
     public static void restore(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, false);
+    }
+    public static void restoreCubemaps(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, true);
+    }
+    private static void restoreInternal(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output, boolean cubemaps) throws IOException {
         Path target = output.toPath().toAbsolutePath(), parent = target.getParent();
         if (parent == null || !Files.isDirectory(parent) || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) throw new IOException("output must be new");
         byte[] planBytes = readPlan(planFile);
@@ -79,30 +85,34 @@ public final class SteamPlannedTextures {
         Map<String, String> sourceHashes = new HashMap<>(); Map<String, List<Fragment>> byEntry = new HashMap<>(); List<Texture> textures = new ArrayList<>(); String templateHash;
         try {
             JSONObject plan = new JSONObject(new String(planBytes, "UTF-8"));
-            if (plan.getInt("schema") != 1 || !plan.getString("kind").equals("experimental-converted-steam-texture-offsets")) throw new IOException("unsupported texture plan");
+            String kind = cubemaps ? "experimental-converted-steam-cubemap-offsets" : "experimental-converted-steam-texture-offsets";
+            if (plan.getInt("schema") != 1 || !plan.getString("kind").equals(kind)) throw new IOException("unsupported texture plan");
             templateHash = checkedHash(plan.getString("template_sha256")); JSONObject sources = plan.getJSONObject("sources");
             Iterator<String> keys = sources.keys();
             while (keys.hasNext()) { String name = keys.next(); if (!name.matches("sharedassets[12]\\.assets(?:\\.resS)?")) throw new IOException("invalid Steam source"); sourceHashes.put(name, checkedHash(sources.getString(name))); }
             if (sourceHashes.isEmpty() || sourceHashes.size() > 4) throw new IOException("invalid source count");
             JSONArray rows = plan.getJSONArray("records"); long total = 0;
-            if (rows.length() == 0 || rows.length() > MAX_RECORDS) throw new IOException("invalid texture count");
+            if (rows.length() == 0 || rows.length() > (cubemaps ? 32 : MAX_RECORDS)) throw new IOException("invalid texture count");
             for (int i = 0; i < rows.length(); i++) {
                 JSONObject row = rows.getJSONObject(i); Texture t = new Texture();
                 if (row.getInt("id") != i) throw new IOException("invalid texture id");
                 t.source = row.getString("source"); t.inputHash = checkedHash(row.getString("source_sha256")); t.outputHash = checkedHash(row.getString("target_sha256"));
                 t.inputOffset = row.getLong("source_offset"); t.inputSize = row.getInt("source_size"); t.outputSize = row.getInt("target_size");
-                t.width = row.getInt("width"); t.height = row.getInt("height"); t.mips = row.getInt("mips"); t.sourceFormat = row.getInt("source_format"); t.targetFormat = row.getInt("target_format");
+                t.sourceFormat = row.getInt("source_format");
+                if (cubemaps) { t.width = 512; t.height = 512; t.mips = 6; t.targetFormat = 45; t.decodedHash = checkedHash(row.getString("decoded_sha256")); }
+                else { t.width = row.getInt("width"); t.height = row.getInt("height"); t.mips = row.getInt("mips"); t.targetFormat = row.getInt("target_format"); }
                 if (!sourceHashes.containsKey(t.source) || t.inputOffset < 0 || t.inputSize <= 0 || t.inputSize > MAX_CLIP || t.inputOffset > MAX_FILE - t.inputSize ||
                     t.outputSize <= 0 || t.outputSize > MAX_CLIP || t.width <= 0 || t.width > 4096 || t.height <= 0 || t.height > 4096 || t.mips <= 0 || t.mips > 32 ||
-                    !(t.sourceFormat == 1 || t.sourceFormat == 3 || t.sourceFormat == 4 || t.sourceFormat == 10 || t.sourceFormat == 12 || t.sourceFormat == 25) ||
+                    !(cubemaps ? (t.sourceFormat == 12 || t.sourceFormat == 29) : (t.sourceFormat == 1 || t.sourceFormat == 3 || t.sourceFormat == 4 || t.sourceFormat == 10 || t.sourceFormat == 12 || t.sourceFormat == 25)) ||
                     !(t.targetFormat == 4 || t.targetFormat == 45 || t.targetFormat == 47)) throw new IOException("invalid texture metadata");
+                if (cubemaps && (!t.source.equals("sharedassets1.assets.resS") || t.inputSize > 4 * 1024 * 1024 || t.outputSize != 6 * 131072)) throw new IOException("invalid cubemap metadata");
                 t.convertedOffset = total; total += t.outputSize; if (total > MAX_TOTAL) throw new IOException("texture limit exceeded");
                 JSONArray fs = row.getJSONArray("fragments"); int position = 0;
                 if (fs.length() == 0 || fs.length() > 128) throw new IOException("invalid fragment count");
                 for (int j = 0; j < fs.length(); j++) {
                     JSONObject f = fs.getJSONObject(j); Fragment fragment = new Fragment(); fragment.texture = t;
                     fragment.entry = f.getString("entry"); fragment.targetOffset = f.getInt("target_offset"); fragment.convertedOffset = f.getInt("converted_offset"); fragment.size = f.getInt("size");
-                    if (!fragment.entry.matches(PREFIX + "sharedassets[12]\\.assets\\.split(?:0|[1-9][0-9]*)") || fragment.convertedOffset != position || fragment.size <= 0 ||
+                    if (!fragment.entry.matches(PREFIX + (cubemaps ? "sharedassets1" : "sharedassets[12]") + "\\.assets\\.split(?:0|[1-9][0-9]*)") || fragment.convertedOffset != position || fragment.size <= 0 ||
                         fragment.targetOffset < 0 || fragment.targetOffset > MAX_SPLIT - fragment.size || fragment.size > t.outputSize - position) throw new IOException("invalid texture fragment");
                     position += fragment.size; byEntry.computeIfAbsent(fragment.entry, k -> new ArrayList<>()).add(fragment);
                 }
@@ -146,13 +156,19 @@ public final class SteamPlannedTextures {
                         src.seek(t.inputOffset); src.readFully(input);
                     }
                     if (!hex(sha().digest(input)).equals(t.inputHash)) throw new IOException("texture source checksum differs");
+                    if (cubemaps) {
+                        try { if (t.sourceFormat == 29) input = SteamCubemapResources.unpackCrunch(input); }
+                        catch (UnsatisfiedLinkError e) { throw new IOException("cubemap decoder unavailable", e); }
+                        if (input == null || input.length != 6 * 262144 || !hex(sha().digest(input)).equals(t.decodedHash)) throw new IOException("cubemap decode differs");
+                    }
                     MessageDigest hash = sha(); int inputPos = 0, outputPos = 0;
                     for (int level = 0; level < t.mips; level++) {
-                        int w = Math.max(1, t.width >> level), h = Math.max(1, t.height >> level);
-                        int n = mipSize(t.sourceFormat, w, h), wanted = mipSize(t.targetFormat, w, h);
+                        int w = cubemaps ? t.width : Math.max(1, t.width >> level), h = cubemaps ? t.height : Math.max(1, t.height >> level);
+                        int sourceFormat = cubemaps ? 12 : t.sourceFormat;
+                        int n = mipSize(sourceFormat, w, h), wanted = mipSize(t.targetFormat, w, h);
                         if (n > input.length - inputPos || wanted > t.outputSize - outputPos) throw new IOException("invalid mip bounds");
                         byte[] mip;
-                        try { mip = SteamConvertedTextures.convertMip(Arrays.copyOfRange(input, inputPos, inputPos + n), w, h, t.sourceFormat, t.targetFormat); }
+                        try { mip = SteamConvertedTextures.convertMip(Arrays.copyOfRange(input, inputPos, inputPos + n), w, h, sourceFormat, t.targetFormat); }
                         catch (UnsatisfiedLinkError e) { throw new IOException("texture converter unavailable", e); }
                         if (mip == null || mip.length != wanted) throw new IOException("texture conversion failed");
                         out.write(mip); hash.update(mip); inputPos += n; outputPos += wanted;
