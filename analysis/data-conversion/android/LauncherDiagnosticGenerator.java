@@ -6,6 +6,7 @@ import com.openbonk.dataprep.SteamRuntimeRebase;
 import com.openbonk.dataprep.SteamVideoStorage;
 import com.openbonk.dataprep.SteamGeneratedAudio;
 import com.openbonk.dataprep.SteamPackedAudio;
+import com.openbonk.dataprep.SteamPlannedTextures;
 import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -38,21 +39,32 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
    if(available!=null&&Arrays.asList(available).contains("generated-audio-mode")){
     String mode;
     try(InputStream in=context.getAssets().open(ROOT+"generated-audio-mode")){mode=smallAscii(in,64);}
-    if(!"OPENBONK_GENERATED_AUDIO_RESEARCH_V1".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V2".equals(mode))throw new IOException("invalid generated audio mode");
+    if(!"OPENBONK_GENERATED_AUDIO_RESEARCH_V1".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V2".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V3".equals(mode))throw new IOException("invalid generated audio mode");
     String expected;
     try(InputStream in=context.getAssets().open(ROOT+"generated-audio-plan.sha256")){expected=smallAscii(in,64);}
     if(!expected.matches("[0-9a-f]{64}"))throw new IOException("invalid generated audio checksum");
     File template=temp.resolve("generated-audio-template.obb").toFile(),plan=temp.resolve("generated-audio-plan.json").toFile();
     try(InputStream in=context.getAssets().open(ROOT+"generated-audio-template.obb")){copy(in,template,512L*1024*1024);}
     try(InputStream in=context.getAssets().open(ROOT+"generated-audio-plan.json")){copy(in,plan,1024L*1024);}
+    File packedTemplate=template;
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V3")){
+     String textureExpected;
+     try(InputStream in=context.getAssets().open(ROOT+"texture-plan.sha256")){textureExpected=smallAscii(in,64);}
+     if(!textureExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid texture checksum");
+     File texturePlan=temp.resolve("texture-plan.json").toFile();packedTemplate=temp.resolve("texture-intermediate.obb").toFile();
+     try(InputStream in=context.getAssets().open(ROOT+"texture-plan.json")){copy(in,texturePlan,2L*1024*1024);}
+     try{System.loadLibrary("openbonk_texture");}catch(UnsatisfiedLinkError e){throw new IOException("cannot load texture converter",e);}
+     if(progress!=null)progress.accept("Preparando texturas");
+     SteamPlannedTextures.restore(template,steam,texturePlan,textureExpected,packedTemplate);
+    }
     if(progress!=null)progress.accept("Preparando audio");
-    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V2")){
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V2")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V3")){
      String packedExpected;
      try(InputStream in=context.getAssets().open(ROOT+"packed-audio-plan.sha256")){packedExpected=smallAscii(in,64);}
      if(!packedExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid packed audio checksum");
      File packedPlan=temp.resolve("packed-audio-plan.json").toFile(),intermediate=temp.resolve("packed-audio-intermediate.obb").toFile();
      try(InputStream in=context.getAssets().open(ROOT+"packed-audio-plan.json")){copy(in,packedPlan,1024L*1024);}
-     SteamPackedAudio.restore(template,steam,packedPlan,packedExpected,intermediate);
+     SteamPackedAudio.restore(packedTemplate,steam,packedPlan,packedExpected,intermediate);
      SteamGeneratedAudio.restore(intermediate,steam,plan,expected,output);
     }else SteamGeneratedAudio.restore(template,steam,plan,expected,output);
     return;

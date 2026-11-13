@@ -23,7 +23,7 @@ def hash_file(path):
 
 def rebind(plan, original, canonical, output):
     data = json.loads(plan.read_text())
-    if (data.get('schema') != 1 or data.get('kind') != 'experimental-steam-audio-offsets' or
+    if (data.get('schema') != 1 or data.get('kind') not in ('experimental-steam-audio-offsets', 'experimental-packed-steam-audio-offsets') or
             data.get('template_sha256') != hash_file(original)):
         raise ValueError('plan does not match original template')
     with zipfile.ZipFile(original) as a, zipfile.ZipFile(canonical) as b:

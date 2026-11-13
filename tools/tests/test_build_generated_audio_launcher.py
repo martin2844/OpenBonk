@@ -78,6 +78,23 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'headclipBAD!')
         with self.assertRaises(ValueError): MODULE.verify_packed(packed, plan, intermediate)
 
+    def test_texture_plan_verifies_split_payload_and_surroundings(self):
+        template, intermediate, plan = (self.root / n for n in ('tex-template.obb', 'tex-intermediate.obb', 'tex-plan.json'))
+        entries = ['assets/bin/Data/sharedassets1.assets.split0', 'assets/bin/Data/sharedassets1.assets.split1']
+        with zipfile.ZipFile(template, 'w') as z:
+            z.writestr(entries[0], b'xx' + bytes(2)); z.writestr(entries[1], bytes(2) + b'yy')
+        with zipfile.ZipFile(intermediate, 'w') as z:
+            z.writestr(entries[0], b'xxAB'); z.writestr(entries[1], b'CDyy')
+        row = {'id': 0, 'target_size': 4, 'target_sha256': hashlib.sha256(b'ABCD').hexdigest(), 'fragments': [
+            {'entry': entries[0], 'target_offset': 2, 'size': 2, 'converted_offset': 0},
+            {'entry': entries[1], 'target_offset': 0, 'size': 2, 'converted_offset': 2}]}
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-converted-steam-texture-offsets',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        MODULE.verify_textures(template, plan, intermediate)
+        with zipfile.ZipFile(intermediate, 'w') as z:
+            z.writestr(entries[0], b'xxAB'); z.writestr(entries[1], b'CDzz')
+        with self.assertRaises(ValueError): MODULE.verify_textures(template, plan, intermediate)
+
 
 if __name__ == '__main__':
     unittest.main()

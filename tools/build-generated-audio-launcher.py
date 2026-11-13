@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import zipfile
 
@@ -98,6 +99,56 @@ def verify_packed(template, plan_path, intermediate):
             if a[end:] != b[end:]: raise ValueError('unrelated packed resource data differs')
 
 
+def verify_textures(template, plan_path, intermediate):
+    plan = json.loads(plan_path.read_text())
+    if plan.get('schema') != 1 or plan.get('kind') != 'experimental-converted-steam-texture-offsets' or plan.get('template_sha256') != digest(template):
+        raise ValueError('texture plan or template differs')
+    rows = plan.get('records')
+    if not isinstance(rows, list) or not rows or len(rows) > 5000:
+        raise ValueError('invalid texture records')
+    by_entry = {}
+    results = {}
+    total = 0
+    for i, row in enumerate(rows):
+        size = row.get('target_size')
+        if row.get('id') != i or type(size) is not int or not 0 < size <= 64 * 1024 * 1024:
+            raise ValueError('invalid texture record')
+        total += size
+        if total > 256 * 1024 * 1024: raise ValueError('texture size limit exceeded')
+        fs = row.get('fragments')
+        if not isinstance(fs, list) or not fs: raise ValueError('missing texture fragments')
+        position = 0
+        for frag in fs:
+            entry, start, amount, offset = (frag.get(k) for k in ('entry', 'target_offset', 'size', 'converted_offset'))
+            if (not isinstance(entry, str) or not re.fullmatch(r'assets/bin/Data/sharedassets[12]\.assets\.split(?:0|[1-9]\d*)', entry) or
+                    any(type(v) is not int for v in (start, amount, offset)) or start < 0 or amount <= 0 or offset != position or amount > size - position):
+                raise ValueError('invalid texture fragment')
+            by_entry.setdefault(entry, []).append((start, amount, offset, i))
+            position += amount
+        if position != size: raise ValueError('incomplete texture fragments')
+        results[i] = bytearray(size)
+    with zipfile.ZipFile(template) as base, zipfile.ZipFile(intermediate) as result:
+        names = base.namelist()
+        if len(names) != len(set(names)) or names != result.namelist() or not set(by_entry).issubset(names):
+            raise ValueError('texture archive entries differ')
+        for name in names:
+            selected = sorted(by_entry.get(name, []))
+            if not selected:
+                if entry_digest(base, name) != entry_digest(result, name): raise ValueError('unrelated texture archive entry differs')
+                continue
+            a, b = base.read(name), result.read(name)
+            if len(a) != len(b): raise ValueError('texture split length differs')
+            end = 0
+            for start, amount, offset, i in selected:
+                if start < end or start + amount > len(a) or a[end:start] != b[end:start] or any(a[start:start + amount]):
+                    raise ValueError('texture template range differs')
+                results[i][offset:offset + amount] = b[start:start + amount]
+                end = start + amount
+            if a[end:] != b[end:]: raise ValueError('unrelated texture split bytes differ')
+    if any(hashlib.sha256(results[i]).hexdigest() != row['target_sha256'] for i, row in enumerate(rows)):
+        raise ValueError('converted texture checksum differs')
+
+
 def property_value(value):
     result = []
     for c in str(value):
@@ -126,6 +177,9 @@ def main():
     p.add_argument('--gradle-user-home', type=Path, help='existing local Gradle cache')
     p.add_argument('--packed-plan', type=Path, help='optional packed-audio plan for the combined research mode')
     p.add_argument('--intermediate-obb', type=Path, help='canonical packed-audio restoration used by the single-audio plan')
+    p.add_argument('--texture-plan', type=Path, help='optional converted texture plan for combined research mode')
+    p.add_argument('--texture-intermediate-obb', type=Path, help='canonical texture restoration used by the packed plan')
+    p.add_argument('--texture-library', type=Path, help='local ARM64 texture converter library')
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
     gradle, project, runtime, template, plan, expected, editor = [x.expanduser().resolve(strict=True) for x in
@@ -133,10 +187,13 @@ def main():
     if bool(a.packed_plan) != bool(a.intermediate_obb): p.error('packed plan and intermediate OBB must be supplied together')
     packed = a.packed_plan.expanduser().resolve(strict=True) if a.packed_plan else None
     intermediate = a.intermediate_obb.expanduser().resolve(strict=True) if a.intermediate_obb else None
+    texture_args = (a.texture_plan, a.texture_intermediate_obb, a.texture_library)
+    if any(texture_args) and (not all(texture_args) or not packed): p.error('texture mode requires all texture inputs and packed audio mode')
+    texture_plan, texture_intermediate, texture_library = ([x.expanduser().resolve(strict=True) for x in texture_args] if all(texture_args) else (None, None, None))
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be a new directory')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []))):
+    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []))):
         p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
     if a.runner and not shutil.which(a.runner): p.error('configured runner not found')
@@ -153,8 +210,12 @@ def main():
     if a.gradle_user_home and not a.gradle_user_home.expanduser().resolve(strict=True).is_dir(): p.error('Gradle cache must be a directory')
     for path in gradle.rglob('*'):
         if path.is_symlink(): p.error('Gradle project must not contain symbolic links')
+    if texture_plan:
+        with texture_library.open('rb') as f: header = f.read(20)
+        if len(header) != 20 or header[:6] != b'\x7fELF\x02\x01' or struct.unpack_from('<H', header, 18)[0] != 183: p.error('texture library must be ARM64 ELF')
+        verify_textures(template, texture_plan, texture_intermediate)
     if packed:
-        verify_packed(template, packed, intermediate)
+        verify_packed(texture_intermediate or template, packed, intermediate)
     guid = verify(intermediate or template, plan, expected, runtime, gradle)
     print('Local prototype prerequisites verified; output contains game data.', flush=True)
     if a.check:
@@ -173,13 +234,20 @@ def main():
     assets = library / 'src/main/assets/openbonk-diagnostic'
     assets.mkdir()
     (assets / 'marker').write_bytes(b'OPENBONK_PRIVATE_DIAGNOSTIC_V1')
-    (assets / 'generated-audio-mode').write_bytes(b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1')
+    mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
+    (assets / 'generated-audio-mode').write_bytes(mode)
     shutil.copyfile(template, assets / 'generated-audio-template.obb')
     shutil.copyfile(plan, assets / 'generated-audio-plan.json')
     (assets / 'generated-audio-plan.sha256').write_text(digest(plan), encoding='ascii')
     if packed:
         shutil.copyfile(packed, assets / 'packed-audio-plan.json')
         (assets / 'packed-audio-plan.sha256').write_text(digest(packed), encoding='ascii')
+    if texture_plan:
+        shutil.copyfile(texture_plan, assets / 'texture-plan.json')
+        (assets / 'texture-plan.sha256').write_text(digest(texture_plan), encoding='ascii')
+        dest = library / 'src/main/jniLibs/arm64-v8a/libopenbonk_texture.so'
+        if dest.exists() or dest.is_symlink(): raise ValueError('unexpected existing texture library')
+        shutil.copyfile(texture_library, dest)
     (library / 'src/main/assets/unity_obb_guid').write_bytes(guid)
     result_hash = digest(expected)
     (launcher / 'SplitExpectedData.java').write_text('package com.megabonk.launcher;\nfinal class SplitExpectedData { static final String SHA256 = "' + result_hash + '", LEGACY_SHA256 = "", SECOND_LEGACY_SHA256 = "", THIRD_LEGACY_SHA256 = "", FOURTH_LEGACY_SHA256 = "", FIFTH_LEGACY_SHA256 = "", SIXTH_LEGACY_SHA256 = ""; }\n', encoding='ascii')
