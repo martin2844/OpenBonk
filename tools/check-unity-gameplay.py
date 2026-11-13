@@ -23,7 +23,13 @@ CHECKS = (
     ('ChallengeShrinePlayCheck', 'PASS', True),
     ('BossHealthBarPlayCheck', 'PASS', True),
     ('CameraFadeObjectPortCheck', 'passed', False),
+    ('CharacterSelectionPortCheck', 'passed', False),
+    ('MapControllerMainMenuPortCheck', 'passed', False),
+    ('CharacterEncounterPlayCheck', 'passed', True),
+    ('CombatAuraPlayCheck', 'passed', True),
+    ('RsgOriginalRoomsPlayCheck', 'passed', True),
 )
+TEMP_SCENE = 'Assets/RsgOriginalRoomsCheckTemporary.unity'
 
 
 def check_result(name, marker, status, log):
@@ -52,7 +58,8 @@ def main():
     runner = shutil.which(a.runner) if a.runner else None
     if a.runner and not runner: p.error('runner unavailable')
     rsp = project / 'Assets/csc.rsp'; meta = Path(str(rsp) + '.meta')
-    if any(path.exists() or path.is_symlink() for path in (rsp, meta, project / 'Temp/UnityLockfile')): p.error('workspace has a response file or Unity lock')
+    scene = project / TEMP_SCENE; scene_meta = Path(str(scene) + '.meta')
+    if any(path.exists() or path.is_symlink() for path in (rsp, meta, scene, scene_meta, project / 'Temp/UnityLockfile')): p.error('workspace has a response file, temporary test scene or Unity lock')
     if a.check:
         print('Initial inputs checked; Unity gameplay checks have not run.')
         return
@@ -73,12 +80,16 @@ def main():
             except subprocess.TimeoutExpired as error:
                 raise RuntimeError(name + ' timed out; inspect ' + str(log)) from error
             check_result(name, marker, status, log)
+            if name == 'RsgOriginalRoomsPlayCheck' and 'Outdoor weld comparison passed:' not in log.read_text(errors='replace'):
+                raise RuntimeError('outdoor collision comparison did not pass; inspect ' + str(log))
             print('PASS ' + name, flush=True)
     finally:
         if rsp.is_file() and not rsp.is_symlink() and rsp.read_bytes() == DEFINES:
             rsp.unlink()
             if meta.is_file() and not meta.is_symlink(): meta.unlink()
-    print('Seven Unity component checks passed. Android gameplay remains unverified.')
+        for path in (scene, scene_meta):
+            if path.is_file() and not path.is_symlink(): path.unlink()
+    print(f'{len(CHECKS)} Unity component checks passed. Android gameplay remains unverified.')
 
 
 if __name__ == '__main__': main()

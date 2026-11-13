@@ -18,12 +18,15 @@ public static class CharacterSelectionPortCheck
         var previousSave = SaveManager.Instance;
         var oldData = DataManager.Instance;
         var previousSelected = CharacterMenu.selectedCharacter;
+        var previousXpTable = Inventory__Items__Pickups.XpUtility.xpForLevelsTable;
         var dataManager = root.AddComponent<DataManager>();
         var fox = ScriptableObject.CreateInstance<CharacterData>();
         var calcium = ScriptableObject.CreateInstance<CharacterData>();
         var icon = new Texture2D(2, 2);
         try
         {
+            // AlwaysManager initializes this table before the real menu opens.
+            Inventory__Items__Pickups.XpUtility.Init();
             typeof(SaveManager).GetProperty("Instance").GetSetMethod(true).Invoke(null, new object[] { manager });
             manager.config = new ConfigSaveFile();
             manager.progression = new ProgressionSaveFile();
@@ -68,6 +71,7 @@ public static class CharacterSelectionPortCheck
         }
         finally
         {
+            Inventory__Items__Pickups.XpUtility.xpForLevelsTable = previousXpTable;
             DataManager.Instance = oldData;
             CharacterMenu.selectedCharacter = previousSelected;
             typeof(SaveManager).GetProperty("Instance").GetSetMethod(true).Invoke(null, new object[] { previousSave });

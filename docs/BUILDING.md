@@ -297,7 +297,9 @@ python3 tools/check-unity-gameplay.py \
   --output /path/to/new-private-check-logs
 ```
 
-Add `--runner steam-run` if needed. These checks exercise input bindings, menu A/B swapping, chest skipping and navigation, challenge completion, boss bars and camera fading. They passed in the prepared `043a365` workspace above. The tool checks success markers and exit status, and its logs remain local. It does not exercise the APK, physical controls, rendering or a complete game session.
+Add `--runner steam-run` if needed. These checks exercise input bindings, menu A/B swapping, chest skipping and navigation, challenge completion, boss bars, camera fading, character selection, Android scene identification, a character encounter, Aura combat, and generation of outdoor collision and original dungeon rooms. The tool checks success markers and exit status, and its logs remain local. It does not exercise the APK, physical controls, rendering or a complete game session.
+
+All 12 checks passed in the local workspace from the clean `043a365` build after updating the character-selection test fixture to initialize the experience table as the real startup does. The generation check uses original scene assets and a temporary test scene; the wrapper rejects an existing test scene and removes the one it creates. These results do not demonstrate a complete menu-to-game flow or gameplay on Android.
 
 The same build's seven restoration stages were also run in sequence on the iPlay; each reproduced the 922 expected entries. To repeat this private device check with a completed research directory and authorized Android device:
 
