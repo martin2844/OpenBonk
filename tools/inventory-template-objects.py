@@ -52,24 +52,25 @@ with ZipFile(a.apk) as outer:
                 env = UnityPy.load(raw)
                 types = Counter(obj.type.name for obj in env.objects)
                 if not types: raise ValueError('no Unity objects')
-                if types == {'Shader': 1}:
-                    obj = env.objects[0]
+                if set(types) == {'Shader'}:
                     try:
                         if reference:
                             original = reference.read(row['entry'])
                             if len(original) != len(raw) or any(x and x != y for x, y in zip(raw, original)):
                                 raise ValueError('reference shader differs from unmasked bytes')
                             original_objects = UnityPy.load(original).objects
-                            if (len(original_objects) != 1 or original_objects[0].type.name != 'Shader' or
-                                    original_objects[0].path_id != obj.path_id or
-                                    original_objects[0].byte_start != obj.byte_start or original_objects[0].byte_size != obj.byte_size):
+                            layout = lambda items: [(o.type.name, o.path_id, o.byte_start, o.byte_size) for o in items]
+                            if layout(original_objects) != layout(env.objects):
                                 raise ValueError('reference shader layout differs')
-                            tree = original_objects[0].read_typetree()
+                            source_objects = original_objects
                         else:
-                            tree = obj.read_typetree()
-                        shader_name = tree.get('m_ParsedForm', {}).get('m_Name', '')
-                        if not isinstance(shader_name, str) or len(shader_name) > 512: shader_name = ''
-                        shaders.append({'entry': row['entry'], 'name': shader_name, 'file_nonzero_bytes': row['nonzero_bytes'],
+                            source_objects = env.objects
+                        names = []
+                        for obj in source_objects:
+                            shader_name = obj.read_typetree().get('m_ParsedForm', {}).get('m_Name', '')
+                            names.append(shader_name if isinstance(shader_name, str) and len(shader_name) <= 512 else '')
+                        shaders.append({'entry': row['entry'], 'name': names[0] if len(names) == 1 else None,
+                                        'names': names, 'file_nonzero_bytes': row['nonzero_bytes'],
                                         'resource_manager_names': resource_names.get(row['entry'].rsplit('/', 1)[-1], []),
                                         'name_source': 'reference-obb' if reference else 'template'})
                     except Exception as error:
