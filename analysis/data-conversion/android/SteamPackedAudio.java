@@ -13,6 +13,7 @@ public final class SteamPackedAudio {
     private static final int MAX_ENTRIES = 20000, MAX_RECORDS = 2000, MAX_CLIP = 8 * 1024 * 1024;
     private static final String PREFIX = "assets/bin/Data/";
     private static final String[] SOURCES = {"sharedassets1.assets", "sharedassets1.resource", "sharedassets2.assets", "sharedassets2.resource"};
+    private static final String[] EXTRA_SOURCES = {"sharedassets4.assets", "sharedassets4.resource"};
 
     private static final class Row {
         String entry, source, hash;
@@ -80,21 +81,25 @@ public final class SteamPackedAudio {
         if (parent == null || !Files.isDirectory(parent) || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) throw new IOException("output must be new");
         byte[] bytes = small(planFile);
         if (!hex(sha().digest(bytes)).equals(checkHash(expectedPlanHash))) throw new IOException("plan checksum differs");
-        Map<String, String> hashes = new HashMap<>(); Map<String, List<Row>> byEntry = new HashMap<>();
+        Map<String, String> hashes = new LinkedHashMap<>(); Map<String, List<Row>> byEntry = new HashMap<>();
         String templateHash;
         try {
             JSONObject plan = new JSONObject(new String(bytes, "UTF-8"));
             if (plan.getInt("schema") != 1 || !plan.getString("kind").equals("experimental-packed-steam-audio-offsets")) throw new IOException("unsupported plan");
             templateHash = checkHash(plan.getString("template_sha256")); JSONObject sources = plan.getJSONObject("sources");
             for (String name : SOURCES) hashes.put(name, checkHash(sources.getString(name)));
+            if (sources.has(EXTRA_SOURCES[0]) != sources.has(EXTRA_SOURCES[1])) throw new IOException("incomplete extra audio sources");
+            if (sources.has(EXTRA_SOURCES[0])) for (String name : EXTRA_SOURCES) hashes.put(name, checkHash(sources.getString(name)));
+            if (sources.length() != hashes.size()) throw new IOException("unexpected audio sources");
             JSONArray rows = plan.getJSONArray("records"); long total = 0;
             if (rows.length() == 0 || rows.length() > MAX_RECORDS) throw new IOException("invalid record count");
             for (int i = 0; i < rows.length(); i++) {
                 JSONObject r = rows.getJSONObject(i); Row row = new Row();
                 row.entry = r.getString("entry"); row.source = r.getString("source"); row.hash = checkHash(r.getString("sha256"));
                 row.target = r.getLong("target_offset"); row.offset = r.getLong("source_offset"); row.size = r.getInt("size");
-                if (!(row.entry.equals(PREFIX + "sharedassets1.resource") || row.entry.equals(PREFIX + "sharedassets2.resource")) ||
-                    !(row.source.equals("sharedassets1.resource") || row.source.equals("sharedassets2.resource")) ||
+                if (!(row.entry.equals(PREFIX + "sharedassets1.resource") || row.entry.equals(PREFIX + "sharedassets2.resource") ||
+                      (hashes.containsKey(EXTRA_SOURCES[1]) && row.entry.equals(PREFIX + EXTRA_SOURCES[1]))) ||
+                    !hashes.containsKey(row.source) || !row.source.endsWith(".resource") ||
                     row.target < 0 || row.offset < 0 || row.size <= 0 || row.size > MAX_CLIP || row.target > MAX_FILE - row.size || row.offset > MAX_FILE - row.size) throw new IOException("invalid plan range");
                 total += row.size; if (total > MAX_TOTAL) throw new IOException("audio limit exceeded");
                 byEntry.computeIfAbsent(row.entry, k -> new ArrayList<>()).add(row);
@@ -112,14 +117,14 @@ public final class SteamPackedAudio {
             while (en.hasMoreElements()) {
                 ZipEntry e = en.nextElement(); if (e.isDirectory()) continue; String name = e.getName(); safeName(name);
                 if (names.size() >= MAX_ENTRIES || !names.add(name)) throw new IOException("duplicate or excessive Steam entries");
-                for (String suffix : SOURCES) {
+                for (String suffix : hashes.keySet()) {
                     String candidate = rootFor(name, suffix); if (candidate == null) continue;
                     if (root != null && !root.equals(candidate)) throw new IOException("conflicting Steam roots");
                     root = candidate; if (found.put(suffix, e) != null) throw new IOException("duplicate Steam input");
                 }
             }
             Map<String, Path> extracted = new HashMap<>();
-            for (String name : SOURCES) {
+            for (String name : hashes.keySet()) {
                 Path dest = name.endsWith(".resource") ? work.resolve(name) : null;
                 verifySource(steam, found.get(name), hashes.get(name), dest);
                 if (dest != null) extracted.put(name, dest);

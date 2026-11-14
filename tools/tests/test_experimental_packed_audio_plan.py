@@ -64,6 +64,31 @@ class PackedPlanTests(unittest.TestCase):
             self.restore()
         self.assertFalse(self.output.exists())
 
+    def test_restores_sharedassets4(self):
+        self.doc['records'][0]['source'] = 'sharedassets4.resource'
+        self.doc['records'][0]['entry'] = module.audio.PREFIX + 'sharedassets4.resource'
+        with zipfile.ZipFile(self.template, 'w') as z:
+            z.writestr(self.doc['records'][0]['entry'], b'head' + bytes(5) + b'tail')
+        self.doc['template_sha256'] = module.file_digest(self.template)
+        self.restore()
+        with zipfile.ZipFile(self.output) as z:
+            self.assertEqual(z.read(self.doc['records'][0]['entry']), b'headaudiotail')
+
+    def test_previous_two_group_plan_remains_supported(self):
+        for name in ('sharedassets4.assets', 'sharedassets4.resource'):
+            self.doc['sources'].pop(name)
+            (self.steam / name).unlink()
+        self.restore()
+        with zipfile.ZipFile(self.output) as z:
+            self.assertEqual(z.read(self.entry), b'headaudiotail')
+
+    def test_old_plan_cannot_reference_undeclared_fourth_group(self):
+        for name in ('sharedassets4.assets', 'sharedassets4.resource'):
+            self.doc['sources'].pop(name)
+        self.doc['records'][0]['source'] = 'sharedassets4.resource'
+        with self.assertRaises(ValueError): self.restore()
+        self.assertFalse(self.output.exists())
+
 
 if __name__ == '__main__':
     unittest.main()

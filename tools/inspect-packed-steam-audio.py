@@ -13,7 +13,7 @@ import zipfile
 
 FIELDS = ('m_Length', 'm_Channels', 'm_Frequency', 'm_BitsPerSample', 'm_LoadType',
           'm_CompressionFormat', 'm_SubsoundIndex')
-GROUPS = ('sharedassets1', 'sharedassets2')
+GROUPS = ('sharedassets1', 'sharedassets2', 'sharedassets4')
 PREFIX = 'assets/bin/Data/'
 
 

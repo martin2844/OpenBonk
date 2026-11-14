@@ -74,7 +74,8 @@ def verify_packed(template, plan_path, intermediate):
     plan = json.loads(plan_path.read_text())
     if plan.get('schema') != 1 or plan.get('kind') != 'experimental-packed-steam-audio-offsets' or plan.get('template_sha256') != digest(template):
         raise ValueError('packed audio plan or template differs')
-    allowed = {'assets/bin/Data/sharedassets1.resource', 'assets/bin/Data/sharedassets2.resource'}
+    allowed = {'assets/bin/Data/sharedassets1.resource', 'assets/bin/Data/sharedassets2.resource',
+               'assets/bin/Data/sharedassets4.resource'}
     rows = plan.get('records')
     if not isinstance(rows, list) or not rows or any(r.get('entry') not in allowed for r in rows):
         raise ValueError('invalid packed audio records')

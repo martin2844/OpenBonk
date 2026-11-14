@@ -2,11 +2,12 @@
 """Generate and restore an experimental packed-audio offset plan.
 
 Generated templates retain other game data and must stay local. The plan is
-specific to the exact OBB and Steam inputs and is not integrated with Android.
-Generation requires UnityPy; restoration uses the Python standard library.
+specific to the exact OBB and Steam inputs. Generation requires UnityPy;
+restoration uses the Python standard library.
 """
 import argparse
 from collections import defaultdict
+from contextlib import ExitStack
 import hashlib
 import importlib.util
 import json
@@ -29,8 +30,8 @@ def file_digest(path):
         return hashlib.file_digest(f, 'sha256').hexdigest()
 
 
-def sources(folder):
-    files = {group + ext: folder / (group + ext) for group in audio.GROUPS for ext in ('.assets', '.resource')}
+def sources(folder, groups=None):
+    files = {group + ext: folder / (group + ext) for group in (groups or audio.GROUPS) for ext in ('.assets', '.resource')}
     if any(not path.is_file() or path.is_symlink() for path in files.values()):
         raise ValueError('Steam inputs must be regular files')
     return files
@@ -146,15 +147,23 @@ def restore(args):
     template = args.template.resolve(strict=True)
     plan_path = args.plan.resolve(strict=True)
     output = output_path(args.output, (source, template, plan_path))
-    files = sources(source)
     plan = json.loads(plan_path.read_text())
+    plan_sources = plan.get('sources')
+    old_groups = ('sharedassets1', 'sharedassets2')
+    old_names = {group + ext for group in old_groups for ext in ('.assets', '.resource')}
+    new_names = {group + ext for group in audio.GROUPS for ext in ('.assets', '.resource')}
+    if not isinstance(plan_sources, dict) or set(plan_sources) not in (old_names, new_names):
+        raise ValueError('unsupported packed audio sources')
+    files = sources(source, old_groups if set(plan_sources) == old_names else audio.GROUPS)
     if (plan.get('schema') != 1 or plan.get('kind') != 'experimental-packed-steam-audio-offsets' or
             plan.get('sources') != {name: file_digest(path) for name, path in files.items()} or
             plan.get('template_sha256') != file_digest(template)):
         raise ValueError('plan or inputs differ')
     rows = plan.get('records')
     allowed = {audio.PREFIX + group + '.resource' for group in audio.GROUPS}
-    if not isinstance(rows, list) or not rows or any(r.get('entry') not in allowed for r in rows):
+    if not isinstance(rows, list) or not rows or any(
+            not isinstance(r, dict) or r.get('entry') not in allowed or
+            r.get('source') not in files or not r['source'].endswith('.resource') for r in rows):
         raise ValueError('invalid plan records')
     seen = set()
     created = False
@@ -163,8 +172,8 @@ def restore(args):
             infos = zin.infolist()
             if len(infos) != len({i.filename for i in infos}):
                 raise ValueError('duplicate archive entries')
-            with files['sharedassets1.resource'].open('rb') as one, files['sharedassets2.resource'].open('rb') as two:
-                streams = {'sharedassets1.resource': one, 'sharedassets2.resource': two}
+            with ExitStack() as stack:
+                streams = {name: stack.enter_context(path.open('rb')) for name, path in files.items() if name.endswith('.resource')}
                 with output.open('xb') as target:
                     created = True
                     with zipfile.ZipFile(target, 'w') as zout:

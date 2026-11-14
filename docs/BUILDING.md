@@ -298,6 +298,8 @@ The later clean workspace prepared at `e7ed7fe` was used to build a new ARM64 ru
 
 `tools/inventory-launcher-template.py` accepts both the older nested-plan layout and the newer primary-template layout with seven direct plans. `tools/inventory-template-objects.py` can classify readable hashed Unity files from the resulting private inventory. For the Linux research APK above, the primary template had 922 readable entries and 10,474,972 nonzero bytes; all 697 hashed Unity files were classified, including 36 shader files and 127 texture files. These count entire files, including headers and metadata, and cannot identify provenance or establish that the remaining data is redistributable. Additional platform templates are not inventoried by this check. The inventory and classification reports must remain private.
 
+The packed-audio research path now also handles six compatible clips in `sharedassets4`. In a local Linux build, 246 clips were substituted from Steam instead of 240, and the primary template contained 9,940,221 nonzero bytes, 534,751 fewer than the comparable build above. All seven restoration checks matched 922 archive entries on the desktop and an iPlay; the updated Java restorer also passed a previous two-group plan. Matching metadata and codec does not establish audible equivalence, and the updated launcher has not been tested interactively. The template and APK still contain game data and remain private.
+
 To run selected component checks in the prepared isolated workspace, with Unity closed:
 
 ```sh

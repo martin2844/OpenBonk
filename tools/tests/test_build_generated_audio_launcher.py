@@ -87,7 +87,7 @@ class GeneratedAudioBuildTest(unittest.TestCase):
 
     def test_packed_template_ranges_and_unmodified_bytes(self):
         packed, intermediate, plan = (self.root / n for n in ('packed.obb', 'intermediate.obb', 'packed.json'))
-        entry = 'assets/bin/Data/sharedassets1.resource'
+        entry = 'assets/bin/Data/sharedassets4.resource'
         with zipfile.ZipFile(packed, 'w') as z: z.writestr(entry, b'head' + bytes(4) + b'tail')
         with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'headcliptail')
         plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-packed-steam-audio-offsets',
