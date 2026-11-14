@@ -66,6 +66,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      try{System.loadLibrary("openbonk_texture");}catch(UnsatisfiedLinkError e){throw new IOException("cannot load texture converter",e);}
      if(progress!=null)progress.accept("Preparando texturas");
      SteamPlannedTextures.restorePartialRgba(template,steam,partialPlan,partialExpected,objectTemplate);
+     Files.delete(template.toPath());
     }
     if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
      String objectExpected;
@@ -75,6 +76,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      try(InputStream in=context.getAssets().open(researchRoot+"object-plan.json")){copy(in,objectPlan,2L*1024*1024);}
      if(progress!=null)progress.accept("Preparando recursos");
      SteamPlannedMeshes.restoreExactObjects(objectTemplate,steam,objectPlan,objectExpected,animationTemplate);
+     Files.delete(objectTemplate.toPath());
     }
     if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
      String animationExpected;
@@ -84,6 +86,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      try(InputStream in=context.getAssets().open(researchRoot+"animation-plan.json")){copy(in,animationPlan,8L*1024*1024);}
      if(progress!=null)progress.accept("Preparando animaciones");
      SteamPlannedMeshes.restoreAnimations(animationTemplate,steam,animationPlan,animationExpected,cubeTemplate);
+     Files.delete(animationTemplate.toPath());
     }
     if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
      String cubeExpected;
@@ -94,6 +97,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      try{System.loadLibrary("openbonk_texture");}catch(UnsatisfiedLinkError e){throw new IOException("cannot load texture converter",e);}
      if(progress!=null)progress.accept("Preparando cielos");
      SteamPlannedTextures.restoreCubemaps(cubeTemplate,steam,cubePlan,cubeExpected,meshTemplate);
+     Files.delete(cubeTemplate.toPath());
     }
     if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V4")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
      String meshExpected;
@@ -103,6 +107,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      try(InputStream in=context.getAssets().open(researchRoot+"mesh-plan.json")){copy(in,meshPlan,2L*1024*1024);}
      if(progress!=null)progress.accept("Preparando modelos");
      SteamPlannedMeshes.restore(meshTemplate,steam,meshPlan,meshExpected,textureTemplate);
+     Files.delete(meshTemplate.toPath());
     }
     if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V3")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V4")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
      String textureExpected;
@@ -113,6 +118,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      try{System.loadLibrary("openbonk_texture");}catch(UnsatisfiedLinkError e){throw new IOException("cannot load texture converter",e);}
      if(progress!=null)progress.accept("Preparando texturas");
      SteamPlannedTextures.restore(textureTemplate,steam,texturePlan,textureExpected,packedTemplate);
+     Files.delete(textureTemplate.toPath());
     }
     if(progress!=null)progress.accept("Preparando audio");
     if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V2")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V3")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V4")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
@@ -122,6 +128,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      File packedPlan=temp.resolve("packed-audio-plan.json").toFile(),intermediate=temp.resolve("packed-audio-intermediate.obb").toFile();
      try(InputStream in=context.getAssets().open(researchRoot+"packed-audio-plan.json")){copy(in,packedPlan,1024L*1024);}
      SteamPackedAudio.restore(packedTemplate,steam,packedPlan,packedExpected,intermediate);
+     Files.delete(packedTemplate.toPath());
      SteamGeneratedAudio.restore(intermediate,steam,plan,expected,output);
     }else SteamGeneratedAudio.restore(template,steam,plan,expected,output);
     return;
