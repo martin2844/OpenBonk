@@ -114,9 +114,11 @@ class SteamResearchBuildTests(unittest.TestCase):
     def test_partial_rgba_reaches_both_platforms_and_dual_packager(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
-        self.invoke('--windows-game', str(windows), '--partial-rgba')
+        self.invoke('--windows-game', str(windows), '--partial-rgba', '--partial-etc2', '--quality-textures')
         self.assertIn('--partial-rgba', run.call_args_list[-3].args[0])
         self.assertIn('--partial-rgba', run.call_args_list[-2].args[0])
+        self.assertIn('--partial-etc2', run.call_args_list[-3].args[0])
+        self.assertIn('--partial-etc2', run.call_args_list[-2].args[0])
         self.assertIn('--partial-rgba-plan', run.call_args_list[-1].args[0])
 
     @patch.object(module.subprocess, 'run')
@@ -124,6 +126,9 @@ class SteamResearchBuildTests(unittest.TestCase):
         with self.assertRaises(SystemExit): self.invoke('--font-fallback')
         with self.assertRaises(SystemExit): self.invoke('--resource-fallback')
         with self.assertRaises(SystemExit): self.invoke('--shadow-fallback')
+        with self.assertRaises(SystemExit): self.invoke('--partial-etc2')
+        with self.assertRaises(SystemExit): self.invoke('--partial-rgba', '--partial-etc2')
+        with self.assertRaises(SystemExit): self.invoke('--quality-textures', '--partial-etc2')
         run.assert_not_called()
 
 

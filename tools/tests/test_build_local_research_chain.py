@@ -75,6 +75,10 @@ class ResearchChainTests(unittest.TestCase):
             self.assertEqual(build[build.index('--audio-template') + 1], str(a.output / 'plans/partial-rgba/template.obb'))
             self.assertEqual(build[build.index('--object-plan') + 1], str(a.output / 'canonical/objects-plan.json'))
             self.assertIn('--partial-rgba-plan', build)
+            a.partial_etc2 = True
+            steps = dict(module.commands(a))
+            self.assertIn('--etc2-quality-library', steps['partial RGBA plan'])
+            self.assertIn('--etc2-quality-library', steps['bind Android partial RGBA plan'])
 
     def test_missing_optional_inputs_are_generated_before_use(self):
         with tempfile.TemporaryDirectory() as temp:

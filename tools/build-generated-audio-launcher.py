@@ -206,7 +206,10 @@ def verify_animations(template, plan_path, intermediate, partial_rgba=False):
     if partial_rgba:
         fragments = []
         for i, row in enumerate(rows):
-            if row.get('id') != i or row.get('target_format') != 4 or not isinstance(row.get('fragments'), list) or not row['fragments']:
+            fmt, quality = row.get('target_format'), row.get('quality', False)
+            if (row.get('id') != i or type(quality) is not bool or
+                    not ((fmt == 4 and not quality) or (fmt in (45, 47) and quality)) or
+                    not isinstance(row.get('fragments'), list) or not row['fragments']):
                 raise ValueError('invalid partial texture record')
             for fragment in row['fragments']:
                 offset, size, total = fragment.get('converted_offset'), fragment.get('size'), row.get('target_size')
@@ -401,7 +404,10 @@ def main():
     guid = verify(intermediate or template, plan, expected, runtime, gradle)
     if windows_research: verify_research_platform(object_plan, 'linux')
     windows = verify_windows_research(windows_research, expected, runtime, gradle, partial_rgba=bool(partial_plan)) if windows_research else None
-    quality_needed = bool(texture_plan and (has_quality_textures(texture_plan) or (windows and has_quality_textures(windows[2]['texture']))))
+    quality_needed = bool((texture_plan and has_quality_textures(texture_plan)) or
+                          (partial_plan and has_quality_textures(partial_plan)) or
+                          (windows and (has_quality_textures(windows[2]['texture']) or
+                                        (partial_plan and has_quality_textures(windows[2]['partial-rgba'])))))
     if quality_needed and (texture_library.stat().st_size > 64 * 1024 * 1024 or b'Java_com_openbonk_dataprep_SteamConvertedTextures_convertQualityMip' not in texture_library.read_bytes()):
         raise ValueError('Android texture library lacks the quality encoder')
     print('Local prototype prerequisites verified; output contains game data.', flush=True)

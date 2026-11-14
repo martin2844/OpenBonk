@@ -11,6 +11,24 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_supported_entries_match_android_restorer(self):
+        for name in ('assets/bin/Data/' + 'a' * 32, 'assets/bin/Data/sharedassets1.assets.split0',
+                     'assets/bin/Data/sharedassets2.assets.split17'):
+            self.assertIsNotNone(module.ENTRY.fullmatch(name))
+        for name in ('assets/bin/Data/sharedassets1.assets', 'assets/bin/Data/level1.split0',
+                     'assets/bin/Data/sharedassets1.assets.split01', 'assets/bin/Data/../bad'):
+            self.assertIsNone(module.ENTRY.fullmatch(name))
+
+    def test_etc2_rgb_uses_color_blocks_and_rejects_bad_lengths(self):
+        source = SimpleNamespace(m_TextureFormat=10, get_image_data=lambda: b'compressed')
+        encoder = SimpleNamespace(encode=lambda data, w, h, fmt: b'A' * 8 + b'B' * 8 + b'C' * 8 + b'D' * 8)
+        with patch.object(module.study, 'mip_slices', return_value=[(8, 4, b'input')]):
+            self.assertEqual(module.converted(source, 8, 4, 1, 45, encoder), b'B' * 8 + b'D' * 8)
+            self.assertEqual(module.converted(source, 8, 4, 1, 47, encoder), b'A' * 8 + b'B' * 8 + b'C' * 8 + b'D' * 8)
+            with self.assertRaises(ValueError): module.converted(source, 8, 4, 1, 45)
+            encoder.encode = lambda *args: b'short'
+            with self.assertRaises(ValueError): module.converted(source, 8, 4, 1, 45, encoder)
+
     def test_split_fragments_preserve_different_and_zero_bytes(self):
         parts = [SimpleNamespace(filename='one', file_size=5), SimpleNamespace(filename='two', file_size=5)]
         original = b'A\x00CDE'; converted = b'AxCDz'

@@ -129,6 +129,14 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         payload = {'schema': 1, 'kind': 'experimental-partial-rgba-texture-offsets', 'template_sha256': MODULE.digest(template),
                    'records': [{'id': 0, 'target_size': 3, 'target_format': 4, 'fragments': [fragment]}]}
         plan.write_text(json.dumps(payload)); MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        for fmt in (45, 47):
+            payload['records'][0].update(target_format=fmt, quality=True)
+            plan.write_text(json.dumps(payload)); MODULE.verify_animations(template, plan, result, partial_rgba=True)
+            payload['records'][0]['quality'] = False
+            plan.write_text(json.dumps(payload))
+            with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        payload['records'][0].update(target_format=4, quality=False)
+        plan.write_text(json.dumps(payload))
         with zipfile.ZipFile(result, 'w') as z: z.writestr(entry, b'xAXCy')
         with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, result, partial_rgba=True)
 
