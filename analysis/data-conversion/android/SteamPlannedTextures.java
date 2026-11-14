@@ -17,7 +17,7 @@ public final class SteamPlannedTextures {
         int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat; boolean normal, quality;
     }
     private static final class Fragment {
-        Texture texture; String entry; int targetOffset, convertedOffset, size;
+        Texture texture; String entry, maskedHash, originalHash; byte[] mask; int targetOffset, convertedOffset, size;
     }
     private static MessageDigest sha() {
         try { return MessageDigest.getInstance("SHA-256"); }
@@ -72,12 +72,15 @@ public final class SteamPlannedTextures {
         if (n <= 0 || n > MAX_CLIP) throw new IOException("invalid mip size"); return (int)n;
     }
     public static void restore(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
-        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, false);
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, false, false);
     }
     public static void restoreCubemaps(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
-        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, true);
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, true, false);
     }
-    private static void restoreInternal(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output, boolean cubemaps) throws IOException {
+    public static void restorePartialRgba(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
+        restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, false, true);
+    }
+    private static void restoreInternal(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output, boolean cubemaps, boolean partial) throws IOException {
         Path target = output.toPath().toAbsolutePath(), parent = target.getParent();
         if (parent == null || !Files.isDirectory(parent) || Files.exists(target, LinkOption.NOFOLLOW_LINKS)) throw new IOException("output must be new");
         byte[] planBytes = readPlan(planFile);
@@ -85,7 +88,7 @@ public final class SteamPlannedTextures {
         Map<String, String> sourceHashes = new HashMap<>(); Map<String, List<Fragment>> byEntry = new HashMap<>(); List<Texture> textures = new ArrayList<>(); String templateHash;
         try {
             JSONObject plan = new JSONObject(new String(planBytes, "UTF-8"));
-            String kind = cubemaps ? "experimental-converted-steam-cubemap-offsets" : "experimental-converted-steam-texture-offsets";
+            String kind = cubemaps ? "experimental-converted-steam-cubemap-offsets" : partial ? "experimental-partial-rgba-texture-offsets" : "experimental-converted-steam-texture-offsets";
             if (plan.getInt("schema") != 1 || !plan.getString("kind").equals(kind)) throw new IOException("unsupported texture plan");
             templateHash = checkedHash(plan.getString("template_sha256")); JSONObject sources = plan.getJSONObject("sources");
             Iterator<String> keys = sources.keys();
@@ -113,6 +116,7 @@ public final class SteamPlannedTextures {
                     !(t.normal ? (!cubemaps && t.sourceFormat == 12 && t.targetFormat == 34) : (t.targetFormat == 4 || t.targetFormat == 45 || t.targetFormat == 47))) throw new IOException("invalid texture metadata");
                 if (cubemaps && (!t.source.equals("sharedassets1.assets.resS") || t.inputSize > 4 * 1024 * 1024 || t.outputSize != 6 * 131072)) throw new IOException("invalid cubemap metadata");
                 if (t.quality && (cubemaps || t.normal || t.targetFormat != 47 || t.width > 2048 || t.height > 2048)) throw new IOException("invalid quality texture metadata");
+                if (partial && (t.targetFormat != 4 || t.normal || t.quality)) throw new IOException("invalid partial RGBA metadata");
                 t.convertedOffset = total; total += t.outputSize; if (total > MAX_TOTAL) throw new IOException("texture limit exceeded");
                 JSONArray fs = row.getJSONArray("fragments"); int position = 0;
                 if (fs.length() == 0 || fs.length() > 128) throw new IOException("invalid fragment count");
@@ -122,11 +126,20 @@ public final class SteamPlannedTextures {
                     boolean split = fragment.entry.matches(PREFIX + (cubemaps ? "sharedassets1" : "sharedassets[12]") + "\\.assets\\.split(?:0|[1-9][0-9]*)");
                     boolean standalone = !cubemaps && fragment.entry.matches(PREFIX + "[0-9a-f]{32}");
                     int entryLimit = split ? MAX_SPLIT : MAX_CLIP;
-                    if (!(split || standalone) || fragment.convertedOffset != position || fragment.size <= 0 ||
+                    if (!(split || standalone) || (partial ? fragment.convertedOffset < position : fragment.convertedOffset != position) || fragment.size <= 0 ||
                         fragment.targetOffset < 0 || fragment.targetOffset > entryLimit - fragment.size || fragment.size > t.outputSize - position) throw new IOException("invalid texture fragment");
-                    position += fragment.size; byEntry.computeIfAbsent(fragment.entry, k -> new ArrayList<>()).add(fragment);
+                    if (partial) {
+                        if (fragment.convertedOffset < 0 || fragment.convertedOffset > t.outputSize - fragment.size) throw new IOException("invalid converted offset");
+                        fragment.maskedHash = checkedHash(f.getString("masked_sha256")); fragment.originalHash = checkedHash(f.getString("original_sha256"));
+                        try { fragment.mask = Base64.getDecoder().decode(f.getString("mask")); }
+                        catch (IllegalArgumentException e) { throw new IOException("invalid partial mask", e); }
+                        if (fragment.mask.length != (fragment.size + 7) / 8 || ((fragment.size & 7) != 0 && ((fragment.mask[fragment.mask.length - 1] & 255) >>> (fragment.size & 7)) != 0)) throw new IOException("invalid partial mask size");
+                        int count = 0; for (byte b : fragment.mask) count += Integer.bitCount(b & 255);
+                        if (count <= 0 || count != f.getInt("masked_bytes")) throw new IOException("invalid partial mask count");
+                    }
+                    position = fragment.convertedOffset + fragment.size; byEntry.computeIfAbsent(fragment.entry, k -> new ArrayList<>()).add(fragment);
                 }
-                if (position != t.outputSize) throw new IOException("incomplete texture fragments"); textures.add(t);
+                if (!partial && position != t.outputSize) throw new IOException("incomplete texture fragments"); textures.add(t);
             }
             for (List<Fragment> list : byEntry.values()) {
                 list.sort(Comparator.comparingInt(f -> f.targetOffset)); int end = 0;
@@ -200,8 +213,20 @@ public final class SteamPlannedTextures {
                         try (DataInputStream in = new DataInputStream(template.getInputStream(entry))) { in.readFully(patched); if (in.read() != -1) throw new IOException("oversized split"); }
                         for (Fragment f : fs) {
                             if (f.targetOffset > patched.length - f.size) throw new IOException("texture fragment out of bounds");
-                            for (int i = f.targetOffset; i < f.targetOffset + f.size; i++) if (patched[i] != 0) throw new IOException("texture template not blank");
-                            converted.seek(f.texture.convertedOffset + f.convertedOffset); converted.readFully(patched, f.targetOffset, f.size);
+                            converted.seek(f.texture.convertedOffset + f.convertedOffset);
+                            if (partial) {
+                                byte[] old = Arrays.copyOfRange(patched, f.targetOffset, f.targetOffset + f.size), source = new byte[f.size];
+                                if (!hex(sha().digest(old)).equals(f.maskedHash)) throw new IOException("partial template differs");
+                                converted.readFully(source);
+                                for (int i = 0; i < f.size; i++) if ((f.mask[i / 8] & (1 << (i & 7))) != 0) {
+                                    if (old[i] != 0 || source[i] == 0) throw new IOException("invalid partial byte"); old[i] = source[i];
+                                }
+                                if (!hex(sha().digest(old)).equals(f.originalHash)) throw new IOException("partial texture differs");
+                                System.arraycopy(old, 0, patched, f.targetOffset, f.size);
+                            } else {
+                                for (int i = f.targetOffset; i < f.targetOffset + f.size; i++) if (patched[i] != 0) throw new IOException("texture template not blank");
+                                converted.readFully(patched, f.targetOffset, f.size);
+                            }
                         }
                         CRC32 sum = new CRC32(); sum.update(patched); crc = sum.getValue(); restored.add(name);
                     }

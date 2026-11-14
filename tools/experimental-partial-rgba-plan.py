@@ -165,10 +165,42 @@ def restore(args):
     print('Restored partial RGBA fragments; compare archive entries separately. Output remains private.')
 
 
+def export_android(args):
+    """Bind desktop selections to exact streamed Steam offsets for Android."""
+    source = args.steam_data.resolve(strict=True); template = args.template.resolve(strict=True); plan_file = args.plan.resolve(strict=True)
+    out = objects.new_output(args.output, (source, template, plan_file)); plan = json.loads(plan_file.read_text())
+    if plan.get('schema') != 1 or plan.get('kind') != 'experimental-partial-rgba' or plan.get('template_sha256') != masker.file_digest(template): raise ValueError('plan or template differs')
+    _, by_id = sources(source); records = []; used = {}; grouped = defaultdict(list)
+    for fragment in plan['records']: grouped[fragment['texture_id']].append(fragment)
+    for i, item in enumerate(plan['textures']):
+        if item['id'] != i or item['source_group'] not in study.GROUPS or i not in grouped: raise ValueError('invalid texture identity')
+        tex = by_id[(item['source_group'], item['source_id'])]; data = bytes(tex.get_image_data()); stream = tex.m_StreamData
+        if (tex.m_Width, tex.m_Height, tex.m_MipCount, int(tex.m_TextureFormat), sha(data)) != (item['width'], item['height'], item['mips'], item['source_format'], item['source_sha256']): raise ValueError('Steam texture differs')
+        name, offset, size = stream.path, stream.offset, stream.size
+        if not objects.SOURCE.fullmatch(name) or not name.endswith('.assets.resS') or offset < 0 or size != len(data): raise ValueError('unsupported Steam stream')
+        path = source / name
+        if path.is_symlink() or not path.is_file(): raise ValueError('invalid Steam stream')
+        with path.open('rb') as f:
+            f.seek(offset)
+            if f.read(size) != data: raise ValueError('Steam stream differs')
+        output = converted(tex, item['width'], item['height'], item['mips'])
+        if sha(output) != item['converted_sha256']: raise ValueError('converted texture differs')
+        used[name] = masker.file_digest(path)
+        fragments = [{k: value for k, value in row.items() if k != 'texture_id'} for row in grouped[i]]
+        records.append({'id': i, 'source': name, 'source_offset': offset, 'source_size': size, 'source_sha256': sha(data),
+                        'width': item['width'], 'height': item['height'], 'mips': item['mips'], 'source_format': item['source_format'],
+                        'target_format': 4, 'target_size': len(output), 'target_sha256': sha(output), 'fragments': fragments})
+    if not records or len(grouped) != len(records): raise ValueError('invalid fragment mapping')
+    result = {'schema': 1, 'kind': 'experimental-partial-rgba-texture-offsets', 'template_sha256': plan['template_sha256'], 'sources': used, 'records': records}
+    with out.open('x', encoding='utf-8') as f: json.dump(result, f, separators=(',', ':')); f.write('\n')
+    print('Exported local Android offset plan; Android restoration remains unverified.')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__); sub = p.add_subparsers(dest='action', required=True)
     g = sub.add_parser('generate'); g.add_argument('--steam-data', type=Path, required=True); g.add_argument('--obb', type=Path, required=True); g.add_argument('--output', type=Path, required=True)
     r = sub.add_parser('restore'); r.add_argument('--steam-data', type=Path, required=True); r.add_argument('--template', type=Path, required=True); r.add_argument('--plan', type=Path, required=True); r.add_argument('--output', type=Path, required=True)
-    a = p.parse_args(); (generate if a.action == 'generate' else restore)(a)
+    e = sub.add_parser('export-android'); e.add_argument('--steam-data', type=Path, required=True); e.add_argument('--template', type=Path, required=True); e.add_argument('--plan', type=Path, required=True); e.add_argument('--output', type=Path, required=True)
+    a = p.parse_args(); {'generate': generate, 'restore': restore, 'export-android': export_android}[a.action](a)
 
 if __name__ == '__main__': main()

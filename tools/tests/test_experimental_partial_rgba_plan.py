@@ -1,7 +1,10 @@
 import importlib.util
+import json
 from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('partial_rgba', Path(__file__).resolve().parents[1] / 'experimental-partial-rgba-plan.py')
 module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
@@ -36,6 +39,33 @@ class PartialRgbaPlanTests(unittest.TestCase):
         bad = dict(rows[0], mask='/w==')
         with self.assertRaises(ValueError): module.apply(b'ABCDE', [bad], {0: b'ABCxy'})
         with self.assertRaises(ValueError): module.fragment_rows(parts, 3, b'ABCD', b'ABCD', 0)
+
+    def test_android_plan_binds_verified_stream_offsets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); source = root / 'source'; source.mkdir()
+            (source / 'sharedassets1.assets.resS').write_bytes(b'xxpayloadyy')
+            template = root / 'template.obb'; template.write_bytes(b'template')
+            stream = SimpleNamespace(path='sharedassets1.assets.resS', offset=2, size=7)
+            tex = SimpleNamespace(m_Width=1, m_Height=1, m_MipCount=1, m_TextureFormat=4,
+                                  m_StreamData=stream, get_image_data=lambda: b'payload')
+            item = {'id': 0, 'source_group': 'sharedassets1', 'source_id': 42, 'width': 1, 'height': 1,
+                    'mips': 1, 'source_format': 4, 'source_sha256': module.sha(b'payload'),
+                    'converted_sha256': module.sha(b'rgba')}
+            row = {'texture_id': 0, 'entry': 'assets/bin/Data/sharedassets1.assets.split0', 'target_offset': 0,
+                   'size': 4, 'converted_offset': 0, 'mask': 'Dw==', 'masked_bytes': 4,
+                   'original_sha256': module.sha(b'rgba'), 'masked_sha256': module.sha(bytes(4))}
+            plan = root / 'plan.json'; plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-partial-rgba',
+                'template_sha256': module.masker.file_digest(template), 'textures': [item], 'records': [row]}))
+            output = root / 'android.json'; args = SimpleNamespace(steam_data=source, template=template, plan=plan, output=output)
+            with patch.object(module, 'sources', return_value=({}, {('sharedassets1', 42): tex})), patch.object(module, 'converted', return_value=b'rgba'):
+                module.export_android(args)
+                result = json.loads(output.read_text()); record = result['records'][0]
+                self.assertEqual((record['source'], record['source_offset'], record['source_size']), ('sharedassets1.assets.resS', 2, 7))
+                self.assertEqual(result['sources'][record['source']], module.masker.file_digest(source / record['source']))
+                self.assertNotIn('texture_id', record['fragments'][0])
+                output.unlink(); stream.offset = 3
+                with self.assertRaises(ValueError): module.export_android(args)
+                self.assertFalse(output.exists())
 
 
 if __name__ == '__main__': unittest.main()
