@@ -300,6 +300,8 @@ The later clean workspace prepared at `e7ed7fe` was used to build a new ARM64 ru
 
 The packed-audio research path now also handles six compatible clips in `sharedassets4`. In a local Linux build, 246 clips were substituted from Steam instead of 240, and the primary template contained 9,940,221 nonzero bytes, 534,751 fewer than the comparable build above. All seven restoration checks matched 922 archive entries on the desktop and an iPlay; the updated Java restorer also passed a previous two-group plan. Matching metadata and codec does not establish audible equivalence, and the updated launcher has not been tested interactively. The template and APK still contain game data and remain private.
 
+With the same runtime, a Windows Steam input also produced 246 substituted clips; all seven restoration checks matched 922 entries on the desktop and iPlay, and its final OBB had the same SHA-256 as the Linux result. A private dual-platform launcher built successfully, and a desktop integration check using its packaged plans selected both ZIPs and reproduced that OBB. The six added Linux audio pairs decoded with matching channel count, sample rate, sample width and frame count compared with the original Android clips. This does not establish perceptual equivalence, interactive import or gameplay on either platform.
+
 To run selected component checks in the prepared isolated workspace, with Unity closed:
 
 ```sh
