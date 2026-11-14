@@ -97,7 +97,7 @@ public static class PreserveItemIconPixels
         // PC decoded pixels match these exports; ETC2 alters colors and two
         // alpha channels. 2StepLerp is already included above.
         foreach (string name in new[] { "B_SpiderBoomer_Color", "B_SpiderBoomer_Emission", "bakedtexture 1",
-            "Bush_Default", "Emission_0", "Emission_1", "Ent1", "Ent2", "Ent3", "FBX_CactusEnemy_Color",
+            "Bush_Default", "Ent1", "Ent2", "Ent3", "FBX_CactusEnemy_Color",
             "FBX_GhostGrave_Emission", "fbx_Ghoul_Color", "FBX_GoblinStrong_Color", "FBX_GolemBoss_Color",
             "FBX_GolemSmall_Color", "FBX_Maoi_Color", "FBX_MegachadGhost_Color", "FBX_Mummy_Color",
             "FBX_MummyTank_Color", "FBX_Pharaoh_Color", "FBX_Pig_Color", "FBX_Scorpion_Color",
@@ -112,6 +112,15 @@ public static class PreserveItemIconPixels
             string path = "Assets/Texture2D/" + name + ".png";
             if (AssetDatabase.LoadAssetAtPath<Texture2D>(path) == null) throw new Exception("Enemy material texture is missing: " + path);
             paths.Add(path);
+        }
+        // Exporters can reorder identically named emission textures. Resolve
+        // these two through the materials that use them, not filename suffixes.
+        foreach (string name in new[] { "m_ghost", "m_george_body_default" })
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/Material/" + name + ".mat");
+            var texture = material == null || !material.HasProperty("_EmissionMap") ? null : material.GetTexture("_EmissionMap");
+            if (texture == null) throw new Exception("Enemy emission texture is missing: " + name);
+            paths.Add(AssetDatabase.GetAssetPath(texture));
         }
         if (paths.Count != 260) throw new Exception("Expected 260 selected textures; found " + paths.Count);
         // This tiny water/lava normal map loses substantial directional detail
