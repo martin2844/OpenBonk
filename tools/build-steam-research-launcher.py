@@ -47,9 +47,16 @@ def commands(a):
               *(['--include-rewired'] if a.include_rewired else []), *wrapped]
     runtime = [*common, '--build-root', out / 'runtime']
     gradle = [*common, '--build-root', out / 'gradle', '--gradle-project']
-    chain = ['--steam-data', a.game / 'Megabonk_Data', '--runtime-obb', out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
-             '--runtime-apk', out / 'runtime/android/Megabonk-arm64-runtime-research.apk',
-             '--gradle-project', out / 'gradle/android/OpenBonk-gradle-project', '--unity-project', workspace,
+    original_obb = out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb'
+    original_apk = out / 'runtime/android/Megabonk-arm64-runtime-research.apk'
+    original_gradle = out / 'gradle/android/OpenBonk-gradle-project'
+    shared0 = getattr(a, 'shared0_fonts', False)
+    runtime_obb = out / 'relocated/runtime.obb' if shared0 else original_obb
+    runtime_apk = out / 'relocated/runtime.apk' if shared0 else original_apk
+    gradle_project = out / 'relocated/gradle' if shared0 else original_gradle
+    chain = ['--steam-data', a.game / 'Megabonk_Data', '--runtime-obb', runtime_obb,
+             '--runtime-apk', runtime_apk,
+             '--gradle-project', gradle_project, '--unity-project', workspace,
              '--unity-editor', a.unity.parent, '--json-jar', a.json_jar, '--application-id', a.application_id,
              '--output', out / 'research', *wrapped]
     if a.quality_textures: chain += ['--quality-textures']
@@ -59,20 +66,23 @@ def commands(a):
     if getattr(a, 'shadow_fallback', False): chain += ['--shadow-fallback']
     if getattr(a, 'partial_rgba', False): chain += ['--partial-rgba']
     if getattr(a, 'partial_etc2', False): chain += ['--partial-etc2']
+    if shared0: chain += ['--shared0-fonts']
     if getattr(a, 'gradle_online', False): chain += ['--gradle-online']
     for attr in ('steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home'):
         value = getattr(a, attr)
         if value: chain += ['--' + attr.replace('_', '-'), value]
     steps = [('export and prepare Unity', tool('build-local-from-steam.py', *steam)),
              ('build Android runtime', tool('build-unity-runtime.py', *runtime)),
-             ('export Android Gradle project', tool('build-unity-runtime.py', *gradle)),
-             ('build Linux research launcher', tool('build-local-research-chain.py', *chain))]
+             ('export Android Gradle project', tool('build-unity-runtime.py', *gradle))]
+    if shared0:
+        steps.append(('relocate sharedassets0', tool('relocate-unity-shared0.py', '--runtime-apk', original_apk,
+                     '--runtime-obb', original_obb, '--gradle-project', original_gradle, '--output', out / 'relocated')))
+    steps.append(('build Linux research launcher', tool('build-local-research-chain.py', *chain)))
     if a.windows_game:
         linux_research = out / 'research'; windows_research = out / 'windows-research'
         windows_chain = ['--steam-data', a.windows_game / 'Megabonk_Data', '--platform', 'windows',
-                         '--runtime-obb', out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
-                         '--runtime-apk', out / 'runtime/android/Megabonk-arm64-runtime-research.apk',
-                         '--gradle-project', out / 'gradle/android/OpenBonk-gradle-project', '--unity-project', workspace,
+                         '--runtime-obb', runtime_obb, '--runtime-apk', runtime_apk,
+                         '--gradle-project', gradle_project, '--unity-project', workspace,
                          '--unity-editor', a.unity.parent, '--json-jar', a.json_jar, '--application-id', a.application_id,
                          '--output', windows_research, '--host-library', a.host_library or linux_research / 'native/libopenbonk_texture.so',
                          '--android-library', a.android_library or linux_research / 'native/libopenbonk_texture_arm64.so',
@@ -85,12 +95,13 @@ def commands(a):
         if getattr(a, 'shadow_fallback', False): windows_chain += ['--shadow-fallback']
         if getattr(a, 'partial_rgba', False): windows_chain += ['--partial-rgba']
         if getattr(a, 'partial_etc2', False): windows_chain += ['--partial-etc2']
+        if shared0: windows_chain += ['--shared0-fonts']
         if getattr(a, 'gradle_online', False): windows_chain += ['--gradle-online']
         if a.gradle_user_home: windows_chain += ['--gradle-user-home', a.gradle_user_home]
         dual_args = SimpleNamespace(output=linux_research, steam_data=a.game / 'Megabonk_Data',
-                                    unity_editor=a.unity.parent, runtime_obb=out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
-                                    runtime_apk=out / 'runtime/android/Megabonk-arm64-runtime-research.apk',
-                                    gradle_project=out / 'gradle/android/OpenBonk-gradle-project', unity_project=workspace,
+                                    unity_editor=a.unity.parent, runtime_obb=runtime_obb,
+                                    runtime_apk=runtime_apk,
+                                    gradle_project=gradle_project, unity_project=workspace,
                                     json_jar=a.json_jar, application_id=a.application_id, runner=a.runner,
                                     host_library=a.host_library, android_library=a.android_library, decoder=a.decoder,
                                     steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux', quality_textures=a.quality_textures, normal_fallback=a.normal_fallback, partial_rgba=getattr(a, 'partial_rgba', False), gradle_online=getattr(a, 'gradle_online', False))
@@ -117,6 +128,7 @@ def main():
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally reconstruct a uniquely matching shadow; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
+    p.add_argument('--shared0-fonts', action='store_true', help='experimentally relocate sharedassets0 and reconstruct selected fonts')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')

@@ -13,6 +13,13 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_shared0_option_enables_both_font_stages(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp)); args.shared0_fonts = True
+            commands = dict(module.commands(args))
+            self.assertIn('--shared0-sdf', commands['converted textures'])
+            self.assertIn('--font-payloads', commands['exact object plan'])
+
     def test_online_flag_reaches_packager(self):
         with tempfile.TemporaryDirectory() as temp:
             args = self.args(Path(temp))

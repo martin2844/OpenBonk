@@ -97,7 +97,7 @@ def commands(a):
     if a.decoder is None: py('Crunch decoder', 'build-crunch-decoder.py', decoder)
     py('individual Steam audio', 'experimental-steam-audio.py', '--steam-data', steam, '--obb', a.runtime_obb, '--output', out / 'individual-audio.obb')
     py('packed Steam audio', 'experimental-packed-steam-audio.py', '--steam-data', steam, '--obb', out / 'individual-audio.obb', '--output', out / 'packed-audio.obb')
-    py('converted textures', 'experimental-converted-textures.py', '--steam-data', steam, '--obb', out / 'packed-audio.obb', '--output', out / 'texture-study', *(['--quality-library', hostlib] if quality else []), *(['--normal-fallback'] if normal_fallback else []), *(['--font-fallback'] if getattr(a, 'font_fallback', False) else []), *(['--resource-fallback'] if getattr(a, 'resource_fallback', False) else []), *(['--shadow-fallback'] if getattr(a, 'shadow_fallback', False) else []))
+    py('converted textures', 'experimental-converted-textures.py', '--steam-data', steam, '--obb', out / 'packed-audio.obb', '--output', out / 'texture-study', *(['--quality-library', hostlib] if quality else []), *(['--normal-fallback'] if normal_fallback else []), *(['--font-fallback'] if getattr(a, 'font_fallback', False) else []), *(['--resource-fallback'] if getattr(a, 'resource_fallback', False) else []), *(['--shadow-fallback'] if getattr(a, 'shadow_fallback', False) else []), *(['--shared0-sdf'] if getattr(a, 'shared0_fonts', False) else []))
     py('converted cubemaps', 'experimental-converted-cubemaps.py', '--steam-data', steam, '--obb', out / 'texture-study/converted.obb', '--decoder', decoder, '--output', out / 'cubemap-study', *wrapped)
     toolplan('individual audio plan', 'experimental-steam-audio-plan.py', out / 'cubemap-study/converted.obb', plans / 'audio')
     toolplan('packed audio plan', 'experimental-packed-audio-plan.py', plans / 'audio/template.obb', plans / 'packed')
@@ -105,7 +105,7 @@ def commands(a):
     toolplan('mesh plan', 'experimental-mesh-buffer-plan.py', plans / 'texture/template.obb', plans / 'mesh')
     toolplan('cubemap plan', 'experimental-cubemap-plan.py', plans / 'mesh/template.obb', plans / 'cubemap', '--manifest', out / 'cubemap-study/report.json', '--decoder', decoder, *wrapped)
     toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation')
-    toolplan('exact object plan', 'experimental-exact-object-plan.py', plans / 'animation/template.obb', plans / 'objects')
+    toolplan('exact object plan', 'experimental-exact-object-plan.py', plans / 'animation/template.obb', plans / 'objects', *(['--font-payloads'] if getattr(a, 'shared0_fonts', False) else []))
     partial = getattr(a, 'partial_rgba', False)
     if partial:
         etc2 = ['--etc2-quality-library', hostlib] if getattr(a, 'partial_etc2', False) else []
@@ -166,6 +166,7 @@ def main():
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally select a unique shadow texture; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
+    p.add_argument('--shared0-fonts', action='store_true', help='experimentally reconstruct selected fonts from a relocated sharedassets0')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
     p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
@@ -194,6 +195,16 @@ def main():
         value = getattr(a, name)
         if value is not None and not value.is_file(): p.error(name + ' must be a file')
     if not zipfile.is_zipfile(a.runtime_obb) or not zipfile.is_zipfile(a.runtime_apk) or not zipfile.is_zipfile(a.json_jar): p.error('runtime and JSON inputs must be ZIP archives')
+    if a.shared0_fonts:
+        prefix = 'assets/bin/Data/sharedassets0.assets.split'
+        with zipfile.ZipFile(a.runtime_obb) as archive, zipfile.ZipFile(a.runtime_apk) as runtime:
+            names = [name for name in archive.namelist() if name.startswith(prefix)]
+            try: numbers = sorted(int(name[len(prefix):]) for name in names if re.fullmatch(re.escape(prefix) + r'(?:0|[1-9]\d*)', name))
+            except ValueError: p.error('invalid relocated sharedassets0')
+            if (not names or len(numbers) != len(names) or numbers != list(range(len(names))) or
+                    any(name.startswith('assets/bin/Data/sharedassets0.assets') for name in runtime.namelist()) or
+                    list((a.gradle_project / 'unityLibrary/src/main/assets/bin/Data').glob('sharedassets0.assets*'))):
+                p.error('--shared0-fonts requires sharedassets0 relocated from the APK and Gradle project into the OBB')
     if a.steam_zip and not zipfile.is_zipfile(a.steam_zip): p.error('Steam ZIP is invalid')
     try: validate_steam_inputs(a.steam_data, a.steam_zip, a.platform)
     except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error: p.error(str(error))

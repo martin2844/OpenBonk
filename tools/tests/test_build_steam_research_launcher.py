@@ -123,6 +123,20 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertIn('--shadow-fallback', run.call_args_list[-2].args[0])
 
     @patch.object(module.subprocess, 'run')
+    def test_shared0_relocation_precedes_both_platforms(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--shared0-fonts')
+        commands = [call.args[0] for call in run.call_args_list]
+        relocate, linux, windows, dual = commands[-4:]
+        self.assertTrue(relocate[1].endswith('relocate-unity-shared0.py'))
+        for command in (linux, windows):
+            self.assertIn('--shared0-fonts', command)
+            self.assertEqual(command[command.index('--runtime-obb') + 1], str(self.out / 'relocated/runtime.obb'))
+            self.assertEqual(command[command.index('--runtime-apk') + 1], str(self.out / 'relocated/runtime.apk'))
+        self.assertEqual(dual[dual.index('--gradle-project') + 1], str(self.out / 'relocated/gradle'))
+
+    @patch.object(module.subprocess, 'run')
     def test_partial_rgba_reaches_both_platforms_and_dual_packager(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
