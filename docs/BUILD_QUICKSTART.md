@@ -4,7 +4,7 @@ This guide is for developers on Linux x86-64. It builds OpenBonk from this check
 
 ## Prerequisites
 
-- Git, Python 3.13 with `venv`, a C++17 compiler, `tar`, and sufficient free disk space for Unity and intermediate files. The complete local test used more than 20 GB of free space.
+- Git, Python 3.13 with `venv`, a C++17 compiler, `tar`, and substantial free disk space for Unity and intermediate files. Allow at least 35 GB for a dual-platform build; local tests recovered space during the run by removing verified intermediate Gradle exports.
 - [Unity 2023.2.22f1](https://unity.com/releases/editor/archive) with Android Build Support, its SDK, NDK and OpenJDK. Activate Unity in Unity Hub before building.
 - [AssetRipper 2.0.0](https://github.com/AssetRipper/AssetRipper/releases/tag/2.0.0), Linux x64 free edition. The executable must report `AssetRipper.GUI.Web 2.0.0`.
 - A compatible **Linux Steam installation** of Megabonk. Optionally provide a compatible Windows installation as a second input to make a launcher that accepts either platform's Steam ZIP. Each installation needs its own `Megabonk_Data` directory. The build does not download the game.
