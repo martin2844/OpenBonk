@@ -53,7 +53,9 @@ def main():
     if a.check:
         print('Check only; no files were written.')
         return
-    with tempfile.TemporaryDirectory(prefix='openbonk-texture-smoke-') as temp:
+    # Compatibility runners may provide a separate /tmp for each process.
+    # A sibling of the supplied library remains visible to javac and D8.
+    with tempfile.TemporaryDirectory(prefix='.openbonk-texture-smoke-', dir=library.parent if runner else None) as temp:
         temp = Path(temp)
         classes, dex = temp / 'classes', temp / 'dex'
         classes.mkdir(); dex.mkdir()
