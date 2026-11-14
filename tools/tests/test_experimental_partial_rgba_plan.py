@@ -11,6 +11,24 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_renamed_rgba_requires_near_exact_unambiguous_candidate(self):
+        target = SimpleNamespace(m_Name='Scorpion_0', m_TextureFormat=4, m_ImageCount=1,
+                                 m_MipCount=1, m_ColorSpace=0, m_Width=128, m_Height=128)
+        source = SimpleNamespace(m_TextureFormat=4, m_ImageCount=1, m_MipCount=1, m_ColorSpace=0)
+        good, bad, other = ('sharedassets1', 1, source), ('sharedassets1', 2, source), ('sharedassets1', 3, source)
+        payload = b'A' * 65536
+        encoded = {1: payload, 2: b'B' * len(payload), 3: payload[:-1] + b'B'}
+        def convert(src, *args): return encoded[src.ident]
+        good[2].ident = 1
+        bad = (bad[0], bad[1], SimpleNamespace(**{**vars(source), 'ident': 2}))
+        other = (other[0], other[1], SimpleNamespace(**{**vars(source), 'ident': 3}))
+        with patch.object(module, 'converted', side_effect=convert):
+            self.assertEqual(module.rgba_alias(target, payload, [bad, good])[0], good)
+            self.assertIsNone(module.rgba_alias(target, payload, [good, other]))
+            self.assertIsNone(module.rgba_alias(target, payload, [bad]))
+            target.m_Name = 'Scorpion'
+            self.assertIsNone(module.rgba_alias(target, payload, [good]))
+
     def test_supported_entries_match_android_restorer(self):
         for name in ('assets/bin/Data/' + 'a' * 32, 'assets/bin/Data/sharedassets1.assets.split0',
                      'assets/bin/Data/sharedassets2.assets.split17'):

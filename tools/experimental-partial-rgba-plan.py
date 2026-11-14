@@ -102,6 +102,31 @@ def sources(folder, include_resources=False):
     return index, by_id
 
 
+def rgba_alias(target, payload, candidates):
+    """Accept a renamed RGBA source only when its nonzero bytes nearly all match."""
+    if (not target.m_Name.endswith('_0') or int(target.m_TextureFormat) != 4 or
+            target.m_ImageCount != 1 or len(payload) < 65536):
+        return None
+    nonzero = len(payload) - payload.count(0)
+    if nonzero < 30000: return None
+    matches = []
+    for item in candidates:
+        src = item[2]
+        if (int(src.m_TextureFormat) != 4 or
+                (src.m_MipCount, src.m_ImageCount, src.m_ColorSpace) !=
+                (target.m_MipCount, target.m_ImageCount, target.m_ColorSpace)):
+            continue
+        try: output = converted(src, target.m_Width, target.m_Height, target.m_MipCount)
+        except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): continue
+        if len(output) != len(payload): continue
+        matched = sum(a != 0 and a == b for a, b in zip(payload, output))
+        if matched * 100 >= nonzero * 99:
+            matches.append((item, output))
+    # Identical candidates are interchangeable; differing candidates are ambiguous.
+    if not matches or len({sha(output) for _, output in matches}) != 1: return None
+    return matches[0]
+
+
 def generate(args):
     import UnityPy
     source = args.steam_data.resolve(strict=True); obb = args.obb.resolve(strict=True)
@@ -123,15 +148,20 @@ def generate(args):
                 except (ValueError, TypeError, IndexError): continue
                 target_format = int(target.m_TextureFormat)
                 if target_format != 4 and (encoder is None or target_format not in (45, 47)): continue
+                body = obj.get_raw_data(); payload = bytes(target.image_data); pos = body.find(payload)
+                if not payload or pos < 0 or body.count(payload) != 1: continue
                 item = study.select_source(target, index[(target.m_Name, target.m_Width, target.m_Height)], texture=lambda x: x[2])
+                output = None
+                if item is None and target.m_Name.endswith('_0'):
+                    alias = rgba_alias(target, payload, index[(target.m_Name[:-2], target.m_Width, target.m_Height)])
+                    if alias: item, output = alias
                 if item is None: continue
                 group_name, source_id, src = item
                 if int(src.m_TextureFormat) not in (1, 3, 4, 10, 12, 25): continue
-                body = obj.get_raw_data(); payload = bytes(target.image_data); pos = body.find(payload)
-                if not payload or pos < 0 or body.count(payload) != 1: continue
                 if target_format != 4 and (len(payload) < 65536 or sum(x != 0 for x in payload) < 30000): continue
-                try: output = converted(src, target.m_Width, target.m_Height, target.m_MipCount, target_format, encoder)
-                except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): continue
+                if output is None:
+                    try: output = converted(src, target.m_Width, target.m_Height, target.m_MipCount, target_format, encoder)
+                    except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): continue
                 ident = len(textures); fragments = fragment_rows(parts, obj.byte_start + pos, payload, output, ident)
                 if not fragments: continue
                 source_data = bytes(src.get_image_data())
