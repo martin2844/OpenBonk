@@ -59,4 +59,20 @@ The initial check creates and removes a temporary file in the output's parent to
 
 On success, the dual-platform APK is under `dual-launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk` within the output directory. For Linux-only builds it is under `research/launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk`. Failure logs and intermediate data remain in the output directory. Do not publish this APK, the output directory, your Steam ZIPs, saves, or signing keys.
 
+For a dual-platform build, verify the plans actually packaged in that APK against both generated Steam ZIPs:
+
+```sh
+.venv/bin/python tools/check-dual-research-launcher.py \
+  --apk "$OPENBONK_OUTPUT/dual-launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk" \
+  --linux-zip "$OPENBONK_OUTPUT/research/steam.zip" \
+  --windows-zip "$OPENBONK_OUTPUT/windows-research/steam.zip" \
+  --expected-obb "$OPENBONK_OUTPUT/research/canonical/final.obb" \
+  --host-library "$OPENBONK_OUTPUT/research/native/libopenbonk_texture.so" \
+  --json-jar "$OPENBONK_JSON" \
+  --java-home "$(dirname "$OPENBONK_UNITY")/Data/PlaybackEngines/AndroidPlayer/OpenJDK" \
+  --workdir "$OPENBONK_OUTPUT"
+```
+
+Add `--runner steam-run` if Java needs that wrapper. This compiles the checkout's Java import sources, extracts the packaged diagnostic plans into a temporary directory under `--workdir`, and checks that each ZIP reconstructs the expected OBB byte-for-byte. It removes its temporary files and does not install an APK. `--check` validates initial inputs only. These checks do not exercise Android UI, game rendering, physical controls or mods.
+
 The APK can be installed on an isolated Android test package and supplied with a Steam ZIP through the launcher. Short emulator runs have covered both ZIP variants, Forest, touch movement and an upgrade; they do not establish full game parity or physical-controller behavior. See [BUILDING.md](BUILDING.md) for exactly which revisions and configurations were tested.
