@@ -27,8 +27,30 @@ class TemplateInventoryTest(unittest.TestCase):
         self.steam.write_bytes(archive({'game/file': b'abc'}))
         self.base = archive({'assets/bin/Data/example': b'abc', 'other': b'\x00z'})
 
-    def run_tool(self):
-        return subprocess.run([sys.executable, str(SCRIPT), str(self.apk), str(self.steam), str(self.report)], capture_output=True, text=True)
+    def run_tool(self, *options):
+        return subprocess.run([sys.executable, str(SCRIPT), str(self.apk), str(self.steam), str(self.report), *options], capture_output=True, text=True)
+
+    def test_windows_selects_its_own_template_and_plans(self):
+        windows = PREFIX + 'windows/'
+        entries = {PREFIX + 'generated-audio-template.obb': archive({'primary': b'else'}),
+                   windows + 'generated-audio-template.obb': self.base}
+        entries.update({PREFIX + name + '-plan.json': b'primary' for name in NAMES})
+        entries.update({windows + name + '-plan.json': b'windows' for name in NAMES})
+        self.apk.write_bytes(archive(entries))
+        result = self.run_tool('--platform', 'windows'); self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(self.report.read_text())
+        self.assertEqual(report['platform'], 'windows')
+        self.assertEqual(report['base_entry'], windows + 'generated-audio-template.obb')
+        self.assertEqual(report['base_nonzero_bytes'], 4)
+        self.assertEqual(report['exact_steam_matches'], 1)
+        self.assertTrue(all(row['entry'].startswith(windows) for row in report['plan_entries']))
+
+    def test_missing_windows_template_is_rejected(self):
+        entries = {PREFIX + 'generated-audio-template.obb': self.base}
+        entries.update({PREFIX + name + '-plan.json': b'{}' for name in NAMES})
+        self.apk.write_bytes(archive(entries))
+        self.assertNotEqual(self.run_tool('--platform', 'windows').returncode, 0)
+        self.assertFalse(self.report.exists())
 
     def test_current_direct_plans_and_template(self):
         entries = {PREFIX + 'generated-audio-template.obb': self.base}

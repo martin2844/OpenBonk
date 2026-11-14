@@ -3,8 +3,8 @@
 
 This is research evidence, not a license or provenance determination. Reports
 contain paths, lengths and hashes only; they never contain asset contents. The
-current layout inventory covers the primary template and seven direct plans;
-additional platform-specific templates and plans are not included.
+current layout inventory covers the selected template and seven direct plans;
+other platform-specific templates and plans are not included.
 """
 import argparse
 from collections import defaultdict
@@ -42,6 +42,7 @@ def check_names(archive):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('apk', type=Path); p.add_argument('steam_zip', type=Path); p.add_argument('report', type=Path)
+    p.add_argument('--platform', choices=('primary', 'windows'), default='primary', help='template to inspect in a dual-platform APK')
     a = p.parse_args()
     if not a.apk.is_file() or not a.steam_zip.is_file() or a.report.exists() or a.report.is_symlink() or not a.report.parent.is_dir():
         p.error('inputs must exist and report must be new in an existing directory')
@@ -56,14 +57,17 @@ def main():
     with ZipFile(a.apk) as apk:
         check_names(apk)
         names = set(apk.namelist())
-        legacy = BASE in names and PLANS in names
-        current = CURRENT_BASE in names and all(name in names for name in CURRENT_PLANS)
+        prefix = 'assets/openbonk-diagnostic/windows/'
+        selected_base = CURRENT_BASE if a.platform == 'primary' else prefix + 'generated-audio-template.obb'
+        selected_plans = CURRENT_PLANS if a.platform == 'primary' else tuple(prefix + name.rsplit('/', 1)[-1] for name in CURRENT_PLANS)
+        legacy = a.platform == 'primary' and BASE in names and PLANS in names
+        current = selected_base in names and all(name in names for name in selected_plans)
         if legacy == current:
             raise ValueError('expected exactly one complete supported template layout')
-        base_entry = BASE if legacy else CURRENT_BASE
+        base_entry = BASE if legacy else selected_base
         base = read_zip_blob(apk, base_entry, 256 * BLOCK)
         plans = read_zip_blob(apk, PLANS, 32 * BLOCK) if legacy else None
-        current_plans = [(name, read_zip_blob(apk, name, 32 * BLOCK)) for name in CURRENT_PLANS] if current else []
+        current_plans = [(name, read_zip_blob(apk, name, 32 * BLOCK)) for name in selected_plans] if current else []
     entries = []
     unreadable = []
     with ZipFile(io.BytesIO(base)) as z:
@@ -91,7 +95,7 @@ def main():
             size, nonzero, digest = digest_stream(io.BytesIO(data))
             plan_entries.append({'entry': name, 'size': size, 'nonzero_bytes': nonzero, 'sha256': digest})
     matches = [e for e in entries if e['exact_steam_entries']]
-    report = {'apk_sha256': apk_hash, 'base_entry': base_entry, 'base_zip_sha256': hashlib.sha256(base).hexdigest(),
+    report = {'apk_sha256': apk_hash, 'platform': a.platform, 'base_entry': base_entry, 'base_zip_sha256': hashlib.sha256(base).hexdigest(),
               'plan_zip_sha256': hashlib.sha256(plans).hexdigest() if plans is not None else None,
               'steam_file_count': sum(map(len, steam.values())),
               'base_entries': len(entries), 'base_unreadable_entries': unreadable,
@@ -99,7 +103,7 @@ def main():
               'base_nonzero_bytes': sum(e['nonzero_bytes'] for e in entries),
               'exact_steam_matches': len(matches), 'exact_steam_match_bytes': sum(e['size'] for e in matches),
               'plan_entries': plan_entries, 'entries': entries,
-              'limitations': 'Only readable whole files in the primary template were checked for exact equality to the supplied Steam ZIP; unreadable template entries and other platform templates were not scanned. Unmatched data may still derive from the game or third parties. No rights are determined.'}
+              'limitations': 'Only readable whole files in the selected template were checked for exact equality to the supplied Steam ZIP; unreadable template entries and other platform templates were not scanned. Unmatched data may still derive from the game or third parties. No rights are determined.'}
     with a.report.open('x', encoding='utf-8') as f: json.dump(report, f, indent=2); f.write('\n')
     print('base entries:', len(entries), 'nonzero bytes:', report['base_nonzero_bytes'],
           'exact Steam matches:', len(matches), 'unreadable entries:', len(unreadable), 'plan entries:', len(plan_entries))
