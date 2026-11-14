@@ -625,7 +625,12 @@ public final class SplitDataLauncher extends Activity {
             case "Preparando recursos principales": return "Preparing core assets…";
             case "Preparando texturas y efectos": return "Preparing textures and effects…";
             case "Preparando idiomas": return "Preparing languages…";
+            case "Preparando recursos": return "Preparing assets…";
             case "Preparando animaciones": return "Preparing animations…";
+            case "Preparando cielos": return "Preparing skies…";
+            case "Preparando modelos": return "Preparing models…";
+            case "Preparando texturas": return "Preparing textures…";
+            case "Preparando audio": return "Preparing audio…";
             case "Preparando shaders": return "Preparing shaders…";
             case "Preparando objetos y efectos": return "Preparing objects and effects…";
             case "Adaptando datos para el runtime": return "Adapting data for the runtime…";
