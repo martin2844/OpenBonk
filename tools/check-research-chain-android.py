@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify a private research build's seven reconstruction stages on Android.
+"""Verify a private research build's reconstruction stages on Android.
 
 The research directory, Steam ZIP and device temporary files contain game data.
 The script removes its temporary device directory, but does not test the
@@ -15,12 +15,30 @@ import subprocess
 import tempfile
 
 
+def stages_for(root, partial):
+    canonical = root / 'canonical'
+    stages = []
+    if partial:
+        stages.append(('partial RGBA', 'SteamPartialRgbaCheck', root / 'plans/partial-rgba/android-plan.json', 'after-partial-rgba.obb', True))
+    stages.extend([
+        ('objects', 'SteamPlannedObjectsCheck', canonical / 'objects-plan.json' if partial else root / 'plans/objects/plan.json', 'after-objects.obb', False),
+        ('animation', 'SteamPlannedAnimationsCheck', canonical / 'animation-plan.json', 'after-animation.obb', False),
+        ('cubemap', 'SteamPlannedCubemapsCheck', canonical / 'cubemap-plan.json', 'after-cubemap.obb', True),
+        ('mesh', 'SteamPlannedMeshesCheck', canonical / 'mesh-plan.json', 'after-mesh.obb', False),
+        ('texture', 'SteamPlannedTexturesCheck', canonical / 'texture-plan.json', 'after-texture.obb', True),
+        ('packed audio', 'SteamPackedAudioCheck', canonical / 'packed-plan.json', 'after-packed.obb', False),
+        ('audio', 'SteamGeneratedAudioCheck', canonical / 'audio-plan.json', 'final.obb', False),
+    ])
+    return stages
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('research', 'steam-zip', 'library', 'sdk', 'java-home'):
         p.add_argument('--' + name, required=True, type=Path)
     p.add_argument('--device', required=True)
     p.add_argument('--runner')
+    p.add_argument('--partial-rgba', action='store_true', help='check the optional partial RGBA stage first')
     a = p.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9._:-]+', a.device): p.error('invalid device serial')
     for name in ('research', 'steam_zip', 'library', 'sdk', 'java_home'):
@@ -30,16 +48,9 @@ def main():
     root = a.research
     java, d8 = a.java_home / 'bin/java', a.sdk / 'build-tools/34.0.0/lib/d8.jar'
     classes = sorted((root / 'classes').rglob('*.class'))
-    stages = [
-        ('objects', 'SteamPlannedObjectsCheck', root / 'plans/objects/plan.json', 'after-objects.obb', False),
-        ('animation', 'SteamPlannedAnimationsCheck', root / 'canonical/animation-plan.json', 'after-animation.obb', False),
-        ('cubemap', 'SteamPlannedCubemapsCheck', root / 'canonical/cubemap-plan.json', 'after-cubemap.obb', True),
-        ('mesh', 'SteamPlannedMeshesCheck', root / 'canonical/mesh-plan.json', 'after-mesh.obb', False),
-        ('texture', 'SteamPlannedTexturesCheck', root / 'canonical/texture-plan.json', 'after-texture.obb', True),
-        ('packed audio', 'SteamPackedAudioCheck', root / 'canonical/packed-plan.json', 'after-packed.obb', False),
-        ('audio', 'SteamGeneratedAudioCheck', root / 'canonical/audio-plan.json', 'final.obb', False),
-    ]
-    files = [java, d8, a.steam_zip, a.library, root / 'plans/objects/template.obb']
+    stages = stages_for(root, a.partial_rgba)
+    template = root / ('plans/partial-rgba/template.obb' if a.partial_rgba else 'plans/objects/template.obb')
+    files = [java, d8, a.steam_zip, a.library, template]
     files += [path for _, _, plan, expected, _ in stages for path in (plan, root / 'canonical' / expected)]
     if not classes or any(not path.is_file() or path.is_symlink() for path in files + classes): p.error('research build or tool inputs are incomplete')
     adb = shutil.which('adb'); runner = shutil.which(a.runner) if a.runner else None
@@ -59,7 +70,7 @@ def main():
         try:
             push(Path(temp) / 'classes.dex', 'classes.dex')
             push(a.steam_zip, 'steam.zip'); push(a.library, 'library.so')
-            push(root / 'plans/objects/template.obb', 'input.obb')
+            push(template, 'input.obb')
             for label, cls, plan, expected, native in stages:
                 print('Checking ' + label, flush=True)
                 push(plan, 'plan.json'); push(root / 'canonical' / expected, 'expected.obb')
@@ -71,7 +82,7 @@ def main():
         finally:
             if subprocess.run(adb_cmd + ['shell', 'rm', '-rf', remote], capture_output=True).returncode:
                 print('Could not remove device temporary directory:', remote, flush=True)
-    print('Seven stages matched their expected archive entries; interactive gameplay was not tested.')
+    print(f'{len(stages)} stages matched their expected archive entries; interactive gameplay was not tested.')
 
 
 if __name__ == '__main__': main()
