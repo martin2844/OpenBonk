@@ -42,6 +42,18 @@ def visible_metrics(original, converted):
             'alpha_fraction_over_32': round(sum(alpha_hist[33:]) / (a.width * a.height), 6)}
 
 
+def measure_mips(before, after, decode, all_mips=False):
+    if len(before) != len(after) or not before:
+        raise ValueError('mip counts differ or are empty')
+    measured = []
+    for index, (old, new) in enumerate(zip(before, after)):
+        if old[:2] != new[:2]: raise ValueError('mip dimensions differ')
+        if index and not all_mips: break
+        measured.append({'level': index, 'width': old[0], 'height': old[1],
+                         'visible_quality': visible_metrics(decode(old), decode(new))})
+    return measured
+
+
 def hash_entry(z, name):
     with z.open(name) as stream: return hashlib.file_digest(stream, 'sha256').digest()
 
@@ -98,17 +110,20 @@ def run(args):
                 start = a.byte_start + pos
                 if old[start:start + len(x_data)] != x_data or new[start:start + len(y_data)] != y_data: raise ValueError('texture bounds differ')
                 normalized[start:start + len(x_data)] = old[start:start + len(x_data)]
-                old_top = study.mip_slices(x_data, x.m_TextureFormat, x.m_Width, x.m_Height, x.m_MipCount)[0]
-                new_top = study.mip_slices(y_data, y.m_TextureFormat, y.m_Width, y.m_Height, y.m_MipCount)[0]
-                image_x = converter.parse_image_data(old_top[2], old_top[0], old_top[1], x.m_TextureFormat, x.object_reader.version, x.object_reader.platform)
-                image_y = converter.parse_image_data(new_top[2], new_top[0], new_top[1], y.m_TextureFormat, y.object_reader.version, y.object_reader.platform)
-                measured.append({**row, 'visible_quality': visible_metrics(image_x, image_y)})
+                old_mips = study.mip_slices(x_data, x.m_TextureFormat, x.m_Width, x.m_Height, x.m_MipCount)
+                new_mips = study.mip_slices(y_data, y.m_TextureFormat, y.m_Width, y.m_Height, y.m_MipCount)
+                def decode(mip):
+                    return converter.parse_image_data(mip[2], mip[0], mip[1], x.m_TextureFormat, x.object_reader.version, x.object_reader.platform)
+                quality = measure_mips(old_mips, new_mips, decode, args.all_mips)
+                entry = {**row, 'visible_quality': quality[0]['visible_quality']}
+                if args.all_mips: entry['mip_quality'] = quality
+                measured.append(entry)
             if normalized != old: raise ValueError('other serialized bytes changed')
             modified.update(info.filename for info in splits)
         for name in names:
             if name not in modified and hash_entry(original, name) != hash_entry(converted, name): raise ValueError('unrelated archive entry differs')
     result = {'schema': 1, 'verified_textures': len(measured), 'verified_unrelated_entries': len(names) - len(modified),
-              'limitations': 'Metrics are level-zero comparisons, not proof of correctness, matching identity, or visual/gameplay equivalence.', 'textures': measured}
+              'limitations': ('Metrics cover all mips' if args.all_mips else 'Metrics cover level zero only') + '; they do not prove correctness, matching identity, or visual/gameplay equivalence.', 'textures': measured}
     with output.open('x', encoding='utf-8') as stream:
         json.dump(result, stream, separators=(',', ':'))
         stream.write('\n')
@@ -119,6 +134,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('original', 'converted', 'manifest', 'output'):
         p.add_argument('--' + name, required=True, type=Path)
+    p.add_argument('--all-mips', action='store_true', help='also measure every lower-resolution mip')
     run(p.parse_args())
 
 

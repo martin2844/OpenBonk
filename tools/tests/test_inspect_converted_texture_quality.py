@@ -9,6 +9,18 @@ spec.loader.exec_module(module)
 
 
 class VisibleQualityTests(unittest.TestCase):
+    def test_mip_metrics_include_lower_levels_when_requested(self):
+        black = Image.new('RGBA', (2, 2), (0, 0, 0, 255))
+        white = Image.new('RGBA', (1, 1), (255, 255, 255, 255))
+        old = [(2, 2, black), (1, 1, white)]
+        new = [(2, 2, black), (1, 1, Image.new('RGBA', (1, 1), (0, 0, 0, 255)))]
+        decode = lambda mip: mip[2]
+        self.assertEqual(len(module.measure_mips(old, new, decode)), 1)
+        result = module.measure_mips(old, new, decode, True)
+        self.assertEqual(result[1]['visible_quality']['composited'][0]['mean_rgb'], [255, 255, 255])
+        with self.assertRaises(ValueError): module.measure_mips(old, new[:1], decode, True)
+        with self.assertRaises(ValueError): module.measure_mips(old, [new[0], (2, 1, white)], decode, True)
+
     def test_manifest_includes_standalone_and_rejects_unsafe_groups(self):
         standalone = 'a' * 32
         rows = [{'group': 'sharedassets1', 'target_id': 1}, {'group': standalone, 'target_id': 1}]
