@@ -114,6 +114,10 @@ def shared0_sdf_target(texture):
              int(texture.m_TextureFormat)) == (1024, 1024, 1, 1, 47))
 
 
+def should_retry_shared0_sdf(candidate, encoder, original, converted):
+    return bool(candidate and encoder is not None and not acceptable_sdf_image(original, converted))
+
+
 def select_source(target, candidates, texture=lambda item: item):
     """Select only metadata-compatible candidates with identical image payloads."""
     if target.m_ImageCount != 1: return None
@@ -352,7 +356,8 @@ def run(args):
                         original_image = converter.parse_image_data(old_top, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                         converted_image = converter.parse_image_data(chunks[0], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                         mean = ImageStat.Stat(ImageChops.difference(original_image, converted_image)).mean
-                        if not font and not resource and not shared0_candidate and should_try_quality(mean, quality, normal, target.m_TextureFormat, target.m_Width, target.m_Height):
+                        retry_sdf = should_retry_shared0_sdf(shared0_candidate, quality, original_image, converted_image)
+                        if retry_sdf or (not font and not resource and not shared0_candidate and should_try_quality(mean, quality, normal, target.m_TextureFormat, target.m_Width, target.m_Height)):
                             chunks = encode_mips(True); new = b''.join(chunks); high_quality = True
                             if len(new) != len(old): raise ValueError('quality converted size differs')
                             converted_image = converter.parse_image_data(chunks[0], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')

@@ -63,7 +63,7 @@ def valid_shared0_sdf_record(row):
     return (row.get('shared0_sdf') is True and row.get('group') == 'sharedassets0' and
             isinstance(row.get('name'), str) and study.SHARED0_SDF_NAME.fullmatch(row['name']) is not None and
             row.get('source_format') == 1 and row.get('target_format') == 47 and row.get('bytes') == 1048576 and
-            row.get('normal') is False and row.get('quality') is False and row.get('direct_normal') is False and
+            row.get('normal') is False and type(row.get('quality')) is bool and row.get('direct_normal') is False and
             not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'forest_source', 'source_name', 'alias_group', 'alias_target_id')))
 
 

@@ -74,6 +74,15 @@ class TextureConversionTests(unittest.TestCase):
         texture.m_MipCount = 2
         self.assertFalse(module.shared0_sdf_target(texture))
 
+    def test_shared0_sdf_retries_only_failed_candidate_with_encoder(self):
+        from PIL import Image
+        original = Image.new('RGBA', (4, 4), (255, 255, 255, 128))
+        bad = Image.new('RGBA', (4, 4), (255, 255, 255, 0))
+        self.assertTrue(module.should_retry_shared0_sdf(True, object(), original, bad))
+        self.assertFalse(module.should_retry_shared0_sdf(False, object(), original, bad))
+        self.assertFalse(module.should_retry_shared0_sdf(True, None, original, bad))
+        self.assertFalse(module.should_retry_shared0_sdf(True, object(), original, original.copy()))
+
     def test_duplicate_sources_must_have_identical_payload_and_format(self):
         class Texture:
             m_MipCount, m_ImageCount, m_ColorSpace = 1, 1, 0

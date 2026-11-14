@@ -17,8 +17,9 @@ class ConvertedTexturePlanTests(unittest.TestCase):
                'source_format': 1, 'target_format': 47, 'bytes': 1048576,
                'normal': False, 'quality': False, 'direct_normal': False}
         self.assertTrue(module.valid_shared0_sdf_record(row))
+        self.assertTrue(module.valid_shared0_sdf_record(dict(row, quality=True)))
         for change in ({'group': 'sharedassets1'}, {'name': 'Other SDF Atlas'}, {'source_format': 12},
-                       {'bytes': 100}, {'quality': True}, {'source_name': 'other'}, {'shared0_sdf': False}):
+                       {'bytes': 100}, {'quality': 'yes'}, {'source_name': 'other'}, {'shared0_sdf': False}):
             with self.subTest(change=change): self.assertFalse(module.valid_shared0_sdf_record(dict(row, **change)))
 
     def test_forest_record_requires_known_name_and_source_hash(self):
