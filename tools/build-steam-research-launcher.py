@@ -158,6 +158,19 @@ def main():
         if value is not None and not value.is_file(): p.error(name + ' must be a file')
     if a.gradle_user_home and not a.gradle_user_home.is_dir(): p.error('Gradle cache must be a directory')
     if not zipfile.is_zipfile(a.json_jar) or (a.steam_zip and not zipfile.is_zipfile(a.steam_zip)) or (a.windows_steam_zip and not zipfile.is_zipfile(a.windows_steam_zip)): p.error('invalid ZIP input')
+    try:
+        with zipfile.ZipFile(a.json_jar) as jar:
+            for name in ('JSONObject', 'JSONArray', 'JSONTokener', 'JSONException'):
+                if not jar.read('org/json/' + name + '.class'):
+                    raise ValueError('empty JSON class')
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile, RuntimeError):
+        p.error('JSON JAR must contain readable org.json classes; see the build quickstart')
+    android = a.unity.parent / 'Data/PlaybackEngines/AndroidPlayer'
+    for name in ('java', 'javac'):
+        if not (android / 'OpenJDK/bin' / name).is_file(): p.error('Unity Android JDK missing ' + name)
+    aapt2 = android / 'SDK/build-tools/34.0.0/aapt2'
+    if not aapt2.is_file() or any(c.isspace() for c in str(aapt2)):
+        p.error('Unity Android build-tools 34.0.0 aapt2 is required at a path without spaces')
     if importlib.util.find_spec('UnityPy') is None: p.error('UnityPy missing from active Python environment')
     try:
         research_chain.validate_steam_inputs((a.game / 'Megabonk_Data').resolve(), a.steam_zip)

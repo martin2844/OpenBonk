@@ -29,7 +29,12 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.unity = self.root / 'Editor/Unity'; self.unity.parent.mkdir(); self.unity.write_bytes(b'editor')
         self.ripper = self.root / 'ripper'; self.ripper.write_bytes(b'ripper')
         self.jar = self.root / 'json.jar'
-        with zipfile.ZipFile(self.jar, 'w') as z: z.writestr('fixture', b'data')
+        with zipfile.ZipFile(self.jar, 'w') as z:
+            for name in ('JSONObject', 'JSONArray', 'JSONTokener', 'JSONException'):
+                z.writestr('org/json/' + name + '.class', b'fixture')
+        android = self.unity.parent / 'Data/PlaybackEngines/AndroidPlayer'
+        for name in ('OpenJDK/bin/java', 'OpenJDK/bin/javac', 'SDK/build-tools/34.0.0/aapt2'):
+            path = android / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(b'fixture')
         self.out = self.root / 'output'
         self.argv = ['program', '--game', str(self.game), '--assetripper', str(self.ripper), '--unity', str(self.unity),
                      '--json-jar', str(self.jar), '--output', str(self.out), '--application-id', 'com.example.openbonk']
@@ -46,6 +51,24 @@ class SteamResearchBuildTests(unittest.TestCase):
             with self.assertRaises(SystemExit): module.main()
             run.assert_not_called()
             self.assertFalse(self.out.exists())
+
+    @patch.object(module.subprocess, 'run')
+    def test_bad_json_jar_fails_before_export(self, run):
+        with zipfile.ZipFile(self.jar, 'w') as jar: jar.writestr('unrelated', b'data')
+        with self.assertRaises(SystemExit): self.invoke('--check')
+        run.assert_not_called()
+        self.assertFalse(self.out.exists())
+
+    @patch.object(module.subprocess, 'run')
+    def test_missing_android_tools_fail_before_export(self, run):
+        android = self.unity.parent / 'Data/PlaybackEngines/AndroidPlayer'
+        for name in ('OpenJDK/bin/java', 'OpenJDK/bin/javac', 'SDK/build-tools/34.0.0/aapt2'):
+            path = android / name
+            path.unlink()
+            with self.assertRaises(SystemExit): self.invoke('--check')
+            run.assert_not_called()
+            self.assertFalse(self.out.exists())
+            path.write_bytes(b'fixture')
 
     @patch.object(module.subprocess, 'run')
     def test_check_only_performs_preflight(self, run):
