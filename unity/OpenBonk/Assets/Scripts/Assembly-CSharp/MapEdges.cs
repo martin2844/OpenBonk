@@ -20,5 +20,13 @@ public class MapEdges : MonoBehaviour
 		edgeTop.transform.localScale = topScale;
 		edgeBot.sharedMaterial = stageData.triplanarMaterial;
 		edgeTop.sharedMaterial = stageData.triplanarMaterial;
+#if UNITY_ANDROID
+		// The enlarged upper boundary produces stray outline lines across the sky.
+		// Override only this renderer; the terrain and lower edge share its material.
+		var properties = new MaterialPropertyBlock();
+		edgeTop.GetPropertyBlock(properties);
+		properties.SetFloat("_OutlineWidth", 0f);
+		edgeTop.SetPropertyBlock(properties);
+#endif
 	}
 }
