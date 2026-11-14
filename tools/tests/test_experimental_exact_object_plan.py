@@ -14,6 +14,17 @@ spec.loader.exec_module(module)
 
 
 class ExactObjectTests(unittest.TestCase):
+    def test_default_cubemap_requires_expected_metadata_and_exact_payload(self):
+        cube = SimpleNamespace(m_Name='Default-Skybox-Cubemap', m_Width=128, m_Height=128,
+                               m_MipCount=8, m_ImageCount=6, m_ColorSpace=0, m_TextureFormat=4)
+        payload = b'\x01\x02\x03\x04' * 100
+        signature = module.texture_signature(cube, payload, cubemap=True)
+        self.assertIsNotNone(signature)
+        self.assertNotEqual(signature, module.texture_signature(cube, payload[:-1] + b'!', cubemap=True))
+        self.assertIsNone(module.texture_signature(cube, payload))
+        cube.m_Name = 'Other'
+        self.assertIsNone(module.texture_signature(cube, payload, cubemap=True))
+
     def test_font_signature_requires_exact_named_nonempty_payload(self):
         font = SimpleNamespace(m_Name='Example Font')
         payload = b'font-data' * 50

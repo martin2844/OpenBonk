@@ -105,7 +105,7 @@ def commands(a):
     toolplan('mesh plan', 'experimental-mesh-buffer-plan.py', plans / 'texture/template.obb', plans / 'mesh')
     toolplan('cubemap plan', 'experimental-cubemap-plan.py', plans / 'mesh/template.obb', plans / 'cubemap', '--manifest', out / 'cubemap-study/report.json', '--decoder', decoder, *wrapped)
     toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation', *(['--shared0-fonts'] if getattr(a, 'shared0_fonts', False) else []))
-    toolplan('exact object plan', 'experimental-exact-object-plan.py', plans / 'animation/template.obb', plans / 'objects', *(['--font-payloads'] if getattr(a, 'shared0_fonts', False) else []))
+    toolplan('exact object plan', 'experimental-exact-object-plan.py', plans / 'animation/template.obb', plans / 'objects', *(['--font-payloads', '--shared0-cubemap'] if getattr(a, 'shared0_fonts', False) else []))
     partial = getattr(a, 'partial_rgba', False)
     if partial:
         etc2 = ['--etc2-quality-library', hostlib] if getattr(a, 'partial_etc2', False) else []
@@ -166,7 +166,7 @@ def main():
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally select a unique shadow texture; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
-    p.add_argument('--shared0-fonts', action='store_true', help='experimentally reconstruct selected fonts from a relocated sharedassets0')
+    p.add_argument('--shared0-fonts', action='store_true', help='experimentally reconstruct selected fonts and the default skybox from a relocated sharedassets0')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
     p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
     p.add_argument('--check', action='store_true', help='validate initial inputs only')

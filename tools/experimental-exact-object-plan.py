@@ -40,10 +40,14 @@ def launcher_localization_bundles(platform):
 def sha(data): return hashlib.sha256(data).hexdigest()
 
 
-def texture_signature(texture, payload):
+def texture_signature(texture, payload, cubemap=False):
     """Identify an inline or streamed texture only by matching complete bytes and metadata."""
     if not 256 <= len(payload) <= 8 * 1024 * 1024 or not any(payload): return None
-    if texture.m_ImageCount != 1 or not isinstance(texture.m_Name, str) or not texture.m_Name: return None
+    if not isinstance(texture.m_Name, str) or not texture.m_Name: return None
+    if cubemap:
+        if (texture.m_Name, texture.m_Width, texture.m_Height, texture.m_MipCount,
+                texture.m_ImageCount, int(texture.m_TextureFormat)) != ('Default-Skybox-Cubemap', 128, 128, 8, 6, 4): return None
+    elif texture.m_ImageCount != 1: return None
     return (texture.m_Name, texture.m_Width, texture.m_Height, texture.m_MipCount,
             texture.m_ImageCount, texture.m_ColorSpace, int(texture.m_TextureFormat), len(payload), sha(payload))
 
@@ -154,13 +158,14 @@ def generate(args):
                 if len(raw) != obj.byte_size or data[offset:offset + len(raw)] != raw: raise ValueError('target object bounds differ')
                 if not any(raw): continue
                 targets[(obj.type.name, len(raw), sha(raw))].append((name, offset))
-                if obj.type.name == 'Texture2D':
+                cube = (getattr(args, 'shared0_cubemap', False) and name == 'sharedassets0.assets' and obj.type.name == 'Cubemap')
+                if obj.type.name == 'Texture2D' or cube:
                     try:
                         texture = obj.read(); payload = bytes(texture.image_data)
-                        signature = texture_signature(texture, payload)
+                        signature = texture_signature(texture, payload, cubemap=cube)
                         position = raw.find(payload) if signature else -1
                         if signature and position >= 0 and raw.count(payload) == 1:
-                            texture_targets[signature].append((name, offset + position, ('Texture2D', len(raw), sha(raw))))
+                            texture_targets[signature].append((name, offset + position, (obj.type.name, len(raw), sha(raw))))
                     except (ValueError, TypeError, AttributeError): skipped['unreadable_target_textures'] += 1
                 if obj.type.name == 'Font' and getattr(args, 'font_payloads', False):
                     try:
@@ -187,20 +192,21 @@ def generate(args):
                 offset = obj.byte_start
                 if data[offset:offset + len(raw)] != raw: raise ValueError('Steam object bounds differ')
                 found[key] = (path.name, offset)
-            if obj.type.name == 'Texture2D' and texture_targets:
+            cube = (getattr(args, 'shared0_cubemap', False) and path.name == 'sharedassets0.assets' and obj.type.name == 'Cubemap')
+            if (obj.type.name == 'Texture2D' or cube) and texture_targets:
                 try:
                     tex = obj.read(); stream = tex.m_StreamData; stream_name = stream.path
                     size = stream.size
                     metadata = (tex.m_Name, tex.m_Width, tex.m_Height, tex.m_MipCount,
                                 tex.m_ImageCount, tex.m_ColorSpace, int(tex.m_TextureFormat), size)
-                    if (metadata in texture_metadata and stream_name in allowed_sources and SOURCE.fullmatch(stream_name) and
+                    if (metadata in texture_metadata and (not cube or stream_name == 'sharedassets0.assets.resS') and stream_name in allowed_sources and SOURCE.fullmatch(stream_name) and
                             stream_name.endswith('.resS') and 256 <= size <= 8 * 1024 * 1024 and stream.offset >= 0):
                         stream_path = source / stream_name
                         if stream_path.is_symlink() or not stream_path.is_file(): raise ValueError('Steam texture stream is not regular')
                         with stream_path.open('rb') as stream_file:
                             stream_file.seek(stream.offset); payload = stream_file.read(size)
                         if len(payload) != size: raise ValueError('Steam texture stream is truncated')
-                        signature = texture_signature(tex, payload)
+                        signature = texture_signature(tex, payload, cubemap=cube)
                         if signature in texture_targets: texture_found.setdefault(signature, (stream_name, stream.offset))
                 except (TypeError, AttributeError): skipped['unreadable_source_textures'] += 1
             if obj.type.name == 'Font' and font_targets:
@@ -239,7 +245,7 @@ def generate(args):
                 for group, target_offset, object_key in texture_targets[signature]:
                     if object_key in found: continue
                     rows.extend(fragments(groups[group], target_offset, payload, source_name, source_offset))
-                    counts['Texture2D_payload'] += 1
+                    counts[object_key[0] + '_payload'] += 1
             for signature, (source_name, source_offset) in font_found.items():
                 size, digest = signature[-2:]
                 with (source / source_name).open('rb') as stream:
@@ -338,6 +344,7 @@ def main():
         if command == 'generate':
             s.add_argument('--obb', type=Path, required=True)
             s.add_argument('--font-payloads', action='store_true', help='experimentally match complete inline font payloads')
+            s.add_argument('--shared0-cubemap', action='store_true', help='experimentally match the exact default skybox payload')
         else: s.add_argument('--template', type=Path, required=True); s.add_argument('--plan', type=Path, required=True)
     args = p.parse_args(); (generate if args.command == 'generate' else restore)(args)
 

@@ -20,6 +20,7 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn('--shared0-sdf', commands['converted textures'])
             self.assertIn('--shared0-fonts', commands['animation plan'])
             self.assertIn('--font-payloads', commands['exact object plan'])
+            self.assertIn('--shared0-cubemap', commands['exact object plan'])
 
     def test_online_flag_reaches_packager(self):
         with tempfile.TemporaryDirectory() as temp:
