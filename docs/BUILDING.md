@@ -294,6 +294,8 @@ A subsequent local end-to-end research build at `04b9e84` included the input-axi
 
 A fresh GitHub clone at `043a365` completed the full dual-platform research build with `--windows-game`, `--quality-textures` and `--font-fallback`. It exported the game and generated the Lua bridge, texture libraries, decoder and both Steam ZIPs locally; it used installed Unity/Android tools, Python dependencies, the JSON JAR and an existing Gradle cache. All seven stages matched 922 archive entries on an iPlay for each platform; a desktop check of the dual APK's packaged plans restored the expected OBB from both ZIPs. The private APK installed under a separate package ID and its launcher process started on the locked device; UI, gameplay and rendering remain unverified. One earlier attempt stopped in Unity with a file-descriptor assertion at a soft limit of 4,096. A complete retry with `ulimit -n 65536` succeeded on that host; this observation does not establish the cause or guarantee the workaround elsewhere. The APK and intermediate files still contain game data and must remain private.
 
+The later clean workspace prepared at `e7ed7fe` was used to build a new ARM64 runtime and Gradle export. A Linux research launcher built from those outputs with the quality texture and font options, reusing the local Steam ZIP and native conversion tools. Each of the seven desktop restoration checks matched all 922 archive entries. This APK contains game data, remains private, and its interactive import and gameplay have not been tested; this run does not establish Windows support or parity with the published beta.
+
 To run selected component checks in the prepared isolated workspace, with Unity closed:
 
 ```sh
