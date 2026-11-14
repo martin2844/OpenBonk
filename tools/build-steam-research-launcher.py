@@ -45,6 +45,7 @@ def commands(a):
     if a.resource_fallback: chain += ['--resource-fallback']
     if getattr(a, 'shadow_fallback', False): chain += ['--shadow-fallback']
     if getattr(a, 'partial_rgba', False): chain += ['--partial-rgba']
+    if getattr(a, 'gradle_online', False): chain += ['--gradle-online']
     for attr in ('steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home'):
         value = getattr(a, attr)
         if value: chain += ['--' + attr.replace('_', '-'), value]
@@ -69,6 +70,7 @@ def commands(a):
         if a.resource_fallback: windows_chain += ['--resource-fallback']
         if getattr(a, 'shadow_fallback', False): windows_chain += ['--shadow-fallback']
         if getattr(a, 'partial_rgba', False): windows_chain += ['--partial-rgba']
+        if getattr(a, 'gradle_online', False): windows_chain += ['--gradle-online']
         if a.gradle_user_home: windows_chain += ['--gradle-user-home', a.gradle_user_home]
         dual_args = SimpleNamespace(output=linux_research, steam_data=a.game / 'Megabonk_Data',
                                     unity_editor=a.unity.parent, runtime_obb=out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
@@ -76,7 +78,7 @@ def commands(a):
                                     gradle_project=out / 'gradle/android/OpenBonk-gradle-project', unity_project=workspace,
                                     json_jar=a.json_jar, application_id=a.application_id, runner=a.runner,
                                     host_library=a.host_library, android_library=a.android_library, decoder=a.decoder,
-                                    steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux', quality_textures=a.quality_textures, normal_fallback=a.normal_fallback, partial_rgba=getattr(a, 'partial_rgba', False))
+                                    steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux', quality_textures=a.quality_textures, normal_fallback=a.normal_fallback, partial_rgba=getattr(a, 'partial_rgba', False), gradle_online=getattr(a, 'gradle_online', False))
         dual = research_chain.commands(dual_args)[-1][1]
         dual[dual.index('--output') + 1] = str(out / 'dual-launcher')
         dual += ['--windows-research', str(windows_research)]
@@ -91,6 +93,7 @@ def main():
     for name in ('lua-library', 'steam-zip', 'host-library', 'android-library', 'decoder', 'gradle-user-home', 'windows-game', 'windows-steam-zip'): p.add_argument('--' + name, type=Path)
     p.add_argument('--application-id', required=True)
     p.add_argument('--runner', help='optional wrapper for AssetRipper, Unity and native tools')
+    p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
     p.add_argument('--include-rewired', action='store_true', help='experimentally include local Rewired plugins in both Unity builds')
     p.add_argument('--quality-textures', action='store_true', help='experimentally use higher-quality ETC2 for selected textures')
     p.add_argument('--normal-fallback', action='store_true', help='experimentally recover RGB normal maps that pass every mip direction check')

@@ -145,6 +145,7 @@ def commands(a):
              '--expected-obb', final, '--unity-editor', a.unity_editor, '--output', out / 'launcher', '--application-id', a.application_id, *wrapped]
     if partial: build += ['--partial-rgba-plan', plans / 'partial-rgba/android-plan.json', '--partial-rgba-intermediate-obb', partial_output]
     if a.gradle_user_home: build += ['--gradle-user-home', a.gradle_user_home]
+    if getattr(a, 'gradle_online', False): build += ['--gradle-online']
     py('research launcher APK', 'build-generated-audio-launcher.py', *build)
     return steps
 
@@ -164,6 +165,7 @@ def main():
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally select a unique shadow texture; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
+    p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')

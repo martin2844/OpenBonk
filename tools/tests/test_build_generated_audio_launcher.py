@@ -7,7 +7,6 @@ import tempfile
 import unittest
 import zipfile
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / 'build-generated-audio-launcher.py'
 SPEC = importlib.util.spec_from_file_location('build_generated_audio_launcher', SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -15,6 +14,12 @@ SPEC.loader.exec_module(MODULE)
 
 
 class GeneratedAudioBuildTest(unittest.TestCase):
+    def test_gradle_offline_by_default_and_online_only_when_requested(self):
+        self.assertIn('--offline', MODULE.gradle_command('java', 'gradle.jar'))
+        online = MODULE.gradle_command('java', 'gradle.jar', 'steam-run', True)
+        self.assertNotIn('--offline', online)
+        self.assertEqual(online[0:2], ['steam-run', 'java'])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='openbonk-audio-build-test-')
         self.addCleanup(self.temp.cleanup)

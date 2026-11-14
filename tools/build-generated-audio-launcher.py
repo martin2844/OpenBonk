@@ -307,6 +307,11 @@ def has_quality_textures(plan):
     return any(row.get('quality', False) for row in json.loads(plan.read_text(encoding='utf-8'))['records'])
 
 
+def gradle_command(java, gradle_jar, runner=None, online=False):
+    return ([runner] if runner else []) + [str(java), '-classpath', str(gradle_jar),
+        'org.gradle.launcher.GradleMain', *([] if online else ['--offline']), '--no-daemon', ':launcher:assembleRelease']
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('gradle-project', 'unity-project', 'runtime-apk', 'audio-template', 'audio-plan', 'expected-obb', 'unity-editor', 'output'):
@@ -314,6 +319,7 @@ def main():
     p.add_argument('--application-id', required=True)
     p.add_argument('--runner', help='optional executable such as steam-run')
     p.add_argument('--gradle-user-home', type=Path, help='existing local Gradle cache')
+    p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
     p.add_argument('--packed-plan', type=Path, help='optional packed-audio plan for the combined research mode')
     p.add_argument('--intermediate-obb', type=Path, help='canonical packed-audio restoration used by the single-audio plan')
     p.add_argument('--texture-plan', type=Path, help='optional converted texture plan for combined research mode')
@@ -489,7 +495,7 @@ def main():
     env['JAVA_HOME'] = str(android / 'OpenJDK')
     env['PATH'] = str(android / 'OpenJDK/bin') + os.pathsep + env.get('PATH', '')
     if a.gradle_user_home: env['GRADLE_USER_HOME'] = str(a.gradle_user_home.expanduser().resolve(strict=True))
-    command = ([a.runner] if a.runner else []) + [str(java), '-classpath', str(gradle_jar), 'org.gradle.launcher.GradleMain', '--offline', '--no-daemon', ':launcher:assembleRelease']
+    command = gradle_command(java, gradle_jar, a.runner, a.gradle_online)
     with (output / 'gradle.log').open('x', encoding='utf-8') as log:
         status = subprocess.run(command, cwd=work, env=env, stdout=log, stderr=subprocess.STDOUT).returncode
     if status: raise SystemExit(f'Gradle failed ({status}); local output and log retained at {output}')

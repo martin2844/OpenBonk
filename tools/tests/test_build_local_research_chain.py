@@ -13,6 +13,13 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_online_flag_reaches_packager(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp))
+            self.assertNotIn('--gradle-online', module.commands(args)[-1][1])
+            args.gradle_online = True
+            self.assertIn('--gradle-online', module.commands(args)[-1][1])
+
     def test_preflight_checks_zip_against_local_linux_data(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); data = root / 'data'; bundle = data / 'StreamingAssets/aa/StandaloneLinux64'

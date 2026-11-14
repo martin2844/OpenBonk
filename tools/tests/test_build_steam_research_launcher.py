@@ -15,6 +15,13 @@ spec.loader.exec_module(module)
 
 
 class SteamResearchBuildTests(unittest.TestCase):
+    @patch.object(module.subprocess, 'run')
+    def test_online_flag_reaches_both_platforms_and_dual_packager(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--gradle-online')
+        for call in run.call_args_list[-3:]: self.assertIn('--gradle-online', call.args[0])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup); self.root = Path(self.temp.name)
         self.game = self.root / 'game'; (self.game / 'Megabonk_Data').mkdir(parents=True)
