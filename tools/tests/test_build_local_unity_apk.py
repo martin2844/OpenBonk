@@ -69,6 +69,8 @@ class LocalBuildTest(unittest.TestCase):
         commands = MODULE.stages(self.base, self.editor, self.lua, self.out, None, 'com.example.flowcheck')
         names = [command[1] for command in commands]
         self.assertLess(names.index('remap-unity-package-scripts.py'), names.index('prepare-unity-characters.py'))
+        self.assertLess(names.index('prepare-unity-characters.py'), names.index('prepare-unity-texture-imports.py'))
+        self.assertLess(names.index('prepare-unity-texture-imports.py'), names.index('build-unity-runtime.py'))
         self.assertLess(names.index('prepare-android-input.py'), names.index('import-unity-workspace.py'))
         self.assertLess(names.index('prepare-unity-grass-mesh.py'), names.index('import-unity-workspace.py'))
         self.assertLess(names.index('prepare-unity-manager-placeholders.py'), names.index('import-unity-workspace.py'))

@@ -119,6 +119,11 @@ public static class PreserveItemIconPixels
         const string waterNormal = "Assets/Texture2D/IL3DN_WaterNormal.png";
         if (AssetDatabase.LoadAssetAtPath<Texture2D>(waterNormal) == null) throw new Exception("Water normal texture is missing: " + waterNormal);
         paths.Add(waterNormal);
+        // The isolated build backs up PNG importer metadata before this step.
+        // Abort before changing anything if an asset uses a different format.
+        foreach (string path in paths)
+            if (!path.StartsWith("Assets/", StringComparison.Ordinal) || path.IndexOf(".androidlib/", StringComparison.OrdinalIgnoreCase) >= 0 || !path.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Selected texture is not a backed-up PNG: " + path);
         int updated = 0;
         foreach (string path in paths)
         {

@@ -35,6 +35,7 @@ def stages(base, editor, lua, output, runner, application_id, prepare_only=False
         ('Unity import', 'import-unity-workspace.py', [*common, *unity, '--log', str(output / 'import.log'), *wrapped]),
         ('package script references', 'remap-unity-package-scripts.py', [*common, '--backup', str(output / 'script-backup')]),
         ('characters', 'prepare-unity-characters.py', [*common, *unity, '--log', str(output / 'characters.log'), '--backup', str(output / 'character-backup'), *wrapped]),
+        ('Android texture imports', 'prepare-unity-texture-imports.py', [*common, *unity, '--log', str(output / 'texture-imports.log'), '--backup', str(output / 'texture-meta-backup'), *wrapped]),
         ('post-processing', 'prepare-unity-postprocessing.py', [*common, *unity, '--log', str(output / 'postprocessing.log'), '--backup', str(output / 'postprocessing-backup'), *wrapped]),
         ('skyboxes', 'prepare-unity-skyboxes.py', [*common, '--backup', str(output / 'skybox-backup')]),
         ('localization', 'rebuild-unity-localization.py', [*common, *unity, '--build-root', str(output / 'localization'), *wrapped]),
