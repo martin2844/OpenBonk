@@ -300,6 +300,16 @@ python3 -m venv /path/to/openbonk-venv
   --output /path/to/new-local-research-directory
 ```
 
+To request the dual-platform research configuration used in the later clean-clone test, add the following options to the command above (the Windows path must contain its own `Megabonk_Data` folder):
+
+```sh
+  --windows-game /path/to/windows/Megabonk \
+  --include-rewired --quality-textures --font-fallback \
+  --resource-fallback --shadow-fallback --partial-rgba --gradle-online
+```
+
+Add these options before the command's final line or extend that line with a trailing `\`. On systems using `steam-run`, also pass `--runner steam-run` and run Python in a compatible environment. The complete local dual test reused native libraries, a decoder and Steam ZIPs; building those components from the checkout was checked separately. Both local game installations and the generated APKs, plans and intermediate data must stay private.
+
 The pinned conversion environment was tested on Linux x86-64 with Python 3.13. From a fresh GitHub clone at `c89ef04`, the ETC2 host and ARM64 libraries and Crunch decoder also compiled from the checked-in sources. The newly compiled ARM64 library passed 20 synthetic conversion cases on an iPlay; its quality encoder matched both the newly built host library and an earlier host build for 26 private fixtures. The newly built decoder also produced a cubemap-converted OBB byte-identical to the earlier decoder for seven local cubemaps. The binaries themselves were not byte-identical, and these checks do not cover every texture or prove full launcher parity. Unity needs its Android build support, SDK, NDK and OpenJDK modules; the native conversion tools also need a host C++ compiler. The JSON JAR and an existing compatible Gradle cache are local prerequisites. Optional `--gradle-user-home` selects a Gradle cache and `--runner steam-run` wraps tools where needed. The research launcher packaging step uses Gradle offline by default; `--gradle-online` permits it to download missing dependencies. A local packaging test with an initially empty Gradle cache downloaded dependencies and produced a private APK while reusing an existing Unity workspace, runtime, Gradle export and research plans. It did not test the complete Steam-to-APK build with an empty cache, and the earlier Unity build stages have their own dependency requirements. Use a new output directory outside the checkout and game installation. `--check` validates initial inputs only; `--help` lists the other options. On success the APK is at `research/launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk` inside the output directory. The APK and intermediate files contain game data and must remain private; this workflow does not yet establish a redistributable build or gameplay fidelity.
 
 A clean local run completed all of these steps and produced a private research APK. Its seven data-preparation stages were also checked on an Android device against the expected OBB checksum; this does not verify interactive gameplay. Unity's native dependencies, including `libxml2.so.2`, must be available in the environment running the editor.
