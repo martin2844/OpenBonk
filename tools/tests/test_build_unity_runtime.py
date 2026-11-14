@@ -13,6 +13,9 @@ PLUGINS = ('Rewired_Core.dll', 'Coffee.UIParticle.dll', 'com.rlabrecque.steamwor
 spec = importlib.util.spec_from_file_location('input_axes', SCRIPT.parent / 'prepare-android-input.py')
 input_axes = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(input_axes)
+spec = importlib.util.spec_from_file_location('standard_materials', SCRIPT.parent / 'prepare-unity-standard-materials.py')
+standard_materials = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(standard_materials)
 
 
 class RuntimeBuildTest(unittest.TestCase):
@@ -24,6 +27,10 @@ class RuntimeBuildTest(unittest.TestCase):
         (self.project / 'Assets').mkdir(parents=True)
         (self.project / 'Assets/Mesh').mkdir()
         (self.project / 'Assets/Mesh/GrassQuads.asset').write_text('Mesh:\n  m_Name: GrassQuads\n  m_IsReadable: 1\n  m_IndexBuffer: 001122\n  m_VertexData:\n    m_VertexCount: 8\n')
+        (self.project / 'Assets/Material').mkdir()
+        for name in standard_materials.NAMES:
+            (self.project / 'Assets/Material' / (name + '.mat')).write_bytes(
+                b'Material:\n  m_Name: ' + name.encode() + b'\n' + standard_materials.STANDARD + b'\n  m_EnableInstancingVariants: 0\n')
         (self.project / 'ProjectSettings').mkdir()
         (self.project / 'ProjectSettings/ProjectVersion.txt').write_text('m_EditorVersion: 2023.2.22f1\n')
         empty = '%YAML 1.1\nInputManager:\n  m_Axes:\n  m_UsePhysicalKeys: 0\n'
@@ -122,6 +129,15 @@ class RuntimeBuildTest(unittest.TestCase):
         result = self.run_tool()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('GrassQuads is not readable', result.stderr)
+        self.assertFalse(self.out.exists())
+
+    def test_unprepared_standard_material_is_rejected_before_build(self):
+        self.write_editor('pass\n')
+        path = self.project / 'Assets/Material/Black.mat'
+        path.write_bytes(path.read_bytes().replace(b'm_EnableInstancingVariants: 0', b'm_EnableInstancingVariants: 1'))
+        result = self.run_tool()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Standard materials require Android instancing preparation', result.stderr)
         self.assertFalse(self.out.exists())
 
     def test_embedded_build_uses_single_apk_entry_point(self):

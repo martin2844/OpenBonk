@@ -73,6 +73,9 @@ class LocalBuildTest(unittest.TestCase):
         self.assertLess(names.index('prepare-unity-texture-imports.py'), names.index('build-unity-runtime.py'))
         self.assertLess(names.index('prepare-android-input.py'), names.index('import-unity-workspace.py'))
         self.assertLess(names.index('prepare-unity-grass-mesh.py'), names.index('import-unity-workspace.py'))
+        self.assertLess(names.index('prepare-unity-standard-materials.py'), names.index('import-unity-workspace.py'))
+        material_args = commands[names.index('prepare-unity-standard-materials.py')][2]
+        self.assertEqual(material_args[material_args.index('--backup') + 1], str(self.out / 'standard-material-backup'))
         self.assertLess(names.index('prepare-unity-manager-placeholders.py'), names.index('import-unity-workspace.py'))
         self.assertLess(names.index('prepare-unity-remove-water-probes.py'), names.index('import-unity-workspace.py'))
         self.assertLess(names.index('rebuild-unity-localization.py'), names.index('prepare-android-addressables.py'))
