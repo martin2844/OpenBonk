@@ -43,6 +43,7 @@ def commands(a):
     if a.normal_fallback: chain += ['--normal-fallback']
     if a.font_fallback: chain += ['--font-fallback']
     if a.resource_fallback: chain += ['--resource-fallback']
+    if getattr(a, 'shadow_fallback', False): chain += ['--shadow-fallback']
     for attr in ('steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home'):
         value = getattr(a, attr)
         if value: chain += ['--' + attr.replace('_', '-'), value]
@@ -65,6 +66,7 @@ def commands(a):
         if a.normal_fallback: windows_chain += ['--normal-fallback']
         if a.font_fallback: windows_chain += ['--font-fallback']
         if a.resource_fallback: windows_chain += ['--resource-fallback']
+        if getattr(a, 'shadow_fallback', False): windows_chain += ['--shadow-fallback']
         if a.gradle_user_home: windows_chain += ['--gradle-user-home', a.gradle_user_home]
         dual_args = SimpleNamespace(output=linux_research, steam_data=a.game / 'Megabonk_Data',
                                     unity_editor=a.unity.parent, runtime_obb=out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
@@ -92,10 +94,12 @@ def main():
     p.add_argument('--normal-fallback', action='store_true', help='experimentally recover RGB normal maps that pass every mip direction check')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
+    p.add_argument('--shadow-fallback', action='store_true', help='experimentally reconstruct a uniquely matching shadow; requires --quality-textures')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')
     if a.resource_fallback and not a.quality_textures: p.error('--resource-fallback requires --quality-textures')
+    if a.shadow_fallback and not a.quality_textures: p.error('--shadow-fallback requires --quality-textures')
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')
     a.output = output.parent.resolve() / output.name
     if a.windows_steam_zip and not a.windows_game: p.error('Windows ZIP requires --windows-game')

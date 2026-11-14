@@ -91,7 +91,7 @@ class SteamResearchBuildTests(unittest.TestCase):
     def test_quality_option_reaches_both_platforms(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
-        self.invoke('--windows-game', str(windows), '--quality-textures', '--normal-fallback', '--font-fallback', '--resource-fallback')
+        self.invoke('--windows-game', str(windows), '--quality-textures', '--normal-fallback', '--font-fallback', '--resource-fallback', '--shadow-fallback')
         self.assertIn('--quality-textures', run.call_args_list[-3].args[0])
         self.assertIn('--quality-textures', run.call_args_list[-2].args[0])
         self.assertIn('--normal-fallback', run.call_args_list[-3].args[0])
@@ -100,11 +100,14 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertIn('--font-fallback', run.call_args_list[-2].args[0])
         self.assertIn('--resource-fallback', run.call_args_list[-3].args[0])
         self.assertIn('--resource-fallback', run.call_args_list[-2].args[0])
+        self.assertIn('--shadow-fallback', run.call_args_list[-3].args[0])
+        self.assertIn('--shadow-fallback', run.call_args_list[-2].args[0])
 
     @patch.object(module.subprocess, 'run')
     def test_font_fallback_requires_quality(self, run):
         with self.assertRaises(SystemExit): self.invoke('--font-fallback')
         with self.assertRaises(SystemExit): self.invoke('--resource-fallback')
+        with self.assertRaises(SystemExit): self.invoke('--shadow-fallback')
         run.assert_not_called()
 
 

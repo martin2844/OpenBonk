@@ -102,6 +102,23 @@ def select_source(target, candidates, texture=lambda item: item):
     return compatible[0]
 
 
+def select_shadow_source(target, candidates, texture=lambda item: item):
+    """Choose one unambiguous, visually close source for the known shadow."""
+    if (target.m_Name != 'DropShadow' or (target.m_Width, target.m_Height, target.m_MipCount,
+            target.m_ImageCount, int(target.m_TextureFormat)) != (512, 512, 1, 1, 47)):
+        return None
+    try:
+        image = target.image
+        matches = [item for item in candidates
+                   if (texture(item).m_Name, texture(item).m_Width, texture(item).m_Height, texture(item).m_MipCount,
+                       texture(item).m_ImageCount, texture(item).m_ColorSpace, int(texture(item).m_TextureFormat)) ==
+                      ('DropShadow', 512, 512, 1, 1, target.m_ColorSpace, 12)
+                   and acceptable_quality_image(image, texture(item).image)]
+        return matches[0] if len(matches) == 1 else None
+    except (ValueError, OSError, NotImplementedError):
+        return None
+
+
 def mip_size(fmt, width, height):
     if width < 1 or height < 1: raise ValueError('invalid dimensions')
     if fmt in (1, 3, 4): return width * height * fmt
@@ -158,7 +175,8 @@ def run(args):
         quality = load_quality_encoder(args.quality_library)
     font_fallback = getattr(args, 'font_fallback', False)
     resource_fallback = getattr(args, 'resource_fallback', False)
-    if (font_fallback or resource_fallback) and quality is None: raise ValueError('resource or font fallback requires the quality encoder')
+    shadow_fallback = getattr(args, 'shadow_fallback', False)
+    if (font_fallback or resource_fallback or shadow_fallback) and quality is None: raise ValueError('resource, font or shadow fallback requires the quality encoder')
     output = args.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): raise ValueError('output must be a new directory')
     output = output.parent.resolve() / output.name
@@ -199,6 +217,8 @@ def run(args):
                     source_name = FONT_ALIASES[target.m_Name] if font_candidate else target.m_Name
                     candidates = (resources_index if font_candidate or resource_candidate else index)[(source_name, target.m_Width, target.m_Height)]
                     src = select_source(target, candidates)
+                    shadow = bool(src is None and shadow_fallback and group == 'sharedassets1' and target.m_Name == 'DropShadow')
+                    if shadow: src = select_shadow_source(target, candidates)
                     if src is None:
                         if font_candidate or resource_candidate: quality_excluded.add(PREFIX + group)
                         outcomes['missing_or_ambiguous'] += 1; continue
@@ -242,13 +262,13 @@ def run(args):
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     if not acceptable_normal_image(original, converted): raise NormalQualityError('normal direction differs')
-                                if resource:
+                                if resource or shadow:
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     if not acceptable_quality_image(original, converted): raise ResourceQualityError('resource mip quality differs')
                                 encoded_mips.append(encoded)
                             return encoded_mips
-                        chunks = encode_mips(font or resource); high_quality = font or resource
+                        chunks = encode_mips(font or resource or shadow); high_quality = font or resource or shadow
                         new = b''.join(chunks)
                         if len(new) != len(old): raise ValueError('converted size differs')
                         w, h, old_top = target_mips[0]
@@ -285,8 +305,9 @@ def run(args):
                                  'bytes': len(old), 'top_mean_rgba_error': [round(x, 3) for x in mean]})
                     if font: rows[-1].update(font=True, source_name=source_name)
                     if resource: rows[-1].update(resource=True, source_name=source_name)
+                    if shadow: rows[-1].update(shadow=True)
                     alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
-                    if group in GROUPS: aliases[alias_key].append((rows[-1], new))
+                    if group in GROUPS and not shadow: aliases[alias_key].append((rows[-1], new))
                     outcomes['converted'] += 1
                 if group not in GROUPS and len(rows) == converted_before: continue
                 offset = 0
@@ -342,6 +363,7 @@ def main():
     p.add_argument('--normal-fallback', action='store_true', help='experimentally convert RGB normal maps after checking every mip')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct an SDF font atlas with the quality encoder')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures with per-mip quality checks')
+    p.add_argument('--shadow-fallback', action='store_true', help='experimentally choose a unique matching DropShadow with strict quality checks')
     run(p.parse_args())
 
 

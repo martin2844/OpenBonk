@@ -63,6 +63,19 @@ class TextureConversionTests(unittest.TestCase):
         different.m_MipCount = 2
         self.assertIs(module.select_source(target, [first, different]), first)
 
+    def test_shadow_fallback_requires_one_strict_visual_match(self):
+        from PIL import Image
+        class Texture:
+            m_Name, m_Width, m_Height, m_MipCount, m_ImageCount, m_ColorSpace = 'DropShadow', 512, 512, 1, 1, 1
+            def __init__(self, shade, fmt):
+                self.image = Image.new('RGBA', (512, 512), (0, 0, 0, shade)); self.m_TextureFormat = fmt
+        target, good, bad = Texture(100, 47), Texture(100, 12), Texture(200, 12)
+        self.assertIs(module.select_shadow_source(target, [good, bad]), good)
+        self.assertIsNone(module.select_shadow_source(target, [good, Texture(100, 12)]))
+        self.assertIsNone(module.select_shadow_source(target, [bad]))
+        target.m_Name = 'Other'
+        self.assertIsNone(module.select_shadow_source(target, [good]))
+
     def test_mip_sizes_round_blocks_up(self):
         self.assertEqual(module.mip_size(45, 5, 3), 16)
         self.assertEqual(module.mip_size(34, 5, 3), 16)
