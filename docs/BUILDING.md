@@ -296,6 +296,8 @@ A fresh GitHub clone at `043a365` completed the full dual-platform research buil
 
 The later clean workspace prepared at `e7ed7fe` was used to build a new ARM64 runtime and Gradle export. A Linux research launcher built from those outputs with the quality texture and font options, reusing the local Steam ZIP and native conversion tools. Each of the seven restoration checks matched all 922 archive entries on both the desktop and an iPlay. This APK contains game data, remains private, and its interactive import and gameplay have not been tested; this run does not establish Windows support or parity with the published beta.
 
+`tools/inventory-launcher-template.py` accepts both the older nested-plan layout and the newer primary-template layout with seven direct plans. `tools/inventory-template-objects.py` can classify readable hashed Unity files from the resulting private inventory. For the Linux research APK above, the primary template had 922 readable entries and 10,474,972 nonzero bytes; all 697 hashed Unity files were classified, including 36 shader files and 127 texture files. These count entire files, including headers and metadata, and cannot identify provenance or establish that the remaining data is redistributable. Additional platform templates are not inventoried by this check. The inventory and classification reports must remain private.
+
 To run selected component checks in the prepared isolated workspace, with Unity closed:
 
 ```sh

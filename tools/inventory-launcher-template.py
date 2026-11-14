@@ -2,7 +2,9 @@
 """Inventory bounded embedded launcher templates and exact Steam-file matches.
 
 This is research evidence, not a license or provenance determination. Reports
-contain paths, lengths and hashes only; they never contain asset contents.
+contain paths, lengths and hashes only; they never contain asset contents. The
+current layout inventory covers the primary template and seven direct plans;
+additional platform-specific templates and plans are not included.
 """
 import argparse
 from collections import defaultdict
@@ -16,6 +18,9 @@ import zlib
 BLOCK = 1024 * 1024
 BASE = 'assets/openbonk-diagnostic/base.obb'
 PLANS = 'assets/openbonk-diagnostic/plans.zip'
+CURRENT_BASE = 'assets/openbonk-diagnostic/generated-audio-template.obb'
+CURRENT_PLANS = tuple('assets/openbonk-diagnostic/' + n + '-plan.json' for n in
+                      ('animation', 'cubemap', 'generated-audio', 'mesh', 'object', 'packed-audio', 'texture'))
 
 def digest_stream(stream):
     h = hashlib.sha256()
@@ -50,8 +55,15 @@ def main():
             steam[(size, digest)].append(e.filename)
     with ZipFile(a.apk) as apk:
         check_names(apk)
-        base = read_zip_blob(apk, BASE, 16 * BLOCK)
-        plans = read_zip_blob(apk, PLANS, 32 * BLOCK)
+        names = set(apk.namelist())
+        legacy = BASE in names and PLANS in names
+        current = CURRENT_BASE in names and all(name in names for name in CURRENT_PLANS)
+        if legacy == current:
+            raise ValueError('expected exactly one complete supported template layout')
+        base_entry = BASE if legacy else CURRENT_BASE
+        base = read_zip_blob(apk, base_entry, 256 * BLOCK)
+        plans = read_zip_blob(apk, PLANS, 32 * BLOCK) if legacy else None
+        current_plans = [(name, read_zip_blob(apk, name, 32 * BLOCK)) for name in CURRENT_PLANS] if current else []
     entries = []
     unreadable = []
     with ZipFile(io.BytesIO(base)) as z:
@@ -67,22 +79,27 @@ def main():
             entries.append({'entry': e.filename, 'size': size, 'nonzero_bytes': nonzero,
                             'sha256': digest, 'exact_steam_entries': steam.get((size, digest), [])})
     plan_entries = []
-    with ZipFile(io.BytesIO(plans)) as z:
-        check_names(z)
-        for e in z.infolist():
-            if e.is_dir(): continue
-            with z.open(e) as f: size, nonzero, digest = digest_stream(f)
-            plan_entries.append({'entry': e.filename, 'size': size, 'nonzero_bytes': nonzero, 'sha256': digest})
+    if plans is not None:
+        with ZipFile(io.BytesIO(plans)) as z:
+            check_names(z)
+            for e in z.infolist():
+                if e.is_dir(): continue
+                with z.open(e) as f: size, nonzero, digest = digest_stream(f)
+                plan_entries.append({'entry': e.filename, 'size': size, 'nonzero_bytes': nonzero, 'sha256': digest})
+    else:
+        for name, data in current_plans:
+            size, nonzero, digest = digest_stream(io.BytesIO(data))
+            plan_entries.append({'entry': name, 'size': size, 'nonzero_bytes': nonzero, 'sha256': digest})
     matches = [e for e in entries if e['exact_steam_entries']]
-    report = {'apk_sha256': apk_hash, 'base_zip_sha256': hashlib.sha256(base).hexdigest(),
-              'plan_zip_sha256': hashlib.sha256(plans).hexdigest(),
+    report = {'apk_sha256': apk_hash, 'base_entry': base_entry, 'base_zip_sha256': hashlib.sha256(base).hexdigest(),
+              'plan_zip_sha256': hashlib.sha256(plans).hexdigest() if plans is not None else None,
               'steam_file_count': sum(map(len, steam.values())),
               'base_entries': len(entries), 'base_unreadable_entries': unreadable,
               'base_uncompressed_bytes': sum(e['size'] for e in entries),
               'base_nonzero_bytes': sum(e['nonzero_bytes'] for e in entries),
               'exact_steam_matches': len(matches), 'exact_steam_match_bytes': sum(e['size'] for e in matches),
               'plan_entries': plan_entries, 'entries': entries,
-              'limitations': 'Only readable whole files were checked for exact equality to the supplied Steam ZIP; unreadable template entries were not scanned. Unmatched data may still derive from the game or third parties. No rights are determined.'}
+              'limitations': 'Only readable whole files in the primary template were checked for exact equality to the supplied Steam ZIP; unreadable template entries and other platform templates were not scanned. Unmatched data may still derive from the game or third parties. No rights are determined.'}
     with a.report.open('x', encoding='utf-8') as f: json.dump(report, f, indent=2); f.write('\n')
     print('base entries:', len(entries), 'nonzero bytes:', report['base_nonzero_bytes'],
           'exact Steam matches:', len(matches), 'unreadable entries:', len(unreadable), 'plan entries:', len(plan_entries))
