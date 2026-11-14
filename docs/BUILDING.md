@@ -309,6 +309,8 @@ Add `--runner steam-run` if needed. These checks exercise input bindings, menu A
 
 All 12 checks passed in the local workspace from the clean `043a365` build after updating the character-selection test fixture to initialize the experience table as the real startup does. The generation check uses original scene assets and a temporary test scene; the wrapper rejects an existing test scene and removes the one it creates. These results do not demonstrate a complete menu-to-game flow or gameplay on Android.
 
+All 12 checks also passed in the fresh `e7ed7fe` workspace after its runtime and Gradle builds. These are the same editor component checks, with the same limitations.
+
 The same build's seven restoration stages were also run in sequence on the iPlay; each reproduced the 922 expected entries. To repeat this private device check with a completed research directory and authorized Android device:
 
 ```sh
@@ -331,6 +333,8 @@ python3 tools/compare-unity-build-content.py \
 ```
 
 The report contains game-derived names and must remain private. It compares names and counts, not object references, streamed payloads, bundles, code, visual fidelity or gameplay. In one local comparison, an installed iPlay `com.megabonk.nativeport.splittest` APK/OBB and the later `043a365` research runtime plus a reconstructed OBB with the optional font and resource conversions had the same 2,349 MonoScript identities and the same named mesh, animation, audio, sprite, controller and GameObject counts. The installed APK matched the published `v0.1.0-beta` APK by SHA-256; the locally generated OBB is a separate file. Seven material names occurred twice in the reference and once in the research build; two further grass-related materials occurred only in the reference. Three texture names differed after the documented case-collision renames; one decoded identically in a local comparison and two had pixel differences. These observations do not establish parity.
+
+A later comparison used that same beta APK and matching local OBB against the `e7ed7fe` runtime and reconstructed Linux OBB. Named mesh, animation, audio, sprite, controller and GameObject counts again matched; the nine material differences remained. There were three reference-only and four candidate-only named texture occurrences, and additional Rewired script identities in the candidate. This build included Rewired and did not use the optional resource texture fallback, so it is not the same configuration as the preceding comparison. The tool found no serialized group read failures; it does not verify visual output or gameplay.
 
 A separate local type-tree inspection matched all 86 `CameraFadeObject` components by scene and GameObject ID across those two OBBs. Their renderer and fade-material references matched, including six null material references present in both. This checks that specific wiring only; it does not establish that the materials render correctly or that other scene references match.
 
