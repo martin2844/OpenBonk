@@ -2,9 +2,21 @@
 """Build the experimental local API 3 package; do not redistribute pending rights review."""
 import argparse, hashlib, json, pathlib, zipfile
 root = pathlib.Path(__file__).resolve().parent
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--output', type=pathlib.Path, default=root / 'pikachu-mod.zip',
+                    help='new ZIP path in an existing directory')
+parser.add_argument('--bundle', type=pathlib.Path, default=root / 'study/android-bundle/pikachu-model',
+                    help='Android model bundle (defaults to the included test bundle)')
+args = parser.parse_args()
+output = args.output.expanduser().absolute()
+bundle = args.bundle.expanduser().absolute()
+if output.exists() or output.is_symlink() or not output.parent.is_dir():
+    parser.error('output must be a new path in an existing directory')
+if bundle.is_symlink() or not bundle.is_file():
+    parser.error('bundle must be a regular file')
 files = {
     'main.lua': root / 'content/main.lua',
-    'assets/pikachu-model': root / 'study/android-bundle/pikachu-model',
+    'assets/pikachu-model': bundle,
     'assets/portrait.png': root / 'content/portrait.png',
     'assets/thunderbolt-icon.png': root / 'content/thunderbolt-icon.png',
 }
@@ -21,12 +33,6 @@ manifest = {
     'passive': {'name': 'Electric Energy', 'description': 'Gain 1% power-up drop chance and 1% duration per level gained.',
                 'perLevel': [{'stat': 'PowerupChance', 'amount': .01}, {'stat': 'DurationMultiplier', 'amount': .01}]},
 }
-parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--output', type=pathlib.Path, default=root / 'pikachu-mod.zip',
-                    help='new ZIP path in an existing directory')
-output = parser.parse_args().output.expanduser().absolute()
-if output.exists() or output.is_symlink() or not output.parent.is_dir():
-    parser.error('output must be a new path in an existing directory')
 with zipfile.ZipFile(output, 'x', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as package:
     for name, data in [('manifest.json', json.dumps(manifest, separators=(',', ':')).encode()),
                        *((name, path.read_bytes()) for name, path in files.items())]:

@@ -33,9 +33,11 @@ bpy.ops.object.light_add(type='AREA',location=center+Vector((size,-size,size*2))
 bpy.ops.object.camera_add();camera=bpy.context.object;scene.camera=camera;camera.data.type='ORTHO';camera.data.ortho_scale=size*1.45
 scene.render.engine='CYCLES';scene.cycles.samples=16;scene.render.resolution_x=640;scene.render.resolution_y=640;scene.render.resolution_percentage=100
 os.makedirs('mods/pikachu/study',exist_ok=True)
-for n in range(8):
- angle=math.pi*2*n/8; camera.location=center+Vector((math.sin(angle)*size*2,-math.cos(angle)*size*2,size*.6)); camera.rotation_euler=(center-camera.location).to_track_quat('-Z','Y').to_euler();scene.render.filepath=f'mods/pikachu/study/view-{n}.png';bpy.ops.render.render(write_still=True)
+if os.environ.get('OPENBONK_SKIP_STUDY_RENDERS') != '1':
+ for n in range(8):
+  angle=math.pi*2*n/8; camera.location=center+Vector((math.sin(angle)*size*2,-math.cos(angle)*size*2,size*.6)); camera.rotation_euler=(center-camera.location).to_track_quat('-Z','Y').to_euler();scene.render.filepath=f'mods/pikachu/study/view-{n}.png';bpy.ops.render.render(write_still=True)
 camera.location=center+Vector((size*.65,-size*2,size*.6)); camera.rotation_euler=(center-camera.location).to_track_quat('-Z','Y').to_euler()
-for frame in (1,13):
- scene.frame_set(frame); scene.render.filepath=f'mods/pikachu/study/walk-{frame}.png'; bpy.ops.render.render(write_still=True)
+if os.environ.get('OPENBONK_SKIP_STUDY_RENDERS') != '1':
+ for frame in (1,13):
+  scene.frame_set(frame); scene.render.filepath=f'mods/pikachu/study/walk-{frame}.png'; bpy.ops.render.render(write_still=True)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('mods/pikachu/study/pikachu-study.blend'))
