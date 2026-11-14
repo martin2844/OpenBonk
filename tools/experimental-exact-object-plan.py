@@ -48,6 +48,13 @@ def texture_signature(texture, payload):
             texture.m_ImageCount, texture.m_ColorSpace, int(texture.m_TextureFormat), len(payload), sha(payload))
 
 
+def font_signature(font, payload):
+    """Match named, nonempty font payloads only by complete exact bytes."""
+    if not isinstance(font.m_Name, str) or not font.m_Name or not 256 <= len(payload) <= 32 * 1024 * 1024 or not any(payload):
+        return None
+    return (font.m_Name, len(payload), sha(payload))
+
+
 def file_hash(path):
     with path.open('rb') as f: return hashlib.file_digest(f, 'sha256').hexdigest()
 
@@ -131,7 +138,7 @@ def apply(raw, rows, streams=None):
 def generate(args):
     import UnityPy
     source, original = args.steam_data.resolve(strict=True), args.obb.resolve(strict=True)
-    output = new_output(args.output, (source, original)); targets = defaultdict(list); shader_targets = []; texture_targets = defaultdict(list); skipped = Counter()
+    output = new_output(args.output, (source, original)); targets = defaultdict(list); shader_targets = []; texture_targets = defaultdict(list); font_targets = defaultdict(list); skipped = Counter()
     with zipfile.ZipFile(original) as zin:
         infos = zin.infolist()
         if len(infos) != len({i.filename for i in infos}): raise ValueError('duplicate OBB entry')
@@ -155,13 +162,20 @@ def generate(args):
                         if signature and position >= 0 and raw.count(payload) == 1:
                             texture_targets[signature].append((name, offset + position, ('Texture2D', len(raw), sha(raw))))
                     except (ValueError, TypeError, AttributeError): skipped['unreadable_target_textures'] += 1
+                if obj.type.name == 'Font' and getattr(args, 'font_payloads', False):
+                    try:
+                        font = obj.read(); payload = bytes(font.m_FontData); signature = font_signature(font, payload)
+                        position = raw.find(payload) if signature else -1
+                        if signature and position >= 0 and raw.count(payload) == 1:
+                            font_targets[signature].append((name, offset + position, ('Font', len(raw), sha(raw))))
+                    except (ValueError, TypeError, AttributeError): skipped['unreadable_target_fonts'] += 1
                 if obj.type.name in ('Shader', 'ComputeShader'):
                     try: shader_targets.append((obj.type.name, obj.read().m_Name, name, offset, raw))
                     except Exception: skipped['unreadable_target_shaders'] += 1
     allowed_sources = launcher_source_names()
     source_files = sorted(p for p in source.iterdir() if p.name in allowed_sources and SERIALIZED_SOURCE.fullmatch(p.name) and p.is_file() and not p.is_symlink())
     if not source_files: raise ValueError('no Steam serialized assets')
-    found = {}; shader_sources = defaultdict(list); texture_found = {}
+    found = {}; shader_sources = defaultdict(list); texture_found = {}; font_found = {}
     texture_metadata = {key[:-1] for key in texture_targets}
     for path in source_files:
         if path.stat().st_size > 256 * 1024 * 1024: raise ValueError('Steam asset exceeds limit')
@@ -189,6 +203,15 @@ def generate(args):
                         signature = texture_signature(tex, payload)
                         if signature in texture_targets: texture_found.setdefault(signature, (stream_name, stream.offset))
                 except (TypeError, AttributeError): skipped['unreadable_source_textures'] += 1
+            if obj.type.name == 'Font' and font_targets:
+                try:
+                    font = obj.read(); payload = bytes(font.m_FontData); signature = font_signature(font, payload)
+                    position = raw.find(payload) if signature in font_targets else -1
+                    if position >= 0 and raw.count(payload) == 1:
+                        offset = obj.byte_start + position
+                        if data[offset:offset + len(payload)] != payload: raise ValueError('Steam font bounds differ')
+                        font_found.setdefault(signature, (path.name, offset))
+                except (TypeError, AttributeError): skipped['unreadable_source_fonts'] += 1
             if obj.type.name in ('Shader', 'ComputeShader'):
                 try: name = obj.read().m_Name
                 except Exception:
@@ -217,6 +240,15 @@ def generate(args):
                     if object_key in found: continue
                     rows.extend(fragments(groups[group], target_offset, payload, source_name, source_offset))
                     counts['Texture2D_payload'] += 1
+            for signature, (source_name, source_offset) in font_found.items():
+                size, digest = signature[-2:]
+                with (source / source_name).open('rb') as stream:
+                    stream.seek(source_offset); payload = stream.read(size)
+                if len(payload) != size or sha(payload) != digest: raise ValueError('Steam font payload differs')
+                for group, target_offset, object_key in font_targets[signature]:
+                    if object_key in found: continue
+                    rows.extend(fragments(groups[group], target_offset, payload, source_name, source_offset))
+                    counts['Font_payload'] += 1
             for kind, name, group, target_offset, raw in shader_targets:
                 if (kind, len(raw), sha(raw)) in found: continue
                 for offset, payload, source_name, source_offset in common_fragments(raw, shader_sources.get((kind, name), ())):
@@ -303,7 +335,9 @@ def main():
     p = argparse.ArgumentParser(description=__doc__); sub = p.add_subparsers(dest='command', required=True)
     for command in ('generate', 'restore'):
         s = sub.add_parser(command); s.add_argument('--steam-data', type=Path, required=True); s.add_argument('--output', type=Path, required=True)
-        if command == 'generate': s.add_argument('--obb', type=Path, required=True)
+        if command == 'generate':
+            s.add_argument('--obb', type=Path, required=True)
+            s.add_argument('--font-payloads', action='store_true', help='experimentally match complete inline font payloads')
         else: s.add_argument('--template', type=Path, required=True); s.add_argument('--plan', type=Path, required=True)
     args = p.parse_args(); (generate if args.command == 'generate' else restore)(args)
 

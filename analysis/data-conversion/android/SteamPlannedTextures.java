@@ -92,8 +92,8 @@ public final class SteamPlannedTextures {
             if (plan.getInt("schema") != 1 || !plan.getString("kind").equals(kind)) throw new IOException("unsupported texture plan");
             templateHash = checkedHash(plan.getString("template_sha256")); JSONObject sources = plan.getJSONObject("sources");
             Iterator<String> keys = sources.keys();
-            while (keys.hasNext()) { String name = keys.next(); if (!name.matches("(?:sharedassets[12]|resources)\\.assets(?:\\.resS)?")) throw new IOException("invalid Steam source"); sourceHashes.put(name, checkedHash(sources.getString(name))); }
-            if (sourceHashes.isEmpty() || sourceHashes.size() > 4) throw new IOException("invalid source count");
+            while (keys.hasNext()) { String name = keys.next(); if (!name.matches("(?:sharedassets[012]|resources)\\.assets(?:\\.resS)?")) throw new IOException("invalid Steam source"); sourceHashes.put(name, checkedHash(sources.getString(name))); }
+            if (sourceHashes.isEmpty() || sourceHashes.size() > 8) throw new IOException("invalid source count");
             JSONArray rows = plan.getJSONArray("records"); long total = 0;
             if (rows.length() == 0 || rows.length() > (cubemaps ? 32 : MAX_RECORDS)) throw new IOException("invalid texture count");
             for (int i = 0; i < rows.length(); i++) {
@@ -123,7 +123,7 @@ public final class SteamPlannedTextures {
                 for (int j = 0; j < fs.length(); j++) {
                     JSONObject f = fs.getJSONObject(j); Fragment fragment = new Fragment(); fragment.texture = t;
                     fragment.entry = f.getString("entry"); fragment.targetOffset = f.getInt("target_offset"); fragment.convertedOffset = f.getInt("converted_offset"); fragment.size = f.getInt("size");
-                    boolean split = fragment.entry.matches(PREFIX + (cubemaps ? "sharedassets1" : "sharedassets[12]") + "\\.assets\\.split(?:0|[1-9][0-9]*)");
+                    boolean split = fragment.entry.matches(PREFIX + (cubemaps ? "sharedassets1" : "sharedassets[012]") + "\\.assets\\.split(?:0|[1-9][0-9]*)");
                     boolean standalone = !cubemaps && fragment.entry.matches(PREFIX + "[0-9a-f]{32}");
                     int entryLimit = split ? MAX_SPLIT : MAX_CLIP;
                     if (!(split || standalone) || (partial ? fragment.convertedOffset < position : fragment.convertedOffset != position) || fragment.size <= 0 ||

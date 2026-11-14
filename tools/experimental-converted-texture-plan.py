@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location('texture_study', ROOT / 'tools/experimental-converted-textures.py')
 study = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(study)
-SOURCE = re.compile(r'(?:sharedassets[12]|resources)\.assets(?:\.resS)?\Z')
-ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:sharedassets[12]\.assets\.split(?:0|[1-9]\d*)|[0-9a-f]{32})\Z')
+SOURCE = re.compile(r'(?:sharedassets[012]|resources)\.assets(?:\.resS)?\Z')
+ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:sharedassets[012]\.assets\.split(?:0|[1-9]\d*)|[0-9a-f]{32})\Z')
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
@@ -57,6 +57,14 @@ def valid_forest_record(row):
             row.get('source_format') == 10 and row.get('target_format') == 45 and
             row.get('normal') is False and row.get('quality') is False and row.get('direct_normal') is False and
             not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'alias_group', 'alias_target_id')))
+
+
+def valid_shared0_sdf_record(row):
+    return (row.get('shared0_sdf') is True and row.get('group') == 'sharedassets0' and
+            isinstance(row.get('name'), str) and study.SHARED0_SDF_NAME.fullmatch(row['name']) is not None and
+            row.get('source_format') == 1 and row.get('target_format') == 47 and row.get('bytes') == 1048576 and
+            row.get('normal') is False and row.get('quality') is False and row.get('direct_normal') is False and
+            not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'forest_source', 'source_name', 'alias_group', 'alias_target_id')))
 
 
 def file_hash(path):
@@ -129,18 +137,20 @@ def generate(args):
     chosen = {g: {} for g in study.GROUPS}
     for row in candidates:
         group, key = row['group'], row['target_id']
+        if ('shared0_sdf' in row or group == 'sharedassets0') and not valid_shared0_sdf_record(row):
+            raise ValueError('invalid sharedassets0 font mapping')
         if 'shadow' in row and not valid_shadow_record(row):
             raise ValueError('invalid shadow texture mapping')
         if 'collision_alias' in row and not valid_collision_record(row): raise ValueError('invalid collision texture mapping')
         if 'forest_source' in row and not valid_forest_record(row): raise ValueError('invalid forest texture mapping')
         if group in study.GROUPS and 'source_name' in row and row.get('collision_alias') is not True and row.get('forest_source') is not True:
             raise ValueError('unexpected source name in shared texture')
-        if group not in study.GROUPS and not re.fullmatch(r'[0-9a-f]{32}', group): raise ValueError('invalid texture group')
+        if group not in (*study.GROUPS, 'sharedassets0') and not re.fullmatch(r'[0-9a-f]{32}', group): raise ValueError('invalid texture group')
         if group in study.GROUPS and ('font' in row or 'resource' in row): raise ValueError('resource markers require a standalone texture')
         if type(key) is not int or key in chosen.setdefault(group, {}): raise ValueError('invalid texture record')
         chosen[group][key] = row
     for group, records in chosen.items():
-        if group in study.GROUPS: continue
+        if group in (*study.GROUPS, 'sharedassets0'): continue
         for row in records.values():
             if row.get('resource') is True:
                 if not valid_resource_record(row): raise ValueError('invalid resource texture mapping')
@@ -158,15 +168,15 @@ def generate(args):
             parent = chosen.get(row.get('alias_group'), {}).get(row.get('alias_target_id'))
             if row.get('alias_group') not in study.GROUPS or parent is None or row.get('source_name') != parent['name'] or any(row.get(k) != parent.get(k) for k in ('source_format', 'target_format', 'normal', 'bytes')) or any(row.get(k, False) != parent.get(k, False) for k in ('quality', 'direct_normal')):
                 raise ValueError('invalid standalone texture alias')
-    index = defaultdict(list); resources_index = defaultdict(list)
-    for group in (*study.GROUPS, *(['resources'] if any(r.get('font') is True or r.get('resource') is True for r in candidates) else [])):
+    index = defaultdict(list); resources_index = defaultdict(list); shared0_index = defaultdict(list)
+    for group in (*study.GROUPS, *(['sharedassets0'] if 'sharedassets0' in chosen else []), *(['resources'] if any(r.get('font') is True or r.get('resource') is True for r in candidates) else [])):
         path = source / (group + '.assets')
         if not path.is_file() or path.is_symlink(): raise ValueError('missing Steam asset file')
         for obj in UnityPy.load(str(path)).objects:
             if obj.type.name == 'Texture2D':
                 tex = obj.read()
                 if group == 'resources' and tex.m_Name not in set(study.FONT_ALIASES.values()) | study.RESOURCE_TEXTURES: continue
-                (resources_index if group == 'resources' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append((group, obj, tex))
+                (resources_index if group == 'resources' else shared0_index if group == 'sharedassets0' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append((group, obj, tex))
     rows = []; output.mkdir(mode=0o700)
     try:
         with zipfile.ZipFile(obb) as zin:
@@ -178,13 +188,15 @@ def generate(args):
                 for key, prior in chosen[group].items():
                     if key not in objects: raise ValueError('missing target texture')
                     obj = objects[key]; tex = obj.read()
-                    found = (resources_index if prior.get('font') is True or prior.get('resource') is True else index)[(prior.get('source_name', tex.m_Name), tex.m_Width, tex.m_Height)]
+                    found = (shared0_index if prior.get('shared0_sdf') is True else resources_index if prior.get('font') is True or prior.get('resource') is True else index)[(prior.get('source_name', tex.m_Name), tex.m_Width, tex.m_Height)]
                     chosen_source = (next((item for item in found if item[0] == 'sharedassets1' and sha(bytes(item[2].get_image_data())) == prior['source_sha256']), None)
                                      if prior.get('forest_source') is True else
                                      study.select_shadow_source(tex, found, texture=lambda item: item[2]) if prior.get('shadow') is True
                                      else study.select_source(tex, found, texture=lambda item: item[2]))
                     if chosen_source is None or tex.m_Name != prior['name']: raise ValueError('source mapping differs')
                     src_group, src_obj, src = chosen_source
+                    if prior.get('shared0_sdf') is True and (src_group != 'sharedassets0' or not study.shared0_sdf_target(tex) or src.m_Name != tex.m_Name):
+                        raise ValueError('sharedassets0 font metadata differs')
                     if prior.get('forest_source') is True:
                         spec = study.FOREST_TEXTURES[prior['name']]
                         if (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount, tex.m_ImageCount) != (*spec[1:], 1)

@@ -14,6 +14,17 @@ spec.loader.exec_module(module)
 
 
 class ExactObjectTests(unittest.TestCase):
+    def test_font_signature_requires_exact_named_nonempty_payload(self):
+        font = SimpleNamespace(m_Name='Example Font')
+        payload = b'font-data' * 50
+        signature = module.font_signature(font, payload)
+        self.assertIsNotNone(signature)
+        self.assertNotEqual(signature, module.font_signature(font, payload[:-1] + b'!'))
+        self.assertIsNone(module.font_signature(font, bytes(450)))
+        self.assertIsNone(module.font_signature(font, b'short'))
+        font.m_Name = ''
+        self.assertIsNone(module.font_signature(font, payload))
+
     def test_texture_signature_requires_matching_metadata_and_exact_payload(self):
         tex = SimpleNamespace(m_Name='AreaTex', m_Width=16, m_Height=16, m_MipCount=1,
                               m_ImageCount=1, m_ColorSpace=0, m_TextureFormat=3)

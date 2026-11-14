@@ -119,6 +119,17 @@ class GeneratedAudioBuildTest(unittest.TestCase):
             z.writestr(entries[0], b'xxAB'); z.writestr(entries[1], b'CDzz')
         with self.assertRaises(ValueError): MODULE.verify_textures(template, plan, intermediate)
 
+    def test_texture_plan_accepts_shared0_split(self):
+        template, result, plan = (self.root / n for n in ('shared0-template.obb', 'shared0-result.obb', 'shared0-plan.json'))
+        entry = 'assets/bin/Data/sharedassets0.assets.split0'
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, b'x' + bytes(4))
+        with zipfile.ZipFile(result, 'w') as z: z.writestr(entry, b'xdata')
+        row = {'id': 0, 'target_size': 4, 'target_sha256': hashlib.sha256(b'data').hexdigest(),
+               'fragments': [{'entry': entry, 'target_offset': 1, 'size': 4, 'converted_offset': 0}]}
+        plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-converted-steam-texture-offsets',
+                                    'template_sha256': MODULE.digest(template), 'records': [row]}))
+        MODULE.verify_textures(template, plan, result)
+
     def test_partial_rgba_verifies_exact_mask_and_unchanged_bytes(self):
         template, result, plan = (self.root / n for n in ('partial-template.obb', 'partial-result.obb', 'partial-plan.json'))
         entry = 'assets/bin/Data/sharedassets1.assets.split0'

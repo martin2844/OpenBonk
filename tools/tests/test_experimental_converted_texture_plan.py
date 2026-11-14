@@ -12,6 +12,15 @@ spec.loader.exec_module(module)
 
 
 class ConvertedTexturePlanTests(unittest.TestCase):
+    def test_shared0_sdf_record_is_scoped_to_known_atlases(self):
+        row = {'shared0_sdf': True, 'group': 'sharedassets0', 'name': 'NotoSansSC-Bold SDF Atlas 19',
+               'source_format': 1, 'target_format': 47, 'bytes': 1048576,
+               'normal': False, 'quality': False, 'direct_normal': False}
+        self.assertTrue(module.valid_shared0_sdf_record(row))
+        for change in ({'group': 'sharedassets1'}, {'name': 'Other SDF Atlas'}, {'source_format': 12},
+                       {'bytes': 100}, {'quality': True}, {'source_name': 'other'}, {'shared0_sdf': False}):
+            with self.subTest(change=change): self.assertFalse(module.valid_shared0_sdf_record(dict(row, **change)))
+
     def test_forest_record_requires_known_name_and_source_hash(self):
         row = {'forest_source': True, 'group': 'sharedassets1', 'name': 'Forest1_TopGrass_0',
                'source_name': 'Forest1_TopGrass', 'source_sha256': 'ab' * 32,
@@ -79,6 +88,16 @@ class ConvertedTexturePlanTests(unittest.TestCase):
             self.assertEqual(z.read(self.entries[0]), b'abcAB')
             self.assertEqual(z.read(self.entries[1]), b'CDExy')
             self.assertEqual(z.read('other'), b'keep')
+
+    def test_restores_shared0_source_and_split(self):
+        source = self.source / 'sharedassets0.assets'
+        source.write_bytes(b'__source')
+        entry = 'assets/bin/Data/sharedassets0.assets.split0'
+        with zipfile.ZipFile(self.template, 'w') as z: z.writestr(entry, b'abc' + bytes(5))
+        self.row.update(source='sharedassets0.assets', fragments=[{'entry': entry, 'target_offset': 3, 'size': 5, 'converted_offset': 0}])
+        self.plan.update(template_sha256=module.file_hash(self.template), sources={'sharedassets0.assets': module.file_hash(source)})
+        self.restore()
+        with zipfile.ZipFile(self.output) as z: self.assertEqual(z.read(entry), b'abcABCDE')
 
     def test_rejects_conversion_mismatch_and_incomplete_ranges(self):
         with self.assertRaises(ValueError): self.restore(b'wrong')
