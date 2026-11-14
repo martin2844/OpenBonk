@@ -42,7 +42,9 @@ with ZipFile(a.apk) as outer:
             resource_names[path].append(name)
     base_entry = inv.get('base_entry', 'assets/openbonk-diagnostic/base.obb')
     if base_entry not in ('assets/openbonk-diagnostic/base.obb', 'assets/openbonk-diagnostic/generated-audio-template.obb',
-                          'assets/openbonk-diagnostic/windows/generated-audio-template.obb'):
+                          'assets/openbonk-diagnostic/windows/generated-audio-template.obb',
+                          'assets/openbonk-diagnostic/generated-audio-template.openbonk',
+                          'assets/openbonk-diagnostic/windows/generated-audio-template.openbonk'):
         raise ValueError('unsupported template entry')
     with ZipFile(io.BytesIO(outer.read(base_entry))) as base:
         for row in entries:

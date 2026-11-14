@@ -429,7 +429,9 @@ def main():
     (assets / 'marker').write_bytes(b'OPENBONK_PRIVATE_DIAGNOSTIC_V1')
     mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8' if partial_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7' if object_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V6' if animation_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V5' if cubemap_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V4' if mesh_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
     (assets / 'generated-audio-mode').write_bytes(mode)
-    shutil.copyfile(template, assets / 'generated-audio-template.obb')
+    # Gradle leaves .obb files uncompressed; this launcher reads the template
+    # through AssetManager rather than mounting it, so allow APK compression.
+    shutil.copyfile(template, assets / 'generated-audio-template.openbonk')
     shutil.copyfile(plan, assets / 'generated-audio-plan.json')
     (assets / 'generated-audio-plan.sha256').write_text(digest(plan), encoding='ascii')
     if packed:
@@ -461,7 +463,7 @@ def main():
         dest = assets / 'windows'; dest.mkdir()
         (assets / 'dual-platform').write_bytes(b'OPENBONK_DUAL_RESEARCH_V1')
         (dest / 'generated-audio-mode').write_bytes(b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8' if partial_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7')
-        shutil.copyfile(win_template, dest / 'generated-audio-template.obb')
+        shutil.copyfile(win_template, dest / 'generated-audio-template.openbonk')
         plan_files = {'generated-audio': win_plans['audio'], 'packed-audio': win_plans['packed'],
                       'texture': win_plans['texture'], 'mesh': win_plans['mesh'], 'cubemap': win_plans['cubemap'],
                       'animation': win_plans['animation'], 'object': win_object}

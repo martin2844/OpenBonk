@@ -50,7 +50,11 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
     try(InputStream in=context.getAssets().open(researchRoot+"generated-audio-plan.sha256")){expected=smallAscii(in,64);}
     if(!expected.matches("[0-9a-f]{64}"))throw new IOException("invalid generated audio checksum");
     File template=temp.resolve("generated-audio-template.obb").toFile(),plan=temp.resolve("generated-audio-plan.json").toFile();
-    try(InputStream in=context.getAssets().open(researchRoot+"generated-audio-template.obb")){copy(in,template,512L*1024*1024);}
+    String[] researchAssets=context.getAssets().list(researchRoot);
+    List<String> researchNames=researchAssets==null?Collections.emptyList():Arrays.asList(researchAssets);
+    boolean compact=researchNames.contains("generated-audio-template.openbonk"), legacy=researchNames.contains("generated-audio-template.obb");
+    if(compact==legacy)throw new IOException("missing or ambiguous research template");
+    try(InputStream in=context.getAssets().open(researchRoot+(compact?"generated-audio-template.openbonk":"generated-audio-template.obb"))){copy(in,template,512L*1024*1024);}
     try(InputStream in=context.getAssets().open(researchRoot+"generated-audio-plan.json")){copy(in,plan,1024L*1024);}
     File objectTemplate=template,animationTemplate=template,cubeTemplate=template,meshTemplate=template,textureTemplate=template,packedTemplate=template;
     if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){

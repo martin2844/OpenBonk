@@ -18,7 +18,6 @@ import zlib
 BLOCK = 1024 * 1024
 BASE = 'assets/openbonk-diagnostic/base.obb'
 PLANS = 'assets/openbonk-diagnostic/plans.zip'
-CURRENT_BASE = 'assets/openbonk-diagnostic/generated-audio-template.obb'
 CURRENT_PLANS = tuple('assets/openbonk-diagnostic/' + n + '-plan.json' for n in
                       ('animation', 'cubemap', 'generated-audio', 'mesh', 'object', 'packed-audio', 'texture'))
 
@@ -58,7 +57,11 @@ def main():
         check_names(apk)
         names = set(apk.namelist())
         prefix = 'assets/openbonk-diagnostic/windows/'
-        selected_base = CURRENT_BASE if a.platform == 'primary' else prefix + 'generated-audio-template.obb'
+        base_prefix = 'assets/openbonk-diagnostic/' if a.platform == 'primary' else prefix
+        alternatives = [base_prefix + 'generated-audio-template.' + suffix for suffix in ('obb', 'openbonk')]
+        available_bases = [name for name in alternatives if name in names]
+        if len(available_bases) > 1: raise ValueError('ambiguous generated template')
+        selected_base = available_bases[0] if available_bases else alternatives[0]
         selected_plans = CURRENT_PLANS if a.platform == 'primary' else tuple(prefix + name.rsplit('/', 1)[-1] for name in CURRENT_PLANS)
         legacy = a.platform == 'primary' and BASE in names and PLANS in names
         current = selected_base in names and all(name in names for name in selected_plans)

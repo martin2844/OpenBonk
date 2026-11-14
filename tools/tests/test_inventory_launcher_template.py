@@ -77,6 +77,27 @@ class TemplateInventoryTest(unittest.TestCase):
         self.assertEqual(len(report['plan_entries']), 7)
         self.assertIsNone(report['plan_zip_sha256'])
 
+    def test_compact_template_and_ambiguous_templates(self):
+        entries = {PREFIX + 'generated-audio-template.openbonk': self.base}
+        entries.update({PREFIX + name + '-plan.json': b'{}' for name in NAMES})
+        self.apk.write_bytes(archive(entries))
+        result = self.run_tool(); self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.report.read_text())['base_entry'], PREFIX + 'generated-audio-template.openbonk')
+        self.report.unlink()
+        entries[PREFIX + 'generated-audio-template.obb'] = self.base
+        self.apk.write_bytes(archive(entries))
+        self.assertNotEqual(self.run_tool().returncode, 0)
+        self.assertFalse(self.report.exists())
+
+    def test_windows_compact_template(self):
+        windows = PREFIX + 'windows/'
+        entries = {windows + 'generated-audio-template.openbonk': self.base}
+        entries.update({windows + name + '-plan.json': b'{}' for name in NAMES})
+        self.apk.write_bytes(archive(entries))
+        result = self.run_tool('--platform', 'windows')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.report.read_text())['base_entry'], windows + 'generated-audio-template.openbonk')
+
     def test_legacy_layout_still_works(self):
         self.apk.write_bytes(archive({PREFIX + 'base.obb': self.base, PREFIX + 'plans.zip': archive({'plan.json': b'{}'})}))
         result = self.run_tool(); self.assertEqual(result.returncode, 0, result.stderr)
