@@ -15,6 +15,7 @@ import UnityPy
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('apk', type=Path); p.add_argument('inventory', type=Path); p.add_argument('report', type=Path)
+p.add_argument('--reference-obb', type=Path, help='optional local reconstructed OBB for identifying masked shaders')
 a = p.parse_args()
 if a.report.exists() or a.report.is_symlink() or not a.report.parent.is_dir(): p.error('report must be new')
 inv = json.loads(a.inventory.read_text())
@@ -23,6 +24,7 @@ entries = [x for x in inv['entries'] if re.fullmatch(re.escape(prefix) + r'[0-9a
 groups = defaultdict(lambda: {'files': 0, 'size': 0, 'nonzero_bytes': 0, 'object_counts': Counter(), 'examples': []})
 errors = []
 shaders = []
+reference = ZipFile(a.reference_obb) if a.reference_obb else None
 with ZipFile(a.apk) as outer:
     import hashlib
     with a.apk.open('rb') as f:
@@ -53,11 +55,23 @@ with ZipFile(a.apk) as outer:
                 if types == {'Shader': 1}:
                     obj = env.objects[0]
                     try:
-                        tree = obj.read_typetree()
+                        if reference:
+                            original = reference.read(row['entry'])
+                            if len(original) != len(raw) or any(x and x != y for x, y in zip(raw, original)):
+                                raise ValueError('reference shader differs from unmasked bytes')
+                            original_objects = UnityPy.load(original).objects
+                            if (len(original_objects) != 1 or original_objects[0].type.name != 'Shader' or
+                                    original_objects[0].path_id != obj.path_id or
+                                    original_objects[0].byte_start != obj.byte_start or original_objects[0].byte_size != obj.byte_size):
+                                raise ValueError('reference shader layout differs')
+                            tree = original_objects[0].read_typetree()
+                        else:
+                            tree = obj.read_typetree()
                         shader_name = tree.get('m_ParsedForm', {}).get('m_Name', '')
                         if not isinstance(shader_name, str) or len(shader_name) > 512: shader_name = ''
                         shaders.append({'entry': row['entry'], 'name': shader_name, 'file_nonzero_bytes': row['nonzero_bytes'],
-                                        'resource_manager_names': resource_names.get(row['entry'].rsplit('/', 1)[-1], [])})
+                                        'resource_manager_names': resource_names.get(row['entry'].rsplit('/', 1)[-1], []),
+                                        'name_source': 'reference-obb' if reference else 'template'})
                     except Exception as error:
                         shaders.append({'entry': row['entry'], 'name': None, 'file_nonzero_bytes': row['nonzero_bytes'], 'error': type(error).__name__})
                 key = ','.join(sorted(types))
@@ -65,8 +79,9 @@ with ZipFile(a.apk) as outer:
                 if len(group['examples']) < 5: group['examples'].append(row['entry'])
             except Exception as e:
                 errors.append({'entry': row['entry'], 'error': type(e).__name__})
+if reference: reference.close()
 result = {'apk_sha256': inv['apk_sha256'], 'hashed_files_considered': len(entries),
           'groups': dict(sorted(groups.items())), 'unclassified': errors, 'shaders': shaders,
-          'limitations': 'Groups describe entire readable files. Zero bytes, headers, metadata and payloads are all counted together; no ownership, rendering use or licensing is determined. Unreadable entries in the prior inventory are excluded.'}
+          'limitations': 'Groups describe entire readable files. Zero bytes, headers, metadata and payloads are all counted together; no ownership, rendering use or licensing is determined. Reference shader names, when requested, are identified from a local OBB whose unmasked bytes match; this does not establish the identity of masked bytes. Unreadable entries in the prior inventory are excluded.'}
 with a.report.open('x', encoding='utf-8') as f: json.dump(result, f, indent=2); f.write('\n')
 print('hashed files:', len(entries), 'classified:', sum(g['files'] for g in groups.values()), 'unclassified:', len(errors))
