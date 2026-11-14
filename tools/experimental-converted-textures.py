@@ -26,6 +26,7 @@ COLLISION_TEXTURES = {'bush': (64, 64, 7, 3, 45), 'retaliation': (32, 32, 1, 12,
 FOREST_TEXTURES = {'Forest1_TopGrass': ('Forest1_TopGrass', 128, 128, 8),
                    'Forest1_TopGrass_0': ('Forest1_TopGrass', 128, 128, 8),
                    'GRASS_1A': ('GRASS_1A', 64, 64, 7)}
+SHARED0_SDF_NAME = re.compile(r'(?:NotoSans(?:SC|TC|KR|JP|Thai_Condensed)?-Bold|alagard) SDF Atlas(?: [1-9][0-9]*)?\Z')
 MAX_MEAN_ERROR = 10.0
 MAX_NORMAL_ANGLE = 10.0
 
@@ -105,6 +106,12 @@ def acceptable_sdf_image(original, converted):
             edge += 1
             crossings += (x >= 128) != (y >= 128)
     return bool(edge and crossings <= edge * 0.02)
+
+
+def shared0_sdf_target(texture):
+    return (isinstance(texture.m_Name, str) and SHARED0_SDF_NAME.fullmatch(texture.m_Name) is not None and
+            (texture.m_Width, texture.m_Height, texture.m_MipCount, texture.m_ImageCount,
+             int(texture.m_TextureFormat)) == (1024, 1024, 1, 1, 47))
 
 
 def select_source(target, candidates, texture=lambda item: item):
@@ -221,20 +228,21 @@ def run(args):
     font_fallback = getattr(args, 'font_fallback', False)
     resource_fallback = getattr(args, 'resource_fallback', False)
     shadow_fallback = getattr(args, 'shadow_fallback', False)
+    shared0_sdf = getattr(args, 'shared0_sdf', False)
     if (font_fallback or resource_fallback or shadow_fallback) and quality is None: raise ValueError('resource, font or shadow fallback requires the quality encoder')
     output = args.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): raise ValueError('output must be a new directory')
     output = output.parent.resolve() / output.name
     if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (source, obb, ROOT)): raise ValueError('output must be separate from inputs and checkout')
-    index = defaultdict(list); resources_index = defaultdict(list)
-    for group in (*GROUPS, *(['resources'] if font_fallback or resource_fallback else [])):
+    index = defaultdict(list); resources_index = defaultdict(list); shared0_index = defaultdict(list)
+    for group in (*GROUPS, *(['sharedassets0'] if shared0_sdf else []), *(['resources'] if font_fallback or resource_fallback else [])):
         file = source / (group + '.assets')
         if not file.is_file() or file.is_symlink(): raise ValueError('missing regular Steam asset file')
         for obj in UnityPy.load(str(file)).objects:
             if obj.type.name == 'Texture2D':
                 tex = obj.read()
                 if group == 'resources' and tex.m_Name not in set(FONT_ALIASES.values()) | RESOURCE_TEXTURES: continue
-                (resources_index if group == 'resources' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append(tex)
+                (resources_index if group == 'resources' else shared0_index if group == 'sharedassets0' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append(tex)
     changes, outcomes, failures, rows = {}, Counter(), Counter(), []
     aliases = defaultdict(list); quality_excluded = set()
     output.mkdir(mode=0o700)
@@ -244,19 +252,22 @@ def run(args):
             if len(infos) != len({i.filename for i in infos}): raise ValueError('duplicate OBB entry')
             standalone = [info.filename[len(PREFIX):] for info in infos
                           if re.fullmatch(re.escape(PREFIX) + r'[0-9a-f]{32}', info.filename) and info.file_size <= 64 * 1024 * 1024]
-            for group in (*GROUPS, *standalone):
+            target_groups = (*GROUPS, *(['sharedassets0'] if shared0_sdf else []))
+            for group in (*target_groups, *standalone):
                 splits = parts(zin, group)
                 asset = b''.join(zin.read(info) for info in splits)
                 modified = bytearray(asset)
                 try: objects = UnityPy.load(asset).objects
                 except Exception:
-                    if group in GROUPS: raise
+                    if group in target_groups: raise
                     outcomes['standalone_unreadable'] += 1; continue
-                if group not in GROUPS and (len(objects) != 1 or objects[0].type.name != 'Texture2D'): continue
+                if group not in target_groups and (len(objects) != 1 or objects[0].type.name != 'Texture2D'): continue
                 converted_before = len(rows)
                 for obj in objects:
                     if obj.type.name != 'Texture2D': continue
                     target = obj.read()
+                    shared0_candidate = group == 'sharedassets0' and shared0_sdf_target(target)
+                    if group == 'sharedassets0' and not shared0_candidate: continue
                     font_candidate = bool(font_fallback and group not in GROUPS and target.m_Name in FONT_ALIASES)
                     resource_candidate = bool(resource_fallback and group not in GROUPS and target.m_Name in RESOURCE_TEXTURES)
                     alias_source = collision_source(target.m_Name)
@@ -266,13 +277,15 @@ def run(args):
                     forest_candidate = group == 'sharedassets1' and target.m_Name in FOREST_TEXTURES
                     source_name = (FONT_ALIASES[target.m_Name] if font_candidate else alias_source if collision else
                                    FOREST_TEXTURES[target.m_Name][0] if forest_candidate else target.m_Name)
-                    candidates = (resources_index if font_candidate or resource_candidate else index)[(source_name, target.m_Width, target.m_Height)]
+                    candidates = (shared0_index if shared0_candidate else resources_index if font_candidate or resource_candidate else index)[(source_name, target.m_Width, target.m_Height)]
                     src = select_forest_source(target, candidates) if forest_candidate else select_source(target, candidates)
                     shadow = bool(src is None and shadow_fallback and group == 'sharedassets1' and target.m_Name == 'DropShadow')
                     if shadow: src = select_shadow_source(target, candidates)
                     if src is None:
                         if font_candidate or resource_candidate: quality_excluded.add(PREFIX + group)
                         outcomes['missing_or_ambiguous'] += 1; continue
+                    if shared0_candidate and (src.m_Name != target.m_Name or int(src.m_TextureFormat) != 1):
+                        outcomes['shared0_sdf_metadata_differs'] += 1; continue
                     if collision and int(src.m_TextureFormat) != collision_spec[3]:
                         outcomes['collision_metadata_differs'] += 1; continue
                     font = bool(font_candidate and
@@ -339,7 +352,7 @@ def run(args):
                         original_image = converter.parse_image_data(old_top, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                         converted_image = converter.parse_image_data(chunks[0], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                         mean = ImageStat.Stat(ImageChops.difference(original_image, converted_image)).mean
-                        if not font and not resource and should_try_quality(mean, quality, normal, target.m_TextureFormat, target.m_Width, target.m_Height):
+                        if not font and not resource and not shared0_candidate and should_try_quality(mean, quality, normal, target.m_TextureFormat, target.m_Width, target.m_Height):
                             chunks = encode_mips(True); new = b''.join(chunks); high_quality = True
                             if len(new) != len(old): raise ValueError('quality converted size differs')
                             converted_image = converter.parse_image_data(chunks[0], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
@@ -357,7 +370,7 @@ def run(args):
                         continue
                     # A high level-zero error indicates a questionable match or
                     # conversion; keep the existing texture for local review.
-                    accepted = (True if forest_candidate else acceptable_sdf_image(original_image, converted_image) if font else
+                    accepted = (True if forest_candidate else acceptable_sdf_image(original_image, converted_image) if font or shared0_candidate else
                                 acceptable_quality_image(original_image, converted_image) if high_quality else acceptable_texture_error(mean))
                     if not accepted:
                         if group not in GROUPS: quality_excluded.add(PREFIX + group)
@@ -369,6 +382,7 @@ def run(args):
                                  'source_format': int(src.m_TextureFormat), 'target_format': int(target.m_TextureFormat), 'normal': normal, 'quality': high_quality, 'direct_normal': direct_normal,
                                  'bytes': len(old), 'top_mean_rgba_error': [round(x, 3) for x in mean]})
                     if font: rows[-1].update(font=True, source_name=source_name)
+                    if shared0_candidate: rows[-1].update(shared0_sdf=True)
                     if resource: rows[-1].update(resource=True, source_name=source_name)
                     if shadow: rows[-1].update(shadow=True)
                     if collision: rows[-1].update(collision_alias=True, source_name=source_name)
@@ -376,7 +390,7 @@ def run(args):
                     alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
                     if group in GROUPS and not shadow and not collision and not forest_candidate: aliases[alias_key].append((rows[-1], new))
                     outcomes['converted'] += 1
-                if group not in GROUPS and len(rows) == converted_before: continue
+                if group not in target_groups and len(rows) == converted_before: continue
                 offset = 0
                 for info in splits:
                     changes[info.filename] = bytes(modified[offset:offset + info.file_size])
@@ -428,6 +442,7 @@ def main():
     p.add_argument('--output', required=True, type=Path)
     p.add_argument('--quality-library', type=Path, help='optional experimental desktop quality encoder')
     p.add_argument('--normal-fallback', action='store_true', help='experimentally convert RGB normal maps after checking every mip')
+    p.add_argument('--shared0-sdf', action='store_true', help='study selected sharedassets0 font atlases with strict edge checks; requires relocated sharedassets0 in the OBB')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct an SDF font atlas with the quality encoder')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures with per-mip quality checks')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally choose a unique matching DropShadow with strict quality checks')

@@ -62,6 +62,18 @@ class TextureConversionTests(unittest.TestCase):
         for error in ([0, 0, 10.01, 0], [0, 0, float('nan'), 0], [0, 0, -1, 0], [0, 0, 0]):
             self.assertFalse(module.acceptable_texture_error(error))
 
+    def test_shared0_sdf_accepts_only_known_atlas_layouts(self):
+        texture = SimpleNamespace(m_Name='NotoSansSC-Bold SDF Atlas 19', m_Width=1024, m_Height=1024,
+                                  m_MipCount=1, m_ImageCount=1, m_TextureFormat=47)
+        self.assertTrue(module.shared0_sdf_target(texture))
+        for name in ('NotoSansSC-Bold SDF Atlas 01', 'NotoSansSC-Bold SDF Atlas 0', 'Unrelated SDF Atlas'):
+            texture.m_Name = name
+            self.assertFalse(module.shared0_sdf_target(texture))
+        texture.m_Name = 'alagard SDF Atlas'
+        self.assertTrue(module.shared0_sdf_target(texture))
+        texture.m_MipCount = 2
+        self.assertFalse(module.shared0_sdf_target(texture))
+
     def test_duplicate_sources_must_have_identical_payload_and_format(self):
         class Texture:
             m_MipCount, m_ImageCount, m_ColorSpace = 1, 1, 0
