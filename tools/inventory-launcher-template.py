@@ -68,6 +68,12 @@ def main():
         base = read_zip_blob(apk, base_entry, 256 * BLOCK)
         plans = read_zip_blob(apk, PLANS, 32 * BLOCK) if legacy else None
         current_plans = [(name, read_zip_blob(apk, name, 32 * BLOCK)) for name in selected_plans] if current else []
+        mode_entry = ('assets/openbonk-diagnostic/' if a.platform == 'primary' else prefix) + 'generated-audio-mode'
+        if current and mode_entry in names:
+            mode = read_zip_blob(apk, mode_entry, 64)
+            if mode == b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8':
+                extra = mode_entry.rsplit('/', 1)[0] + '/partial-rgba-plan.json'
+                current_plans.append((extra, read_zip_blob(apk, extra, 2 * BLOCK)))
     entries = []
     unreadable = []
     with ZipFile(io.BytesIO(base)) as z:

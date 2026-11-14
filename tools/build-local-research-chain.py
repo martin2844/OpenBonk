@@ -106,14 +106,22 @@ def commands(a):
     toolplan('cubemap plan', 'experimental-cubemap-plan.py', plans / 'mesh/template.obb', plans / 'cubemap', '--manifest', out / 'cubemap-study/report.json', '--decoder', decoder, *wrapped)
     toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation')
     toolplan('exact object plan', 'experimental-exact-object-plan.py', plans / 'animation/template.obb', plans / 'objects')
+    partial = getattr(a, 'partial_rgba', False)
+    if partial:
+        py('partial RGBA plan', 'experimental-partial-rgba-plan.py', 'generate', '--steam-data', steam, '--obb', plans / 'objects/template.obb', '--output', plans / 'partial-rgba')
+        py('bind Android partial RGBA plan', 'experimental-partial-rgba-plan.py', 'export-android', '--steam-data', steam, '--template', plans / 'partial-rgba/template.obb', '--plan', plans / 'partial-rgba/plan.json', '--output', plans / 'partial-rgba/android-plan.json')
     classes = ['SteamPlannedMeshes.java', 'SteamPlannedTextures.java', 'SteamPackedAudio.java', 'SteamGeneratedAudio.java',
                'SteamPlannedObjectsCheck.java', 'SteamPlannedAnimationsCheck.java', 'SteamPlannedCubemapsCheck.java',
-               'SteamPlannedMeshesCheck.java', 'SteamPlannedTexturesCheck.java', 'SteamPackedAudioCheck.java', 'SteamGeneratedAudioCheck.java']
+               'SteamPlannedMeshesCheck.java', 'SteamPlannedTexturesCheck.java', 'SteamPartialRgbaCheck.java', 'SteamPackedAudioCheck.java', 'SteamGeneratedAudioCheck.java']
     steps.append(('compile preparation checks', [*prefix, str(jdk / 'bin/javac'), '--release', '8', '-cp', str(a.json_jar), '-d', str(out / 'classes'),
                   str(FIXTURES / 'SteamConvertedTextures.java'), str(FIXTURES / 'SteamCubemapResources.java'), *[str(JAVA / name) for name in classes]]))
     obj = results / 'after-objects.obb'; anim = results / 'after-animation.obb'; cube = results / 'after-cubemap.obb'
     mesh = results / 'after-mesh.obb'; texture = results / 'after-texture.obb'; packed = results / 'after-packed.obb'; final = results / 'final.obb'
-    java('restore and verify objects', 'SteamPlannedObjectsCheck', plans / 'objects/template.obb', steamzip, plans / 'objects/plan.json', obj, plans / 'animation/template.obb', 'pass')
+    if partial:
+        partial_output = results / 'after-partial-rgba.obb'
+        java('restore and verify partial RGBA', 'SteamPartialRgbaCheck', hostlib, plans / 'partial-rgba/template.obb', steamzip, plans / 'partial-rgba/android-plan.json', partial_output, plans / 'objects/template.obb', 'pass')
+        rebind('bind object plan', plans / 'objects/plan.json', plans / 'objects/template.obb', partial_output, results / 'objects-plan.json')
+    java('restore and verify objects', 'SteamPlannedObjectsCheck', partial_output if partial else plans / 'objects/template.obb', steamzip, results / 'objects-plan.json' if partial else plans / 'objects/plan.json', obj, plans / 'animation/template.obb', 'pass')
     rebind('bind animation plan', plans / 'animation/plan.json', plans / 'animation/template.obb', obj, results / 'animation-plan.json')
     java('restore and verify animations', 'SteamPlannedAnimationsCheck', obj, steamzip, results / 'animation-plan.json', anim, plans / 'cubemap/template.obb', 'pass')
     rebind('bind cubemap plan', plans / 'cubemap/plan.json', plans / 'cubemap/template.obb', anim, results / 'cubemap-plan.json')
@@ -127,14 +135,15 @@ def commands(a):
     rebind('bind audio plan', plans / 'audio/plan.json', plans / 'audio/template.obb', packed, results / 'audio-plan.json')
     java('restore and verify individual audio', 'SteamGeneratedAudioCheck', packed, steamzip, results / 'audio-plan.json', final, out / 'cubemap-study/converted.obb', 'pass')
     build = ['--gradle-project', a.gradle_project, '--unity-project', a.unity_project, '--runtime-apk', a.runtime_apk,
-             '--audio-template', plans / 'objects/template.obb', '--audio-plan', results / 'audio-plan.json',
+             '--audio-template', plans / ('partial-rgba/template.obb' if partial else 'objects/template.obb'), '--audio-plan', results / 'audio-plan.json',
              '--packed-plan', results / 'packed-plan.json', '--intermediate-obb', packed,
              '--texture-plan', results / 'texture-plan.json', '--texture-intermediate-obb', texture, '--texture-library', armlib,
              '--mesh-plan', results / 'mesh-plan.json', '--mesh-intermediate-obb', mesh,
              '--cubemap-plan', results / 'cubemap-plan.json', '--cubemap-intermediate-obb', cube,
              '--animation-plan', results / 'animation-plan.json', '--animation-intermediate-obb', anim,
-             '--object-plan', plans / 'objects/plan.json', '--object-intermediate-obb', obj,
+             '--object-plan', results / 'objects-plan.json' if partial else plans / 'objects/plan.json', '--object-intermediate-obb', obj,
              '--expected-obb', final, '--unity-editor', a.unity_editor, '--output', out / 'launcher', '--application-id', a.application_id, *wrapped]
+    if partial: build += ['--partial-rgba-plan', plans / 'partial-rgba/android-plan.json', '--partial-rgba-intermediate-obb', partial_output]
     if a.gradle_user_home: build += ['--gradle-user-home', a.gradle_user_home]
     py('research launcher APK', 'build-generated-audio-launcher.py', *build)
     return steps
@@ -153,6 +162,7 @@ def main():
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally select a unique shadow texture; requires --quality-textures')
+    p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()

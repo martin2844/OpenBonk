@@ -57,6 +57,18 @@ class ResearchChainTests(unittest.TestCase):
                 self.assertIn(option, build)
             self.assertEqual(build[build.index('--audio-template') + 1], str(a.output / 'plans/objects/template.obb'))
 
+    def test_partial_rgba_is_restored_before_object_plan(self):
+        with tempfile.TemporaryDirectory() as temp:
+            a = self.args(Path(temp)); a.partial_rgba = True
+            steps = module.commands(a); labels = [label for label, _ in steps]
+            self.assertLess(labels.index('exact object plan'), labels.index('partial RGBA plan'))
+            self.assertLess(labels.index('restore and verify partial RGBA'), labels.index('bind object plan'))
+            self.assertLess(labels.index('bind object plan'), labels.index('restore and verify objects'))
+            build = steps[-1][1]
+            self.assertEqual(build[build.index('--audio-template') + 1], str(a.output / 'plans/partial-rgba/template.obb'))
+            self.assertEqual(build[build.index('--object-plan') + 1], str(a.output / 'canonical/objects-plan.json'))
+            self.assertIn('--partial-rgba-plan', build)
+
     def test_missing_optional_inputs_are_generated_before_use(self):
         with tempfile.TemporaryDirectory() as temp:
             a = self.args(Path(temp))

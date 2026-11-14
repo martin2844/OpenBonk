@@ -52,6 +52,19 @@ class TemplateInventoryTest(unittest.TestCase):
         self.assertNotEqual(self.run_tool('--platform', 'windows').returncode, 0)
         self.assertFalse(self.report.exists())
 
+    def test_eight_stage_mode_requires_and_inventories_partial_plan(self):
+        entries = {PREFIX + 'generated-audio-template.obb': self.base,
+                   PREFIX + 'generated-audio-mode': b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8'}
+        entries.update({PREFIX + name + '-plan.json': b'{}' for name in NAMES})
+        self.apk.write_bytes(archive(entries))
+        self.assertNotEqual(self.run_tool().returncode, 0); self.assertFalse(self.report.exists())
+        entries[PREFIX + 'partial-rgba-plan.json'] = b'partial'
+        self.apk.write_bytes(archive(entries))
+        result = self.run_tool(); self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(self.report.read_text())
+        self.assertEqual(len(report['plan_entries']), 8)
+        self.assertIn(PREFIX + 'partial-rgba-plan.json', [row['entry'] for row in report['plan_entries']])
+
     def test_current_direct_plans_and_template(self):
         entries = {PREFIX + 'generated-audio-template.obb': self.base}
         entries.update({PREFIX + name + '-plan.json': b'{}' for name in NAMES})

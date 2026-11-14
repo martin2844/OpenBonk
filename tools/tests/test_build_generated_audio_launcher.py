@@ -114,6 +114,19 @@ class GeneratedAudioBuildTest(unittest.TestCase):
             z.writestr(entries[0], b'xxAB'); z.writestr(entries[1], b'CDzz')
         with self.assertRaises(ValueError): MODULE.verify_textures(template, plan, intermediate)
 
+    def test_partial_rgba_verifies_exact_mask_and_unchanged_bytes(self):
+        template, result, plan = (self.root / n for n in ('partial-template.obb', 'partial-result.obb', 'partial-plan.json'))
+        entry = 'assets/bin/Data/sharedassets1.assets.split0'
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, b'x\x00B\x00y')
+        with zipfile.ZipFile(result, 'w') as z: z.writestr(entry, b'xABCy')
+        fragment = {'entry': entry, 'target_offset': 1, 'size': 3, 'converted_offset': 0, 'mask': 'BQ==', 'masked_bytes': 2,
+                    'masked_sha256': hashlib.sha256(b'\x00B\x00').hexdigest(), 'original_sha256': hashlib.sha256(b'ABC').hexdigest()}
+        payload = {'schema': 1, 'kind': 'experimental-partial-rgba-texture-offsets', 'template_sha256': MODULE.digest(template),
+                   'records': [{'id': 0, 'target_size': 3, 'target_format': 4, 'fragments': [fragment]}]}
+        plan.write_text(json.dumps(payload)); MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        with zipfile.ZipFile(result, 'w') as z: z.writestr(entry, b'xAXCy')
+        with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, result, partial_rgba=True)
+
     def test_texture_plan_accepts_hashed_standalone_and_rejects_cubemap_use(self):
         template, intermediate, plan = (self.root / n for n in ('standalone-template.obb', 'standalone-intermediate.obb', 'standalone-plan.json'))
         entry = 'assets/bin/Data/' + 'a' * 32

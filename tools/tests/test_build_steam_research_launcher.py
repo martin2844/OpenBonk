@@ -104,6 +104,15 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertIn('--shadow-fallback', run.call_args_list[-2].args[0])
 
     @patch.object(module.subprocess, 'run')
+    def test_partial_rgba_reaches_both_platforms_and_dual_packager(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--partial-rgba')
+        self.assertIn('--partial-rgba', run.call_args_list[-3].args[0])
+        self.assertIn('--partial-rgba', run.call_args_list[-2].args[0])
+        self.assertIn('--partial-rgba-plan', run.call_args_list[-1].args[0])
+
+    @patch.object(module.subprocess, 'run')
     def test_font_fallback_requires_quality(self, run):
         with self.assertRaises(SystemExit): self.invoke('--font-fallback')
         with self.assertRaises(SystemExit): self.invoke('--resource-fallback')

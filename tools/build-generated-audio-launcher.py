@@ -196,12 +196,24 @@ def verify_meshes(template, plan_path, intermediate, objects=False):
             if a[end:] != b[end:]: raise ValueError('unrelated mesh split bytes differ')
 
 
-def verify_animations(template, plan_path, intermediate):
+def verify_animations(template, plan_path, intermediate, partial_rgba=False):
     plan = json.loads(plan_path.read_text())
-    if plan.get('schema') != 1 or plan.get('kind') != 'experimental-animation-fragment-mask' or plan.get('template_sha256') != digest(template):
+    kind = 'experimental-partial-rgba-texture-offsets' if partial_rgba else 'experimental-animation-fragment-mask'
+    if plan.get('schema') != 1 or plan.get('kind') != kind or plan.get('template_sha256') != digest(template):
         raise ValueError('animation plan or template differs')
     rows = plan.get('records')
     if not isinstance(rows, list) or not rows or len(rows) > 5000: raise ValueError('invalid animation records')
+    if partial_rgba:
+        fragments = []
+        for i, row in enumerate(rows):
+            if row.get('id') != i or row.get('target_format') != 4 or not isinstance(row.get('fragments'), list) or not row['fragments']:
+                raise ValueError('invalid partial texture record')
+            for fragment in row['fragments']:
+                offset, size, total = fragment.get('converted_offset'), fragment.get('size'), row.get('target_size')
+                if any(type(x) is not int for x in (offset, size, total)) or offset < 0 or size <= 0 or offset + size > total: raise ValueError('invalid partial texture range')
+                fragments.append(fragment)
+        rows = fragments
+        if len(rows) > 10000: raise ValueError('too many partial texture fragments')
     grouped = {}
     for row in rows:
         entry = row.get('entry')
@@ -264,26 +276,31 @@ def verify_research_platform(plan, platform):
         raise ValueError('research plan does not distinguish Steam platforms')
 
 
-def verify_windows_research(root, expected, runtime, gradle):
+def verify_windows_research(root, expected, runtime, gradle, partial_rgba=False):
     """Validate a second complete seven-stage plan against the same runtime."""
     canonical = root / 'canonical'
     template = root / 'plans/objects/template.obb'
-    obj = root / 'plans/objects/plan.json'
+    obj = canonical / 'objects-plan.json' if partial_rgba else root / 'plans/objects/plan.json'
+    partial_template = root / 'plans/partial-rgba/template.obb'
+    partial_plan = root / 'plans/partial-rgba/android-plan.json'
+    partial_output = canonical / 'after-partial-rgba.obb'
     paths = {name: canonical / (name + '-plan.json') for name in ('animation', 'cubemap', 'mesh', 'texture', 'packed', 'audio')}
     outputs = {name: canonical / ('after-' + name + '.obb') for name in ('objects', 'animation', 'cubemap', 'mesh', 'texture', 'packed')}
     final = canonical / 'final.obb'
-    for path in (template, obj, final, *paths.values(), *outputs.values()):
+    for path in (template, obj, final, *paths.values(), *outputs.values(), *([partial_template, partial_plan, partial_output] if partial_rgba else [])):
         if path.is_symlink() or not path.is_file(): raise ValueError('incomplete Windows research inputs')
     if digest(final) != digest(expected): raise ValueError('Windows and Linux final OBBs differ')
     verify_research_platform(obj, 'windows')
-    verify_meshes(template, obj, outputs['objects'], objects=True)
+    if partial_rgba: verify_animations(partial_template, partial_plan, partial_output, partial_rgba=True)
+    verify_meshes(partial_output if partial_rgba else template, obj, outputs['objects'], objects=True)
     verify_animations(outputs['objects'], paths['animation'], outputs['animation'])
     verify_textures(outputs['animation'], paths['cubemap'], outputs['cubemap'], cubemaps=True)
     verify_meshes(outputs['cubemap'], paths['mesh'], outputs['mesh'])
     verify_textures(outputs['mesh'], paths['texture'], outputs['texture'])
     verify_packed(outputs['texture'], paths['packed'], outputs['packed'])
     verify(outputs['packed'], paths['audio'], final, runtime, gradle)
-    return template, obj, paths
+    if partial_rgba: paths['partial-rgba'] = partial_plan
+    return partial_template if partial_rgba else template, obj, paths
 
 
 def has_quality_textures(plan):
@@ -310,6 +327,8 @@ def main():
     p.add_argument('--animation-intermediate-obb', type=Path, help='canonical animation restoration used by the cubemap plan')
     p.add_argument('--object-plan', type=Path, help='optional exact object plan for combined research mode')
     p.add_argument('--object-intermediate-obb', type=Path, help='canonical object restoration used by the animation plan')
+    p.add_argument('--partial-rgba-plan', type=Path, help='optional partial RGBA restoration plan')
+    p.add_argument('--partial-rgba-intermediate-obb', type=Path, help='canonical partial RGBA restoration used by the object plan')
     p.add_argument('--windows-research', type=Path, help='optional validated Windows seven-stage research output')
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
@@ -333,12 +352,15 @@ def main():
     if bool(a.object_plan) != bool(a.object_intermediate_obb) or (a.object_plan and not animation_plan): p.error('object mode requires both object inputs and animation mode')
     object_plan = a.object_plan.expanduser().resolve(strict=True) if a.object_plan else None
     object_intermediate = a.object_intermediate_obb.expanduser().resolve(strict=True) if a.object_intermediate_obb else None
+    if bool(a.partial_rgba_plan) != bool(a.partial_rgba_intermediate_obb) or (a.partial_rgba_plan and not object_plan): p.error('partial RGBA mode requires both inputs and object mode')
+    partial_plan = a.partial_rgba_plan.expanduser().resolve(strict=True) if a.partial_rgba_plan else None
+    partial_intermediate = a.partial_rgba_intermediate_obb.expanduser().resolve(strict=True) if a.partial_rgba_intermediate_obb else None
     windows_research = a.windows_research.expanduser().resolve(strict=True) if a.windows_research else None
     if windows_research and (not windows_research.is_dir() or not object_plan): p.error('Windows research requires a directory and complete seven-stage Linux inputs')
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be a new directory')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []), *([cubemap_plan, cubemap_intermediate] if cubemap_plan else []), *([animation_plan, animation_intermediate] if animation_plan else []), *([object_plan, object_intermediate] if object_plan else []), *([windows_research] if windows_research else []))):
+    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []), *([cubemap_plan, cubemap_intermediate] if cubemap_plan else []), *([animation_plan, animation_intermediate] if animation_plan else []), *([object_plan, object_intermediate] if object_plan else []), *([partial_plan, partial_intermediate] if partial_plan else []), *([windows_research] if windows_research else []))):
         p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
     if a.runner and not shutil.which(a.runner): p.error('configured runner not found')
@@ -355,8 +377,9 @@ def main():
     if a.gradle_user_home and not a.gradle_user_home.expanduser().resolve(strict=True).is_dir(): p.error('Gradle cache must be a directory')
     for path in gradle.rglob('*'):
         if path.is_symlink(): p.error('Gradle project must not contain symbolic links')
+    if partial_plan: verify_animations(template, partial_plan, partial_intermediate, partial_rgba=True)
     if object_plan:
-        verify_meshes(template, object_plan, object_intermediate, objects=True)
+        verify_meshes(partial_intermediate or template, object_plan, object_intermediate, objects=True)
     if animation_plan:
         verify_animations(object_intermediate or template, animation_plan, animation_intermediate)
     if cubemap_plan:
@@ -371,7 +394,7 @@ def main():
         verify_packed(texture_intermediate or template, packed, intermediate)
     guid = verify(intermediate or template, plan, expected, runtime, gradle)
     if windows_research: verify_research_platform(object_plan, 'linux')
-    windows = verify_windows_research(windows_research, expected, runtime, gradle) if windows_research else None
+    windows = verify_windows_research(windows_research, expected, runtime, gradle, partial_rgba=bool(partial_plan)) if windows_research else None
     quality_needed = bool(texture_plan and (has_quality_textures(texture_plan) or (windows and has_quality_textures(windows[2]['texture']))))
     if quality_needed and (texture_library.stat().st_size > 64 * 1024 * 1024 or b'Java_com_openbonk_dataprep_SteamConvertedTextures_convertQualityMip' not in texture_library.read_bytes()):
         raise ValueError('Android texture library lacks the quality encoder')
@@ -392,7 +415,7 @@ def main():
     assets = library / 'src/main/assets/openbonk-diagnostic'
     assets.mkdir()
     (assets / 'marker').write_bytes(b'OPENBONK_PRIVATE_DIAGNOSTIC_V1')
-    mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7' if object_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V6' if animation_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V5' if cubemap_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V4' if mesh_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
+    mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8' if partial_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7' if object_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V6' if animation_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V5' if cubemap_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V4' if mesh_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
     (assets / 'generated-audio-mode').write_bytes(mode)
     shutil.copyfile(template, assets / 'generated-audio-template.obb')
     shutil.copyfile(plan, assets / 'generated-audio-plan.json')
@@ -418,15 +441,19 @@ def main():
     if object_plan:
         shutil.copyfile(object_plan, assets / 'object-plan.json')
         (assets / 'object-plan.sha256').write_text(digest(object_plan), encoding='ascii')
+    if partial_plan:
+        shutil.copyfile(partial_plan, assets / 'partial-rgba-plan.json')
+        (assets / 'partial-rgba-plan.sha256').write_text(digest(partial_plan), encoding='ascii')
     if windows:
         win_template, win_object, win_plans = windows
         dest = assets / 'windows'; dest.mkdir()
         (assets / 'dual-platform').write_bytes(b'OPENBONK_DUAL_RESEARCH_V1')
-        (dest / 'generated-audio-mode').write_bytes(b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7')
+        (dest / 'generated-audio-mode').write_bytes(b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8' if partial_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7')
         shutil.copyfile(win_template, dest / 'generated-audio-template.obb')
         plan_files = {'generated-audio': win_plans['audio'], 'packed-audio': win_plans['packed'],
                       'texture': win_plans['texture'], 'mesh': win_plans['mesh'], 'cubemap': win_plans['cubemap'],
                       'animation': win_plans['animation'], 'object': win_object}
+        if partial_plan: plan_files['partial-rgba'] = win_plans['partial-rgba']
         for name, path in plan_files.items():
             shutil.copyfile(path, dest / (name + '-plan.json'))
             (dest / (name + '-plan.sha256')).write_text(digest(path), encoding='ascii')

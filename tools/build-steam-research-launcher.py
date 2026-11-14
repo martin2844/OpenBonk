@@ -44,6 +44,7 @@ def commands(a):
     if a.font_fallback: chain += ['--font-fallback']
     if a.resource_fallback: chain += ['--resource-fallback']
     if getattr(a, 'shadow_fallback', False): chain += ['--shadow-fallback']
+    if getattr(a, 'partial_rgba', False): chain += ['--partial-rgba']
     for attr in ('steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home'):
         value = getattr(a, attr)
         if value: chain += ['--' + attr.replace('_', '-'), value]
@@ -67,6 +68,7 @@ def commands(a):
         if a.font_fallback: windows_chain += ['--font-fallback']
         if a.resource_fallback: windows_chain += ['--resource-fallback']
         if getattr(a, 'shadow_fallback', False): windows_chain += ['--shadow-fallback']
+        if getattr(a, 'partial_rgba', False): windows_chain += ['--partial-rgba']
         if a.gradle_user_home: windows_chain += ['--gradle-user-home', a.gradle_user_home]
         dual_args = SimpleNamespace(output=linux_research, steam_data=a.game / 'Megabonk_Data',
                                     unity_editor=a.unity.parent, runtime_obb=out / 'runtime/android/Megabonk-arm64-runtime-research.main.obb',
@@ -74,7 +76,7 @@ def commands(a):
                                     gradle_project=out / 'gradle/android/OpenBonk-gradle-project', unity_project=workspace,
                                     json_jar=a.json_jar, application_id=a.application_id, runner=a.runner,
                                     host_library=a.host_library, android_library=a.android_library, decoder=a.decoder,
-                                    steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux', quality_textures=a.quality_textures, normal_fallback=a.normal_fallback)
+                                    steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux', quality_textures=a.quality_textures, normal_fallback=a.normal_fallback, partial_rgba=getattr(a, 'partial_rgba', False))
         dual = research_chain.commands(dual_args)[-1][1]
         dual[dual.index('--output') + 1] = str(out / 'dual-launcher')
         dual += ['--windows-research', str(windows_research)]
@@ -95,6 +97,7 @@ def main():
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally reconstruct a uniquely matching shadow; requires --quality-textures')
+    p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')
