@@ -104,7 +104,7 @@ def commands(a):
     toolplan('texture plan', 'experimental-converted-texture-plan.py', plans / 'packed/template.obb', plans / 'texture', '--manifest', out / 'texture-study/report.json', *(['--quality-library', hostlib] if quality else []))
     toolplan('mesh plan', 'experimental-mesh-buffer-plan.py', plans / 'texture/template.obb', plans / 'mesh')
     toolplan('cubemap plan', 'experimental-cubemap-plan.py', plans / 'mesh/template.obb', plans / 'cubemap', '--manifest', out / 'cubemap-study/report.json', '--decoder', decoder, *wrapped)
-    toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation')
+    toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation', *(['--shared0-fonts'] if getattr(a, 'shared0_fonts', False) else []))
     toolplan('exact object plan', 'experimental-exact-object-plan.py', plans / 'animation/template.obb', plans / 'objects', *(['--font-payloads'] if getattr(a, 'shared0_fonts', False) else []))
     partial = getattr(a, 'partial_rgba', False)
     if partial:

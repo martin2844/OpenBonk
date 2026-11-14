@@ -13,6 +13,20 @@ spec.loader.exec_module(module)
 
 
 class AnimationFragmentTests(unittest.TestCase):
+    def test_shared0_font_index_is_scoped_to_named_sdf_metadata(self):
+        import UnityPy
+        def obj(kind, name, offset, payload):
+            return SimpleNamespace(type=SimpleNamespace(name=kind), byte_size=len(payload), byte_start=offset,
+                                   path_id=offset + 1, peek_name=lambda: name, get_raw_data=lambda: payload)
+        data = b'A' * 256 + b'B' * 256 + b'C' * 256
+        objects = [obj('MonoBehaviour', 'NotoSansSC-Bold SDF', 0, data[:256]),
+                   obj('MonoBehaviour', 'Other SDF', 256, data[256:512]),
+                   obj('Material', 'NotoSansSC-Bold SDF', 512, data[512:])]
+        with patch.object(UnityPy, 'load', return_value=SimpleNamespace(objects=objects)):
+            index = module.shared0_font_index(data)
+        self.assertEqual(list(index), [('NotoSansSC-Bold SDF', 256)])
+        self.assertEqual(index[('NotoSansSC-Bold SDF', 256)][0][0], 'sharedassets0.assets')
+
     def test_fragment_index_separates_types_and_excludes_meshes(self):
         import UnityPy
         def obj(kind, offset, payload):

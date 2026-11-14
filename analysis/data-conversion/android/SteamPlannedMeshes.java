@@ -79,7 +79,7 @@ public final class SteamPlannedMeshes {
             Iterator<String> keys = sources.keys();
             while (keys.hasNext()) {
                 String name = keys.next(); if (!name.matches(objects ? "(?:(?:sharedassets[0-9]+\\.assets|resources\\.assets)(?:\\.resS)?|level[0-9]+|StreamingAssets/aa/Standalone(?:Linux|Windows)64/localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\\.bundle)" : "(?:sharedassets[0-9]+\\.assets|level[0-9]+)(?:\\.resS)?")) throw new IOException("invalid source name");
-                if (animations && !(name.equals("sharedassets1.assets") || name.equals("sharedassets2.assets"))) throw new IOException("invalid animation source");
+                if (animations && !(name.equals("sharedassets0.assets") || name.equals("sharedassets1.assets") || name.equals("sharedassets2.assets"))) throw new IOException("invalid animation source");
                 sourceHashes.put(name, checkedHash(sources.getString(name)));
             }
             if (sourceHashes.isEmpty() || sourceHashes.size() > 32) throw new IOException("invalid source count");

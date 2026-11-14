@@ -83,9 +83,9 @@ def source_index(data):
     return index
 
 
-def read_sources(folder):
+def read_sources(folder, include_shared0=False):
     data = {}
-    for name in SOURCE_NAMES:
+    for name in (*SOURCE_NAMES, *(['sharedassets0.assets'] if include_shared0 else [])):
         path = folder / name
         if not path.is_file() or path.is_symlink():
             raise ValueError('missing regular Steam input: ' + name)

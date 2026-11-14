@@ -27,6 +27,7 @@ objects_plan = importlib.util.module_from_spec(spec3)
 spec3.loader.exec_module(objects_plan)
 ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:[0-9a-f]{32}|(?:sharedassets\d+\.assets|level\d+|resources\.assets)(?:\.split(?:0|[1-9]\d*))?)\Z')
 FRAGMENT_TYPES = frozenset(('ParticleSystem', 'Material', 'MonoBehaviour', 'AnimatorController', 'TerrainData'))
+SHARED0_FONT_NAME = re.compile(r'(?:NotoSans(?:SC|TC|KR|JP|Thai_Condensed)?-Bold|alagard) SDF\Z')
 
 
 def make_fragments(parts, target_offset, target, source_name, source_offset, source):
@@ -92,17 +93,32 @@ def best_fragment(target, candidates):
     return max(candidates, key=lambda candidate: sum(candidate[3][i:i + 64] == block for i, block in samples))
 
 
+def shared0_font_index(data):
+    import UnityPy
+    index = defaultdict(list)
+    for obj in UnityPy.load(data).objects:
+        if obj.type.name != 'MonoBehaviour' or not 256 <= obj.byte_size <= 8 * 1024 * 1024: continue
+        name = obj.peek_name()
+        if not isinstance(name, str) or not SHARED0_FONT_NAME.fullmatch(name): continue
+        raw = obj.get_raw_data(); offset = obj.byte_start
+        if data[offset:offset + len(raw)] != raw: raise ValueError('shared font source bounds differ')
+        index[(name, len(raw))].append(('sharedassets0.assets', obj.path_id, offset, raw))
+    return index
+
+
 def generate(args):
     import UnityPy
     source, original = args.steam_data.resolve(strict=True), args.obb.resolve(strict=True)
-    output = animation.regular_output(args.output, (source, original)); sources = animation.read_sources(source); index = animation.source_index(sources)
-    fragments_index = fragment_index(sources)
+    output = animation.regular_output(args.output, (source, original)); sources = animation.read_sources(source, include_shared0=getattr(args, 'shared0_fonts', False))
+    base_sources = {name: data for name, data in sources.items() if name != 'sharedassets0.assets'}
+    index = animation.source_index(base_sources); fragments_index = fragment_index(base_sources)
+    font_index = shared0_font_index(sources['sharedassets0.assets']) if 'sharedassets0.assets' in sources else {}
     rows = []; outcomes = Counter(); output.mkdir(mode=0o700)
     try:
         with zipfile.ZipFile(original) as zin:
             infos = animation.zip_entries(zin)
             groups = [(parts, name) for name, parts in objects_plan.asset_groups(zin).items()]
-            for parts, _ in groups:
+            for parts, group in groups:
                 data = b''.join(zin.read(info) for info in parts)
                 try: objects = UnityPy.load(data).objects
                 except Exception: continue
@@ -110,7 +126,13 @@ def generate(args):
                     if obj.type.name != 'AnimationClip' and obj.type.name not in FRAGMENT_TYPES: continue
                     target = obj.get_raw_data(); offset = obj.byte_start
                     if data[offset:offset + len(target)] != target: raise ValueError('animation target bounds differ')
-                    if obj.type.name != 'AnimationClip':
+                    if group == 'sharedassets0.assets':
+                        if not font_index or obj.type.name != 'MonoBehaviour': continue
+                        name = obj.peek_name()
+                        matches = font_index.get((name, len(target)), [])
+                        if len(matches) != 1: outcomes['shared0_font_missing_or_ambiguous'] += 1; continue
+                        selected = matches[0]
+                    elif obj.type.name != 'AnimationClip':
                         if not 256 <= len(target) <= 8 * 1024 * 1024: continue
                         selected = best_fragment(target, fragments_index.get((obj.type.name, len(target)), []))
                         if selected is None: outcomes[obj.type.name + '_unmatched'] += 1; continue
@@ -145,8 +167,12 @@ def generate(args):
 
 def restore(args):
     source, template, plan_file = (p.resolve(strict=True) for p in (args.steam_data, args.template, args.plan))
-    output = animation.regular_output(args.output, (source, template, plan_file)); sources = animation.read_sources(source)
+    output = animation.regular_output(args.output, (source, template, plan_file))
     plan = json.loads(plan_file.read_text())
+    source_names = plan.get('sources')
+    allowed = set(animation.SOURCE_NAMES)
+    if not isinstance(source_names, dict) or set(source_names) not in (allowed, allowed | {'sharedassets0.assets'}): raise ValueError('invalid animation sources')
+    sources = animation.read_sources(source, include_shared0='sharedassets0.assets' in source_names)
     if (plan.get('schema') != 1 or plan.get('kind') != 'experimental-animation-fragment-mask' or
             plan.get('template_sha256') != animation.file_digest(template) or
             plan.get('sources') != {name: animation.digest(data) for name, data in sources.items()}): raise ValueError('plan or input differs')
@@ -176,7 +202,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__); sub = parser.add_subparsers(dest='command', required=True)
     for command in ('generate', 'restore'):
         p = sub.add_parser(command); p.add_argument('--steam-data', type=Path, required=True); p.add_argument('--output', type=Path, required=True)
-        if command == 'generate': p.add_argument('--obb', type=Path, required=True)
+        if command == 'generate':
+            p.add_argument('--obb', type=Path, required=True)
+            p.add_argument('--shared0-fonts', action='store_true', help='experimentally match sharedassets0 SDF font metadata')
         else: p.add_argument('--template', type=Path, required=True); p.add_argument('--plan', type=Path, required=True)
     args = parser.parse_args(); (generate if args.command == 'generate' else restore)(args)
 
