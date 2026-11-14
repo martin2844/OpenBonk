@@ -20,6 +20,9 @@ class ConvertedTexturePlanTests(unittest.TestCase):
         for change in ({'group': 'sharedassets2'}, {'source_name': 'Bush'}, {'name': 'skull__openbonk_8cd6c6a0'},
                        {'source_format': 4}, {'target_format': 47}, {'quality': True}, {'alias_group': 'sharedassets1'}):
             self.assertFalse(module.valid_collision_record(dict(row, **change)))
+        retaliation = dict(row, name='retaliation__openbonk_56e12a7d', source_name='retaliation', source_format=12, target_format=47)
+        self.assertTrue(module.valid_collision_record(retaliation))
+        self.assertFalse(module.valid_collision_record(dict(retaliation, source_format=3)))
     def test_shadow_mapping_requires_specific_quality_texture(self):
         row = {'shadow': True, 'group': 'sharedassets1', 'name': 'DropShadow', 'source_format': 12,
                'target_format': 47, 'quality': True, 'normal': False, 'direct_normal': False}

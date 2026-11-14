@@ -41,9 +41,10 @@ def valid_shadow_record(row):
 
 
 def valid_collision_record(row):
+    source = study.collision_source(row.get('name')); spec = study.COLLISION_TEXTURES.get(source)
     return (row.get('collision_alias') is True and row.get('group') == 'sharedassets1' and
-            study.collision_source(row.get('name')) == 'bush' and row.get('source_name') == 'bush' and
-            row.get('source_format') == 3 and row.get('target_format') == 45 and
+            spec is not None and row.get('source_name') == source and
+            row.get('source_format') == spec[3] and row.get('target_format') == spec[4] and
             row.get('normal') is False and row.get('quality') is False and row.get('direct_normal') is False and
             not any(k in row for k in ('font', 'resource', 'shadow', 'alias_group', 'alias_target_id')))
 
@@ -173,7 +174,7 @@ def generate(args):
                     src_group, src_obj, src = chosen_source
                     if prior.get('shadow') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (512, 512, 1)):
                         raise ValueError('shadow texture metadata differs')
-                    if prior.get('collision_alias') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (64, 64, 7)):
+                    if prior.get('collision_alias') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != study.COLLISION_TEXTURES[prior['source_name']][:3]):
                         raise ValueError('collision texture metadata differs')
                     if prior.get('font') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (1024, 1024, 1)):
                         raise ValueError('font texture metadata differs')

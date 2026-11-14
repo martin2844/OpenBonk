@@ -22,13 +22,16 @@ GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
 FONT_ALIASES = {'LiberationSans SDF Atlas_0': 'LiberationSans SDF Atlas'}
 RESOURCE_TEXTURES = frozenset(('GridBox_Collider', 'GridBox_Trigger'))
+COLLISION_TEXTURES = {'bush': (64, 64, 7, 3, 45), 'retaliation': (32, 32, 1, 12, 47)}
 MAX_MEAN_ERROR = 10.0
 MAX_NORMAL_ANGLE = 10.0
 
 
 def collision_source(name):
     """Recognize the known case-collision rename without relying on its GUID."""
-    return 'bush' if isinstance(name, str) and re.fullmatch(r'bush__openbonk_[0-9a-f]{8}', name) else None
+    if not isinstance(name, str): return None
+    match = re.fullmatch(r'(bush|retaliation)__openbonk_[0-9a-f]{8}', name)
+    return match.group(1) if match else None
 
 
 class NormalQualityError(ValueError):
@@ -225,9 +228,11 @@ def run(args):
                     target = obj.read()
                     font_candidate = bool(font_fallback and group not in GROUPS and target.m_Name in FONT_ALIASES)
                     resource_candidate = bool(resource_fallback and group not in GROUPS and target.m_Name in RESOURCE_TEXTURES)
-                    collision = bool(group == 'sharedassets1' and collision_source(target.m_Name) and
-                                     (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (64, 64, 7, 1, 45))
-                    source_name = FONT_ALIASES[target.m_Name] if font_candidate else collision_source(target.m_Name) if collision else target.m_Name
+                    alias_source = collision_source(target.m_Name)
+                    collision_spec = COLLISION_TEXTURES.get(alias_source)
+                    collision = bool(group == 'sharedassets1' and collision_spec and
+                                     (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (*collision_spec[:3], 1, collision_spec[4]))
+                    source_name = FONT_ALIASES[target.m_Name] if font_candidate else alias_source if collision else target.m_Name
                     candidates = (resources_index if font_candidate or resource_candidate else index)[(source_name, target.m_Width, target.m_Height)]
                     src = select_source(target, candidates)
                     shadow = bool(src is None and shadow_fallback and group == 'sharedassets1' and target.m_Name == 'DropShadow')
@@ -235,7 +240,7 @@ def run(args):
                     if src is None:
                         if font_candidate or resource_candidate: quality_excluded.add(PREFIX + group)
                         outcomes['missing_or_ambiguous'] += 1; continue
-                    if collision and int(src.m_TextureFormat) != 3:
+                    if collision and int(src.m_TextureFormat) != collision_spec[3]:
                         outcomes['collision_metadata_differs'] += 1; continue
                     font = bool(font_candidate and
                                 source_name == src.m_Name and int(src.m_TextureFormat) == 1 and int(target.m_TextureFormat) == 47 and

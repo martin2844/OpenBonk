@@ -9,8 +9,9 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
-    def test_only_known_case_collision_maps_to_steam_bush(self):
+    def test_only_known_case_collisions_map_to_steam_names(self):
         self.assertEqual(module.collision_source('bush__openbonk_8cd6c6a0'), 'bush')
+        self.assertEqual(module.collision_source('retaliation__openbonk_56e12a7d'), 'retaliation')
         for name in ('bush', 'Bush__openbonk_8cd6c6a0', 'bush__openbonk_8cd6c6a0extra', 'skull__openbonk_8cd6c6a0', None):
             self.assertIsNone(module.collision_source(name))
 
