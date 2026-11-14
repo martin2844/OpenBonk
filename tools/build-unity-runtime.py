@@ -29,6 +29,9 @@ spec.loader.exec_module(grass_mesh)
 spec = importlib.util.spec_from_file_location('prepare_standard_materials', Path(__file__).resolve().parent / 'prepare-unity-standard-materials.py')
 standard_materials = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(standard_materials)
+spec = importlib.util.spec_from_file_location('prepare_desert_edges', Path(__file__).resolve().parent / 'prepare-unity-desert-edges.py')
+desert_edges = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(desert_edges)
 
 
 def main():
@@ -75,6 +78,7 @@ def main():
         android_input.verify(project)
         grass_mesh.verify(project)
         standard_materials.verify(project)
+        desert_edges.verify(project)
     except (OSError, ValueError) as error:
         parser.error(str(error))
     for name in PLUGINS:

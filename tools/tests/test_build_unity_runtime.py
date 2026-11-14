@@ -16,6 +16,9 @@ spec.loader.exec_module(input_axes)
 spec = importlib.util.spec_from_file_location('standard_materials', SCRIPT.parent / 'prepare-unity-standard-materials.py')
 standard_materials = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(standard_materials)
+spec = importlib.util.spec_from_file_location('desert_edges', SCRIPT.parent / 'prepare-unity-desert-edges.py')
+desert_edges = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(desert_edges)
 
 
 class RuntimeBuildTest(unittest.TestCase):
@@ -31,6 +34,9 @@ class RuntimeBuildTest(unittest.TestCase):
         for name in standard_materials.NAMES:
             (self.project / 'Assets/Material' / (name + '.mat')).write_bytes(
                 b'Material:\n  m_Name: ' + name.encode() + b'\n' + standard_materials.STANDARD + b'\n  m_EnableInstancingVariants: 0\n')
+        for name in desert_edges.NAMES:
+            (self.project / 'Assets/Material' / (name + '.mat')).write_bytes(
+                b'Material:\n  m_Name: ' + name.encode() + b'\n' + desert_edges.SHADER + b'\n    m_Floats:\n      _SuppressOutline: 1\n    m_Colors:\n')
         (self.project / 'ProjectSettings').mkdir()
         (self.project / 'ProjectSettings/ProjectVersion.txt').write_text('m_EditorVersion: 2023.2.22f1\n')
         empty = '%YAML 1.1\nInputManager:\n  m_Axes:\n  m_UsePhysicalKeys: 0\n'
@@ -66,6 +72,15 @@ class RuntimeBuildTest(unittest.TestCase):
         self.assertFalse((self.project / 'Assets/csc.rsp').exists())
         self.assertFalse((self.project / 'Assets/csc.rsp.meta').exists())
         self.assertNotEqual(self.run_tool().returncode, 0)
+
+    def test_runtime_rejects_unprepared_desert_edge(self):
+        self.write_editor('pass\n')
+        edge = self.project / 'Assets/Material/m_1_TerrainDesertEdge.mat'
+        edge.write_bytes(edge.read_bytes().replace(b'_SuppressOutline: 1', b'_SuppressOutline: 0'))
+        result = self.run_tool('--check')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Desert edge materials require Android outline preparation', result.stderr)
+        self.assertFalse(self.out.exists())
 
     def test_failed_unity_preserves_output_and_cleans_response_file(self):
         self.write_editor('import sys\nsys.exit(7)\n')

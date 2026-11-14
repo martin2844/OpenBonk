@@ -32,6 +32,7 @@ def stages(base, editor, lua, output, runner, application_id, prepare_only=False
         ('passive icon references', 'prepare-unity-passive-icons.py', [*common, '--backup', str(output / 'passive-icon-backup')]),
         ('readable grass mesh', 'prepare-unity-grass-mesh.py', [*common, '--backup', str(output / 'grass-mesh.original.asset')]),
         ('Android Standard materials', 'prepare-unity-standard-materials.py', [*common, '--backup', str(output / 'standard-material-backup')]),
+        ('Desert edge materials', 'prepare-unity-desert-edges.py', [*common, '--backup', str(output / 'desert-edge-backup')]),
         ('empty manager placeholders', 'prepare-unity-manager-placeholders.py', [*common, '--backup', str(output / 'manager-scene-backup')]),
         ('unused diagnostic water shaders', 'prepare-unity-remove-water-probes.py', [*common, '--backup', str(output / 'water-probe-backup')]),
         ('Unity import', 'import-unity-workspace.py', [*common, *unity, '--log', str(output / 'import.log'), *wrapped]),
