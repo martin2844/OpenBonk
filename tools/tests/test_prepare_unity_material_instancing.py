@@ -6,7 +6,7 @@ import sys
 import tempfile
 import unittest
 
-SCRIPT = Path(__file__).resolve().parents[1] / 'prepare-unity-standard-materials.py'
+SCRIPT = Path(__file__).resolve().parents[1] / 'prepare-unity-material-instancing.py'
 spec = importlib.util.spec_from_file_location('standard_materials', SCRIPT)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
@@ -23,7 +23,7 @@ class StandardMaterialsTest(unittest.TestCase):
         (self.project / '.openbonk-workspace.json').write_text(json.dumps(module.MARKER))
         for name in module.NAMES:
             (self.directory / (name + '.mat')).write_bytes(
-                b'Material:\n  m_Name: ' + name.encode() + b'\n' + module.STANDARD
+                b'Material:\n  m_Name: ' + name.encode() + b'\n' + module.SHADERS[name]
                 + b'\n  m_EnableInstancingVariants: 1\n  other: untouched\n')
         self.backup = self.root / 'backup'
 
@@ -45,7 +45,7 @@ class StandardMaterialsTest(unittest.TestCase):
 
     def test_unexpected_material_rejects_all_before_writing(self):
         broken = self.directory / (module.NAMES[-1] + '.mat')
-        broken.write_bytes(broken.read_bytes().replace(module.STANDARD, b'  m_Shader: unexpected'))
+        broken.write_bytes(broken.read_bytes().replace(module.SHADERS[module.NAMES[-1]], b'  m_Shader: unexpected'))
         before = {p.name: p.read_bytes() for p in self.directory.iterdir()}
         result = self.run_tool('--backup', str(self.backup))
         self.assertNotEqual(result.returncode, 0)

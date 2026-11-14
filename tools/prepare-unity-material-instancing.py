@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Restore the beta's Android instancing setting for seven Standard materials.
+"""Restore the beta's Android instancing setting for selected materials.
 
 Only a marked, isolated workspace is modified. Original materials and backups
 contain game data and remain local. Rendering and device performance still
@@ -14,16 +14,27 @@ import tempfile
 
 
 MARKER = {'schema': 1, 'kind': 'openbonk-local-unity-workspace'}
-NAMES = ('Black', 'm_Tree_Transparent', 'm_archFaded', 'm_fenceFaded',
-         'm_fence2Faded', 'm_ladderFaded', 'm_lightPostFaded')
 FLAG = re.compile(rb'^  m_EnableInstancingVariants: ([01])$', re.MULTILINE)
 STANDARD = b'  m_Shader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}'
+TOON = b'  m_Shader: {fileID: 4800000, guid: 1a1e6dd8cc2999049a34c8ba0497b2fb, type: 3}'
+WARNING = b'  m_Shader: {fileID: 4800000, guid: 6409dc852732daa40b743510bfbf1f72, type: 3}'
+FLASH = b'  m_Shader: {fileID: 4800000, guid: 7be6901591daf10469b84b8886dff6e9, type: 3}'
+SHADERS = {name: STANDARD for name in (
+    'Black', 'm_Tree_Transparent', 'm_archFaded', 'm_fenceFaded', 'm_fence2Faded', 'm_ladderFaded', 'm_lightPostFaded',
+    'm_crypt_EdgesNew', 'm_crypt_FadedPillar', 'm_crypt_Floor', 'm_crypt_FloorPressurePlate',
+    'm_crypt_Floor_Pillar', 'm_crypt_Frame', 'm_crypt_Walls', 'm_crypt_WallsBossRoom')}
+SHADERS.update({name: TOON for name in (
+    'm_boss', 'm_bossArrow', 'm_bossCoffin', 'm_bossPortal', 'm_chest', 'm_chestOpen', 'm_desertGrave',
+    'm_encounter', 'm_encounterCharge', 'm_encounterGravestone', 'm_encounterGreed', 'm_frog1', 'm_frog2',
+    'm_frog3', 'm_keyCrypt', 'm_player', 'm_portal', 'm_portalArrow', 'm_pot', 'm_unknown')})
+SHADERS.update({'WarningField': WARNING, 'DamageFlash': FLASH})
+NAMES = tuple(SHADERS)
 
 
 def render(data, name):
     name_line = b'  m_Name: ' + name.encode('ascii')
-    if data.splitlines().count(name_line) != 1 or data.splitlines().count(STANDARD) != 1:
-        raise ValueError('unsupported Standard material: ' + name)
+    if data.splitlines().count(name_line) != 1 or data.splitlines().count(SHADERS[name]) != 1:
+        raise ValueError('unsupported material or shader: ' + name)
     matches = list(FLAG.finditer(data))
     if len(matches) != 1: raise ValueError('unsupported instancing flag: ' + name)
     match = matches[0]
@@ -45,7 +56,7 @@ def materials(project):
 
 def verify(project):
     originals, updates = materials(project)
-    if originals != updates: raise ValueError('Standard materials require Android instancing preparation')
+    if originals != updates: raise ValueError('materials require Android instancing preparation')
 
 
 def main():
@@ -64,10 +75,10 @@ def main():
         p.error(str(error))
     changed = [path for path in originals if originals[path] != updates[path]]
     if a.check:
-        if changed: p.error('Standard materials require Android instancing preparation')
-        print('Standard material instancing settings are prepared.'); return
+        if changed: p.error('materials require Android instancing preparation')
+        print('Material instancing settings are prepared.'); return
     if not changed:
-        print('Standard material instancing settings are already prepared.'); return
+        print('Material instancing settings are already prepared.'); return
     if not a.backup: p.error('a new backup directory is required')
     backup = a.backup.expanduser().absolute()
     if backup.exists() or backup.is_symlink() or not backup.parent.is_dir():
@@ -88,7 +99,7 @@ def main():
         raise
     finally:
         if temporary is not None: temporary.unlink(missing_ok=True)
-    print(f'Prepared {len(changed)} Standard materials; original assets are backed up locally.')
+    print(f'Prepared {len(changed)} materials; original assets are backed up locally.')
 
 
 if __name__ == '__main__':

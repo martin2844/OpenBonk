@@ -13,7 +13,7 @@ PLUGINS = ('Rewired_Core.dll', 'Coffee.UIParticle.dll', 'com.rlabrecque.steamwor
 spec = importlib.util.spec_from_file_location('input_axes', SCRIPT.parent / 'prepare-android-input.py')
 input_axes = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(input_axes)
-spec = importlib.util.spec_from_file_location('standard_materials', SCRIPT.parent / 'prepare-unity-standard-materials.py')
+spec = importlib.util.spec_from_file_location('standard_materials', SCRIPT.parent / 'prepare-unity-material-instancing.py')
 standard_materials = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(standard_materials)
 spec = importlib.util.spec_from_file_location('desert_edges', SCRIPT.parent / 'prepare-unity-desert-edges.py')
@@ -33,7 +33,7 @@ class RuntimeBuildTest(unittest.TestCase):
         (self.project / 'Assets/Material').mkdir()
         for name in standard_materials.NAMES:
             (self.project / 'Assets/Material' / (name + '.mat')).write_bytes(
-                b'Material:\n  m_Name: ' + name.encode() + b'\n' + standard_materials.STANDARD + b'\n  m_EnableInstancingVariants: 0\n')
+                b'Material:\n  m_Name: ' + name.encode() + b'\n' + standard_materials.SHADERS[name] + b'\n  m_EnableInstancingVariants: 0\n')
         for name in desert_edges.NAMES:
             (self.project / 'Assets/Material' / (name + '.mat')).write_bytes(
                 b'Material:\n  m_Name: ' + name.encode() + b'\n' + desert_edges.SHADER + b'\n    m_Floats:\n      _SuppressOutline: 1\n    m_Colors:\n')
@@ -152,7 +152,7 @@ class RuntimeBuildTest(unittest.TestCase):
         path.write_bytes(path.read_bytes().replace(b'm_EnableInstancingVariants: 0', b'm_EnableInstancingVariants: 1'))
         result = self.run_tool()
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('Standard materials require Android instancing preparation', result.stderr)
+        self.assertIn('materials require Android instancing preparation', result.stderr)
         self.assertFalse(self.out.exists())
 
     def test_embedded_build_uses_single_apk_entry_point(self):
