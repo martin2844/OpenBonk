@@ -3,8 +3,9 @@
 
 Reports contain game-derived names and hashes and must stay private. Matching
 names or object counts do not establish equivalent references or gameplay.
-Only the serialized-file groups described below are inspected; asset bundles,
-streamed payloads, code and unparsed groups are not checked.
+Only the serialized-file groups described below are inspected; resource paths
+are compared by name, not by their resolved content. Asset bundles, streamed
+payloads, code and unparsed groups are not checked.
 Requires UnityPy.
 """
 import argparse
@@ -42,7 +43,7 @@ def asset_groups(archive):
 
 
 def inventory(paths):
-    counts = Counter(); names = defaultdict(Counter); scripts = Counter(); problems = []; groups_seen = 0; hashes = []
+    counts = Counter(); names = defaultdict(Counter); scripts = Counter(); resources = Counter(); problems = []; groups_seen = 0; hashes = []
     for path in paths:
         with path.open('rb') as f: digest = hashlib.file_digest(f, 'sha256').hexdigest()
         with zipfile.ZipFile(path) as archive:
@@ -57,6 +58,16 @@ def inventory(paths):
                     continue
                 for obj in env.objects:
                     kind = obj.type.name; counts[kind] += 1
+                    if kind == 'ResourceManager':
+                        try:
+                            container = obj.read_typetree()['m_Container']
+                            for name, _ in container:
+                                if not isinstance(name, str): raise ValueError('invalid resource name')
+                                resources[name] += 1
+                        except Exception as error:
+                            problems.append({'archive': len(hashes) - 1, 'group': group,
+                                             'type': kind, 'path_id': obj.path_id, 'error': type(error).__name__})
+                        continue
                     if kind not in NAMED and kind != 'MonoScript': continue
                     try:
                         item = obj.read()
@@ -68,7 +79,7 @@ def inventory(paths):
                     except Exception as error:
                         problems.append({'archive': len(hashes) - 1, 'group': group,
                                          'type': kind, 'path_id': obj.path_id, 'error': type(error).__name__})
-    return counts, names, scripts, problems, groups_seen, hashes
+    return counts, names, scripts, problems, groups_seen, hashes, resources
 
 
 def differences(reference, candidate):
@@ -95,7 +106,7 @@ def main():
     scripts = [Counter({json.dumps(key, ensure_ascii=False): count for key, count in item.items()}) for item in (ref[2], new[2])]
     report = {'schema': 1, 'reference': {'archives': ref[5], 'groups': ref[4], 'object_counts': dict(ref[0]), 'problems': ref[3]},
               'candidate': {'archives': new[5], 'groups': new[4], 'object_counts': dict(new[0]), 'problems': new[3]},
-              'named_objects': names, 'scripts': differences(*scripts),
+              'named_objects': names, 'scripts': differences(*scripts), 'resource_paths': differences(ref[6], new[6]),
               'limitations': 'Counts and names are not references or equivalence. Bundles, streamed payloads, code and unparsed objects are not compared.'}
     with output.open('x', encoding='utf-8') as f: json.dump(report, f, ensure_ascii=False, indent=2); f.write('\n')
     print(f'Compared {ref[4]} reference and {new[4]} candidate serialized groups; '
@@ -103,6 +114,8 @@ def main():
     for kind in kinds:
         print(f'{kind}: reference-only occurrences {sum(names[kind]["reference_only"].values())}; '
               f'candidate-only occurrences {sum(names[kind]["candidate_only"].values())}')
+    print(f'Resource paths: reference-only occurrences {sum(report["resource_paths"]["reference_only"].values())}; '
+          f'candidate-only occurrences {sum(report["resource_paths"]["candidate_only"].values())}')
 
 
 if __name__ == '__main__': main()
