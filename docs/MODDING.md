@@ -9,7 +9,7 @@ OpenBonk's mod API is experimental and specific to OpenBonk. Mods can use suppor
 3. Open **Manage mods** and enable the imported mod. New imports and updates start disabled.
 4. Press **Play** and start a new run. If you update a mod, enable it again in **Manage mods**.
 
-The [Pikachu example](../mods/pikachu/README.md) adds an experimental character and weapon. Its ready-made ZIP is in that directory; it is not built into the APK. Additional examples are under [`mods/`](../mods/).
+The [Pikachu example](../mods/pikachu/README.md) adds an experimental character and weapon. Its guide links to the downloadable ZIP and explains how to build it from the checked-in files; the mod is not built into the APK. Additional examples are under [`mods/`](../mods/).
 
 ## Your first stat mod
 
