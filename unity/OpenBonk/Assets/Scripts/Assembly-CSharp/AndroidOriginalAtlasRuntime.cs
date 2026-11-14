@@ -25,7 +25,8 @@ internal sealed class AndroidOriginalAtlasRuntime : MonoBehaviour
         using var intent = activity.Call<AndroidJavaObject>("getIntent");
         string package = activity.Call<string>("getPackageName");
         bool test = package == "com.megabonk.nativeport.test" && intent.Call<bool>("getBooleanExtra", "megabonk_original_atlas_runtime_probe", false);
-        if (package != "com.megabonk.nativeport.splittest" && !test) return;
+        if (package != "com.megabonk.nativeport.splittest" && !test &&
+            !intent.Call<bool>("getBooleanExtra", "openbonk_split_launcher", false)) return;
         string active = AndroidOriginalLocalizationStore.ActiveDirectory(Path.Combine(Application.persistentDataPath, "OriginalLocalization"));
         if (active == null || !File.Exists(Path.Combine(active, "atlas01.raw"))) return;
         var go = new GameObject("Original atlas runtime"); DontDestroyOnLoad(go); go.AddComponent<AndroidOriginalAtlasRuntime>();

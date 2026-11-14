@@ -1139,6 +1139,7 @@ public final class SplitDataLauncher extends Activity {
             }
         }
         Intent game = new Intent(); game.setClassName(getPackageName(), "com.unity3d.player.UnityPlayerGameActivity");
+        game.putExtra("openbonk_split_launcher", true);
         if (controlChanged) game.putExtra("megabonk_launcher_touch_mode", touchMode);
         if (pendingSteam().isFile()) game.putExtra("megabonk_import_original_texts", true);
         startActivity(game);

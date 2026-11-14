@@ -24,7 +24,8 @@ internal sealed class AndroidOriginalLocalizationRuntime : MonoBehaviour
         using var intent = activity.Call<AndroidJavaObject>("getIntent");
         string package = activity.Call<string>("getPackageName");
         bool test = package == "com.megabonk.nativeport.test" && intent.Call<bool>("getBooleanExtra", "megabonk_original_localization_runtime_probe", false);
-        if (package != "com.megabonk.nativeport.splittest" && !test) return;
+        if (package != "com.megabonk.nativeport.splittest" && !test &&
+            !intent.Call<bool>("getBooleanExtra", "openbonk_split_launcher", false)) return;
         var root = new GameObject("Original localization runtime"); DontDestroyOnLoad(root); root.AddComponent<AndroidOriginalLocalizationRuntime>();
     }
     private IEnumerator Start()

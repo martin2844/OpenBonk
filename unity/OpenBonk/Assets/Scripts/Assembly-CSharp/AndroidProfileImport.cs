@@ -10,7 +10,9 @@ internal static class AndroidProfileImport
     {
         using var unity = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
         using var activity = unity.GetStatic<AndroidJavaObject>("currentActivity");
-        if (activity.Call<string>("getPackageName") != "com.megabonk.nativeport.splittest") return;
+        using var intent = activity.Call<AndroidJavaObject>("getIntent");
+        if (activity.Call<string>("getPackageName") != "com.megabonk.nativeport.splittest" &&
+            !intent.Call<bool>("getBooleanExtra", "openbonk_split_launcher", false)) return;
         using var files = activity.Call<AndroidJavaObject>("getFilesDir");
         using var cache = activity.Call<AndroidJavaObject>("getCacheDir");
         string dir = files.Call<string>("getAbsolutePath");
