@@ -14,6 +14,32 @@ spec.loader.exec_module(module)
 
 
 class ExactObjectTests(unittest.TestCase):
+    def test_texture_signature_requires_matching_metadata_and_exact_payload(self):
+        tex = SimpleNamespace(m_Name='AreaTex', m_Width=16, m_Height=16, m_MipCount=1,
+                              m_ImageCount=1, m_ColorSpace=0, m_TextureFormat=3)
+        payload = b'\x01\x02\x03\x04' * 100
+        signature = module.texture_signature(tex, payload)
+        self.assertIsNotNone(signature)
+        self.assertNotEqual(signature, module.texture_signature(tex, payload[:-1] + b'\x05'))
+        tex.m_ColorSpace = 1
+        self.assertNotEqual(signature, module.texture_signature(tex, payload))
+        tex.m_ImageCount = 2
+        self.assertIsNone(module.texture_signature(tex, payload))
+        self.assertIsNone(module.texture_signature(tex, bytes(400)))
+
+    def test_texture_stream_paths_are_narrowly_accepted(self):
+        for name in ('sharedassets1.assets.resS', 'resources.assets.resS'):
+            self.assertIsNotNone(module.SOURCE.fullmatch(name))
+        for name in ('../sharedassets1.assets.resS', 'sharedassets1.resource.resS', 'dir/sharedassets1.assets.resS'):
+            self.assertIsNone(module.SOURCE.fullmatch(name))
+        payload = b'texture-payload'
+        row = {'target_offset': 2, 'size': len(payload), 'source': 'sharedassets1.assets.resS',
+               'source_offset': 3, 'sha256': module.sha(payload)}
+        original = b'xx' + payload + b'yy'
+        masked = module.apply(original, [row])
+        self.assertEqual(module.apply(masked, [row], {'sharedassets1.assets.resS': io.BytesIO(b'---' + payload)}), original)
+        with self.assertRaises(ValueError): module.apply(masked, [row], {'sharedassets1.assets.resS': io.BytesIO(b'---' + bytes(len(payload)))})
+
     def test_localization_bundle_round_trip_and_path_validation(self):
         source_name = 'StreamingAssets/aa/StandaloneLinux64/localization-string-tables-english(en)_assets_all.bundle'
         entry = 'assets/aa/StandaloneLinux64/' + Path(source_name).name

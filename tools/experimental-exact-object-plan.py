@@ -17,7 +17,8 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 PREFIX = 'assets/bin/Data/'
 BUNDLE_NAME = r'localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\.bundle'
-SOURCE = re.compile(r'(?:sharedassets\d+\.assets|level\d+|resources\.assets|StreamingAssets/aa/Standalone(?:Linux|Windows)64/' + BUNDLE_NAME + r')\Z')
+SERIALIZED_SOURCE = re.compile(r'(?:sharedassets\d+\.assets|level\d+|resources\.assets)\Z')
+SOURCE = re.compile(r'(?:(?:sharedassets\d+\.assets|resources\.assets)(?:\.resS)?|level\d+|StreamingAssets/aa/Standalone(?:Linux|Windows)64/' + BUNDLE_NAME + r')\Z')
 BUNDLE_ENTRY = re.compile(r'assets/aa/StandaloneLinux64/' + BUNDLE_NAME + r'\Z')
 SINGLE = re.compile(r'(?:[0-9a-f]{32}|level\d+|resources\.assets|sharedassets\d+\.assets)\Z')
 SPLIT = re.compile(r'((?:sharedassets\d+\.assets|level\d+|resources\.assets))\.split(0|[1-9]\d*)\Z')
@@ -37,6 +38,14 @@ def launcher_localization_bundles(platform):
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
+
+
+def texture_signature(texture, payload):
+    """Identify an inline or streamed texture only by matching complete bytes and metadata."""
+    if not 256 <= len(payload) <= 8 * 1024 * 1024 or not any(payload): return None
+    if texture.m_ImageCount != 1 or not isinstance(texture.m_Name, str) or not texture.m_Name: return None
+    return (texture.m_Name, texture.m_Width, texture.m_Height, texture.m_MipCount,
+            texture.m_ImageCount, texture.m_ColorSpace, int(texture.m_TextureFormat), len(payload), sha(payload))
 
 
 def file_hash(path):
@@ -122,7 +131,7 @@ def apply(raw, rows, streams=None):
 def generate(args):
     import UnityPy
     source, original = args.steam_data.resolve(strict=True), args.obb.resolve(strict=True)
-    output = new_output(args.output, (source, original)); targets = defaultdict(list); shader_targets = []; skipped = Counter()
+    output = new_output(args.output, (source, original)); targets = defaultdict(list); shader_targets = []; texture_targets = defaultdict(list); skipped = Counter()
     with zipfile.ZipFile(original) as zin:
         infos = zin.infolist()
         if len(infos) != len({i.filename for i in infos}): raise ValueError('duplicate OBB entry')
@@ -138,13 +147,22 @@ def generate(args):
                 if len(raw) != obj.byte_size or data[offset:offset + len(raw)] != raw: raise ValueError('target object bounds differ')
                 if not any(raw): continue
                 targets[(obj.type.name, len(raw), sha(raw))].append((name, offset))
+                if obj.type.name == 'Texture2D':
+                    try:
+                        texture = obj.read(); payload = bytes(texture.image_data)
+                        signature = texture_signature(texture, payload)
+                        position = raw.find(payload) if signature else -1
+                        if signature and position >= 0 and raw.count(payload) == 1:
+                            texture_targets[signature].append((name, offset + position, ('Texture2D', len(raw), sha(raw))))
+                    except (ValueError, TypeError, AttributeError): skipped['unreadable_target_textures'] += 1
                 if obj.type.name in ('Shader', 'ComputeShader'):
                     try: shader_targets.append((obj.type.name, obj.read().m_Name, name, offset, raw))
                     except Exception: skipped['unreadable_target_shaders'] += 1
     allowed_sources = launcher_source_names()
-    source_files = sorted(p for p in source.iterdir() if p.name in allowed_sources and p.is_file() and not p.is_symlink())
+    source_files = sorted(p for p in source.iterdir() if p.name in allowed_sources and SERIALIZED_SOURCE.fullmatch(p.name) and p.is_file() and not p.is_symlink())
     if not source_files: raise ValueError('no Steam serialized assets')
-    found = {}; shader_sources = defaultdict(list)
+    found = {}; shader_sources = defaultdict(list); texture_found = {}
+    texture_metadata = {key[:-1] for key in texture_targets}
     for path in source_files:
         if path.stat().st_size > 256 * 1024 * 1024: raise ValueError('Steam asset exceeds limit')
         data = path.read_bytes()
@@ -155,6 +173,22 @@ def generate(args):
                 offset = obj.byte_start
                 if data[offset:offset + len(raw)] != raw: raise ValueError('Steam object bounds differ')
                 found[key] = (path.name, offset)
+            if obj.type.name == 'Texture2D' and texture_targets:
+                try:
+                    tex = obj.read(); stream = tex.m_StreamData; stream_name = stream.path
+                    size = stream.size
+                    metadata = (tex.m_Name, tex.m_Width, tex.m_Height, tex.m_MipCount,
+                                tex.m_ImageCount, tex.m_ColorSpace, int(tex.m_TextureFormat), size)
+                    if (metadata in texture_metadata and stream_name in allowed_sources and SOURCE.fullmatch(stream_name) and
+                            stream_name.endswith('.resS') and 256 <= size <= 8 * 1024 * 1024 and stream.offset >= 0):
+                        stream_path = source / stream_name
+                        if stream_path.is_symlink() or not stream_path.is_file(): raise ValueError('Steam texture stream is not regular')
+                        with stream_path.open('rb') as stream_file:
+                            stream_file.seek(stream.offset); payload = stream_file.read(size)
+                        if len(payload) != size: raise ValueError('Steam texture stream is truncated')
+                        signature = texture_signature(tex, payload)
+                        if signature in texture_targets: texture_found.setdefault(signature, (stream_name, stream.offset))
+                except (TypeError, AttributeError): skipped['unreadable_source_textures'] += 1
             if obj.type.name in ('Shader', 'ComputeShader'):
                 try: name = obj.read().m_Name
                 except Exception:
@@ -174,6 +208,15 @@ def generate(args):
                 if len(payload) != size or sha(payload) != digest: raise ValueError('Steam object differs')
                 for group, target_offset in targets[key]:
                     rows.extend(fragments(groups[group], target_offset, payload, source_name, source_offset)); counts[kind] += 1
+            for signature, (source_name, source_offset) in texture_found.items():
+                size, digest = signature[-2:]
+                with (source / source_name).open('rb') as stream:
+                    stream.seek(source_offset); payload = stream.read(size)
+                if len(payload) != size or sha(payload) != digest: raise ValueError('Steam texture payload differs')
+                for group, target_offset, object_key in texture_targets[signature]:
+                    if object_key in found: continue
+                    rows.extend(fragments(groups[group], target_offset, payload, source_name, source_offset))
+                    counts['Texture2D_payload'] += 1
             for kind, name, group, target_offset, raw in shader_targets:
                 if (kind, len(raw), sha(raw)) in found: continue
                 for offset, payload, source_name, source_offset in common_fragments(raw, shader_sources.get((kind, name), ())):
