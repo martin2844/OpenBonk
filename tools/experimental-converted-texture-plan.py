@@ -40,6 +40,14 @@ def valid_shadow_record(row):
             not any(k in row for k in ('font', 'resource', 'source_name', 'alias_group', 'alias_target_id')))
 
 
+def valid_collision_record(row):
+    return (row.get('collision_alias') is True and row.get('group') == 'sharedassets1' and
+            study.collision_source(row.get('name')) == 'bush' and row.get('source_name') == 'bush' and
+            row.get('source_format') == 3 and row.get('target_format') == 45 and
+            row.get('normal') is False and row.get('quality') is False and row.get('direct_normal') is False and
+            not any(k in row for k in ('font', 'resource', 'shadow', 'alias_group', 'alias_target_id')))
+
+
 def file_hash(path):
     with path.open('rb') as stream: return hashlib.file_digest(stream, 'sha256').hexdigest()
 
@@ -112,6 +120,9 @@ def generate(args):
         group, key = row['group'], row['target_id']
         if 'shadow' in row and not valid_shadow_record(row):
             raise ValueError('invalid shadow texture mapping')
+        if 'collision_alias' in row and not valid_collision_record(row): raise ValueError('invalid collision texture mapping')
+        if group in study.GROUPS and 'source_name' in row and row.get('collision_alias') is not True:
+            raise ValueError('unexpected source name in shared texture')
         if group not in study.GROUPS and not re.fullmatch(r'[0-9a-f]{32}', group): raise ValueError('invalid texture group')
         if group in study.GROUPS and ('font' in row or 'resource' in row): raise ValueError('resource markers require a standalone texture')
         if type(key) is not int or key in chosen.setdefault(group, {}): raise ValueError('invalid texture record')
@@ -162,6 +173,8 @@ def generate(args):
                     src_group, src_obj, src = chosen_source
                     if prior.get('shadow') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (512, 512, 1)):
                         raise ValueError('shadow texture metadata differs')
+                    if prior.get('collision_alias') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (64, 64, 7)):
+                        raise ValueError('collision texture metadata differs')
                     if prior.get('font') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (1024, 1024, 1)):
                         raise ValueError('font texture metadata differs')
                     if prior.get('resource') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (512, 512, 10)):

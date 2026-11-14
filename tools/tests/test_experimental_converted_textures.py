@@ -9,6 +9,17 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_only_known_case_collision_maps_to_steam_bush(self):
+        self.assertEqual(module.collision_source('bush__openbonk_8cd6c6a0'), 'bush')
+        for name in ('bush', 'Bush__openbonk_8cd6c6a0', 'bush__openbonk_8cd6c6a0extra', 'skull__openbonk_8cd6c6a0', None):
+            self.assertIsNone(module.collision_source(name))
+
+    def test_collision_mip_rejects_large_error_and_different_dimensions(self):
+        from PIL import Image
+        original = Image.new('RGBA', (2, 2), (100, 100, 100, 255))
+        self.assertTrue(module.acceptable_collision_mip(original, original.copy()))
+        self.assertFalse(module.acceptable_collision_mip(original, Image.new('RGBA', (2, 2), (120, 100, 100, 255))))
+        self.assertFalse(module.acceptable_collision_mip(original, Image.new('RGBA', (1, 2), (100, 100, 100, 255))))
     def test_sdf_gate_limits_threshold_crossings_and_outliers(self):
         from PIL import Image
         original = Image.new('RGBA', (10, 10), (255, 255, 255, 128))

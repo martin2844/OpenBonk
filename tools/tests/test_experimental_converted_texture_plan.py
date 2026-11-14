@@ -12,6 +12,14 @@ spec.loader.exec_module(module)
 
 
 class ConvertedTexturePlanTests(unittest.TestCase):
+    def test_collision_mapping_is_limited_to_known_texture_and_format(self):
+        row = {'collision_alias': True, 'group': 'sharedassets1', 'name': 'bush__openbonk_8cd6c6a0',
+               'source_name': 'bush', 'source_format': 3, 'target_format': 45,
+               'normal': False, 'quality': False, 'direct_normal': False}
+        self.assertTrue(module.valid_collision_record(row))
+        for change in ({'group': 'sharedassets2'}, {'source_name': 'Bush'}, {'name': 'skull__openbonk_8cd6c6a0'},
+                       {'source_format': 4}, {'target_format': 47}, {'quality': True}, {'alias_group': 'sharedassets1'}):
+            self.assertFalse(module.valid_collision_record(dict(row, **change)))
     def test_shadow_mapping_requires_specific_quality_texture(self):
         row = {'shadow': True, 'group': 'sharedassets1', 'name': 'DropShadow', 'source_format': 12,
                'target_format': 47, 'quality': True, 'normal': False, 'direct_normal': False}

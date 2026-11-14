@@ -26,6 +26,11 @@ MAX_MEAN_ERROR = 10.0
 MAX_NORMAL_ANGLE = 10.0
 
 
+def collision_source(name):
+    """Recognize the known case-collision rename without relying on its GUID."""
+    return 'bush' if isinstance(name, str) and re.fullmatch(r'bush__openbonk_[0-9a-f]{8}', name) else None
+
+
 class NormalQualityError(ValueError):
     pass
 
@@ -36,6 +41,12 @@ class ResourceQualityError(ValueError):
 
 def acceptable_texture_error(mean):
     return len(mean) == 4 and all(math.isfinite(v) and 0 <= v <= MAX_MEAN_ERROR for v in mean)
+
+
+def acceptable_collision_mip(original, converted):
+    from PIL import ImageChops, ImageStat
+    a, b = original.convert('RGBA'), converted.convert('RGBA')
+    return a.size == b.size and acceptable_texture_error(ImageStat.Stat(ImageChops.difference(a, b)).mean)
 
 
 def load_quality_encoder(path):
@@ -214,7 +225,9 @@ def run(args):
                     target = obj.read()
                     font_candidate = bool(font_fallback and group not in GROUPS and target.m_Name in FONT_ALIASES)
                     resource_candidate = bool(resource_fallback and group not in GROUPS and target.m_Name in RESOURCE_TEXTURES)
-                    source_name = FONT_ALIASES[target.m_Name] if font_candidate else target.m_Name
+                    collision = bool(group == 'sharedassets1' and collision_source(target.m_Name) and
+                                     (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (64, 64, 7, 1, 45))
+                    source_name = FONT_ALIASES[target.m_Name] if font_candidate else collision_source(target.m_Name) if collision else target.m_Name
                     candidates = (resources_index if font_candidate or resource_candidate else index)[(source_name, target.m_Width, target.m_Height)]
                     src = select_source(target, candidates)
                     shadow = bool(src is None and shadow_fallback and group == 'sharedassets1' and target.m_Name == 'DropShadow')
@@ -222,6 +235,8 @@ def run(args):
                     if src is None:
                         if font_candidate or resource_candidate: quality_excluded.add(PREFIX + group)
                         outcomes['missing_or_ambiguous'] += 1; continue
+                    if collision and int(src.m_TextureFormat) != 3:
+                        outcomes['collision_metadata_differs'] += 1; continue
                     font = bool(font_candidate and
                                 source_name == src.m_Name and int(src.m_TextureFormat) == 1 and int(target.m_TextureFormat) == 47 and
                                 (target.m_Width, target.m_Height, target.m_MipCount) == (1024, 1024, 1))
@@ -266,6 +281,10 @@ def run(args):
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     if not acceptable_quality_image(original, converted): raise ResourceQualityError('resource mip quality differs')
+                                if collision:
+                                    original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
+                                    converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
+                                    if not acceptable_collision_mip(original, converted): raise ResourceQualityError('collision mip quality differs')
                                 encoded_mips.append(encoded)
                             return encoded_mips
                         chunks = encode_mips(font or resource or shadow); high_quality = font or resource or shadow
@@ -306,8 +325,9 @@ def run(args):
                     if font: rows[-1].update(font=True, source_name=source_name)
                     if resource: rows[-1].update(resource=True, source_name=source_name)
                     if shadow: rows[-1].update(shadow=True)
+                    if collision: rows[-1].update(collision_alias=True, source_name=source_name)
                     alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
-                    if group in GROUPS and not shadow: aliases[alias_key].append((rows[-1], new))
+                    if group in GROUPS and not shadow and not collision: aliases[alias_key].append((rows[-1], new))
                     outcomes['converted'] += 1
                 if group not in GROUPS and len(rows) == converted_before: continue
                 offset = 0
