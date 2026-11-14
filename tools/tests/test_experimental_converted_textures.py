@@ -75,6 +75,23 @@ class TextureConversionTests(unittest.TestCase):
         different.m_MipCount = 2
         self.assertIs(module.select_source(target, [first, different]), first)
 
+    def test_forest_source_requires_unique_matching_payload_and_metadata(self):
+        class Texture:
+            m_Width, m_Height, m_MipCount, m_ImageCount, m_ColorSpace = 128, 128, 8, 1, 1
+            def __init__(self, name, data, fmt):
+                self.m_Name, self.data, self.m_TextureFormat = name, data, fmt
+            def get_image_data(self): return self.data
+        target = Texture('Forest1_TopGrass_0', b'target', 45)
+        first = Texture('Forest1_TopGrass', b'one', 10)
+        other = Texture('Forest1_TopGrass', b'two', 10)
+        self.assertIs(module.select_forest_source(target, [first, other], matches=lambda t: t.data == b'two'), other)
+        self.assertIsNone(module.select_forest_source(target, [first, other], matches=lambda t: True))
+        self.assertIsNone(module.select_forest_source(target, [first], matches=lambda t: False))
+        other.m_MipCount = 7
+        self.assertIsNone(module.select_forest_source(target, [other], matches=lambda t: True))
+        target.m_Name = 'Unrelated'
+        self.assertIsNone(module.select_forest_source(target, [first], matches=lambda t: True))
+
     def test_shadow_fallback_requires_one_strict_visual_match(self):
         from PIL import Image
         class Texture:

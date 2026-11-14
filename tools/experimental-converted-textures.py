@@ -23,6 +23,9 @@ NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
 FONT_ALIASES = {'LiberationSans SDF Atlas_0': 'LiberationSans SDF Atlas'}
 RESOURCE_TEXTURES = frozenset(('GridBox_Collider', 'GridBox_Trigger'))
 COLLISION_TEXTURES = {'bush': (64, 64, 7, 3, 45), 'retaliation': (32, 32, 1, 12, 47)}
+FOREST_TEXTURES = {'Forest1_TopGrass': ('Forest1_TopGrass', 128, 128, 8),
+                   'Forest1_TopGrass_0': ('Forest1_TopGrass', 128, 128, 8),
+                   'GRASS_1A': ('GRASS_1A', 64, 64, 7)}
 MAX_MEAN_ERROR = 10.0
 MAX_NORMAL_ANGLE = 10.0
 
@@ -114,6 +117,34 @@ def select_source(target, candidates, texture=lambda item: item):
         fingerprints = {(int(texture(item).m_TextureFormat), hashlib.sha256(bytes(texture(item).get_image_data())).digest()) for item in compatible}
         if len(fingerprints) != 1: return None
     return compatible[0]
+
+
+def select_forest_source(target, candidates, texture=lambda item: item, matches=None):
+    """Select a unique known Forest source after checking every decoded mip."""
+    spec = FOREST_TEXTURES.get(target.m_Name)
+    if not spec or (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount,
+                    int(target.m_TextureFormat)) != (*spec[1:], 1, 45): return None
+    if matches is None:
+        from PIL import ImageChops, ImageStat
+        from UnityPy.export import Texture2DConverter as converter
+        def matches(src):
+            left = mip_slices(bytes(src.get_image_data()), src.m_TextureFormat, src.m_Width, src.m_Height, src.m_MipCount)
+            right = mip_slices(bytes(target.image_data), target.m_TextureFormat, target.m_Width, target.m_Height, target.m_MipCount)
+            for (w, h, a), (_, _, b) in zip(left, right):
+                original = converter.parse_image_data(a, w, h, src.m_TextureFormat, src.object_reader.version, src.object_reader.platform).convert('RGBA')
+                reference = converter.parse_image_data(b, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
+                if not acceptable_texture_error(ImageStat.Stat(ImageChops.difference(original, reference)).mean): return False
+            return True
+    selected = []
+    for item in candidates:
+        src = texture(item)
+        if (src.m_Name, src.m_Width, src.m_Height, src.m_MipCount, src.m_ImageCount, src.m_ColorSpace,
+                int(src.m_TextureFormat)) != (spec[0], *spec[1:], 1, target.m_ColorSpace, 10): continue
+        try:
+            if matches(src): selected.append(item)
+        except (ValueError, OSError, NotImplementedError, TypeError): continue
+    fingerprints = {hashlib.sha256(bytes(texture(item).get_image_data())).digest() for item in selected}
+    return selected[0] if len(fingerprints) == 1 else None
 
 
 def select_shadow_source(target, candidates, texture=lambda item: item):
@@ -232,9 +263,11 @@ def run(args):
                     collision_spec = COLLISION_TEXTURES.get(alias_source)
                     collision = bool(group == 'sharedassets1' and collision_spec and
                                      (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (*collision_spec[:3], 1, collision_spec[4]))
-                    source_name = FONT_ALIASES[target.m_Name] if font_candidate else alias_source if collision else target.m_Name
+                    forest_candidate = group == 'sharedassets1' and target.m_Name in FOREST_TEXTURES
+                    source_name = (FONT_ALIASES[target.m_Name] if font_candidate else alias_source if collision else
+                                   FOREST_TEXTURES[target.m_Name][0] if forest_candidate else target.m_Name)
                     candidates = (resources_index if font_candidate or resource_candidate else index)[(source_name, target.m_Width, target.m_Height)]
-                    src = select_source(target, candidates)
+                    src = select_forest_source(target, candidates) if forest_candidate else select_source(target, candidates)
                     shadow = bool(src is None and shadow_fallback and group == 'sharedassets1' and target.m_Name == 'DropShadow')
                     if shadow: src = select_shadow_source(target, candidates)
                     if src is None:
@@ -290,6 +323,13 @@ def run(args):
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                                     if not acceptable_collision_mip(original, converted): raise ResourceQualityError('collision mip quality differs')
+                                if forest_candidate:
+                                    original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
+                                    converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
+                                    error = ImageStat.Stat(ImageChops.difference(original, converted)).mean
+                                    limit = 12.0 if target.m_Name == 'GRASS_1A' else MAX_MEAN_ERROR
+                                    if len(error) != 4 or any(not math.isfinite(v) or v < 0 or v > limit for v in error):
+                                        raise ResourceQualityError('forest mip quality differs')
                                 encoded_mips.append(encoded)
                             return encoded_mips
                         chunks = encode_mips(font or resource or shadow); high_quality = font or resource or shadow
@@ -317,7 +357,8 @@ def run(args):
                         continue
                     # A high level-zero error indicates a questionable match or
                     # conversion; keep the existing texture for local review.
-                    accepted = acceptable_sdf_image(original_image, converted_image) if font else acceptable_quality_image(original_image, converted_image) if high_quality else acceptable_texture_error(mean)
+                    accepted = (True if forest_candidate else acceptable_sdf_image(original_image, converted_image) if font else
+                                acceptable_quality_image(original_image, converted_image) if high_quality else acceptable_texture_error(mean))
                     if not accepted:
                         if group not in GROUPS: quality_excluded.add(PREFIX + group)
                         outcomes['high_error'] += 1; continue
@@ -331,8 +372,9 @@ def run(args):
                     if resource: rows[-1].update(resource=True, source_name=source_name)
                     if shadow: rows[-1].update(shadow=True)
                     if collision: rows[-1].update(collision_alias=True, source_name=source_name)
+                    if forest_candidate: rows[-1].update(forest_source=True, source_name=source_name, source_sha256=hashlib.sha256(src_data).hexdigest())
                     alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
-                    if group in GROUPS and not shadow and not collision: aliases[alias_key].append((rows[-1], new))
+                    if group in GROUPS and not shadow and not collision and not forest_candidate: aliases[alias_key].append((rows[-1], new))
                     outcomes['converted'] += 1
                 if group not in GROUPS and len(rows) == converted_before: continue
                 offset = 0

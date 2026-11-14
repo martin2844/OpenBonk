@@ -49,6 +49,16 @@ def valid_collision_record(row):
             not any(k in row for k in ('font', 'resource', 'shadow', 'alias_group', 'alias_target_id')))
 
 
+def valid_forest_record(row):
+    spec = study.FOREST_TEXTURES.get(row.get('name'))
+    return (row.get('forest_source') is True and row.get('group') == 'sharedassets1' and spec is not None and
+            row.get('source_name') == spec[0] and isinstance(row.get('source_sha256'), str) and
+            re.fullmatch(r'[0-9a-f]{64}', row['source_sha256']) is not None and
+            row.get('source_format') == 10 and row.get('target_format') == 45 and
+            row.get('normal') is False and row.get('quality') is False and row.get('direct_normal') is False and
+            not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'alias_group', 'alias_target_id')))
+
+
 def file_hash(path):
     with path.open('rb') as stream: return hashlib.file_digest(stream, 'sha256').hexdigest()
 
@@ -122,7 +132,8 @@ def generate(args):
         if 'shadow' in row and not valid_shadow_record(row):
             raise ValueError('invalid shadow texture mapping')
         if 'collision_alias' in row and not valid_collision_record(row): raise ValueError('invalid collision texture mapping')
-        if group in study.GROUPS and 'source_name' in row and row.get('collision_alias') is not True:
+        if 'forest_source' in row and not valid_forest_record(row): raise ValueError('invalid forest texture mapping')
+        if group in study.GROUPS and 'source_name' in row and row.get('collision_alias') is not True and row.get('forest_source') is not True:
             raise ValueError('unexpected source name in shared texture')
         if group not in study.GROUPS and not re.fullmatch(r'[0-9a-f]{32}', group): raise ValueError('invalid texture group')
         if group in study.GROUPS and ('font' in row or 'resource' in row): raise ValueError('resource markers require a standalone texture')
@@ -168,10 +179,17 @@ def generate(args):
                     if key not in objects: raise ValueError('missing target texture')
                     obj = objects[key]; tex = obj.read()
                     found = (resources_index if prior.get('font') is True or prior.get('resource') is True else index)[(prior.get('source_name', tex.m_Name), tex.m_Width, tex.m_Height)]
-                    chosen_source = (study.select_shadow_source(tex, found, texture=lambda item: item[2]) if prior.get('shadow') is True
+                    chosen_source = (next((item for item in found if item[0] == 'sharedassets1' and sha(bytes(item[2].get_image_data())) == prior['source_sha256']), None)
+                                     if prior.get('forest_source') is True else
+                                     study.select_shadow_source(tex, found, texture=lambda item: item[2]) if prior.get('shadow') is True
                                      else study.select_source(tex, found, texture=lambda item: item[2]))
                     if chosen_source is None or tex.m_Name != prior['name']: raise ValueError('source mapping differs')
                     src_group, src_obj, src = chosen_source
+                    if prior.get('forest_source') is True:
+                        spec = study.FOREST_TEXTURES[prior['name']]
+                        if (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount, tex.m_ImageCount) != (*spec[1:], 1)
+                                or src.m_Name != spec[0]):
+                            raise ValueError('forest texture metadata differs')
                     if prior.get('shadow') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (512, 512, 1)):
                         raise ValueError('shadow texture metadata differs')
                     if prior.get('collision_alias') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != study.COLLISION_TEXTURES[prior['source_name']][:3]):
