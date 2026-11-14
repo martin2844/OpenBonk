@@ -113,6 +113,20 @@ class TextureConversionTests(unittest.TestCase):
         target.m_Name = 'Unrelated'
         self.assertIsNone(module.select_forest_source(target, [first], matches=lambda t: True))
 
+    def test_fill_middle_variants_require_a_unique_matching_source(self):
+        class Texture:
+            m_Width, m_Height, m_MipCount, m_ImageCount, m_ColorSpace = 64, 64, 7, 1, 1
+            def __init__(self, name, data, fmt):
+                self.m_Name, self.data, self.m_TextureFormat = name, data, fmt
+            def get_image_data(self): return self.data
+        sources = [Texture('FillMiddle', b'first', 10), Texture('FillMiddle', b'second', 10)]
+        for name in ('FillMiddle_0', 'FillMiddle_1', 'FillMiddle_2'):
+            target = Texture(name, b'target', 45)
+            self.assertIs(module.select_forest_source(target, sources, matches=lambda t: t.data == b'second'), sources[1])
+            self.assertIsNone(module.select_forest_source(target, sources, matches=lambda t: True))
+            target.m_MipCount = 1
+            self.assertIsNone(module.select_forest_source(target, sources, matches=lambda t: True))
+
     def test_shadow_fallback_requires_one_strict_visual_match(self):
         from PIL import Image
         class Texture:

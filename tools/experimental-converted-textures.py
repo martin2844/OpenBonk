@@ -25,7 +25,10 @@ RESOURCE_TEXTURES = frozenset(('GridBox_Collider', 'GridBox_Trigger'))
 COLLISION_TEXTURES = {'bush': (64, 64, 7, 3, 45), 'retaliation': (32, 32, 1, 12, 47)}
 FOREST_TEXTURES = {'Forest1_TopGrass': ('Forest1_TopGrass', 128, 128, 8),
                    'Forest1_TopGrass_0': ('Forest1_TopGrass', 128, 128, 8),
-                   'GRASS_1A': ('GRASS_1A', 64, 64, 7)}
+                   'GRASS_1A': ('GRASS_1A', 64, 64, 7),
+                   'FillMiddle_0': ('FillMiddle', 64, 64, 7),
+                   'FillMiddle_1': ('FillMiddle', 64, 64, 7),
+                   'FillMiddle_2': ('FillMiddle', 64, 64, 7)}
 SHARED0_SDF_NAME = re.compile(r'(?:NotoSans(?:SC|TC|KR|JP|Thai_Condensed)?-Bold|alagard) SDF Atlas(?: [1-9][0-9]*)?\Z')
 MAX_MEAN_ERROR = 10.0
 MAX_NORMAL_ANGLE = 10.0

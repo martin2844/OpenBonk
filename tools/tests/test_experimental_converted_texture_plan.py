@@ -30,6 +30,10 @@ class ConvertedTexturePlanTests(unittest.TestCase):
         for change in ({'group': 'sharedassets2'}, {'source_name': 'other'}, {'source_sha256': 'invalid'},
                        {'target_format': 47}, {'quality': True}, {'shadow': True}, {'name': 'other'}):
             self.assertFalse(module.valid_forest_record(dict(row, **change)))
+        for name in ('FillMiddle_0', 'FillMiddle_1', 'FillMiddle_2'):
+            variant = dict(row, name=name, source_name='FillMiddle')
+            self.assertTrue(module.valid_forest_record(variant))
+            self.assertFalse(module.valid_forest_record(dict(variant, source_name='Forest1_TopGrass')))
 
     def test_collision_mapping_is_limited_to_known_texture_and_format(self):
         row = {'collision_alias': True, 'group': 'sharedassets1', 'name': 'bush__openbonk_8cd6c6a0',
