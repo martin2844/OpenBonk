@@ -127,6 +127,22 @@ def rgba_alias(target, payload, candidates):
     return matches[0]
 
 
+def etc2_alpha_alias(target, payload, candidates, encoder):
+    """Find a unique renamed alpha source for exact byte-level ETC2 restoration."""
+    if (encoder is None or not target.m_Name.endswith('_0') or int(target.m_TextureFormat) != 47 or
+            target.m_ImageCount != 1 or len(payload) < 65536):
+        return None
+    nonzero = len(payload) - payload.count(0)
+    if nonzero < 30000: return None
+    item = study.select_source(target, candidates, texture=lambda x: x[2])
+    if item is None or int(item[2].m_TextureFormat) != 1: return None
+    try: output = converted(item[2], target.m_Width, target.m_Height, target.m_MipCount, 47, encoder)
+    except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): return None
+    if len(output) != len(payload): return None
+    matched = sum(a != 0 and a == b for a, b in zip(payload, output))
+    return (item, output) if matched * 2 >= nonzero else None
+
+
 def generate(args):
     import UnityPy
     source = args.steam_data.resolve(strict=True); obb = args.obb.resolve(strict=True)
@@ -153,7 +169,9 @@ def generate(args):
                 item = study.select_source(target, index[(target.m_Name, target.m_Width, target.m_Height)], texture=lambda x: x[2])
                 output = None
                 if item is None and target.m_Name.endswith('_0'):
-                    alias = rgba_alias(target, payload, index[(target.m_Name[:-2], target.m_Width, target.m_Height)])
+                    candidates = index[(target.m_Name[:-2], target.m_Width, target.m_Height)]
+                    alias = (rgba_alias(target, payload, candidates) if target_format == 4 else
+                             etc2_alpha_alias(target, payload, candidates, encoder))
                     if alias: item, output = alias
                 if item is None: continue
                 group_name, source_id, src = item

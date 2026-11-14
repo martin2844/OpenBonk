@@ -11,6 +11,20 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_renamed_etc2_alpha_requires_unique_source_and_matching_bytes(self):
+        target = SimpleNamespace(m_Name='light_0', m_TextureFormat=47, m_ImageCount=1,
+                                 m_MipCount=1, m_ColorSpace=0, m_Width=256, m_Height=256)
+        source = SimpleNamespace(m_TextureFormat=1, m_ImageCount=1, m_MipCount=1, m_ColorSpace=0)
+        item = ('sharedassets1', 42, source); payload = b'A' * 65536; encoder = object()
+        with patch.object(module.study, 'select_source', return_value=item) as select, \
+                patch.object(module, 'converted', return_value=payload[:32768] + b'B' * 32768) as convert:
+            self.assertEqual(module.etc2_alpha_alias(target, payload, [item], encoder)[0], item)
+            convert.return_value = b'B' * len(payload)
+            self.assertIsNone(module.etc2_alpha_alias(target, payload, [item], encoder))
+            select.return_value = None
+            self.assertIsNone(module.etc2_alpha_alias(target, payload, [item], encoder))
+            self.assertIsNone(module.etc2_alpha_alias(target, payload, [item], None))
+
     def test_renamed_rgba_requires_near_exact_unambiguous_candidate(self):
         target = SimpleNamespace(m_Name='Scorpion_0', m_TextureFormat=4, m_ImageCount=1,
                                  m_MipCount=1, m_ColorSpace=0, m_Width=128, m_Height=128)
