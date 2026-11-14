@@ -2,8 +2,9 @@
 """Compare selected scene behaviour references between local Unity builds.
 
 The report contains game-derived paths, identities and names; keep it private.
-Only RandomSfx, Lava and InteractablePot serialized layouts are checked. Names
-and pointer identities do not establish asset contents or gameplay equivalence.
+Only RandomSfx, Lava, InteractablePot and Unity UI Image/RawImage serialized
+layouts are checked. Names and pointer identities do not establish asset
+contents or gameplay equivalence.
 Requires UnityPy and the exact supported Unity 2023.2 Android serialized layouts.
 """
 import argparse
@@ -17,7 +18,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location('scene_content_inventory', ROOT / 'tools/compare-unity-build-content.py')
 inventory = importlib.util.module_from_spec(spec); spec.loader.exec_module(inventory)
-CLASSES = frozenset(('RandomSfx', 'Lava', 'InteractablePot'))
+CLASSES = frozenset(('RandomSfx', 'Lava', 'InteractablePot', 'Image', 'RawImage'))
 
 
 def normalized_tail(cls, data, resolve):
@@ -35,6 +36,9 @@ def normalized_tail(cls, data, resolve):
     if cls == 'InteractablePot':
         if len(data) < 80: raise ValueError('unexpected pot layout')
         return [data[:20].hex(), [pointer(20 + i * 12) for i in range(5)], data[80:].hex()]
+    if cls in ('Image', 'RawImage'):
+        if len(data) != (104 if cls == 'Image' else 84): raise ValueError('unexpected UI image layout')
+        return [pointer(0), data[12:56].hex(), pointer(56), data[68:].hex()]
     raise ValueError('unsupported behaviour')
 
 
@@ -44,9 +48,8 @@ def read_build(paths):
     for path in paths:
         with zipfile.ZipFile(path) as z:
             for name, parts in inventory.asset_groups(z).items():
-                if name == 'globalgamemanagers.assets' or name.startswith(('level', 'sharedassets')):
-                    if name in groups: raise ValueError('duplicate serialized group')
-                    groups[name] = b''.join(z.read(part) for part in parts)
+                if name in groups: raise ValueError('duplicate serialized group')
+                groups[name] = b''.join(z.read(part) for part in parts)
     if 'globalgamemanagers.assets' not in groups: raise ValueError('missing global game managers')
     scripts = {}
     for obj in UnityPy.load(groups['globalgamemanagers.assets']).objects:
@@ -54,10 +57,10 @@ def read_build(paths):
             item = obj.read(); scripts[obj.path_id] = (item.m_AssemblyName, item.m_Namespace, item.m_ClassName)
     assets = {}; problems = []; result = {}
     for name, raw in groups.items():
-        if not name.startswith('sharedassets'): continue
+        if name.startswith('level'): continue
         entries = {}
         for obj in UnityPy.load(raw).objects:
-            if obj.type.name not in ('GameObject', 'AudioClip'): continue
+            if obj.type.name not in ('GameObject', 'AudioClip', 'Material', 'Sprite', 'Texture2D', 'RenderTexture'): continue
             try:
                 value = obj.read(); object_name = value.m_Name
                 if isinstance(object_name, str) and object_name: entries[obj.path_id] = [obj.type.name, object_name]
@@ -82,6 +85,7 @@ def read_build(paths):
                     raise ValueError('unresolved script reference')
                 identity = scripts.get(script['m_PathID'])
                 if not identity or identity[2] not in CLASSES: continue
+                if identity[2] in ('Image', 'RawImage') and identity[:2] != ('UnityEngine.UI', 'UnityEngine.UI'): continue
                 raw_data = obj.get_raw_data()
                 if len(raw_data) < 32: raise ValueError('truncated behaviour header')
                 key = (group, obj.path_id, *identity)
@@ -107,11 +111,11 @@ def main():
     counts = Counter(key[-1] for key in matched if a[key] == b[key])
     def key_json(key): return list(key)
     result = {'schema': 1, 'matched_by_class': dict(sorted(counts.items())),
-              'different': [key_json(key) for key in sorted(matched) if a[key] != b[key]],
+              'different': [{'key': key_json(key), 'reference': a[key], 'candidate': b[key]} for key in sorted(matched) if a[key] != b[key]],
               'reference_only': [key_json(key) for key in sorted(a.keys() - b.keys())],
               'candidate_only': [key_json(key) for key in sorted(b.keys() - a.keys())],
               'reference_problems': pa, 'candidate_problems': pb,
-              'limitations': 'Only three specific scene behaviour layouts are checked. Named external references are matched by type and name, not content. Local object IDs and non-reference bytes are compared directly. Asset bundles, executable code and gameplay are not compared.'}
+              'limitations': 'Only five specific scene behaviour layouts are checked. Named external references are matched by type and name, not content. Local object IDs and non-reference bytes are compared directly. Asset bundles, executable code and gameplay are not compared.'}
     with output.open('x', encoding='utf-8') as f: json.dump(result, f, indent=2); f.write('\n')
     print('Matched by class:', dict(counts), '; different:', len(result['different']), '; unresolved/read problems:', len(pa) + len(pb), flush=True)
 
