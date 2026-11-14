@@ -54,6 +54,18 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertIn('--check', run.call_args.args[0]); self.assertFalse(self.out.exists())
 
     @patch.object(module.subprocess, 'run')
+    def test_noexec_output_fails_before_export_and_leaves_no_output(self, run):
+        with patch.object(module, 'output_allows_execution', return_value=False):
+            with self.assertRaises(SystemExit): self.invoke('--check')
+        run.assert_not_called()
+        self.assertFalse(self.out.exists())
+
+    def test_execution_probe_leaves_no_file(self):
+        before = set(self.root.iterdir())
+        self.assertTrue(module.output_allows_execution(self.root))
+        self.assertEqual(before, set(self.root.iterdir()))
+
+    @patch.object(module.subprocess, 'run')
     def test_builds_in_order_and_preserves_workspace_paths(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         self.invoke()

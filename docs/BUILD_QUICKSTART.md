@@ -4,7 +4,7 @@ This guide is for developers on Linux x86-64. It builds OpenBonk from this check
 
 ## Prerequisites
 
-- Git, Python 3.13 with `venv`, a C++17 compiler, `tar`, and substantial free disk space for Unity and intermediate files. Allow at least 35 GB for a dual-platform build; local tests recovered space during the run by removing verified intermediate Gradle exports.
+- Git, Python 3.13 with `venv`, a C++17 compiler, `tar`, and substantial free disk space for Unity and intermediate files. Allow at least 35 GB for a dual-platform build; local tests recovered space during the run by removing verified intermediate Gradle exports. The output must be on a filesystem that permits executing generated scripts; a `noexec` mount caused Gradle's Android build to fail in a local test.
 - [Unity 2023.2.22f1](https://unity.com/releases/editor/archive) with Android Build Support, its SDK, NDK and OpenJDK. Activate Unity in Unity Hub before building.
 - [AssetRipper 2.0.0](https://github.com/AssetRipper/AssetRipper/releases/tag/2.0.0), Linux x64 free edition. The executable must report `AssetRipper.GUI.Web 2.0.0`.
 - A compatible **Linux Steam installation** of Megabonk. Optionally provide a compatible Windows installation as a second input to make a launcher that accepts either platform's Steam ZIP. Each installation needs its own `Megabonk_Data` directory. The build does not download the game.
@@ -54,6 +54,8 @@ build_args=(
 ```
 
 On systems that require `steam-run` for native binaries, add `--runner steam-run` to `build_args` and run Python in a compatible environment. One Linux host needed a higher open-file limit (`ulimit -n 65536`) for Unity; this is host-specific, not a guarantee. The conversion options are experimental and can make first import take several minutes.
+
+The initial check creates and removes a temporary file in the output's parent to test executable permission. If it reports `noexec`, choose a different output location; Android Gradle generates scripts that must run from the build directory.
 
 On success, the dual-platform APK is under `dual-launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk` within the output directory. For Linux-only builds it is under `research/launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk`. Failure logs and intermediate data remain in the output directory. Do not publish this APK, the output directory, your Steam ZIPs, saves, or signing keys.
 

@@ -7,11 +7,13 @@ game data and are not redistributable. Gameplay fidelity is not established.
 """
 import argparse
 import importlib.util
+import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from types import SimpleNamespace
 import zipfile
 
@@ -20,6 +22,17 @@ TOOLS = ROOT / 'tools'
 spec = importlib.util.spec_from_file_location('local_research_chain', TOOLS / 'build-local-research-chain.py')
 research_chain = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(research_chain)
+
+
+def output_allows_execution(parent):
+    """Check whether generated Gradle helper scripts can be executed here."""
+    fd, name = tempfile.mkstemp(prefix='.openbonk-exec-check-', dir=parent)
+    try:
+        os.fchmod(fd, 0o700)
+        return os.access(name, os.X_OK)
+    finally:
+        os.close(fd)
+        os.unlink(name)
 
 
 def commands(a):
@@ -112,6 +125,11 @@ def main():
     if a.partial_etc2 and (not a.partial_rgba or not a.quality_textures): p.error('--partial-etc2 requires --partial-rgba and --quality-textures')
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')
     a.output = output.parent.resolve() / output.name
+    try:
+        if not output_allows_execution(a.output.parent):
+            p.error('output filesystem must allow executing generated Gradle scripts; choose a mount without noexec')
+    except OSError as error:
+        p.error('cannot check output filesystem: ' + str(error))
     if a.windows_steam_zip and not a.windows_game: p.error('Windows ZIP requires --windows-game')
     for name in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home', 'windows_game', 'windows_steam_zip'):
         value = getattr(a, name)
