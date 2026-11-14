@@ -17,6 +17,8 @@ For a concise procedure to build a private research APK from a checkout and loca
 
 The local runtime work used Unity 2023.2.22f1 and Android ARM64. Reconstructing a working project also requires the appropriate Unity Android toolchain, compatible game data and unresolved third-party components. No personal Steam data, saves or signing keys are included. Reproducible clean setup, dependency provenance and licensing remain work to do.
 
+In a local source comparison after commit `575db1b`, all 1,282 C# files under the earlier reconstructed project's `Assets/Scripts` were present at the same relative paths in this checkout. Four differed: the checkout includes later changes to profile import, original atlas and localization loading, and map edges. All 18 split-launcher Java files, the mod-picker Java file and 71 shader source files were also present; only `SplitDataLauncher.java` differed, with the later split-launcher intent marker. The workspace used in the clean `b1a20e8` build contained byte-identical copies of all 1,282 C# files, those 19 Java files and the 71 shader files from this checkout. This checks those source paths and contents only; it does not prove which sources produced the published beta, compare every project input, or establish compiled and gameplay equivalence.
+
 The Steam data-preparation Java sources and three inputs used to generate position-mask constants are included. To check this component with Python 3, a JDK and an existing org.json 20180813 JAR:
 
 ```sh
