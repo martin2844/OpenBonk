@@ -1,5 +1,6 @@
 # Local and generated data must not enter source control.
 /build/
+/.venv/
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/

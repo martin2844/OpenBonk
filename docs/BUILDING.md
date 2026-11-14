@@ -2,6 +2,8 @@
 
 This checkout exposes the current reconstruction and tools for inspection and development. **A clean checkout is not yet sufficient to rebuild the published APK.** The original local build depended on an exported Unity project, original game assets, third-party plugins, generated plans and binary intermediates that are not all included here. Some editor and research diagnostics still contain `/home/your-user` placeholders where local paths were removed; configure them for your environment before using them. Do not interpret a missing local input or an untested build as a working release pipeline.
 
+For a concise procedure to build a private research APK from a checkout and local Steam data, start with the [build quickstart](BUILD_QUICKSTART.md).
+
 ## Layout
 
 - `unity/OpenBonk/Assets/Scripts/` — reconstructed C# game and Android integration scripts.
