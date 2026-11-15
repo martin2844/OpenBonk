@@ -38,6 +38,15 @@ class AttackPrefabTests(unittest.TestCase):
         self.assertEqual(result['reference_attacks'], 1)
         self.assertEqual(result['differences'][0]['enemy'], 'enemy')
 
+    def test_detects_child_hierarchy_changes(self):
+        tree = {'name': 'Root', 'children': [{'name': 'Child', 'local_position': [0, 1, 0], 'children': []}]}
+        reference = {('enemy', 0): {'attack': 'Attack', 'target': 'Root', 'hierarchy': tree}}
+        candidate = copy.deepcopy(reference)
+        candidate[('enemy', 0)]['hierarchy']['children'][0]['local_position'][1] = 2
+        result = module.compare(reference, candidate)
+        self.assertEqual(result['reference_object_occurrences'], 2)
+        self.assertEqual(len(result['differences']), 1)
+
     def test_rejects_inventory_from_different_apk_or_obb(self):
         with tempfile.TemporaryDirectory() as temp:
             apk, obb = Path(temp) / 'one.apk', Path(temp) / 'one.obb'
