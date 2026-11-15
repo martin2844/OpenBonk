@@ -7,6 +7,7 @@ pointers have not been mapped or validated; this does not build an APK.
 Requires UnityPy 1.25.4 and TypeTreeGeneratorAPI 0.0.10.
 """
 import argparse
+import hashlib
 import importlib.metadata
 import importlib.util
 import json
@@ -149,7 +150,11 @@ def main():
     if len(rows) != expected or len({row['data'][id_field] for row in rows}) != expected:
         raise ValueError(f'unexpected data count or duplicate ID: {len(rows)} records, '
                          f'{len({row["data"][id_field] for row in rows})} unique')
-    payload = {'schema': 1, 'unity_version': '2023.2.22f1', plural: rows,
+    input_hashes = []
+    for path in inputs:
+        with path.open('rb') as stream:
+            input_hashes.append(hashlib.file_digest(stream, 'sha256').hexdigest())
+    payload = {'schema': 1, 'unity_version': '2023.2.22f1', 'input_sha256': input_hashes, plural: rows,
                'notice': 'Game-derived data; Unity object pointers require additional mapping.'}
     encoded = (json.dumps(payload, indent=2, ensure_ascii=False, allow_nan=False) + '\n').encode('utf-8')
     fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)

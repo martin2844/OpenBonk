@@ -1,0 +1,53 @@
+import copy
+import importlib.util
+from pathlib import Path
+import tempfile
+import unittest
+
+spec = importlib.util.spec_from_file_location('attack_prefabs', Path(__file__).resolve().parents[1] / 'compare-enemy-attack-prefabs.py')
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+
+def document():
+    return {'schema': 1, 'unity_version': '2023.2.22f1',
+            'enemies': [{'source_group': f'enemy-{i}', 'external_files': ['target-file'],
+                         'data': {'m_Name': f'enemy-{i}', 'specialAttacks': [
+                             {'attackName': 'Attack', 'attackPrefab': {'m_FileID': 1, 'm_PathID': 10}}]}}
+                        for i in range(53)]}
+
+
+class AttackPrefabTests(unittest.TestCase):
+    def test_resolves_local_external_and_null_pointers(self):
+        data = document()
+        data['enemies'][1]['data']['specialAttacks'][0]['attackPrefab'] = {'m_FileID': 0, 'm_PathID': 5}
+        data['enemies'][2]['data']['specialAttacks'][0]['attackPrefab'] = {'m_FileID': 0, 'm_PathID': 0}
+        result = module.targets(data)
+        self.assertEqual((result[('enemy-0', 0)]['group'], result[('enemy-0', 0)]['path_id']), ('target-file', 10))
+        self.assertEqual(result[('enemy-1', 0)]['group'], 'enemy-1')
+        self.assertIsNone(result[('enemy-2', 0)]['target'])
+        data['enemies'][0]['data']['specialAttacks'][0]['attackPrefab']['m_FileID'] = 2
+        with self.assertRaises(ValueError):
+            module.targets(data)
+
+    def test_detects_root_component_changes(self):
+        reference = {('enemy', 0): {'attack': 'Attack', 'target': 'Root', 'components': [['Transform'], ['MonoBehaviour', 'A', '', 'Strike']]}}
+        candidate = copy.deepcopy(reference)
+        candidate[('enemy', 0)]['components'][1][-1] = 'OtherStrike'
+        result = module.compare(reference, candidate)
+        self.assertEqual(result['reference_attacks'], 1)
+        self.assertEqual(result['differences'][0]['enemy'], 'enemy')
+
+    def test_rejects_inventory_from_different_apk_or_obb(self):
+        with tempfile.TemporaryDirectory() as temp:
+            apk, obb = Path(temp) / 'one.apk', Path(temp) / 'one.obb'
+            apk.write_bytes(b'apk')
+            obb.write_bytes(b'obb')
+            data = document()
+            data['input_sha256'] = ['wrong', 'wrong']
+            with self.assertRaisesRegex(ValueError, 'does not match'):
+                module.read_build(apk, obb, data, Path(temp))
+
+
+if __name__ == '__main__':
+    unittest.main()
