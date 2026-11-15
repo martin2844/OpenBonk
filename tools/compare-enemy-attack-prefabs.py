@@ -84,14 +84,14 @@ def targets(document):
     return result
 
 
-def read_build(apk, obb, document, temp_root, generator=None):
+def read_build(apk, obb, document, temp_root, generator=None, target_loader=None):
     hashes = []
     for path in (apk, obb):
         with path.open('rb') as stream:
             hashes.append(hashlib.file_digest(stream, 'sha256').hexdigest())
     if document.get('input_sha256') != hashes:
         raise ValueError('enemy inventory does not match APK/OBB inputs')
-    result = targets(document)
+    result = (targets if target_loader is None else target_loader)(document)
     selected = {'globalgamemanagers.assets'} | {row['group'] for row in result.values() if 'group' in row}
     files = {}
     for path in (apk, obb):
