@@ -525,7 +525,7 @@ To request the dual-platform research configuration used in the later clean-clon
 ```sh
   --windows-game /path/to/windows/Megabonk \
   --include-rewired --quality-textures --font-fallback \
-  --resource-fallback --shadow-fallback --partial-rgba --gradle-online
+  --resource-fallback --shadow-fallback --partial-rgba --shared0-fonts --gradle-online
 ```
 
 Add these options before the command's final line or extend that line with a trailing `\`. On systems using `steam-run`, also pass `--runner steam-run` and run Python in a compatible environment. The complete local dual test reused native libraries, a decoder and Steam ZIPs; building those components from the checkout was checked separately. Both local game installations and the generated APKs, plans and intermediate data must stay private.
