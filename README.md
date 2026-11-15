@@ -1,5 +1,11 @@
 # OpenBonk
 
+[![Release](https://img.shields.io/github/v/release/martin2844/OpenBonk?include_prereleases&label=release&color=ff9f0a)](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta)
+[![Status: beta](https://img.shields.io/badge/status-beta-8b5cf6)](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta)
+[![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84?logo=android&logoColor=white)](#start-playing)
+[![Lua mods: experimental](https://img.shields.io/badge/Lua%20mods-experimental-5468ff?logo=lua&logoColor=white)](docs/MODDING.md)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/martin2844)
+
 **Play Megabonk on Android with a native launcher, controller or touch input, and experimental Lua mods.**
 
 OpenBonk is an unofficial community project in beta. Bring your own compatible Steam copy of Megabonk: the launcher prepares its data on your Android device.
@@ -49,6 +55,10 @@ The repository contains reconstructed C# game scripts, the Android launcher and 
 - [Unity source](unity/OpenBonk/Assets/) · [Lua runtime](native/lua/) · [Mod examples](mods/) · [Preparation tools](tools/)
 
 The checkout cannot yet reproduce the published APK on its own: parts of the Unity project, third-party dependencies, generated plans and game-derived data are not included. The local research APK is not a redistributable release.
+
+## Support the project
+
+If you enjoy OpenBonk and would like to support its development, you can [buy Martin a coffee](https://buymeacoffee.com/martin2844).
 
 ## Privacy and attribution
 
