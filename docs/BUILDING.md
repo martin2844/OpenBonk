@@ -531,6 +531,8 @@ For the later clean `367e0fe` dual APK, a fresh minimal post-processing project 
 
 The same inventory and in-memory shader study were repeated for the clean `e7c5ef6` dual APK using that independently built bundle. Each template contained 1,072 readable entries; Linux had 7,482,204 nonzero bytes and Windows 8,366,957, including headers and metadata. No whole template entry matched a whole supplied Steam ZIP entry. All 694 hashed files in each template were classified; 33 shader files contained 1,484,825 and 1,504,706 nonzero bytes respectively, and 127 texture files contained 439,279 in each. The separately built bundle again restored the tested shared-asset group exactly after masking 222,039 Linux and 233,547 Windows nonzero bytes across 23 shader objects. This is a desktop study of selected ranges, not an Android implementation, a complete content inventory or a rights determination; the APK and reports remain private.
 
+The fresh `4db0f61` dual APK's templates were inventoried separately against their corresponding generated Steam ZIPs. Each had 1,072 readable entries and no whole-entry Steam match; Linux had 7,482,445 nonzero bytes and Windows 8,367,198. All 694 hashed files in each template were classified. These whole-file counts include metadata and do not identify ownership or establish distribution rights; the APK and reports remain private.
+
 To repeat that in-memory study with a separately built bundle and the corresponding private OBB:
 
 ```sh
