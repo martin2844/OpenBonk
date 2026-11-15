@@ -9,6 +9,14 @@ spec.loader.exec_module(module)
 
 
 class PlayableInventoryTests(unittest.TestCase):
+    def test_script_resolution_distinguishes_local_global_and_unknown_references(self):
+        local = {7: ('Unity.Localization', 'LocalizationSettings')}
+        global_scripts = {7: ('Assembly-CSharp', 'CharacterData')}
+        self.assertEqual(module.script_identity(0, 7, None, local, global_scripts), local[7])
+        self.assertEqual(module.script_identity(1, 7, 'globalgamemanagers.assets', local, global_scripts), global_scripts[7])
+        self.assertIsNone(module.script_identity(1, 7, 'other.assets', local, global_scripts))
+        self.assertIsNone(module.script_identity(0, 8, None, local, global_scripts))
+
     def test_counts_duplicate_names_and_both_sides_of_difference(self):
         reference = defaultdict(Counter, {'WeaponData': Counter({'same': 2, 'old': 1})})
         candidate = defaultdict(Counter, {'WeaponData': Counter({'same': 1, 'new': 1})})

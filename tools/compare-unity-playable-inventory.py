@@ -23,6 +23,14 @@ spec.loader.exec_module(inventory)
 CLASSES = frozenset(('CharacterData', 'WeaponData', 'ItemData', 'MapData', 'StageData'))
 
 
+def script_identity(file_id, path_id, external, local_scripts, global_scripts):
+    if file_id == 0:
+        return local_scripts.get(path_id)
+    if external == 'globalgamemanagers.assets':
+        return global_scripts.get(path_id)
+    return None
+
+
 def read_build(paths):
     groups = {}
     for path in paths:
@@ -40,7 +48,7 @@ def read_build(paths):
             scripts[obj.path_id] = (script.m_AssemblyName, script.m_ClassName)
     result = defaultdict(Counter)
     problems = []
-    unresolved = 0
+    unresolved = []
     for group, raw in groups.items():
         try:
             env = UnityPy.load(raw)
@@ -50,6 +58,15 @@ def read_build(paths):
             problems.append({'group': group, 'error': type(error).__name__})
             continue
         externals = env.objects[0].assets_file.externals
+        local_scripts = {}
+        for obj in env.objects:
+            if obj.type.name != 'MonoScript':
+                continue
+            try:
+                script = obj.read()
+                local_scripts[obj.path_id] = (script.m_AssemblyName, script.m_ClassName)
+            except Exception as error:
+                problems.append({'group': group, 'path_id': obj.path_id, 'error': type(error).__name__})
         for obj in env.objects:
             if obj.type.name != 'MonoBehaviour':
                 continue
@@ -59,12 +76,11 @@ def read_build(paths):
                 file_id = pointer['m_FileID']
                 external = (str(externals[file_id - 1].path).replace('\\', '/').rsplit('/', 1)[-1]
                             if 0 < file_id <= len(externals) else None)
-                if external != 'globalgamemanagers.assets':
-                    unresolved += 1
-                    continue
-                identity = scripts.get(pointer['m_PathID'])
+                identity = script_identity(file_id, pointer['m_PathID'], external, local_scripts, scripts)
                 if identity is None:
-                    unresolved += 1
+                    unresolved.append({'group': group, 'path_id': obj.path_id,
+                                       'object_name': base.get('m_Name'), 'script_file_id': file_id,
+                                       'script_path_id': pointer['m_PathID'], 'script_external': external})
                 elif identity[0] == 'Assembly-CSharp' and identity[1] in CLASSES:
                     name = base.get('m_Name')
                     if not isinstance(name, str) or not name:
@@ -109,12 +125,13 @@ def main():
     report = {'schema': 1, 'input_sha256': dict(zip(('reference_apk', 'reference_obb', 'candidate_apk', 'candidate_obb'), hashes)),
               'classes': compare(ref, candidate),
               'reference_problems': ref_problems, 'candidate_problems': candidate_problems,
-              'reference_unresolved_scripts': ref_unresolved, 'candidate_unresolved_scripts': candidate_unresolved,
+              'reference_unresolved_scripts': len(ref_unresolved), 'candidate_unresolved_scripts': len(candidate_unresolved),
+              'reference_unresolved_details': ref_unresolved, 'candidate_unresolved_details': candidate_unresolved,
               'limitations': 'Names and counts only; unresolved scripts, bundles, fields, references, code and gameplay are not compared.'}
     with output.open('x', encoding='utf-8') as stream:
         json.dump(report, stream, ensure_ascii=False, indent=2)
         stream.write('\n')
-    print('Compared selected names; report remains private. Unresolved scripts:', ref_unresolved, candidate_unresolved)
+    print('Compared selected names; report remains private. Unresolved scripts:', len(ref_unresolved), len(candidate_unresolved))
 
 
 if __name__ == '__main__':
