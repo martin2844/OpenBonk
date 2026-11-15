@@ -64,6 +64,7 @@ namespace Assets.Scripts.Saves___Serialization.Progression.Challenges
 			MyPlayer.A_PlayerInventoryInitialized -= OnInventoryInitialized;
 			EnemyManager.A_StageBossDied -= OnStagebossDefeated;
 			CleanupChallengeModifiers();
+			modifierNames.Clear();
 			initializedInventory = null;
 		}
 

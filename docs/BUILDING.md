@@ -512,7 +512,11 @@ python3 tools/check-unity-gameplay.py \
   --output /path/to/new-private-check-logs
 ```
 
-Add `--runner steam-run` if needed. These checks exercise input bindings, menu A/B swapping, chest skipping and navigation, challenge completion, boss bars, camera fading, character selection, Android scene identification, a character encounter, Aura combat, and generation of outdoor collision and original dungeon rooms. The tool checks success markers and exit status, and its logs remain local. It does not exercise the APK, physical controls, rendering or a complete game session.
+Add `--runner steam-run` if needed. These checks exercise input bindings, menu A/B swapping, chest skipping and navigation, challenge completion and cleanup, boss bars, camera fading, character selection, Android scene identification, a character encounter, Aura combat, and generation of outdoor collision and original dungeon rooms. The tool checks success markers and exit status, and its logs remain local. It does not exercise the APK, physical controls, rendering or a complete game session.
+
+`ChallengeTrackerCleanupCheck` specifically checks that cleaning up a challenge calls its cleanup callbacks and removes active modifier names. Before the cleanup fix, an editor run failed because `no_xp` remained registered; after the fix, the same check passed in the prepared `367e0fe` workspace. This is a component check and does not verify an Android challenge run or a new APK.
+
+All 13 checks subsequently passed in that workspace after applying the cleanup fix and updated test fixture.
 
 All 12 checks passed in the local workspace from the clean `043a365` build after updating the character-selection test fixture to initialize the experience table as the real startup does. The generation check uses original scene assets and a temporary test scene; the wrapper rejects an existing test scene and removes the one it creates. These results do not demonstrate a complete menu-to-game flow or gameplay on Android.
 

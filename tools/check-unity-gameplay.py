@@ -21,6 +21,7 @@ CHECKS = (
     ('ChestSkipPortCheck', 'passed', False),
     ('ChestNavigationBindingCheck', 'PASSED', True),
     ('ChallengeShrinePlayCheck', 'PASS', True),
+    ('ChallengeTrackerCleanupCheck', 'passed', False),
     ('BossHealthBarPlayCheck', 'PASS', True),
     ('CameraFadeObjectPortCheck', 'passed', False),
     ('CharacterSelectionPortCheck', 'passed', False),

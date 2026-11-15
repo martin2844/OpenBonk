@@ -24,8 +24,51 @@ public class ChallengeTrackerTestCondition : ChallengeWinCondition
 	public override void Cleanup() { cleaned++; }
 }
 
+public static class ChallengeTrackerCleanupCheck
+{
+	public static void Run() { ChallengeTrackerPortCheck.RunCleanup(); }
+}
+
 public static class ChallengeTrackerPortCheck
 {
+	public static void RunCleanup()
+	{
+		RunConfig oldConfig = MapController.runConfig;
+		Action oldRun = MapController.A_NewRunStarted;
+		var data = ScriptableObject.CreateInstance<ChallengeData>();
+		var source = ScriptableObject.CreateInstance<ChallengeTrackerTestModifier>();
+		var condition = ScriptableObject.CreateInstance<ChallengeTrackerTestCondition>();
+		ChallengeModifier clone = null;
+		ChallengeWinCondition conditionClone = null;
+		try
+		{
+			MapController.A_NewRunStarted = null;
+			source.internalName = "no_xp";
+			source.statModifiers = Array.Empty<Assets.Scripts.Inventory__Items__Pickups.Stats.StatModifier>();
+			data.challengeModifiers = new ChallengeModifier[] { source };
+			data.winCondition = condition;
+			MapController.runConfig = new RunConfig { challenge = data };
+			ChallengesTracker.Init();
+			MapController.A_NewRunStarted();
+			clone = ChallengesTracker.challengeModifiers[0];
+			conditionClone = (ChallengeWinCondition)typeof(ChallengesTracker).GetField("winCondition", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
+			Check(ChallengesTracker.HasChallengeModifier("no_xp"), "modifier active before tracker cleanup");
+			ChallengesTracker.Cleanup();
+			Check(((ChallengeTrackerTestModifier)clone).cleaned == 1 && ((ChallengeTrackerTestCondition)conditionClone).cleaned == 1, "tracker cleanup callbacks");
+			Check(!ChallengesTracker.HasChallengeModifier("no_xp") && ChallengesTracker.GetChallengeModifiers().Count == 0, "tracker cleanup clears modifier membership");
+			Debug.Log("ChallengeTrackerCleanupCheck passed");
+		}
+		finally
+		{
+			ChallengesTracker.Cleanup();
+			MapController.runConfig = oldConfig;
+			MapController.A_NewRunStarted = oldRun;
+			UnityEngine.Object.DestroyImmediate(data); UnityEngine.Object.DestroyImmediate(source); UnityEngine.Object.DestroyImmediate(condition);
+			if (clone != null) UnityEngine.Object.DestroyImmediate(clone);
+			if (conditionClone != null) UnityEngine.Object.DestroyImmediate(conditionClone);
+		}
+	}
+
 	public static void Run()
 	{
 		RunConfig oldConfig = MapController.runConfig;
