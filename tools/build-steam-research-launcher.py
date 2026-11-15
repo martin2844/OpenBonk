@@ -6,6 +6,7 @@ Gradle project, then runs the research reconstruction chain. Outputs contain
 game data and are not redistributable. Gameplay fidelity is not established.
 """
 import argparse
+import importlib
 import importlib.util
 import os
 from pathlib import Path
@@ -33,6 +34,15 @@ def output_allows_execution(parent):
     finally:
         os.close(fd)
         os.unlink(name)
+
+
+def check_conversion_imports():
+    """Load conversion modules now, including their native dependencies."""
+    for name in ('UnityPy.export.Texture2DConverter', 'PIL.Image', 'etcpak', 'texture2ddecoder'):
+        try:
+            importlib.import_module(name)
+        except (ImportError, OSError) as error:
+            raise ValueError(f'cannot load conversion module {name}: {error}') from error
 
 
 def commands(a):
@@ -171,7 +181,10 @@ def main():
     aapt2 = android / 'SDK/build-tools/34.0.0/aapt2'
     if not aapt2.is_file() or any(c.isspace() for c in str(aapt2)):
         p.error('Unity Android build-tools 34.0.0 aapt2 is required at a path without spaces')
-    if importlib.util.find_spec('UnityPy') is None: p.error('UnityPy missing from active Python environment')
+    try:
+        check_conversion_imports()
+    except ValueError as error:
+        p.error(str(error) + '; install tools/requirements-conversion.txt and ensure native libraries are available to Python')
     try:
         research_chain.validate_steam_inputs((a.game / 'Megabonk_Data').resolve(), a.steam_zip)
         if a.windows_game:

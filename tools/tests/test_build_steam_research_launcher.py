@@ -40,17 +40,31 @@ class SteamResearchBuildTests(unittest.TestCase):
                      '--json-jar', str(self.jar), '--output', str(self.out), '--application-id', 'com.example.openbonk']
 
     def invoke(self, *extra):
-        with patch.object(sys, 'argv', self.argv + list(extra)), patch.object(module.importlib.util, 'find_spec', return_value=object()), \
+        with patch.object(sys, 'argv', self.argv + list(extra)), patch.object(module, 'check_conversion_imports'), \
                 patch.object(module.research_chain, 'validate_steam_inputs'), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()): module.main()
 
     def test_bad_steam_data_fails_before_unity_export(self):
-        with patch.object(sys, 'argv', self.argv), patch.object(module.importlib.util, 'find_spec', return_value=object()), \
+        with patch.object(sys, 'argv', self.argv), patch.object(module, 'check_conversion_imports'), \
                 patch.object(module.research_chain, 'validate_steam_inputs', side_effect=ValueError('unsupported data')), \
                 patch.object(module.subprocess, 'run') as run, contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit): module.main()
             run.assert_not_called()
             self.assertFalse(self.out.exists())
+
+    @patch.object(module.subprocess, 'run')
+    def test_missing_native_conversion_library_fails_before_export(self, run):
+        with patch.object(sys, 'argv', self.argv), \
+                patch.object(module, 'check_conversion_imports', side_effect=ValueError('missing native library')), \
+                contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit): module.main()
+        run.assert_not_called()
+        self.assertFalse(self.out.exists())
+
+    def test_conversion_import_error_identifies_module(self):
+        with patch.object(module.importlib, 'import_module', side_effect=OSError('missing native library')):
+            with self.assertRaisesRegex(ValueError, 'UnityPy.export.Texture2DConverter.*missing native library'):
+                module.check_conversion_imports()
 
     @patch.object(module.subprocess, 'run')
     def test_bad_json_jar_fails_before_export(self, run):
