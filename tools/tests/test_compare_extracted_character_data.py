@@ -44,6 +44,22 @@ class CompareCharacterDataTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.compare(document(), candidate, kind='weapon')
 
+    def test_item_inventory_matches_ids_independent_of_order_and_rejects_duplicates(self):
+        items = {'schema': 1, 'unity_version': '2023.2.22f1',
+                 'items': [{'data': {'eItem': i, 'rarity': i % 3,
+                                     'icon': {'m_FileID': 1, 'm_PathID': i}}} for i in range(87)]}
+        candidate = copy.deepcopy(items)
+        candidate['items'].reverse()
+        candidate['items'][0]['data']['rarity'] = 99
+        candidate['items'][1]['data']['icon']['m_PathID'] = 999
+        result = module.compare(items, candidate, kind='item')
+        self.assertEqual(result['reference_items'], 87)
+        self.assertEqual(result['pointers_skipped'], 87)
+        self.assertEqual(result['differences'][0]['path'], [86, 'rarity'])
+        candidate['items'][1]['data']['eItem'] = 86
+        with self.assertRaises(ValueError):
+            module.compare(items, candidate, kind='item')
+
     def test_upgrade_inventory_matches_by_name_and_rejects_duplicates(self):
         upgrades = {'schema': 1, 'unity_version': '2023.2.22f1',
                     'upgrades': [{'data': {'m_Name': f'upgrade-{i}', 'upgradeModifiers': [i]}} for i in range(29)]}
