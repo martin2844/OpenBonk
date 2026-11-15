@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using Assets.Scripts.Utility;
 using UnityEngine;
 
@@ -33,17 +32,7 @@ public class AnimatedMesh : MonoBehaviour
 
 	public bool testing;
 
-	public event AnimationEndEvent OnAnimationEnd
-	{
-		[CompilerGenerated]
-		add
-		{
-		}
-		[CompilerGenerated]
-		remove
-		{
-		}
-	}
+	public event AnimationEndEvent OnAnimationEnd;
 
 	public void SetAnimation(AnimatedMeshScriptableObject animation)
 	{

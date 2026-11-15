@@ -34,6 +34,7 @@ CHECKS = (
     ('BossHealthBarPlayCheck', 'PASS', True),
     ('CameraFadeObjectPortCheck', 'passed', False),
     ('AndroidCameraOffsetCollisionCheck', 'PASS', False),
+    ('ExplosionAndAnimationEventCheck', 'PASS', False),
     ('CharacterSelectionPortCheck', 'passed', False),
     ('MapControllerMainMenuPortCheck', 'passed', False),
     ('CharacterEncounterPlayCheck', 'passed', True),
