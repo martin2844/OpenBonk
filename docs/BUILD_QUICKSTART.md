@@ -78,3 +78,13 @@ For a dual-platform build, verify the plans actually packaged in that APK agains
 Add `--runner steam-run` if Java needs that wrapper. This compiles the checkout's Java import sources, extracts the packaged diagnostic plans into a temporary directory under `--workdir`, and checks that each ZIP reconstructs the expected OBB byte-for-byte. It removes its temporary files and does not install an APK. `--check` validates initial inputs only. These checks do not exercise Android UI, game rendering, physical controls or mods.
 
 The APK can be installed on an isolated Android test package and supplied with a Steam ZIP through the launcher. Short emulator runs have covered both ZIP variants, Forest, touch movement and an upgrade; they do not establish full game parity or physical-controller behavior. See [BUILDING.md](BUILDING.md) for exactly which revisions and configurations were tested.
+
+To check that the checkout's C#, Java and shader sources were copied unchanged into the generated workspace:
+
+```sh
+.venv/bin/python tools/check-unity-workspace-sources.py \
+  --project "$OPENBONK_OUTPUT/steam/build/workspace" \
+  --launcher-gradle "$OPENBONK_OUTPUT/dual-launcher/gradle"
+```
+
+Omit `--launcher-gradle` for a Linux-only build, or point it to `$OPENBONK_OUTPUT/research/launcher/gradle`. The check permits three water diagnostic shaders to be absent because preparation removes those probes. It excludes the launcher checksum placeholder, which is regenerated for each APK. It checks source files only; it does not prove that every source is compiled or that game assets and behavior match the beta.
