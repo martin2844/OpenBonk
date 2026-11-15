@@ -60,6 +60,19 @@ class AttackPrefabTests(unittest.TestCase):
         changed['m_Size']['y'] = 4.0
         self.assertNotEqual(module.without_pointers(changed), normalized)
 
+    def test_combat_script_fields_are_selected_and_changes_are_detected(self):
+        self.assertEqual(module.combat_script_name('Assembly-CSharp', '', 'EnemyGroundSlam'), 'EnemyGroundSlam')
+        self.assertIsNone(module.combat_script_name('OtherAssembly', '', 'EnemyGroundSlam'))
+        self.assertIsNone(module.combat_script_name('Assembly-CSharp', '', 'AudioPauser'))
+        tree = {'name': 'Root', 'children': [],
+                'combat': [{'script': 'EnemyGroundSlam', 'fields': {'delay': 1.0}}]}
+        reference = {('enemy', 0): {'attack': 'Attack', 'target': 'Root', 'hierarchy': tree}}
+        candidate = copy.deepcopy(reference)
+        candidate[('enemy', 0)]['hierarchy']['combat'][0]['fields']['delay'] = 2.0
+        result = module.compare(reference, candidate)
+        self.assertEqual(result['reference_combat_occurrences'], {'EnemyGroundSlam': 1})
+        self.assertEqual(len(result['differences']), 1)
+
     def test_rejects_inventory_from_different_apk_or_obb(self):
         with tempfile.TemporaryDirectory() as temp:
             apk, obb = Path(temp) / 'one.apk', Path(temp) / 'one.obb'
