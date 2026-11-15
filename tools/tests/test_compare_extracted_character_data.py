@@ -66,6 +66,15 @@ class CompareCharacterDataTests(unittest.TestCase):
         self.assertEqual(module.compare(maps, maps, kind='map')['reference_maps'], 5)
         self.assertEqual(module.compare(stages, altered, kind='stage')['differences'][0]['path'], ['stage-4', 'farClipPlane'])
 
+    def test_enemy_and_generation_data_compare_by_name(self):
+        for kind, plural, count in (('enemy', 'enemies', 53), ('noise', 'noise', 3),
+                                    ('map-parameters', 'map_parameters', 4)):
+            data = {'schema': 1, 'unity_version': '2023.2.22f1',
+                    plural: [{'data': {'m_Name': f'{kind}-{i}', 'value': i}} for i in range(count)]}
+            changed = copy.deepcopy(data)
+            changed[plural][0]['data']['value'] += 1
+            self.assertEqual(module.compare(data, changed, kind=kind)['differences'][0]['path'], [f'{kind}-0', 'value'])
+
 
 if __name__ == '__main__':
     unittest.main()
