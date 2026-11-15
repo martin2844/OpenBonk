@@ -10,7 +10,7 @@
 
 OpenBonk is an unofficial community project in beta. Bring your own compatible Steam copy of Megabonk: the launcher prepares its data on your Android device.
 
-[Download the beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) · [Installation guides](#installation-guides) · [Lua modding](docs/MODDING.md) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues)
+[Download the beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) · [Installation guides](#installation-guides) · [Lua modding](docs/MODDING.md) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues) · [Support](#support-the-project)
 
 ## Support the project
 
