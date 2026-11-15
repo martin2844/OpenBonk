@@ -62,11 +62,13 @@ class ResearchChainTests(unittest.TestCase):
     def test_stages_build_seven_stage_chain_in_order(self):
         with tempfile.TemporaryDirectory() as temp:
             a = self.args(Path(temp)); steps = module.commands(a); labels = [x[0] for x in steps]
-            self.assertEqual(len(steps), 26)
+            self.assertEqual(len(steps), 27)
             self.assertLess(labels.index('exact object plan'), labels.index('restore and verify objects'))
             self.assertLess(labels.index('restore and verify objects'), labels.index('bind animation plan'))
             self.assertLess(labels.index('restore and verify cubemaps'), labels.index('bind mesh plan'))
             self.assertLess(labels.index('restore and verify textures'), labels.index('bind packed audio plan'))
+            self.assertLess(labels.index('restore and verify individual audio'), labels.index('verify video resource'))
+            self.assertLess(labels.index('verify video resource'), labels.index('research launcher APK'))
             self.assertEqual(labels[-1], 'research launcher APK')
             build = steps[-1][1]
             for option in ('--object-plan', '--animation-plan', '--cubemap-plan', '--mesh-plan', '--texture-plan', '--packed-plan', '--audio-plan'):
@@ -95,7 +97,7 @@ class ResearchChainTests(unittest.TestCase):
             for name in ('steam_zip', 'host_library', 'android_library', 'decoder'): setattr(a, name, None)
             steps = module.commands(a); labels = [x[0] for x in steps]
             self.assertEqual(labels[:4], ['Steam ZIP', 'host texture converter', 'Android texture converter', 'Crunch decoder'])
-            self.assertEqual(len(steps), 30)
+            self.assertEqual(len(steps), 31)
             self.assertLess(labels.index('Crunch decoder'), labels.index('converted cubemaps'))
             a.platform = 'windows'
             first = module.commands(a)[0][1]

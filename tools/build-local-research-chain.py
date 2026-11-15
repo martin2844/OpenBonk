@@ -135,6 +135,8 @@ def commands(a):
     java('restore and verify packed audio', 'SteamPackedAudioCheck', texture, steamzip, results / 'packed-plan.json', packed, plans / 'audio/template.obb', 'pass')
     rebind('bind audio plan', plans / 'audio/plan.json', plans / 'audio/template.obb', packed, results / 'audio-plan.json')
     java('restore and verify individual audio', 'SteamGeneratedAudioCheck', packed, steamzip, results / 'audio-plan.json', final, out / 'cubemap-study/converted.obb', 'pass')
+    py('verify video resource', 'check-obb-video.py', '--obb', final,
+       '--clip', a.unity_project / 'Assets/VideoClip/Buffering3.webm')
     build = ['--gradle-project', a.gradle_project, '--unity-project', a.unity_project, '--runtime-apk', a.runtime_apk,
              '--audio-template', plans / ('partial-rgba/template.obb' if partial else 'objects/template.obb'), '--audio-plan', results / 'audio-plan.json',
              '--packed-plan', results / 'packed-plan.json', '--intermediate-obb', packed,

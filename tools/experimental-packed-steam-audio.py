@@ -34,6 +34,33 @@ def repack(resource, records):
     return bytes(result), offsets
 
 
+def relocate_preserved_range(start, size, records, offsets, resource_size):
+    """Map a non-audio range in preserved gaps through the audio repack."""
+    if start < 0 or size <= 0 or start + size > resource_size:
+        raise ValueError('invalid non-audio resource range')
+    previous_end = previous_new_end = 0
+    for key, old_start, old_size, replacement in sorted(records, key=lambda row: row[1]):
+        old_end = old_start + old_size
+        if start < old_end and start + size > old_start:
+            raise ValueError('non-audio resource overlaps an audio range')
+        if start + size <= old_start:
+            break
+        previous_end = old_end
+        previous_new_end = offsets[key] + (len(replacement) if replacement is not None else old_size)
+    return previous_new_end + start - previous_end
+
+
+def video_offset_field(body, source, offset, size):
+    """Locate a validated serialized VideoClip external-resource offset."""
+    name = source.encode('utf-8')
+    prefix = struct.pack('<I', len(name)) + name
+    prefix += bytes((-len(prefix)) % 4)
+    pattern = prefix + struct.pack('<QQ', offset, size)
+    if body.count(pattern) != 1:
+        raise ValueError('unexpected video resource object layout')
+    return body.index(pattern) + len(prefix)
+
+
 def build(obb, steam, output):
     import UnityPy
     index = defaultdict(list)
@@ -57,8 +84,23 @@ def build(obb, steam, output):
         for group in audio.GROUPS:
             data = audio.split_data(zin, group)
             raw_resource = zin.read(audio.PREFIX + group + '.resource')
-            records = []
-            for obj in UnityPy.load(data).objects:
+            records, videos = [], []
+            objects = UnityPy.load(data).objects
+            for obj in objects:
+                if obj.type.name == 'VideoClip':
+                    clip = obj.read_typetree()
+                    src = clip['m_ExternalResources']
+                    name, start, size = src['m_Source'], src['m_Offset'], src['m_Size']
+                    if not name and not size:
+                        continue
+                    if name != group + '.resource' or type(start) is not int or type(size) is not int:
+                        raise ValueError('unexpected video resource reference')
+                    body = obj.get_raw_data()
+                    if data[obj.byte_start:obj.byte_start + len(body)] != body:
+                        raise ValueError('unexpected video object bytes')
+                    field = obj.byte_start + video_offset_field(body, name, start, size)
+                    videos.append((start, size, field))
+                    continue
                 if obj.type.name != 'AudioClip':
                     continue
                 clip = obj.read()
@@ -94,10 +136,16 @@ def build(obb, steam, output):
                 records.append((obj.path_id, dst.m_Offset, dst.m_Size, payload, obj.byte_start + len(body) - 20))
             if not records:
                 raise ValueError('no packed audio clips found')
-            packed, offsets = repack(raw_resource, [(k, start, size, p) for k, start, size, p, _ in records])
+            repack_records = [(k, start, size, p) for k, start, size, p, _ in records]
+            packed, offsets = repack(raw_resource, repack_records)
             modified = bytearray(data)
             for key, start, size, payload, field in records:
                 struct.pack_into('<QQ', modified, field, offsets[key], len(payload) if payload is not None else size)
+            for start, size, field in videos:
+                new_offset = relocate_preserved_range(start, size, repack_records, offsets, len(raw_resource))
+                if packed[new_offset:new_offset + size] != raw_resource[start:start + size]:
+                    raise ValueError('video payload changed during audio repack')
+                struct.pack_into('<Q', modified, field, new_offset)
             prefix = audio.PREFIX + group + '.assets.split'
             split_infos = sorted((i for i in infos if i.filename.startswith(prefix)), key=lambda i: int(i.filename[len(prefix):]))
             pos = 0
