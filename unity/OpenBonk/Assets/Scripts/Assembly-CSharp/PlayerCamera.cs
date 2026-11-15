@@ -208,16 +208,22 @@ public class PlayerCamera : MonoBehaviour
 		Vector3 direction = (targetPosition - headPosition).normalized;
 		float distance = Vector3.Distance(headPosition, targetPosition) - cameraRadius;
 		Ray ray = new Ray(headPosition - transform.forward * cameraRadius, direction);
-		targetDistance = LimitDistanceForObstacles(ray, cameraRadius, distance, GameManager.Instance.whatIsCameraCollision, targetDistance);
-#if UNITY_ANDROID
-		// The final camera position includes these offsets, so a cast from the
-		// head alone can miss an obstacle intersecting the actual camera path.
-		Ray offsetRay = new Ray(ray.origin + Vector3.up + GetBobOffset(), direction);
-		targetDistance = LimitDistanceForObstacles(offsetRay, cameraRadius, distance, GameManager.Instance.whatIsCameraCollision, targetDistance);
-#endif
+		targetDistance = LimitCameraDistance(ray, cameraRadius, distance, GameManager.Instance.whatIsCameraCollision, targetDistance, Vector3.up + GetBobOffset());
 		CheckFadeObjects(ray, distance, 6f);
 		currentZ = Mathf.Lerp(currentZ, targetDistance, Time.deltaTime * 30f);
 		return headPosition + Get3rdPersonOffset(currentZ) + GetBobOffset();
+	}
+
+	private static float LimitCameraDistance(Ray ray, float radius, float distance, int mask, float targetDistance, Vector3 cameraOffset)
+	{
+		targetDistance = LimitDistanceForObstacles(ray, radius, distance, mask, targetDistance);
+#if UNITY_ANDROID
+		// The final camera position includes these offsets, so a cast from the
+		// head alone can miss an obstacle intersecting the actual camera path.
+		Ray offsetRay = new Ray(ray.origin + cameraOffset, ray.direction);
+		targetDistance = LimitDistanceForObstacles(offsetRay, radius, distance, mask, targetDistance);
+#endif
+		return targetDistance;
 	}
 
 	private static float LimitDistanceForObstacles(Ray ray, float radius, float distance, int mask, float targetDistance)
