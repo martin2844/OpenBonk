@@ -157,7 +157,15 @@ def main():
         value = getattr(a, name)
         if value is None: continue
         if value.expanduser().is_symlink(): p.error(name + ' must not be a symbolic link')
-        setattr(a, name, value.expanduser().resolve(strict=True))
+        try:
+            setattr(a, name, value.expanduser().resolve(strict=True))
+        except OSError as error:
+            p.error(f"cannot access --{name.replace('_', '-')}: {error}")
+    if a.windows_game:
+        free = shutil.disk_usage(a.output.parent).free
+        if free < 35 * 1024**3:
+            print(f'Warning: output filesystem has {free / 1024**3:.1f} GiB free; '
+                  'the dual-platform build may need at least 35 GiB. See the build quickstart.', file=sys.stderr)
     inputs = [getattr(a, n) for n in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home', 'windows_game', 'windows_steam_zip') if getattr(a, n) is not None]
     if any(a.output.is_relative_to(x) or x.is_relative_to(a.output) for x in (ROOT, *inputs)): p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')

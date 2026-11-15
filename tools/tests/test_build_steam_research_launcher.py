@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import zipfile
@@ -101,6 +102,30 @@ class SteamResearchBuildTests(unittest.TestCase):
         before = set(self.root.iterdir())
         self.assertTrue(module.output_allows_execution(self.root))
         self.assertEqual(before, set(self.root.iterdir()))
+
+    def test_missing_path_reports_the_argument_before_export(self):
+        self.ripper.unlink()
+        errors = io.StringIO()
+        with patch.object(sys, 'argv', self.argv), patch.object(module.subprocess, 'run') as run, \
+                contextlib.redirect_stderr(errors):
+            with self.assertRaises(SystemExit): module.main()
+        self.assertIn('cannot access --assetripper', errors.getvalue())
+        run.assert_not_called()
+        self.assertFalse(self.out.exists())
+
+    @patch.object(module.subprocess, 'run')
+    def test_dual_build_warns_about_low_disk_space_without_blocking_check(self, run):
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        errors = io.StringIO()
+        with patch.object(sys, 'argv', self.argv + ['--windows-game', str(windows), '--check']), \
+                patch.object(module, 'check_conversion_imports'), \
+                patch.object(module.research_chain, 'validate_steam_inputs'), \
+                patch.object(module.shutil, 'disk_usage', return_value=SimpleNamespace(free=1)), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(errors):
+            module.main()
+        self.assertIn('dual-platform build may need at least 35 GiB', errors.getvalue())
+        self.assertEqual(run.call_count, 1)
+        self.assertFalse(self.out.exists())
 
     @patch.object(module.subprocess, 'run')
     def test_builds_in_order_and_preserves_workspace_paths(self, run):
