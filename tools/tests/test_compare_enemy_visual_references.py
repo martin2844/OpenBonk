@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 
 spec = importlib.util.spec_from_file_location('enemy_visual_references', Path(__file__).resolve().parents[1] / 'compare-enemy-visual-references.py')
@@ -50,6 +51,22 @@ class EnemyVisualReferenceTests(unittest.TestCase):
         candidate = copy.deepcopy(reference)
         candidate['enemy']['animation']['fps'] = 8
         self.assertEqual(module.compare(reference, candidate)[0]['field'], 'animation')
+
+    def test_mesh_buffer_signature_rejects_missing_and_streamed_data(self):
+        channel = SimpleNamespace(stream=0, offset=0, format=0, dimension=3)
+        mesh = SimpleNamespace(m_Name='frame', m_MeshCompression=0, m_StreamData=None,
+                               m_IndexBuffer=[0, 1, 2], m_IndexFormat=0,
+                               m_VertexData=SimpleNamespace(m_DataSize=b'abc', m_VertexCount=1, m_Channels=[channel]))
+        signature = module.mesh_signature(mesh)
+        mesh.m_VertexData.m_DataSize = b'abd'
+        self.assertNotEqual(signature, module.mesh_signature(mesh))
+        mesh.m_VertexData.m_DataSize = b''
+        with self.assertRaises(ValueError):
+            module.mesh_signature(mesh)
+        mesh.m_VertexData.m_DataSize = b'abc'
+        mesh.m_StreamData = SimpleNamespace(path='mesh.resS')
+        with self.assertRaises(ValueError):
+            module.mesh_signature(mesh)
 
 
 if __name__ == '__main__':

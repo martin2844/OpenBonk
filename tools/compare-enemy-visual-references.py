@@ -3,7 +3,9 @@
 
 The inventories must come from extract-unity-weapon-data.py --kind enemy.
 This compares target identities and, with --assemblies, animation FPS and
-ordered mesh names. It does not compare mesh payloads, behavior or rendering.
+ordered mesh names. --mesh-buffers additionally compares inline uncompressed
+vertex and index buffers and their layouts. It does not compare all mesh
+fields, behavior or rendering.
 Inputs and the output can contain game-derived data and stay local. Requires
 UnityPy; --assemblies also requires TypeTreeGeneratorAPI.
 """
@@ -49,7 +51,21 @@ def targets(document):
     return result
 
 
-def read_build(apk, obb, document, animation_node=None):
+def mesh_signature(mesh):
+    """Describe supported inline mesh buffers without silently accepting missing data."""
+    stream = mesh.m_StreamData
+    vertices = bytes(mesh.m_VertexData.m_DataSize or b'')
+    indices = bytes(mesh.m_IndexBuffer or [])
+    if mesh.m_MeshCompression != 0 or (stream and stream.path) or not vertices or not indices or mesh.m_VertexData.m_VertexCount <= 0:
+        raise ValueError('unsupported or empty animation mesh buffers')
+    return {'name': mesh.m_Name, 'vertex_count': mesh.m_VertexData.m_VertexCount,
+            'channels': [[c.stream, c.offset, c.format, c.dimension] for c in mesh.m_VertexData.m_Channels],
+            'index_format': mesh.m_IndexFormat,
+            'vertex_bytes': len(vertices), 'vertex_sha256': hashlib.sha256(vertices).hexdigest(),
+            'index_bytes': len(indices), 'index_sha256': hashlib.sha256(indices).hexdigest()}
+
+
+def read_build(apk, obb, document, animation_node=None, mesh_buffers=False):
     hashes = []
     for path in (apk, obb):
         with path.open('rb') as stream:
@@ -138,10 +154,11 @@ def read_build(apk, obb, document, animation_node=None):
                     obj = objects.get(key)
                     if obj is None or obj.type.name != 'Mesh' or obj.assets_file.unity_version != '2023.2.22f1':
                         raise ValueError('unresolved animation mesh')
-                    name = obj.read().m_Name
+                    mesh = obj.read()
+                    name = mesh.m_Name
                     if not isinstance(name, str):
                         raise ValueError('invalid animation mesh name')
-                    names.append(name)
+                    names.append(mesh_signature(mesh) if mesh_buffers else name)
                 animation['meshes'] = names
             result[enemy]['animation']['animations'] = frames
     return result
@@ -161,7 +178,10 @@ def main():
     for name in ('reference-apk', 'reference-obb', 'reference-enemies', 'candidate-apk', 'candidate-obb', 'candidate-enemies', 'output'):
         parser.add_argument('--' + name, required=True, type=Path)
     parser.add_argument('--assemblies', type=Path, help='local Steam GameAssemblies for animation fields')
+    parser.add_argument('--mesh-buffers', action='store_true', help='compare supported animation mesh buffers; requires --assemblies')
     args = parser.parse_args()
+    if args.mesh_buffers and args.assemblies is None:
+        parser.error('--mesh-buffers requires --assemblies')
     paths = [getattr(args, name).expanduser() for name in ('reference_apk', 'reference_obb', 'reference_enemies', 'candidate_apk', 'candidate_obb', 'candidate_enemies')]
     if any(path.is_symlink() or not path.is_file() for path in paths):
         parser.error('inputs must be regular files')
@@ -195,8 +215,8 @@ def main():
             generator.load_dll(data)
             assembly_hashes[path.name] = hashlib.sha256(data).hexdigest()
         node = generator.get_nodes_up('Assembly-CSharp.dll', 'AnimatedMeshScriptableObject')
-    reference = read_build(paths[0], paths[1], json.loads(paths[2].read_text(encoding='utf-8')), node)
-    candidate = read_build(paths[3], paths[4], json.loads(paths[5].read_text(encoding='utf-8')), node)
+    reference = read_build(paths[0], paths[1], json.loads(paths[2].read_text(encoding='utf-8')), node, args.mesh_buffers)
+    candidate = read_build(paths[3], paths[4], json.loads(paths[5].read_text(encoding='utf-8')), node, args.mesh_buffers)
     differences = compare(reference, candidate)
     input_hashes = []
     for path in paths:
@@ -204,8 +224,9 @@ def main():
             input_hashes.append(hashlib.file_digest(stream, 'sha256').hexdigest())
     result = {'schema': 1, 'enemy_count': len(reference), 'reference': reference, 'candidate': candidate,
               'differences': differences, 'input_sha256': input_hashes,
-              'animation_fields_checked': node is not None, 'assembly_sha256': assembly_hashes,
-              'limitations': 'Target identities and optional animation FPS and mesh names only; mesh payloads, material contents, code and rendering are not compared.'}
+              'animation_fields_checked': node is not None, 'mesh_buffers_checked': args.mesh_buffers,
+              'assembly_sha256': assembly_hashes,
+              'limitations': 'Target identities and optional animation fields and mesh buffers only; other mesh fields, materials, code and rendering are not compared.'}
     fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8') as stream:
         json.dump(result, stream, ensure_ascii=False, indent=2)
