@@ -99,13 +99,44 @@ public final class BundleCheck {
             require(work.mkdir()); write(keep, "keep");
             File workZip = new File(work, "openbonk-steam-import-abandoned.zip");
             File workOutput = new File(work, "openbonk-generated-obb-abandoned.tmp");
+            File workTextPart = new File(work, "megabonk-original-texts.partial");
             File workDir = new File(work, ".openbonk-full-diagnostic-abandoned");
-            write(workZip, "partial"); write(workOutput, "partial");
+            write(workZip, "partial"); write(workOutput, "partial"); write(workTextPart, "partial");
             require(workDir.mkdir()); write(new File(workDir, "nested"), "partial");
             Files.createSymbolicLink(new File(workDir, "protected-link").toPath(), obb.toPath());
             LauncherDataBundle.cleanupPartials(obb, root, steam, work);
-            require(!workZip.exists() && !workOutput.exists() && !workDir.exists());
+            require(!workZip.exists() && !workOutput.exists() && !workTextPart.exists() && !workDir.exists());
             require(read(keep).equals("keep") && obbValidator.valid(obb) && steamValidator.valid(steam));
+            File legacy = new File(root, "legacy-steam.zip"), current = new File(work, "steam.zip");
+            SplitFileRecovery.Validator validQueued = f -> { try { return read(f).startsWith("valid"); } catch (IOException e) { return false; } };
+            File recoveryObb = new File(work, "recovery.obb");
+            File legacyMarker = new File(root, "legacy-steam.zip.bundle.transaction");
+            write(recoveryObb, "uncommitted obb"); write(SplitFileRecovery.backupFor(recoveryObb), "old obb");
+            write(legacy, "uncommitted zip"); write(SplitFileRecovery.backupFor(legacy), "valid legacy");
+            write(legacyMarker, "11"); write(current, "valid newer");
+            try { LauncherDataBundle.recoverTransactions(recoveryObb, legacy, current); throw new AssertionError("accepted conflicting transactions"); }
+            catch (IOException expected) { require(read(recoveryObb).equals("uncommitted obb") && read(current).equals("valid newer") && legacyMarker.exists()); }
+            require(current.delete());
+            LauncherDataBundle.recoverTransactions(recoveryObb, legacy, current);
+            require(read(recoveryObb).equals("old obb") && read(legacy).equals("valid legacy") && !legacyMarker.exists());
+            require(recoveryObb.delete());
+            SplitFileRecovery.migrate(legacy, current, validQueued);
+            require(!legacy.exists() && read(current).equals("valid legacy"));
+            write(legacy, "valid second");
+            try { SplitFileRecovery.migrate(legacy, current, validQueued); throw new AssertionError("overwrote queued ZIP"); }
+            catch (IOException expected) { require(read(legacy).equals("valid second") && read(current).equals("valid legacy")); }
+            require(current.delete()); write(legacy, "broken");
+            try { SplitFileRecovery.migrate(legacy, current, validQueued); throw new AssertionError("accepted invalid queued ZIP"); }
+            catch (IOException expected) { require(read(legacy).equals("broken") && !current.exists()); }
+            require(legacy.delete()); write(legacy, "valid third");
+            File currentBackup = SplitFileRecovery.backupFor(current); write(currentBackup, "valid backup");
+            try { SplitFileRecovery.migrate(legacy, current, validQueued); throw new AssertionError("overwrote queued backup"); }
+            catch (IOException expected) { require(read(legacy).equals("valid third") && read(currentBackup).equals("valid backup")); }
+            require(currentBackup.delete());
+            Files.createSymbolicLink(current.toPath(), obb.toPath());
+            try { SplitFileRecovery.migrate(legacy, current, validQueued); throw new AssertionError("accepted symlink destination"); }
+            catch (IOException expected) { require(read(legacy).equals("valid third") && obbValidator.valid(obb)); }
+            require(current.delete() && legacy.delete());
             require(keep.delete() && work.delete());
             File preparedObb = new File(root, "prepared.obb"), preparedSteam = new File(root, "prepared.zip");
             write(preparedObb, "new obb"); write(preparedSteam, "broken");

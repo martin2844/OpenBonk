@@ -15,7 +15,7 @@ internal static class LauncherLocalizationRetryCheck
         Directory.CreateDirectory(root);
         try
         {
-            AndroidJavaObject.Cache = root;
+            AndroidJavaObject.FilesRoot = root;
             string path = Path.Combine(root, "megabonk-original-texts.pending.zip");
             File.WriteAllText(path, "selected data");
             AndroidJavaObject.ImportRequested = false;
@@ -56,16 +56,16 @@ namespace UnityEngine
     public static class Debug { public static void Log(string s) {} public static void LogWarning(string s) {} }
     public class AndroidJavaObject : IDisposable
     {
-        public static string Cache;
+        public static string FilesRoot;
         public static bool ImportRequested;
         public T Call<T>(string method, params object[] args)
         {
             object result;
             switch (method)
             {
-                case "getIntent": case "getCacheDir": result = new AndroidJavaObject(); break;
+                case "getIntent": case "getFilesDir": result = new AndroidJavaObject(); break;
                 case "getBooleanExtra": result = ImportRequested; break;
-                case "getAbsolutePath": result = Cache; break;
+                case "getAbsolutePath": result = FilesRoot; break;
                 case "getPackageName": result = "example.another.package"; break;
                 default: throw new Exception("unexpected call " + method);
             }

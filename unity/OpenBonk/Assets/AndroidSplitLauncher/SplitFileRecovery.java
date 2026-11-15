@@ -2,6 +2,7 @@ package com.megabonk.launcher;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 /** Recovers an interrupted same-directory replacement without overwriting files. */
 final class SplitFileRecovery {
@@ -13,6 +14,17 @@ final class SplitFileRecovery {
 
     static File backupFor(File destination) {
         return new File(destination.getParentFile(), destination.getName() + ".previous");
+    }
+
+    // Move an old queued request without replacing a newer request or backup.
+    static void migrate(File legacy, File destination, Validator validator) throws IOException {
+        if (Files.isSymbolicLink(legacy.toPath()) || Files.isSymbolicLink(destination.toPath()) ||
+            Files.isSymbolicLink(backupFor(destination).toPath())) throw new IOException("Invalid queued Steam ZIP path");
+        if (!legacy.exists()) return;
+        if (!legacy.isFile() || !validator.valid(legacy)) throw new IOException("Queued Steam ZIP needs attention");
+        if (destination.exists() || backupFor(destination).exists())
+            throw new IOException("Both queued Steam ZIPs need attention");
+        if (!legacy.renameTo(destination)) throw new IOException("Could not move queued Steam ZIP");
     }
 
     static void recover(File destination, File backup, Validator validator) throws IOException {

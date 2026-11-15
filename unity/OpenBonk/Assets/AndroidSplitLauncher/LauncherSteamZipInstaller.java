@@ -19,6 +19,7 @@ final class LauncherSteamZipInstaller {
                     if (total > limit) throw new IOException("ZIP too large");
                     out.write(buffer, 0, n);
                 }
+                out.getFD().sync();
             }
             if (!validator.valid(staged)) throw new IOException("incompatible ZIP");
             SplitFileRecovery.recover(destination, validator);

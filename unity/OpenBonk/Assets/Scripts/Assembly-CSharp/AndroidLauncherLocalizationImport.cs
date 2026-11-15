@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using UnityEngine;
 
-// The experimental launcher places a temporary ZIP in its private cache.
+// The experimental launcher places a temporary ZIP in its private files.
 // This component consumes it once and never writes to the source document.
 internal static class AndroidLauncherLocalizationImport
 {
@@ -14,8 +14,8 @@ internal static class AndroidLauncherLocalizationImport
         using var activity = unity.GetStatic<AndroidJavaObject>("currentActivity");
         using var intent = activity.Call<AndroidJavaObject>("getIntent");
         if (!intent.Call<bool>("getBooleanExtra", "megabonk_import_original_texts", false)) return;
-        using var cache = activity.Call<AndroidJavaObject>("getCacheDir");
-        string path = Path.Combine(cache.Call<string>("getAbsolutePath"), "megabonk-original-texts.pending.zip");
+        using var files = activity.Call<AndroidJavaObject>("getFilesDir");
+        string path = Path.Combine(files.Call<string>("getAbsolutePath"), "megabonk-original-texts.pending.zip");
         bool ok = false;
         try
         {
@@ -25,7 +25,7 @@ internal static class AndroidLauncherLocalizationImport
         }
         catch (Exception e) { Debug.LogWarning("Launcher original game text import failed: " + e.Message); }
         // Keep a failed import queued so that reopening the game can retry it.
-        // The selected document is copied into the app cache by the launcher;
+        // The selected document is copied into private app files by the launcher;
         // deleting this copy on failure made transient errors unrecoverable.
         if (ok) { try { if (File.Exists(path)) File.Delete(path); } catch (Exception e) { Debug.LogWarning("Could not clear temporary localization ZIP: " + e.Message); } }
         try { using var launcher = new AndroidJavaClass("com.megabonk.launcher.SplitDataLauncher"); launcher.CallStatic("showImportResult", ok); }

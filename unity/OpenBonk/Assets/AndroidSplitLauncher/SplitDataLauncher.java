@@ -211,7 +211,7 @@ public final class SplitDataLauncher extends Activity {
                 boolean recoveryOk = true;
                 try {
                     if (!embeddedData() && existing != null) {
-                        LauncherDataBundle.recoverTransaction(existing, pendingSteam());
+                        LauncherDataBundle.recoverTransactions(existing, legacyPendingSteam(), pendingSteam());
                         SplitFileRecovery.recover(existing, this::valid);
                     }
                     File modRoot = getExternalFilesDir(null);
@@ -686,12 +686,17 @@ public final class SplitDataLauncher extends Activity {
         } catch (Exception e) { message.setText(es ? "No se pudo abrir el selector de archivos." : "Could not open the file picker."); }
     }
 
-    private File pendingSteam() { return new File(getCacheDir(), "megabonk-original-texts.pending.zip"); }
+    private File pendingSteam() { return new File(getFilesDir(), "megabonk-original-texts.pending.zip"); }
+    private File legacyPendingSteam() { return new File(getCacheDir(), "megabonk-original-texts.pending.zip"); }
     private void recoverSteamZip() throws java.io.IOException {
         File destination = pendingSteam();
         SplitFileRecovery.recover(destination, this::plausibleSteamZip);
-        // Older launchers used a different backup name for this ZIP.
-        SplitFileRecovery.recover(destination, new File(getCacheDir(), "megabonk-original-texts.previous"), this::plausibleSteamZip);
+        SplitFileRecovery.recover(destination, new File(getFilesDir(), "megabonk-original-texts.previous"), this::plausibleSteamZip);
+        File legacy = legacyPendingSteam();
+        SplitFileRecovery.recover(legacy, this::plausibleSteamZip);
+        // Older launchers also used a different backup name for this ZIP.
+        SplitFileRecovery.recover(legacy, new File(getCacheDir(), "megabonk-original-texts.previous"), this::plausibleSteamZip);
+        SplitFileRecovery.migrate(legacy, destination, this::plausibleSteamZip);
     }
 
     private void openSteamPicker() {
@@ -785,10 +790,10 @@ public final class SplitDataLauncher extends Activity {
     // Called under DATA_LOCK. Stage on the destination filesystem so that a
     // valid pending ZIP can be replaced with an atomic rename.
     private void stageSteamZip(InputStream input) throws Exception {
-        File staged = new File(getCacheDir(), "megabonk-original-texts.partial");
+        File staged = new File(getFilesDir(), "megabonk-original-texts.partial");
         try {
             LauncherSteamZipInstaller.install(input, staged, pendingSteam(),
-                new File(getCacheDir(), "megabonk-original-texts.previous"),
+                new File(getFilesDir(), "megabonk-original-texts.previous"),
                 this::plausibleSteamZip, MAX_STEAM_BYTES);
         } catch (IOException e) {
             if ("incompatible ZIP".equals(e.getMessage())) throw new IOException(es

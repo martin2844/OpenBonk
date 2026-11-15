@@ -20,6 +20,18 @@ final class LauncherDataBundle {
         return new File(steam.getParentFile(), steam.getName() + ".bundle.transaction");
     }
 
+    static boolean hasTransaction(File steam) { return transaction(steam).exists(); }
+
+    // Recover a pre-upgrade transaction before moving the old queued ZIP.
+    // Ambiguous simultaneous generations must never overwrite each other.
+    static void recoverTransactions(File obb, File legacy, File current) throws IOException {
+        if (hasTransaction(legacy) &&
+            (hasTransaction(current) || current.exists() || SplitFileRecovery.backupFor(current).exists()))
+            throw new IOException("Conflicting queued Steam transactions need attention");
+        recoverTransaction(obb, legacy);
+        recoverTransaction(obb, current);
+    }
+
     // A marker means the pair did not commit. Restore each prior file before
     // allowing the ordinary single-file recovery or cleaning up staged data.
     static void recoverTransaction(File obb, File steam) throws IOException {
@@ -84,6 +96,7 @@ final class LauncherDataBundle {
         clearStage(new File(steam.getParentFile(), steam.getName() + ".bundle.partial"));
         clearStage(new File(steam.getParentFile(), steam.getName() + ".bundle.transaction.partial"));
         clearStage(new File(cache, "megabonk-original-texts.partial"));
+        if (!cache.equals(work)) clearStage(new File(work, "megabonk-original-texts.partial"));
         clearStage(new File(cache, "megabonk-profile.partial"));
         clearAbandonedPreparations(cache);
         if (!cache.equals(work)) clearAbandonedPreparations(work);
