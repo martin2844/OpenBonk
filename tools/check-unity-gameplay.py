@@ -43,7 +43,18 @@ WEAPON_CHECKS = tuple((name + 'WeaponPlayCheck', 'passed', True) for name in (
     'Arrow', 'Axe', 'BloodMagic', 'CorruptSword', 'Dexecutioner', 'Dice', 'Firestaff',
     'Flamewalker', 'HeroSword', 'Katana', 'Lightning', 'Mine', 'PoisonFlask', 'Scythe',
     'Shotgun', 'Sniper', 'Sword', 'Tornado', 'WirelessDagger',
-))
+)) + (
+    ('AegisAttackPlayCheck', 'passed', True),
+    ('BlackHoleAttackPlayCheck', 'passed', True),
+    ('ChunkersAttackPlayCheck', 'passed', True),
+    ('RocketWeaponIntegrationPlayCheck', 'passed', True),
+    ('RocketWeaponSchedulingPlayCheck', 'passed', True),
+    ('BananarangProjectilePortCheck', 'passed', False),
+    ('BananarangFlightPlayCheck', 'passed', True),
+    ('DragonsBreathPlayCheck', 'passed', True),
+    ('FrostWalkerAuraPlayCheck', 'passed', True),
+    ('LaserLifecyclePortCheck', 'passed', False),
+)
 TEMP_SCENE = 'Assets/RsgOriginalRoomsCheckTemporary.unity'
 
 
@@ -58,7 +69,9 @@ def main():
     p.add_argument('--unity', type=Path, required=True, help='Unity 2023.2.22f1 executable')
     p.add_argument('--output', type=Path, required=True, help='new directory for private Unity logs')
     p.add_argument('--runner', help='optional executable used to run Unity, e.g. steam-run')
-    p.add_argument('--weapons', action='store_true', help='also run controlled original-weapon play-mode checks')
+    selection = p.add_mutually_exclusive_group()
+    selection.add_argument('--weapons', action='store_true', help='also run controlled original-weapon checks')
+    selection.add_argument('--weapons-only', action='store_true', help='run only the controlled original-weapon checks')
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()
     project, editor = a.project.resolve(strict=True), a.unity.resolve(strict=True)
@@ -85,7 +98,7 @@ def main():
     fd = os.open(rsp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     try:
         with os.fdopen(fd, 'wb') as stream: stream.write(DEFINES)
-        checks = CHECKS + WEAPON_CHECKS if a.weapons else CHECKS
+        checks = WEAPON_CHECKS if a.weapons_only else CHECKS + WEAPON_CHECKS if a.weapons else CHECKS
         for name, marker, play in checks:
             print('Checking ' + name, flush=True)
             log = output / (name + '.log')
