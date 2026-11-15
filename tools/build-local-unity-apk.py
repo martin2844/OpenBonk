@@ -33,6 +33,7 @@ def stages(base, editor, lua, output, runner, application_id, prepare_only=False
         ('readable grass mesh', 'prepare-unity-grass-mesh.py', [*common, '--backup', str(output / 'grass-mesh.original.asset')]),
         ('Android material instancing', 'prepare-unity-material-instancing.py', [*common, '--backup', str(output / 'material-instancing-backup')]),
         ('Desert edge materials', 'prepare-unity-desert-edges.py', [*common, '--backup', str(output / 'desert-edge-backup')]),
+        ('enemy root effect scale', 'prepare-unity-rootfx.py', [*common, '--backup', str(output / 'rootfx.original.prefab')]),
         ('empty manager placeholders', 'prepare-unity-manager-placeholders.py', [*common, '--backup', str(output / 'manager-scene-backup')]),
         ('unused diagnostic water shaders', 'prepare-unity-remove-water-probes.py', [*common, '--backup', str(output / 'water-probe-backup')]),
         ('Unity import', 'import-unity-workspace.py', [*common, *unity, '--log', str(output / 'import.log'), *wrapped]),

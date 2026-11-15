@@ -73,6 +73,17 @@ class AttackPrefabTests(unittest.TestCase):
         self.assertEqual(result['reference_combat_occurrences'], {'EnemyGroundSlam': 1})
         self.assertEqual(len(result['differences']), 1)
 
+    def test_detects_direct_effect_target_hierarchy_change(self):
+        effect = {'name': 'Effect', 'local_scale': [4.0, 4.0, 4.0], 'children': []}
+        tree = {'name': 'Root', 'children': [], 'combat': [
+            {'script': 'EnemyGroundSlam', 'fields': {}, 'effect_targets': {'hitEffect': effect, 'attackEffectPrefab': None}}]}
+        reference = {('enemy', 0): {'attack': 'Attack', 'target': 'Root', 'hierarchy': tree}}
+        candidate = copy.deepcopy(reference)
+        candidate[('enemy', 0)]['hierarchy']['combat'][0]['effect_targets']['hitEffect']['local_scale'][0] = 6.0
+        result = module.compare(reference, candidate)
+        self.assertEqual(result['reference_effect_occurrences'], {'attackEffectPrefab_null': 1, 'hitEffect_resolved': 1})
+        self.assertEqual(len(result['differences']), 1)
+
     def test_rejects_inventory_from_different_apk_or_obb(self):
         with tempfile.TemporaryDirectory() as temp:
             apk, obb = Path(temp) / 'one.apk', Path(temp) / 'one.obb'

@@ -28,6 +28,10 @@ class RuntimeBuildTest(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.project = self.root / 'project'
         (self.project / 'Assets').mkdir(parents=True)
+        (self.project / 'Assets/GameObject').mkdir()
+        (self.project / 'Assets/GameObject/RootFx.prefab').write_text(
+            '--- !u!1 &1\nGameObject:\n  m_Component:\n  - component: {fileID: 2}\n  m_Name: RootFx\n'
+            '--- !u!4 &2\nTransform:\n  m_GameObject: {fileID: 1}\n  m_LocalScale: {x: 4, y: 4, z: 4}\n  m_Father: {fileID: 0}\n')
         (self.project / 'Assets/Mesh').mkdir()
         (self.project / 'Assets/Mesh/GrassQuads.asset').write_text('Mesh:\n  m_Name: GrassQuads\n  m_IsReadable: 1\n  m_IndexBuffer: 001122\n  m_VertexData:\n    m_VertexCount: 8\n')
         (self.project / 'Assets/Material').mkdir()
@@ -127,6 +131,15 @@ class RuntimeBuildTest(unittest.TestCase):
         self.write_editor('pass\n')
         result = self.run_tool('--application-id', 'invalid/id')
         self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.out.exists())
+
+    def test_unprepared_rootfx_is_rejected_before_build(self):
+        self.write_editor('pass\n')
+        path = self.project / 'Assets/GameObject/RootFx.prefab'
+        path.write_text(path.read_text().replace('{x: 4, y: 4, z: 4}', '{x: 6, y: 6, z: 6}'))
+        result = self.run_tool('--check')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('RootFx prefab requires beta scale preparation', result.stderr)
         self.assertFalse(self.out.exists())
 
     def test_missing_android_axes_are_rejected_before_build(self):

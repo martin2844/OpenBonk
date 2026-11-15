@@ -75,6 +75,7 @@ class LocalBuildTest(unittest.TestCase):
         self.assertLess(names.index('prepare-unity-grass-mesh.py'), names.index('import-unity-workspace.py'))
         self.assertLess(names.index('prepare-unity-material-instancing.py'), names.index('import-unity-workspace.py'))
         self.assertLess(names.index('prepare-unity-desert-edges.py'), names.index('import-unity-workspace.py'))
+        self.assertLess(names.index('prepare-unity-rootfx.py'), names.index('import-unity-workspace.py'))
         self.assertLess(names.index('prepare-unity-passive-icons.py'), names.index('import-unity-workspace.py'))
         material_args = commands[names.index('prepare-unity-material-instancing.py')][2]
         self.assertEqual(material_args[material_args.index('--backup') + 1], str(self.out / 'material-instancing-backup'))
