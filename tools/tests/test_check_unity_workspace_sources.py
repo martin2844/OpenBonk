@@ -32,6 +32,11 @@ class WorkspaceSourceCheck(unittest.TestCase):
             result = module.compare(source, workspace)
             self.assertEqual(result['C#']['changed'], ['Scripts/Game.cs'])
             self.assertEqual(result['Java']['missing'], ['AndroidSplitLauncher/Launcher.java'])
+            (workspace / 'Scripts/Extra.cs').write_text('additional code')
+            (workspace / 'Resources/Extra.shader').write_text('additional shader')
+            result = module.compare(source, workspace)
+            self.assertEqual(result['C#']['unexpected'], ['Scripts/Extra.cs'])
+            self.assertEqual(result['shaders']['unexpected'], ['Resources/Extra.shader'])
 
     def test_empty_source_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -89,4 +89,4 @@ To check that the checkout's C#, Java and shader sources were copied unchanged i
   --launcher-gradle "$OPENBONK_OUTPUT/dual-launcher/gradle"
 ```
 
-Omit `--launcher-gradle` for a Linux-only build, or point it to `$OPENBONK_OUTPUT/research/launcher/gradle`. The check permits three water diagnostic shaders to be absent because preparation removes those probes. It excludes the launcher checksum placeholder, which is regenerated for each APK. It checks source files only; it does not prove that every source is compiled or that game assets and behavior match the beta.
+Omit `--launcher-gradle` for a Linux-only build, or point it to `$OPENBONK_OUTPUT/research/launcher/gradle`. The check flags additional C#, Java or shader source files in the workspace, and permits three water diagnostic shaders to be absent because preparation removes those probes. It excludes the launcher checksum placeholder, which is regenerated for each APK. It checks source files only, not managed or native binaries; it does not prove that every source is compiled or that game assets and behavior match the beta.

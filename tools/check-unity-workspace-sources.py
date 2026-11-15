@@ -48,7 +48,16 @@ def compare(source, workspace):
                 (excluded if label == 'shaders' and relative in OPTIONAL_DIAGNOSTIC_SHADERS else missing).append(relative.as_posix())
             elif digest(path) != digest(target):
                 changed.append(relative.as_posix())
-        result[label] = {'total': len(paths), 'missing': missing, 'changed': changed, 'excluded_diagnostics': excluded}
+        unexpected = []
+        for target in sorted(p for p in workspace.rglob('*') if p.is_file() and p.suffix in extensions):
+            relative = target.relative_to(workspace)
+            original = source / relative
+            if target.is_symlink() or original.is_symlink():
+                raise ValueError('symbolic link in compared source: ' + relative.as_posix())
+            if not original.is_file():
+                unexpected.append(relative.as_posix())
+        result[label] = {'total': len(paths), 'missing': missing, 'changed': changed,
+                         'unexpected': unexpected, 'excluded_diagnostics': excluded}
     return result
 
 
@@ -98,7 +107,7 @@ def main():
     except (OSError, ValueError, json.JSONDecodeError) as error:
         parser.error(str(error))
     print(json.dumps(result, indent=2, sort_keys=True))
-    if any(group['missing'] or group['changed'] for group in result.values()):
+    if any(group['missing'] or group['changed'] or group.get('unexpected') for group in result.values()):
         raise SystemExit(1)
     print('PASS: checkout sources match the assembled workspace; compilation and asset parity are not established.')
 
