@@ -24,6 +24,7 @@ CHECKS = (
     ('ChallengeTrackerCleanupCheck', 'passed', False),
     ('BasicStatItemsPortCheck', 'passed', False),
     ('ItemFactoryCoverageCheck', 'passed', False),
+    ('ItemLampProcCheck', 'passed', False),
     ('ItemCombatPortCheck', 'passed', False),
     ('BeaconHealingPlayCheck', 'passed', True),
     ('BossHealthBarPlayCheck', 'PASS', True),

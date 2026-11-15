@@ -8,10 +8,11 @@ public static class ItemFactoryCoverageCheck
     public static void Run()
     {
         var oldData = DataManager.Instance;
+        ItemInventory inventory = null;
         try
         {
             DataManager.Instance = null;
-            var inventory = new ItemInventory();
+            inventory = new ItemInventory();
             var ids = (EItem[])Enum.GetValues(typeof(EItem));
             if (ids.Length != 88) throw new Exception("Unexpected item enum size");
             int passive = 0;
@@ -29,6 +30,7 @@ public static class ItemFactoryCoverageCheck
         }
         finally
         {
+            inventory?.Cleanup();
             DataManager.Instance = oldData;
         }
     }
