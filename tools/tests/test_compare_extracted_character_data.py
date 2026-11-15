@@ -33,6 +33,17 @@ class CompareCharacterDataTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.compare(document(), candidate)
 
+    def test_weapon_inventory_uses_weapon_ids_and_expected_count(self):
+        weapons = {'schema': 1, 'unity_version': '2023.2.22f1',
+                   'weapons': [{'data': {'eWeapon': i, 'damage': 10.0}} for i in range(30)]}
+        candidate = copy.deepcopy(weapons)
+        candidate['weapons'][5]['data']['damage'] = 12.0
+        result = module.compare(weapons, candidate, kind='weapon')
+        self.assertEqual(result['reference_weapons'], 30)
+        self.assertEqual(result['differences'][0]['path'], [5, 'damage'])
+        with self.assertRaises(ValueError):
+            module.compare(document(), candidate, kind='weapon')
+
 
 if __name__ == '__main__':
     unittest.main()

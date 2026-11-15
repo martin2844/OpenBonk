@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Compare scalar fields in two locally decoded CharacterData inventories.
+"""Compare scalar fields in two locally decoded character or weapon inventories.
 
-Inputs use extract-steam-character-data.py's schema. Unity object pointers
+Inputs use the corresponding local extractor's schema. Unity object pointers
 are deliberately excluded; matching values do not prove that their targets,
 code, animations, assets or gameplay match. Reports can contain game data and
 must remain private.
@@ -15,24 +15,27 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def records(document):
+def records(document, kind='character'):
     if document.get('schema') != 1 or document.get('unity_version') != '2023.2.22f1':
         raise ValueError('unsupported character inventory schema or Unity version')
-    rows = document.get('characters')
-    if not isinstance(rows, list) or len(rows) != 21:
-        raise ValueError('expected 21 character records')
+    if kind not in ('character', 'weapon'):
+        raise ValueError('unsupported data kind')
+    plural, field, expected = ('characters', 'eCharacter', 21) if kind == 'character' else ('weapons', 'eWeapon', 30)
+    rows = document.get(plural)
+    if not isinstance(rows, list) or len(rows) != expected:
+        raise ValueError('unexpected record count')
     result = {}
     for row in rows:
         data = row.get('data') if isinstance(row, dict) else None
-        character = data.get('eCharacter') if isinstance(data, dict) else None
+        character = data.get(field) if isinstance(data, dict) else None
         if type(character) is not int or character in result:
             raise ValueError('missing or duplicate character ID')
         result[character] = data
     return result
 
 
-def compare(reference, candidate):
-    left, right = records(reference), records(candidate)
+def compare(reference, candidate, kind='character'):
+    left, right = records(reference, kind), records(candidate, kind)
     counts, differences = Counter(), []
 
     def walk(a, b, path):
@@ -62,7 +65,8 @@ def compare(reference, candidate):
                                 'side': 'reference' if character not in left else 'candidate'})
         else:
             walk(left[character], right[character], [character])
-    return {'reference_characters': len(left), 'candidate_characters': len(right),
+    plural = 'characters' if kind == 'character' else 'weapons'
+    return {'reference_' + plural: len(left), 'candidate_' + plural: len(right),
             'scalars_compared': counts['scalars_compared'], 'pointers_skipped': counts['pointers_skipped'],
             'differences': differences}
 
@@ -72,6 +76,7 @@ def main():
     parser.add_argument('reference', type=Path)
     parser.add_argument('candidate', type=Path)
     parser.add_argument('output', type=Path)
+    parser.add_argument('--kind', choices=('character', 'weapon'), default='character')
     args = parser.parse_args()
     inputs = []
     for path in (args.reference, args.candidate):
@@ -86,8 +91,9 @@ def main():
     if output.is_relative_to(ROOT) or output in inputs:
         parser.error('output must be separate from checkout and inputs')
     documents = [json.loads(path.read_text(encoding='utf-8')) for path in inputs]
-    result = compare(*documents)
+    result = compare(*documents, kind=args.kind)
     result['schema'] = 1
+    result['kind'] = args.kind
     result['input_sha256'] = []
     for path in inputs:
         with path.open('rb') as stream:
