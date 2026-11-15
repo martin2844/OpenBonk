@@ -6,6 +6,7 @@ verification. All inputs can contain game-derived material and must stay local.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 
@@ -13,6 +14,10 @@ from pathlib import Path
 MARKER = {'schema': 1, 'kind': 'openbonk-local-unity-workspace'}
 EXTENSIONS = {'.dll', '.so', '.aar', '.jar', '.a', '.dylib'}
 PLUGINS = ('Rewired_Core.dll', 'Coffee.UIParticle.dll', 'com.rlabrecque.steamworks.net.dll')
+spec = importlib.util.spec_from_file_location('workspace_plugin_policy', Path(__file__).with_name('prepare-unity-workspace.py'))
+plugin_policy = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(plugin_policy)
+REMOVED_PACKAGE_DLLS = {Path('Plugins') / name for name in plugin_policy.PACKAGE_DLLS}
 
 
 def digest(path):
@@ -41,7 +46,16 @@ def compare(workspace_assets, export_assets, plugins, lua):
             result['changed'].append(relative.as_posix())
         else:
             result[label].append(relative.as_posix())
-    result['missing_workspace'] = sorted(str(p) for p in generated.keys() - found)
+    expected = set(generated)
+    for path in export_assets.rglob('*'):
+        if not path.is_file() or path.suffix.lower() not in EXTENSIONS:
+            continue
+        relative = path.relative_to(export_assets)
+        if path.is_symlink():
+            raise ValueError('symbolic link in exported binary: ' + relative.as_posix())
+        if relative not in REMOVED_PACKAGE_DLLS:
+            expected.add(relative)
+    result['missing_workspace'] = sorted(p.as_posix() for p in expected - found)
     return result
 
 

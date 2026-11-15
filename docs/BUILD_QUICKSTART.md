@@ -101,4 +101,4 @@ To check the workspace's managed and native binary files against its local expor
   --lua-library "$OPENBONK_OUTPUT/steam/lua/libmegabonk_lua.so"
 ```
 
-The check flags workspace binary files that differ from or have no corresponding local input, and missing generated plugins. It does not validate the creation of those inputs, Unity package-cache binaries, provenance, redistribution rights or behavior of the resulting APK.
+The check flags workspace binary files that differ from or have no corresponding local input, as well as missing generated plugins and missing exported binaries. It permits the known Unity package duplicates removed by workspace preparation. It does not validate the creation of those inputs, Unity package-cache binaries, provenance, redistribution rights or behavior of the resulting APK.

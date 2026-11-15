@@ -39,10 +39,12 @@ class WorkspaceBinaryCheck(unittest.TestCase):
             (workspace / exported).write_bytes(b'changed')
             (workspace / 'Plugins/Unknown.dll').write_bytes(b'unknown')
             (workspace / 'Plugins/Rewired_Core.dll').unlink()
+            (export / 'Plugins/Required.dll').write_bytes(b'required')
+            (export / 'Plugins/UnityEngine.UI.dll').write_bytes(b'package duplicate')
             result = module.compare(workspace, export, plugins, lua)
             self.assertEqual(result['changed'], [exported.as_posix()])
             self.assertEqual(result['missing_input'], ['Plugins/Unknown.dll'])
-            self.assertEqual(result['missing_workspace'], ['Plugins/Rewired_Core.dll'])
+            self.assertEqual(result['missing_workspace'], ['Plugins/Required.dll', 'Plugins/Rewired_Core.dll'])
 
 
 if __name__ == '__main__':
