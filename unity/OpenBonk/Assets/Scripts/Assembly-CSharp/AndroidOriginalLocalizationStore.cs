@@ -15,7 +15,19 @@ public static class AndroidOriginalLocalizationStore
         if (name.Length != 34 || !name.StartsWith("g-", StringComparison.Ordinal) || !Guid.TryParseExact(name.Substring(2), "N", out _)) return null;
         string path = Path.Combine(root, name);
         string strings = AndroidOriginalLocalizationCatalog.Find(locale)?.StoredFile;
-        return strings != null && File.Exists(Path.Combine(path, "shared.bundle")) && File.Exists(Path.Combine(path, strings)) ? path : null;
+        return strings != null && IsNonEmptyFile(Path.Combine(path, "shared.bundle")) && IsNonEmptyFile(Path.Combine(path, strings)) ? path : null;
+    }
+    private static bool IsNonEmptyFile(string path)
+    {
+        try { return new FileInfo(path).Length > 0; }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+    private static void WriteDurably(string path, byte[] bytes)
+    {
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        stream.Write(bytes, 0, bytes.Length);
+        stream.Flush(true);
     }
     public static string Import(Stream input, string root)
     {
@@ -42,9 +54,9 @@ public static class AndroidOriginalLocalizationStore
         try
         {
             Directory.CreateDirectory(stage);
-            File.WriteAllBytes(Path.Combine(stage, "shared.bundle"), sharedBytes);
-            foreach (var bundle in bundles) File.WriteAllBytes(Path.Combine(stage, bundle.Key), bundle.Value);
-            foreach (var atlas in atlases) File.WriteAllBytes(Path.Combine(stage, atlas.Key + ".raw"), atlas.Value);
+            WriteDurably(Path.Combine(stage, "shared.bundle"), sharedBytes);
+            foreach (var bundle in bundles) WriteDurably(Path.Combine(stage, bundle.Key), bundle.Value);
+            foreach (var atlas in atlases) WriteDurably(Path.Combine(stage, atlas.Key + ".raw"), atlas.Value);
             Validate(stage);
             Directory.Move(stage, final);
             string previous = PlayerPrefs.GetString(Preference, "");
