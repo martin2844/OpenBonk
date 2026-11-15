@@ -27,6 +27,8 @@ python3 tools/check-data-prep-sources.py --json-jar /path/to/json-20180813.jar
 
 This compiles the `Steam*.java` sources and checks that the three generated Java files match their pinned JSON inputs. It does not assemble an APK or supply missing Unity assets, plans, third-party components or build intermediates. The older `tools/isolated-workspace-inputs.json` records research inputs; it is not a manifest for a verified clean release build.
 
+If `javac` is not on `PATH`, pass `--javac /path/to/Unity/Editor/Data/PlaybackEngines/AndroidPlayer/OpenJDK/bin/javac`. On systems where Unity's JDK needs a compatibility wrapper, run the Python command through that wrapper as well.
+
 ## Isolated Unity workspace
 
 To include the Steam export in the experimental local build, use:
