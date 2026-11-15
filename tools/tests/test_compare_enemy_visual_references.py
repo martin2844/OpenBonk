@@ -41,6 +41,16 @@ class EnemyVisualReferenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.compare(reference, {})
 
+    def test_detects_animation_fps_and_frame_order(self):
+        reference = {'enemy': {'material': None, 'animation': {'fps': 7,
+                     'animations': [{'name': 'run', 'meshes': ['frame1', 'frame2']}]}}}
+        candidate = copy.deepcopy(reference)
+        candidate['enemy']['animation']['animations'][0]['meshes'].reverse()
+        self.assertEqual(module.compare(reference, candidate)[0]['field'], 'animation')
+        candidate = copy.deepcopy(reference)
+        candidate['enemy']['animation']['fps'] = 8
+        self.assertEqual(module.compare(reference, candidate)[0]['field'], 'animation')
+
 
 if __name__ == '__main__':
     unittest.main()

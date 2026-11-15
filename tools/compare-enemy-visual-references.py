@@ -2,12 +2,14 @@
 """Compare enemy material and animation target identities in local APK/OBB pairs.
 
 The inventories must come from extract-unity-weapon-data.py --kind enemy.
-This compares target identities, not asset contents, animation behavior or
-rendering. Inputs and the output can contain game-derived data and stay local.
-Requires UnityPy.
+This compares target identities and, with --assemblies, animation FPS and
+ordered mesh names. It does not compare mesh payloads, behavior or rendering.
+Inputs and the output can contain game-derived data and stay local. Requires
+UnityPy; --assemblies also requires TypeTreeGeneratorAPI.
 """
 import argparse
 import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import os
@@ -47,7 +49,7 @@ def targets(document):
     return result
 
 
-def read_build(apk, obb, document):
+def read_build(apk, obb, document, animation_node=None):
     hashes = []
     for path in (apk, obb):
         with path.open('rb') as stream:
@@ -58,23 +60,28 @@ def read_build(apk, obb, document):
     selected = {target[0] for fields in pointers.values() for target in fields.values() if target is not None}
     selected.add('globalgamemanagers.assets')
     objects, found = {}, set()
-    for path in (apk, obb):
-        with zipfile.ZipFile(path) as archive:
-            for group, parts in inventory.asset_groups(archive).items():
-                if group not in selected:
-                    continue
-                if group in found:
-                    raise ValueError('duplicate serialized group')
-                found.add(group)
-                raw = b''.join(archive.read(part) for part in parts)
-                for obj in UnityPy.load(raw).objects:
-                    key = (group, obj.path_id)
-                    if key in objects:
-                        raise ValueError('duplicate serialized object')
-                    objects[key] = obj
-    if found != selected:
-        raise ValueError('referenced serialized group missing')
-    result = {}
+    def load_groups(selected_groups):
+        needed = selected_groups - found
+        seen = set()
+        for path in (apk, obb):
+            with zipfile.ZipFile(path) as archive:
+                for group, parts in inventory.asset_groups(archive).items():
+                    if group not in needed:
+                        continue
+                    if group in seen:
+                        raise ValueError('duplicate serialized group')
+                    seen.add(group)
+                    raw = b''.join(archive.read(part) for part in parts)
+                    for obj in UnityPy.load(raw).objects:
+                        key = (group, obj.path_id)
+                        if key in objects:
+                            raise ValueError('duplicate serialized object')
+                        objects[key] = obj
+        if seen != needed:
+            raise ValueError('referenced serialized group missing')
+        found.update(seen)
+    load_groups(selected)
+    result, animation_meshes = {}, {}
     for enemy, fields in pointers.items():
         result[enemy] = {}
         for field, key in fields.items():
@@ -100,7 +107,43 @@ def read_build(apk, obb, document):
                     raise ValueError('unresolved animation script')
                 script = script_obj.read()
                 value['script'] = [script.m_AssemblyName, script.m_Namespace, script.m_ClassName]
+                if animation_node is not None:
+                    if value['script'] != ['Assembly-CSharp', '', 'AnimatedMeshScriptableObject']:
+                        raise ValueError('unexpected animation script')
+                    fields_data = obj.read_typetree(nodes=animation_node)
+                    if fields_data.get('m_Name') != name or type(fields_data.get('AnimationFPS')) is not int:
+                        raise ValueError('animation data failed structural validation')
+                    animations = fields_data.get('Animations')
+                    if not isinstance(animations, list):
+                        raise ValueError('invalid animation list')
+                    row = {'source_group': key[0], 'external_files': external}
+                    frames = []
+                    for animation in animations:
+                        if not isinstance(animation.get('Name'), str) or not isinstance(animation.get('Meshes'), list):
+                            raise ValueError('invalid animation')
+                        frames.append({'name': animation['Name'], 'meshes': [item.pointer_key(row, p) for p in animation['Meshes']]})
+                    value['fps'] = fields_data['AnimationFPS']
+                    animation_meshes[enemy] = frames
             result[enemy][field] = value
+    if animation_node is not None:
+        load_groups({key[0] for frames in animation_meshes.values() for animation in frames
+                     for key in animation['meshes'] if key is not None})
+        for enemy, frames in animation_meshes.items():
+            for animation in frames:
+                names = []
+                for key in animation['meshes']:
+                    if key is None:
+                        names.append(None)
+                        continue
+                    obj = objects.get(key)
+                    if obj is None or obj.type.name != 'Mesh' or obj.assets_file.unity_version != '2023.2.22f1':
+                        raise ValueError('unresolved animation mesh')
+                    name = obj.read().m_Name
+                    if not isinstance(name, str):
+                        raise ValueError('invalid animation mesh name')
+                    names.append(name)
+                animation['meshes'] = names
+            result[enemy]['animation']['animations'] = frames
     return result
 
 
@@ -117,6 +160,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('reference-apk', 'reference-obb', 'reference-enemies', 'candidate-apk', 'candidate-obb', 'candidate-enemies', 'output'):
         parser.add_argument('--' + name, required=True, type=Path)
+    parser.add_argument('--assemblies', type=Path, help='local Steam GameAssemblies for animation fields')
     args = parser.parse_args()
     paths = [getattr(args, name).expanduser() for name in ('reference_apk', 'reference_obb', 'reference_enemies', 'candidate_apk', 'candidate_obb', 'candidate_enemies')]
     if any(path.is_symlink() or not path.is_file() for path in paths):
@@ -128,8 +172,31 @@ def main():
     output = output.parent.resolve() / output.name
     if output.is_relative_to(ROOT) or output in paths:
         parser.error('output must be separate from checkout and inputs')
-    reference = read_build(paths[0], paths[1], json.loads(paths[2].read_text(encoding='utf-8')))
-    candidate = read_build(paths[3], paths[4], json.loads(paths[5].read_text(encoding='utf-8')))
+    node, assembly_hashes = None, {}
+    if args.assemblies is not None:
+        assemblies = args.assemblies.expanduser()
+        if assemblies.is_symlink() or not assemblies.is_dir() or not (assemblies / 'Assembly-CSharp.dll').is_file():
+            parser.error('assemblies must be a local exported GameAssemblies directory')
+        assemblies = assemblies.resolve()
+        if output.is_relative_to(assemblies):
+            parser.error('output must be separate from assemblies')
+        for package, version in (('UnityPy', '1.25.4'), ('TypeTreeGeneratorAPI', '0.0.10')):
+            try:
+                if importlib.metadata.version(package) != version:
+                    parser.error(package + ' ' + version + ' is required')
+            except importlib.metadata.PackageNotFoundError:
+                parser.error(package + ' ' + version + ' is required')
+        from UnityPy.helpers.TypeTreeGenerator import TypeTreeGenerator
+        generator = TypeTreeGenerator('2023.2.22f1')
+        for path in sorted(assemblies.glob('*.dll')):
+            if path.is_symlink() or not path.is_file():
+                raise ValueError('assembly inputs must be regular files')
+            data = path.read_bytes()
+            generator.load_dll(data)
+            assembly_hashes[path.name] = hashlib.sha256(data).hexdigest()
+        node = generator.get_nodes_up('Assembly-CSharp.dll', 'AnimatedMeshScriptableObject')
+    reference = read_build(paths[0], paths[1], json.loads(paths[2].read_text(encoding='utf-8')), node)
+    candidate = read_build(paths[3], paths[4], json.loads(paths[5].read_text(encoding='utf-8')), node)
     differences = compare(reference, candidate)
     input_hashes = []
     for path in paths:
@@ -137,7 +204,8 @@ def main():
             input_hashes.append(hashlib.file_digest(stream, 'sha256').hexdigest())
     result = {'schema': 1, 'enemy_count': len(reference), 'reference': reference, 'candidate': candidate,
               'differences': differences, 'input_sha256': input_hashes,
-              'limitations': 'Target identities only; material and animation contents, code and rendering are not compared.'}
+              'animation_fields_checked': node is not None, 'assembly_sha256': assembly_hashes,
+              'limitations': 'Target identities and optional animation FPS and mesh names only; mesh payloads, material contents, code and rendering are not compared.'}
     fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8') as stream:
         json.dump(result, stream, ensure_ascii=False, indent=2)
