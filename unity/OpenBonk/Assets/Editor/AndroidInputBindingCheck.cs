@@ -23,6 +23,10 @@ public static class AndroidInputBindingCheck
 		Check(!Pressed("UIAbort", KeyCode.JoystickButton3) && Pressed("Aim", KeyCode.JoystickButton3), "Aim must not also open pause");
 		Check(Pressed("Aim", KeyCode.JoystickButton6) && !Pressed("MapOverlay", KeyCode.JoystickButton6), "Left trigger must aim without opening the map");
 		Check(Pressed("MapOverlay", KeyCode.JoystickButton7) && !Pressed("Aim", KeyCode.JoystickButton7), "Right trigger must open the map without aiming");
+		var filter = typeof(PlayerInput).GetMethod("FilterTouchMouse", BindingFlags.NonPublic | BindingFlags.Static);
+		var mouse = new Vector2(2f, -3f);
+		Check((Vector2)filter.Invoke(null, new object[] { mouse, true }) == Vector2.zero, "A touch drag must not also act as mouse look");
+		Check((Vector2)filter.Invoke(null, new object[] { mouse, false }) == mouse, "Mouse look must remain available when no touch is active");
 		Debug.Log("AndroidInputBindingCheck passed");
 	}
 }

@@ -152,6 +152,14 @@ public class PlayerInput : MonoBehaviour
 		var controls = SaveManager.Instance.config.cfControlSettings;
 		float mouseX = Input.GetAxis(stringMouseX);
 		float mouseY = Input.GetAxis(stringMouseY);
+#if UNITY_ANDROID && !UNITY_EDITOR
+		// Unity can expose a touchscreen drag as mouse motion as well. The
+		// touch sticks already provide look input, so do not count that drag a
+		// second time while a finger is down. A mouse still works without touch.
+		Vector2 mouse = FilterTouchMouse(new Vector2(mouseX, mouseY), Input.touchCount > 0);
+		mouseX = mouse.x;
+		mouseY = mouse.y;
+#endif
 		float lookX = MyInputManager.GetAxis(MyInputManager.LookHorizontal);
 		float lookY = MyInputManager.GetAxis(MyInputManager.LookVertical);
 		float keyX = 0f, keyY = 0f;
@@ -161,6 +169,11 @@ public class PlayerInput : MonoBehaviour
 			keyY = Input.GetKey(KeyCode.UpArrow) ? 3f : Input.GetKey(KeyCode.DownArrow) ? -3f : 0f;
 		}
 		ApplyRotationDelta(mouseX, mouseY, lookX, lookY, keyX, keyY, Time.deltaTime);
+	}
+
+	internal static Vector2 FilterTouchMouse(Vector2 mouse, bool hasTouch)
+	{
+		return hasTouch ? Vector2.zero : mouse;
 	}
 
 	private void ApplyRotationDelta(float mouseX, float mouseY, float lookX, float lookY, float keyX, float keyY, float deltaTime)
