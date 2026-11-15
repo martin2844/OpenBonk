@@ -12,6 +12,10 @@ OpenBonk is an unofficial community project in beta. Bring your own compatible S
 
 [Download the beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) · [Installation guides](#installation-guides) · [Lua modding](docs/MODDING.md) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues)
 
+## Support the project
+
+If you enjoy OpenBonk and would like to support its development, you can [buy Martin a coffee](https://buymeacoffee.com/martin2844).
+
 ![The OpenBonk launcher, with game data, control and mod options](docs/screenshots/launcher.png)
 
 ## Start playing
@@ -55,10 +59,6 @@ The repository contains reconstructed C# game scripts, the Android launcher and 
 - [Unity source](unity/OpenBonk/Assets/) · [Lua runtime](native/lua/) · [Mod examples](mods/) · [Preparation tools](tools/)
 
 The checkout cannot yet reproduce the published APK on its own: parts of the Unity project, third-party dependencies, generated plans and game-derived data are not included. The local research APK is not a redistributable release.
-
-## Support the project
-
-If you enjoy OpenBonk and would like to support its development, you can [buy Martin a coffee](https://buymeacoffee.com/martin2844).
 
 ## Privacy and attribution
 
