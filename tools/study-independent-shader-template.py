@@ -12,6 +12,7 @@ import io
 import json
 from pathlib import Path
 import zipfile
+import zlib
 
 import UnityPy
 
@@ -50,9 +51,12 @@ def shaders(bundle):
     return result
 
 
-def study(target, template, sources):
+def study(target, template, sources, split_sizes=None):
     if len(target) != len(template):
         raise ValueError('serialized group size differs')
+    if split_sizes is not None and (not split_sizes or any(size <= 0 for size in split_sizes)
+                                    or sum(split_sizes) != len(template)):
+        raise ValueError('invalid serialized group splits')
     masked = bytearray(template)
     rows = []
     claimed = set()
@@ -77,22 +81,47 @@ def study(target, template, sources):
                     raise ValueError('template differs from reconstructed shader')
                 positions.append(offset)
                 masked[start + offset] = 0
-        rows.append((start, key, positions))
+        bitmask = bytearray((size + 7) // 8)
+        for offset in positions:
+            bitmask[offset // 8] |= 1 << (offset % 8)
+        rows.append((start, key, positions, bitmask))
     restored = bytearray(masked)
-    for start, key, positions in rows:
+    for start, key, positions, _ in rows:
         for offset in positions:
             if restored[start + offset] != 0:
                 raise ValueError('overlapping restoration mask')
             restored[start + offset] = sources[key][offset]
     if restored != template:
         raise ValueError('restored serialized group differs')
-    return {
+    result = {
         'matched_objects': len(rows),
-        'masked_nonzero_bytes': sum(len(positions) for _, _, positions in rows),
+        'masked_nonzero_bytes': sum(len(positions) for _, _, positions, _ in rows),
         'restored_group_sha256': digest(restored),
         'shaders': [{'name': key[0], 'sha256': key[1], 'masked_nonzero_bytes': len(positions)}
-                    for _, key, positions in rows],
+                    for _, key, positions, _ in rows],
     }
+    if split_sizes is not None:
+        before = after = changed = offset = 0
+        for size in split_sizes:
+            original = template[offset:offset + size]
+            replacement = masked[offset:offset + size]
+            if original != replacement:
+                changed += 1
+                before += len(zlib.compress(original, 9))
+                after += len(zlib.compress(replacement, 9))
+            offset += size
+        # These are approximate inner-stream sizes, not a packaged APK size.
+        donor = b''.join(sources[key] for _, key, _, _ in sorted(rows, key=lambda row: row[1]))
+        masks = b''.join(mask for _, _, _, mask in rows)
+        result['compression_estimate'] = {
+            'changed_splits': changed,
+            'split_zlib_reduction_bytes': before - after,
+            'zlib_mask_bytes': len(zlib.compress(masks, 9)),
+            'zlib_shader_objects_bytes': len(zlib.compress(donor, 9)),
+            'shader_objects_sha256': digest(donor),
+            'limitations': 'Independent zlib streams only; excludes plan records, archive headers and APK recompression.',
+        }
+    return result
 
 
 def main():
@@ -130,7 +159,7 @@ def main():
             if not template_parts or [part.filename for part in template_parts] != names:
                 raise ValueError('template group layout differs')
             template = b''.join(template_archive.read(part) for part in template_parts)
-    report = study(target, template, shaders(a.bundle))
+    report = study(target, template, shaders(a.bundle), [part.file_size for part in parts])
     report.update({'platform': a.platform, 'apk_sha256': file_digest(a.apk),
                    'obb_sha256': file_digest(a.obb), 'bundle_sha256': file_digest(a.bundle),
                    'limitations': 'Desktop in-memory group check only; no APK, Android restoration, provenance or rights are established.'})

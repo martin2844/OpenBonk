@@ -31,10 +31,15 @@ class ShaderStudyTest(unittest.TestCase):
         template = b'HEAD\x11\x00\x33\x00TAIL'
         source = {('Example', study_module.digest(data)): data}
         with patch.object(study_module.UnityPy, 'load', return_value=SimpleNamespace(objects=[ShaderObject(4, data)])):
-            result = study_module.study(target, template, source)
+            result = study_module.study(target, template, source, [4, 4, 4])
         self.assertEqual(result['matched_objects'], 1)
         self.assertEqual(result['masked_nonzero_bytes'], 2)
         self.assertEqual(result['restored_group_sha256'], study_module.digest(template))
+        self.assertEqual(result['compression_estimate']['changed_splits'], 1)
+
+    def test_rejects_invalid_split_layout(self):
+        with self.assertRaisesRegex(ValueError, 'invalid serialized group splits'):
+            study_module.study(b'1234', b'1234', {}, [2, 1])
 
     def test_rejects_template_bytes_that_do_not_match_source(self):
         data = b'\x11\x22\x33\x44'
