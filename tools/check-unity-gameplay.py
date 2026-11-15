@@ -35,6 +35,7 @@ CHECKS = (
     ('CameraFadeObjectPortCheck', 'passed', False),
     ('AndroidCameraOffsetCollisionCheck', 'PASS', False),
     ('ExplosionAndAnimationEventCheck', 'PASS', False),
+    ('DamageZonePhysicsCheck', 'PASS', False),
     ('CharacterSelectionPortCheck', 'passed', False),
     ('MapControllerMainMenuPortCheck', 'passed', False),
     ('CharacterEncounterPlayCheck', 'passed', True),
