@@ -17,6 +17,20 @@ ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / 'tools'
 
 
+def check_unity_editor(unity, runner):
+    """Fail before export if the configured editor cannot run or is incompatible."""
+    command = ([runner] if runner else []) + [str(unity), '-version']
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise ValueError('Unity could not run with the configured runner: ' + str(error)) from error
+    if result.returncode:
+        detail = result.stderr.strip().splitlines()
+        raise ValueError('Unity could not run with the configured runner' + (': ' + detail[-1] if detail else ''))
+    if result.stdout.strip() != '2023.2.22f1':
+        raise ValueError('Unity 2023.2.22f1 is required; editor reported ' + repr(result.stdout.strip()))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--game', type=Path, required=True)
@@ -54,6 +68,10 @@ def main():
         p.error('invalid Android application ID')
     if a.runner and not shutil.which(a.runner):
         p.error('configured runner not found')
+    try:
+        check_unity_editor(unity, a.runner)
+    except ValueError as error:
+        p.error(str(error))
     runner = ['--runner', a.runner] if a.runner else []
     export = [sys.executable, str(TOOLS / 'export-steam-unity-project.py'), '--game', str(game),
               '--assetripper', str(ripper), '--output', str(out / 'export'), *runner]

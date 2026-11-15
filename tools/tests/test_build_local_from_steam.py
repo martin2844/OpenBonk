@@ -30,6 +30,9 @@ class SteamBuildTest(unittest.TestCase):
         self.argv = [str(SCRIPT), '--game', str(game), '--assetripper', str(root / 'AssetRipper'),
                      '--unity', str(root / 'Unity'), '--lua-library', str(root / 'lua.so'),
                      '--output', str(self.out), '--application-id', 'com.example.steamcheck']
+        self.unity_probe = patch.object(MODULE, 'check_unity_editor')
+        self.unity_probe.start()
+        self.addCleanup(self.unity_probe.stop)
 
     def run_main(self, *extra):
         with patch.object(sys, 'argv', self.argv + list(extra)), contextlib.redirect_stdout(io.StringIO()), \
@@ -85,6 +88,25 @@ class SteamBuildTest(unittest.TestCase):
         lua_call = run.call_args_list[1]
         self.assertEqual(lua_call.kwargs['env']['OPENBONK_LUA_OUTPUT'], str(self.out / 'lua'))
         self.assertIn(str(self.out / 'lua/libmegabonk_lua.so'), run.call_args_list[3].args[0])
+
+    def test_editor_probe_runs_through_wrapper_and_checks_version(self):
+        self.unity_probe.stop()
+        editor = Path(self.argv[self.argv.index('--unity') + 1])
+        editor.write_text('#!/bin/sh\n[ "$1" = "-version" ] || exit 1\nprintf "2023.2.22f1\\n"\n')
+        wrapper = editor.parent / 'wrapper'
+        wrapper.write_text('#!/bin/sh\nexec "$@"\n')
+        wrapper.chmod(0o700)
+        MODULE.check_unity_editor(editor, str(wrapper))
+        editor.write_text('#!/bin/sh\nprintf "2022.3.0f1\\n"\n')
+        with self.assertRaisesRegex(ValueError, '2023.2.22f1 is required'):
+            MODULE.check_unity_editor(editor, str(wrapper))
+
+    def test_editor_probe_reports_loader_failure(self):
+        self.unity_probe.stop()
+        editor = Path(self.argv[self.argv.index('--unity') + 1])
+        editor.write_text('#!/bin/sh\nprintf "missing shared library\\n" >&2\nexit 127\n')
+        with self.assertRaisesRegex(ValueError, 'missing shared library'):
+            MODULE.check_unity_editor(editor, None)
 
 
 if __name__ == '__main__':

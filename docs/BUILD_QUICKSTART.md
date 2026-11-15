@@ -46,7 +46,7 @@ build_args=(
   --gradle-online
 )
 
-# Checks initial paths, Android tools, JSON JAR contents and Python conversion imports; it does not build or verify an APK.
+# Checks initial paths, Unity version/startup, Android tools, JSON JAR contents and Python conversion imports; it does not build or verify an APK.
 .venv/bin/python tools/build-steam-research-launcher.py "${build_args[@]}" --check
 
 # Runs the export, Unity builds, data conversion checks and launcher packaging.
@@ -54,6 +54,8 @@ build_args=(
 ```
 
 On systems that require `steam-run` for native binaries, add `--runner steam-run` to `build_args` and run Python in a compatible environment (for example, prefix both Python commands with `steam-run` if its conversion modules need libraries provided by that environment). One NixOS host also needed `libxml2.so.2` exposed to Unity through a local runner wrapper and a higher open-file limit (`ulimit -n 65536`); these are host-specific, not guarantees. The conversion options are experimental and can make first import take several minutes.
+
+The initial check runs the configured Unity editor with `-version` through the same runner and requires `2023.2.22f1`. If it reports a missing shared library, fix the environment or runner before starting the build. This checks editor startup, not license activation, Android compilation or package downloads.
 
 The initial check creates and removes a temporary file in the output's parent to test executable permission. If it reports `noexec`, choose a different output location; Android Gradle generates scripts that must run from the build directory.
 
