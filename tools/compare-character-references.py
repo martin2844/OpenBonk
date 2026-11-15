@@ -2,7 +2,8 @@
 """Compare selected character target identities in private APK/OBB pairs.
 
 Uses hash-bound inventories from extract-unity-weapon-data.py --kind character.
-Target identity does not establish equal contents, animation, audio or gameplay.
+With --mesh-buffers, also compares supported inline, uncompressed character mesh
+buffers. Other contents, animation, audio and gameplay are not compared.
 Inputs and output can contain game-derived information and must stay local.
 Requires UnityPy.
 """
@@ -28,6 +29,7 @@ def module(name, path):
 
 inventory = module('openbonk_build_inventory', 'tools/compare-unity-build-content.py')
 item = module('openbonk_item_references', 'tools/compare-item-references.py')
+enemy_visuals = module('openbonk_enemy_visuals', 'tools/compare-enemy-visual-references.py')
 FIELDS = {'icon': 'Texture2D', 'prefab': 'GameObject', 'weapon': 'MonoBehaviour',
           'passive': 'MonoBehaviour', 'achievementRequirement': 'MonoBehaviour',
           'meshDefault': 'Mesh', 'meshLow': 'Mesh', 'meshLowest': 'Mesh',
@@ -59,7 +61,7 @@ def targets(document):
     return result
 
 
-def read_build(apk, obb, document):
+def read_build(apk, obb, document, mesh_buffers=False):
     hashes = []
     for path in (apk, obb):
         with path.open('rb') as stream:
@@ -102,6 +104,8 @@ def read_build(apk, obb, document):
         if not isinstance(name, str) or not name:
             raise ValueError('unnamed character target')
         result = {'type': expected, 'name': name}
+        if expected == 'Mesh' and mesh_buffers:
+            result['geometry'] = enemy_visuals.mesh_signature(obj.read())
         if head is not None:
             external = [str(ref.path).replace('\\', '/').rsplit('/', 1)[-1] for ref in obj.assets_file.externals]
             script_key = item.pointer_key({'source_group': key[0], 'external_files': external},
@@ -131,6 +135,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('reference-apk', 'reference-obb', 'reference-characters', 'candidate-apk', 'candidate-obb', 'candidate-characters', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--mesh-buffers', action='store_true', help='compare supported inline character mesh buffers')
     args = parser.parse_args()
     paths = [getattr(args, name).expanduser() for name in ('reference_apk', 'reference_obb', 'reference_characters', 'candidate_apk', 'candidate_obb', 'candidate_characters')]
     if any(path.is_symlink() or not path.is_file() for path in paths):
@@ -142,16 +147,16 @@ def main():
     output = output.parent.resolve() / output.name
     if output.is_relative_to(ROOT) or output in paths:
         parser.error('output must be separate from checkout and inputs')
-    reference = read_build(paths[0], paths[1], json.loads(paths[2].read_text(encoding='utf-8')))
-    candidate = read_build(paths[3], paths[4], json.loads(paths[5].read_text(encoding='utf-8')))
+    reference = read_build(paths[0], paths[1], json.loads(paths[2].read_text(encoding='utf-8')), args.mesh_buffers)
+    candidate = read_build(paths[3], paths[4], json.loads(paths[5].read_text(encoding='utf-8')), args.mesh_buffers)
     differences = compare(reference, candidate)
     hashes = []
     for path in paths:
         with path.open('rb') as stream:
             hashes.append(hashlib.file_digest(stream, 'sha256').hexdigest())
     result = {'schema': 1, 'character_count': len(reference), 'reference': reference, 'candidate': candidate,
-              'differences': differences, 'input_sha256': hashes,
-              'limitations': 'Selected target identities only; contents, other pointers, code and gameplay are not compared.'}
+              'differences': differences, 'input_sha256': hashes, 'mesh_buffers_checked': args.mesh_buffers,
+              'limitations': 'Selected target identities and optional mesh buffers only; other fields, contents, pointers, code and gameplay are not compared.'}
     fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8') as stream:
         json.dump(result, stream, ensure_ascii=False, indent=2)

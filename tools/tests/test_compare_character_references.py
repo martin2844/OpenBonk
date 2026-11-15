@@ -47,6 +47,15 @@ class CharacterReferenceTests(unittest.TestCase):
         self.assertEqual({row['field'] for row in module.compare(reference, candidate)}, {'passive', 'audioFootsteps'})
         with self.assertRaises(ValueError): module.compare(reference, {})
 
+    def test_detects_changed_mesh_buffer_with_same_identity(self):
+        fields = {name: None for name in module.FIELDS}
+        fields['meshDefault'] = {'type': 'Mesh', 'name': 'model',
+                                 'geometry': {'vertex_sha256': 'original', 'index_sha256': 'same'}}
+        reference = {0: fields}
+        candidate = copy.deepcopy(reference)
+        candidate[0]['meshDefault']['geometry']['vertex_sha256'] = 'changed'
+        self.assertEqual([row['field'] for row in module.compare(reference, candidate)], ['meshDefault'])
+
 
 if __name__ == '__main__':
     unittest.main()
