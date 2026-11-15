@@ -17,6 +17,8 @@ internal sealed class AndroidSpawnSurfaceProbe : MonoBehaviour
     bool observeOnly;
     bool configurationOnly;
     bool originalNaturalPose;
+    bool contrastProbe;
+    float probeXMin, probeXMax, probeYMin, probeYMax;
     Vector3 replayPosition;
     Quaternion replayRotation;
     float replayFov;
@@ -35,6 +37,21 @@ internal sealed class AndroidSpawnSurfaceProbe : MonoBehaviour
         terrainSeed = intent.Call<int>("getIntExtra", "megabonk_desert_terrain_seed", int.MinValue);
         var obj = new GameObject("spawn surface probe"); DontDestroyOnLoad(obj); var probe = obj.AddComponent<AndroidSpawnSurfaceProbe>(); probe.observeOnly = observeOnly; probe.configurationOnly = configurationOnly;
         probe.originalNaturalPose = intent.Call<bool>("getBooleanExtra", "megabonk_desert_original_natural_pose", false);
+        probe.contrastProbe = intent.Call<bool>("getBooleanExtra", "megabonk_desert_contrast_probe", false);
+        if (probe.contrastProbe)
+        {
+            // Normalized screen coordinates, origin at the bottom left. Restrict
+            // the comparison to the observed streak rather than the horizon.
+            probe.probeXMin = Mathf.Clamp01(intent.Call<float>("getFloatExtra", "megabonk_probe_x_min", 0.4f));
+            probe.probeXMax = Mathf.Clamp01(intent.Call<float>("getFloatExtra", "megabonk_probe_x_max", 0.6f));
+            probe.probeYMin = Mathf.Clamp01(intent.Call<float>("getFloatExtra", "megabonk_probe_y_min", 0.6f));
+            probe.probeYMax = Mathf.Clamp01(intent.Call<float>("getFloatExtra", "megabonk_probe_y_max", 0.9f));
+            if (probe.probeXMin >= probe.probeXMax || probe.probeYMin >= probe.probeYMax)
+            {
+                Debug.LogError("Desert contrast probe: invalid screen rectangle");
+                probe.contrastProbe = false;
+            }
+        }
         if (probe.originalNaturalPose)
         {
             probe.replayPosition = new Vector3(intent.Call<float>("getFloatExtra", "megabonk_camera_x", -381.769226f), intent.Call<float>("getFloatExtra", "megabonk_camera_y", 15.826862f), intent.Call<float>("getFloatExtra", "megabonk_camera_z", 222.407349f));
@@ -168,14 +185,19 @@ internal sealed class AndroidSpawnSurfaceProbe : MonoBehaviour
             foreach (var r in meshes) if (r != null) r.enabled = true;
             var darkPixels = new System.Collections.Generic.List<int>();
             Color32[] basePixels = baseline.GetPixels32(), clearPixels = clear.GetPixels32();
-            for (int y = baseline.height * 3 / 5; y < baseline.height - 35; y += 4)
-                for (int x = 300; x < baseline.width - 300; x += 4)
+            int yMin = contrastProbe ? Mathf.FloorToInt(baseline.height * probeYMin) : baseline.height * 3 / 5;
+            int yMax = contrastProbe ? Mathf.CeilToInt(baseline.height * probeYMax) : baseline.height - 35;
+            int xMin = contrastProbe ? Mathf.FloorToInt(baseline.width * probeXMin) : 300;
+            int xMax = contrastProbe ? Mathf.CeilToInt(baseline.width * probeXMax) : baseline.width - 300;
+            int stride = contrastProbe ? 1 : 4;
+            for (int y = yMin; y < yMax; y += stride)
+                for (int x = xMin; x < xMax; x += stride)
                 {
                     int index = y * baseline.width + x; var a = basePixels[index]; var b = clearPixels[index];
-                    if (a.r < 12 && a.g < 12 && a.b < 12 && b.r > 70 && b.g > 60) darkPixels.Add(index);
+                    if (contrastProbe ? b.r + b.g + b.b - a.r - a.g - a.b >= 60 : a.r < 12 && a.g < 12 && a.b < 12 && b.r > 70 && b.g > 60) darkPixels.Add(index);
                 }
             Destroy(baseline); Destroy(clear);
-            Debug.Log($"Desert sky mesh bisection: candidates={meshes.Count}, blackSkySamples={darkPixels.Count}");
+            Debug.Log($"Desert sky mesh bisection: candidates={meshes.Count}, samples={darkPixels.Count}, contrast={contrastProbe}");
             while (meshes.Count > 1 && darkPixels.Count > 100)
             {
                 int midpoint = meshes.Count / 2, bestSide = -1, bestScore = 0;
@@ -184,7 +206,11 @@ internal sealed class AndroidSpawnSurfaceProbe : MonoBehaviour
                     int start = side == 0 ? 0 : midpoint, end = side == 0 ? midpoint : meshes.Count;
                     for (int i = start; i < end; i++) if (meshes[i] != null) meshes[i].enabled = false;
                     yield return new WaitForEndOfFrame(); var image = ScreenCapture.CaptureScreenshotAsTexture(); var pixels = image.GetPixels32(); int score = 0;
-                    foreach (int index in darkPixels) if (pixels[index].r > 70 && pixels[index].g > 60) score++;
+                    foreach (int index in darkPixels)
+                    {
+                        var pixel = pixels[index]; var original = basePixels[index]; var unobstructed = clearPixels[index];
+                        if (contrastProbe ? pixel.r + pixel.g + pixel.b - original.r - original.g - original.b >= (unobstructed.r + unobstructed.g + unobstructed.b - original.r - original.g - original.b) / 2 : pixel.r > 70 && pixel.g > 60) score++;
+                    }
                     Destroy(image);
                     for (int i = start; i < end; i++) if (meshes[i] != null) meshes[i].enabled = true;
                     Debug.Log($"Desert sky mesh bisection: count={meshes.Count}, side={side}, exposedSamples={score}");
