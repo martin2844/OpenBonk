@@ -26,9 +26,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('apk', 'obb', 'assemblies', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--kind', choices=('weapon', 'item', 'upgrade', 'map', 'stage', 'enemy', 'noise', 'map-parameters'), default='weapon')
+    parser.add_argument('--kind', choices=('character', 'weapon', 'item', 'upgrade', 'map', 'stage', 'enemy', 'noise', 'map-parameters'), default='weapon')
     args = parser.parse_args()
     class_name, full_name, expected, id_field, registry_count, plural = {
+        'character': ('CharacterData', 'CharacterData', 21, 'eCharacter', 2, 'characters'),
         'weapon': ('WeaponData', 'WeaponData', 30, 'eWeapon', 2, 'weapons'),
         'item': ('ItemData', 'ItemData', 87, 'eItem', 2, 'items'),
         'upgrade': ('UpgradeData', 'Assets.Scripts.Inventory__Items__Pickups.Upgrades.UpgradeData', 29, 'm_Name', 0, 'upgrades'),
@@ -82,6 +83,10 @@ def main():
             scripts[obj.path_id] = (script.m_AssemblyName, script.m_ClassName)
     selected = {'globalgamemanagers.assets'}
     for name, raw in groups.items():
+        # CharacterData also has standalone copies. Compare the 21 canonical
+        # records in sharedassets1, as in extract-steam-character-data.py.
+        if args.kind == 'character' and name != 'sharedassets1.assets':
+            continue
         env = UnityPy.load(raw)
         if not env.objects:
             raise ValueError('empty serialized group: ' + name)
@@ -137,7 +142,7 @@ def main():
                 continue
             data = obj.read_typetree(nodes=node)
             if (data.get('m_Name') != head.m_Name or not data.get('m_Name') or
-                    (args.kind in ('weapon', 'item', 'map') and type(data.get(id_field)) is not int) or
+                    (args.kind in ('character', 'weapon', 'item', 'map') and type(data.get(id_field)) is not int) or
                     (args.kind == 'upgrade' and not isinstance(data.get('upgradeModifiers'), list)) or
                     (args.kind == 'map' and not isinstance(data.get('stages'), list)) or
                     (args.kind == 'stage' and not isinstance(data.get('farClipPlane'), (int, float))) or
