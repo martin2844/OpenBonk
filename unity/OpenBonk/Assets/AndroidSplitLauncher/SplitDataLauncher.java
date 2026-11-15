@@ -240,7 +240,7 @@ public final class SplitDataLauncher extends Activity {
                         profileRecoveryFailed = true;
                         android.util.Log.w("MegabonkLauncher", "Profile recovery: " + e.getMessage());
                     }
-                    try { LauncherDataBundle.cleanupPartials(existing, getCacheDir(), pendingSteam()); }
+                    try { LauncherDataBundle.cleanupPartials(existing, getCacheDir(), pendingSteam(), getFilesDir()); }
                     catch (IOException e) { android.util.Log.w("MegabonkLauncher", "Temporary data cleanup: " + e.getMessage()); }
                 } catch (Exception e) { recoveryOk = false; recoveryFailed = true; android.util.Log.w("MegabonkLauncher", "Data recovery: " + e.getMessage()); }
                 available = recoveryOk && (embeddedData() || (existing != null && valid(existing)));
@@ -813,7 +813,7 @@ public final class SplitDataLauncher extends Activity {
                 if (diagnostic) {
                     File destination = target();
                     if (destination == null) throw new IOException("data storage unavailable");
-                    LauncherPreparedSteamImport.install(in, getCacheDir(), destination, pendingSteam(),
+                    LauncherPreparedSteamImport.install(in, getFilesDir(), destination, pendingSteam(),
                         this::plausibleSteamZip, this::valid, MAX_STEAM_BYTES,
                         LauncherDiagnosticIntegration.create(this, IMPORT_GATE::stage), staged -> {
                             OriginalGameDataValidator.Problem problem = OriginalGameDataValidator.problem(staged);

@@ -73,6 +73,10 @@ final class LauncherDataBundle {
 
     // Call while holding the launcher's data-operation lock, after backup recovery.
     static void cleanupPartials(File obb, File cache, File steam) throws IOException {
+        cleanupPartials(obb, cache, steam, cache);
+    }
+
+    static void cleanupPartials(File obb, File cache, File steam, File work) throws IOException {
         if (obb != null) {
             clearStage(new File(obb.getParentFile(), obb.getName() + ".partial"));
             clearStage(new File(obb.getParentFile(), obb.getName() + ".bundle.partial"));
@@ -82,12 +86,13 @@ final class LauncherDataBundle {
         clearStage(new File(cache, "megabonk-original-texts.partial"));
         clearStage(new File(cache, "megabonk-profile.partial"));
         clearAbandonedPreparations(cache);
+        if (!cache.equals(work)) clearAbandonedPreparations(work);
     }
 
     // The caller holds the data lock and waits for the import gate to become idle.
     private static void clearAbandonedPreparations(File cache) throws IOException {
         File[] files = cache.listFiles();
-        if (files == null) throw new IOException("cannot inspect preparation cache");
+        if (files == null) throw new IOException("cannot inspect preparation directory");
         for (File file : files) {
             String name = file.getName();
             if (!name.startsWith("openbonk-steam-import-") && !name.startsWith("openbonk-generated-obb-") &&

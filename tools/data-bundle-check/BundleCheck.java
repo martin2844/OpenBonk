@@ -95,6 +95,18 @@ public final class BundleCheck {
             require(!obbPart.exists() && !obbBundlePart.exists() && !steamPart.exists() && !profilePart.exists());
             require(!staleZip.exists() && !staleOutput.exists() && !staleDir.exists());
             require(obbValidator.valid(obb) && steamValidator.valid(steam));
+            File work = new File(root, "private-work"), keep = new File(work, "keep.txt");
+            require(work.mkdir()); write(keep, "keep");
+            File workZip = new File(work, "openbonk-steam-import-abandoned.zip");
+            File workOutput = new File(work, "openbonk-generated-obb-abandoned.tmp");
+            File workDir = new File(work, ".openbonk-full-diagnostic-abandoned");
+            write(workZip, "partial"); write(workOutput, "partial");
+            require(workDir.mkdir()); write(new File(workDir, "nested"), "partial");
+            Files.createSymbolicLink(new File(workDir, "protected-link").toPath(), obb.toPath());
+            LauncherDataBundle.cleanupPartials(obb, root, steam, work);
+            require(!workZip.exists() && !workOutput.exists() && !workDir.exists());
+            require(read(keep).equals("keep") && obbValidator.valid(obb) && steamValidator.valid(steam));
+            require(keep.delete() && work.delete());
             File preparedObb = new File(root, "prepared.obb"), preparedSteam = new File(root, "prepared.zip");
             write(preparedObb, "new obb"); write(preparedSteam, "broken");
             try { LauncherDataBundle.installPrepared(preparedObb, preparedSteam, obb, steam, obbValidator, steamValidator); throw new AssertionError("accepted invalid prepared ZIP"); }

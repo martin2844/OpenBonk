@@ -35,7 +35,9 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
   return new String(bytes.toByteArray(),java.nio.charset.StandardCharsets.US_ASCII);
  }
  @Override public void prepare(File steam,File output)throws IOException{
-  Path temp=Files.createTempDirectory(context.getCacheDir().toPath(),".openbonk-full-diagnostic-input-");
+  // Android may reclaim cache files while an import is active under storage
+  // pressure. Keep this working set in private files until the transaction ends.
+  Path temp=Files.createTempDirectory(context.getFilesDir().toPath(),".openbonk-full-diagnostic-input-");
   try{
    String[] available=context.getAssets().list(ROOT);
    if(available!=null&&Arrays.asList(available).contains("generated-audio-mode")){
