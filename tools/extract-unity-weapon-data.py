@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Decode weapon records from a local Unity APK/OBB pair for comparison.
+"""Decode weapon or weapon-upgrade records from a Unity APK/OBB pair.
 
 Uses locally exported Steam GameAssemblies and an isolated temporary workspace.
 The output contains game-derived data and must remain private. Unity object
@@ -25,7 +25,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('apk', 'obb', 'assemblies', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--kind', choices=('weapon', 'upgrade'), default='weapon')
     args = parser.parse_args()
+    class_name, full_name, expected, id_field, registry_count, plural = (
+        ('WeaponData', 'WeaponData', 30, 'eWeapon', 2, 'weapons') if args.kind == 'weapon' else
+        ('UpgradeData', 'Assets.Scripts.Inventory__Items__Pickups.Upgrades.UpgradeData', 29, 'm_Name', 0, 'upgrades'))
     inputs = []
     for path in (args.apk, args.obb):
         path = path.expanduser()
@@ -44,13 +48,13 @@ def main():
     output = output.parent.resolve() / output.name
     if output.is_relative_to(ROOT) or output.is_relative_to(assemblies) or output in inputs:
         parser.error('output must be separate from checkout and inputs')
-    for package, expected in (('UnityPy', '1.25.4'), ('TypeTreeGeneratorAPI', '0.0.10')):
+    for package, expected_version in (('UnityPy', '1.25.4'), ('TypeTreeGeneratorAPI', '0.0.10')):
         try:
             version = importlib.metadata.version(package)
         except importlib.metadata.PackageNotFoundError:
-            parser.error(package + ' ' + expected + ' is required')
-        if version != expected:
-            parser.error(package + ' ' + expected + ' is required')
+            parser.error(package + ' ' + expected_version + ' is required')
+        if version != expected_version:
+            parser.error(package + ' ' + expected_version + ' is required')
     import UnityPy
     from UnityPy.helpers.TypeTreeGenerator import TypeTreeGenerator
 
@@ -94,18 +98,19 @@ def main():
                 identity = None
             if identity is None:
                 raise ValueError('unresolved script in ' + name)
-            if identity == ('Assembly-CSharp', 'WeaponData'):
+            if identity == ('Assembly-CSharp', class_name):
                 selected.add(name)
     generator = TypeTreeGenerator('2023.2.22f1')
     for path in sorted(assemblies.glob('*.dll')):
         if path.is_symlink() or not path.is_file():
             raise ValueError('assembly inputs must be regular files')
         generator.load_dll(path.read_bytes())
-    node = generator.get_nodes_up('Assembly-CSharp.dll', 'WeaponData')
+    node = generator.get_nodes_up('Assembly-CSharp.dll', full_name)
     registries = [child for child in node.m_Children if child.m_Name == 'references']
-    if len(registries) != 2 or node.m_Children[-1].m_Name != 'references':
-        raise ValueError('unexpected WeaponData type tree')
-    node.m_Children[:] = [child for child in node.m_Children if child.m_Name != 'references'] + registries[-1:]
+    if len(registries) != registry_count or (registries and node.m_Children[-1].m_Name != 'references'):
+        raise ValueError('unexpected data type tree')
+    if registries:
+        node.m_Children[:] = [child for child in node.m_Children if child.m_Name != 'references'] + registries[-1:]
     with tempfile.TemporaryDirectory(prefix='openbonk-weapons-', dir=output.parent) as temp:
         paths = []
         for name in sorted(selected):
@@ -120,21 +125,26 @@ def main():
                 continue
             head = obj.parse_monobehaviour_head()
             script = head.m_Script.deref_parse_as_object()
-            if (script.m_AssemblyName, script.m_ClassName) != ('Assembly-CSharp', 'WeaponData'):
+            if (script.m_AssemblyName, script.m_ClassName) != ('Assembly-CSharp', class_name):
                 continue
             data = obj.read_typetree(nodes=node)
-            if data.get('m_Name') != head.m_Name or type(data.get('eWeapon')) is not int:
-                raise ValueError('weapon record failed structural validation')
-            rows.append({'path_id': obj.path_id, 'data': data})
-    if len(rows) != 30 or len({row['data']['eWeapon'] for row in rows}) != 30:
-        raise ValueError('unexpected weapon count or duplicate ID')
-    payload = {'schema': 1, 'unity_version': '2023.2.22f1', 'weapons': rows,
+            if (data.get('m_Name') != head.m_Name or not data.get('m_Name') or
+                    (args.kind == 'weapon' and type(data.get(id_field)) is not int) or
+                    (args.kind == 'upgrade' and not isinstance(data.get('upgradeModifiers'), list))):
+                raise ValueError('data record failed structural validation')
+            rows.append({'source_group': obj.assets_file.name, 'path_id': obj.path_id,
+                         'external_files': [str(ref.path).replace('\\', '/').rsplit('/', 1)[-1]
+                                            for ref in obj.assets_file.externals], 'data': data})
+    if len(rows) != expected or len({row['data'][id_field] for row in rows}) != expected:
+        raise ValueError(f'unexpected data count or duplicate ID: {len(rows)} records, '
+                         f'{len({row["data"][id_field] for row in rows})} unique')
+    payload = {'schema': 1, 'unity_version': '2023.2.22f1', plural: rows,
                'notice': 'Game-derived data; Unity object pointers require additional mapping.'}
     encoded = (json.dumps(payload, indent=2, ensure_ascii=False, allow_nan=False) + '\n').encode('utf-8')
     fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     with os.fdopen(fd, 'wb') as stream:
         stream.write(encoded)
-    print('Decoded 30 weapon records locally. Asset pointer mapping is still required.')
+    print('Decoded', expected, args.kind, 'records locally. Asset pointer mapping is still required.')
 
 
 if __name__ == '__main__':

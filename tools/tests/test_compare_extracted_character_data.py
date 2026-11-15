@@ -44,6 +44,18 @@ class CompareCharacterDataTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.compare(document(), candidate, kind='weapon')
 
+    def test_upgrade_inventory_matches_by_name_and_rejects_duplicates(self):
+        upgrades = {'schema': 1, 'unity_version': '2023.2.22f1',
+                    'upgrades': [{'data': {'m_Name': f'upgrade-{i}', 'upgradeModifiers': [i]}} for i in range(29)]}
+        candidate = copy.deepcopy(upgrades)
+        candidate['upgrades'][3]['data']['upgradeModifiers'][0] = 5
+        result = module.compare(upgrades, candidate, kind='upgrade')
+        self.assertEqual(result['reference_upgrades'], 29)
+        self.assertEqual(result['differences'][0]['path'], ['upgrade-3', 'upgradeModifiers', 0])
+        candidate['upgrades'][4]['data']['m_Name'] = 'upgrade-3'
+        with self.assertRaises(ValueError):
+            module.compare(upgrades, candidate, kind='upgrade')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare scalar fields in two locally decoded character or weapon inventories.
+"""Compare scalar fields in two decoded character, weapon or upgrade inventories.
 
 Inputs use the corresponding local extractor's schema. Unity object pointers
 are deliberately excluded; matching values do not prove that their targets,
@@ -18,9 +18,11 @@ ROOT = Path(__file__).resolve().parent.parent
 def records(document, kind='character'):
     if document.get('schema') != 1 or document.get('unity_version') != '2023.2.22f1':
         raise ValueError('unsupported character inventory schema or Unity version')
-    if kind not in ('character', 'weapon'):
+    if kind not in ('character', 'weapon', 'upgrade'):
         raise ValueError('unsupported data kind')
-    plural, field, expected = ('characters', 'eCharacter', 21) if kind == 'character' else ('weapons', 'eWeapon', 30)
+    plural, field, expected = {'character': ('characters', 'eCharacter', 21),
+                               'weapon': ('weapons', 'eWeapon', 30),
+                               'upgrade': ('upgrades', 'm_Name', 29)}[kind]
     rows = document.get(plural)
     if not isinstance(rows, list) or len(rows) != expected:
         raise ValueError('unexpected record count')
@@ -28,8 +30,9 @@ def records(document, kind='character'):
     for row in rows:
         data = row.get('data') if isinstance(row, dict) else None
         character = data.get(field) if isinstance(data, dict) else None
-        if type(character) is not int or character in result:
-            raise ValueError('missing or duplicate character ID')
+        valid = isinstance(character, str) and bool(character) if kind == 'upgrade' else type(character) is int
+        if not valid or character in result:
+            raise ValueError('missing or duplicate data identity')
         result[character] = data
     return result
 
@@ -65,7 +68,7 @@ def compare(reference, candidate, kind='character'):
                                 'side': 'reference' if character not in left else 'candidate'})
         else:
             walk(left[character], right[character], [character])
-    plural = 'characters' if kind == 'character' else 'weapons'
+    plural = {'character': 'characters', 'weapon': 'weapons', 'upgrade': 'upgrades'}[kind]
     return {'reference_' + plural: len(left), 'candidate_' + plural: len(right),
             'scalars_compared': counts['scalars_compared'], 'pointers_skipped': counts['pointers_skipped'],
             'differences': differences}
@@ -76,7 +79,7 @@ def main():
     parser.add_argument('reference', type=Path)
     parser.add_argument('candidate', type=Path)
     parser.add_argument('output', type=Path)
-    parser.add_argument('--kind', choices=('character', 'weapon'), default='character')
+    parser.add_argument('--kind', choices=('character', 'weapon', 'upgrade'), default='character')
     args = parser.parse_args()
     inputs = []
     for path in (args.reference, args.candidate):
