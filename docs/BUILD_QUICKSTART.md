@@ -90,3 +90,15 @@ To check that the checkout's C#, Java and shader sources were copied unchanged i
 ```
 
 Omit `--launcher-gradle` for a Linux-only build, or point it to `$OPENBONK_OUTPUT/research/launcher/gradle`. The check flags additional C#, Java or shader source files in the workspace, and permits three water diagnostic shaders to be absent because preparation removes those probes. It excludes the launcher checksum placeholder, which is regenerated for each APK. It checks source files only, not managed or native binaries; it does not prove that every source is compiled or that game assets and behavior match the beta.
+
+To check the workspace's managed and native binary files against its local export, prepared plugins and Lua bridge:
+
+```sh
+.venv/bin/python tools/check-unity-workspace-binaries.py \
+  --project "$OPENBONK_OUTPUT/steam/build/workspace" \
+  --export "$OPENBONK_OUTPUT/steam/export/ExportedProject" \
+  --plugins "$OPENBONK_OUTPUT/steam/build/managed-plugins" \
+  --lua-library "$OPENBONK_OUTPUT/steam/lua/libmegabonk_lua.so"
+```
+
+The check flags workspace binary files that differ from or have no corresponding local input, and missing generated plugins. It does not validate the creation of those inputs, Unity package-cache binaries, provenance, redistribution rights or behavior of the resulting APK.
