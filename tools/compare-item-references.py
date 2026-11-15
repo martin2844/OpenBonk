@@ -67,6 +67,7 @@ def read_build(apk, obb, document):
             raise ValueError('invalid or duplicate item ID')
         targets[item] = {field: pointer_key(row, row['data'][field]) for field in ('icon', 'unlockRequirement')}
     selected = {target[0] for fields in targets.values() for target in fields.values() if target is not None}
+    selected.add('globalgamemanagers.assets')
     groups = {}
     for path in (apk, obb):
         with zipfile.ZipFile(path) as archive:
@@ -92,10 +93,21 @@ def read_build(apk, obb, document):
             expected = 'Texture2D' if field == 'icon' else 'MonoBehaviour'
             if obj is None or obj.type.name != expected or obj.assets_file.unity_version != '2023.2.22f1':
                 raise ValueError('unresolved or unexpected item target')
-            name = obj.read().m_Name if field == 'icon' else obj.parse_monobehaviour_head().m_Name
+            head = obj.parse_monobehaviour_head() if field == 'unlockRequirement' else None
+            name = obj.read().m_Name if head is None else head.m_Name
             if not isinstance(name, str) or not name:
                 raise ValueError('unnamed item target')
             result[item][field] = {'type': expected, 'name': name}
+            if head is not None:
+                pointer = head.m_Script
+                external = [str(ref.path).replace('\\', '/').rsplit('/', 1)[-1] for ref in obj.assets_file.externals]
+                script_key = pointer_key({'source_group': key[0], 'external_files': external},
+                                         {'m_FileID': pointer.file_id, 'm_PathID': pointer.path_id})
+                script_obj = objects.get(script_key)
+                if script_obj is None or script_obj.type.name != 'MonoScript':
+                    raise ValueError('unresolved unlock script')
+                script = script_obj.read()
+                result[item][field]['script'] = [script.m_AssemblyName, script.m_Namespace, script.m_ClassName]
     return result
 
 
@@ -118,7 +130,7 @@ def main():
     candidate = read_build(paths[3], paths[4], json.loads(paths[5].read_text(encoding='utf-8')))
     differences = compare(reference, candidate)
     result = {'schema': 1, 'item_count': len(reference), 'reference': reference, 'candidate': candidate,
-              'differences': differences, 'limitations': 'Target type and name only; contents, code and behavior are not compared.'}
+              'differences': differences, 'limitations': 'Target type, name and unlock script identity only; contents, code and behavior are not compared.'}
     fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8') as stream:
         json.dump(result, stream, ensure_ascii=False, indent=2)

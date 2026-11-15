@@ -23,6 +23,13 @@ class ItemReferenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.compare(reference, {})
 
+    def test_comparison_detects_changed_unlock_script(self):
+        reference = {1: {'icon': None, 'unlockRequirement': {'type': 'MonoBehaviour', 'name': 'unlock',
+                                                               'script': ['Assembly-CSharp', '', 'Achievement']}}}
+        candidate = {1: {'icon': None, 'unlockRequirement': {'type': 'MonoBehaviour', 'name': 'unlock',
+                                                               'script': ['Assembly-CSharp', '', 'Other']}}}
+        self.assertEqual(module.compare(reference, candidate)[0]['field'], 'unlockRequirement')
+
 
 if __name__ == '__main__':
     unittest.main()
