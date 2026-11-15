@@ -225,6 +225,13 @@ internal sealed class AndroidSpawnSurfaceProbe : MonoBehaviour
             if (meshes.Count == 1 && meshes[0] != null && meshes[0].sharedMaterial != null)
             {
                 var selected = meshes[0]; var original = selected.sharedMaterial; var temporary = new Material(original);
+                // Keep a direct visual control: a high score can come from a
+                // foreground object or a large surface rather than the streak.
+                selected.enabled = false;
+                yield return new WaitForEndOfFrame();
+                SaveScreen("desert-sky-without-candidate");
+                selected.enabled = true;
+                yield return new WaitForEndOfFrame();
                 selected.sharedMaterial = temporary;
                 foreach (string passName in new[] { "OUTLINE", "FORWARD" })
                 {
