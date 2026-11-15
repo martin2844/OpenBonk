@@ -58,7 +58,7 @@ public final class GeneratedAudioIntegrationCheck {
             Path objectHash = assets.resolve("object-plan.sha256");
             Files.write(objectHash, "0000000000000000000000000000000000000000000000000000000000000000".getBytes(StandardCharsets.US_ASCII));
             try (InputStream in = new FileInputStream(args[3])) {
-                try { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid object plan accepted"); }
+                try { LauncherPreparedSteamImport.install(in, context.getFilesDir(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid object plan accepted"); }
                 catch (IOException expected) { require(new String(Files.readAllBytes(obb.toPath()), StandardCharsets.US_ASCII).equals("old-obb")); require(new String(Files.readAllBytes(steam.toPath()), StandardCharsets.US_ASCII).equals("old-steam")); }
             }
             Files.write(objectHash, sha(new File(args[10])).getBytes(StandardCharsets.US_ASCII));
@@ -67,7 +67,7 @@ public final class GeneratedAudioIntegrationCheck {
             Path animationHash = assets.resolve("animation-plan.sha256");
             Files.write(animationHash, "0000000000000000000000000000000000000000000000000000000000000000".getBytes(StandardCharsets.US_ASCII));
             try (InputStream in = new FileInputStream(args[3])) {
-                try { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid animation plan accepted"); }
+                try { LauncherPreparedSteamImport.install(in, context.getFilesDir(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid animation plan accepted"); }
                 catch (IOException expected) { require(new String(Files.readAllBytes(obb.toPath()), StandardCharsets.US_ASCII).equals("old-obb")); require(new String(Files.readAllBytes(steam.toPath()), StandardCharsets.US_ASCII).equals("old-steam")); }
             }
             Files.write(animationHash, sha(new File(args[9])).getBytes(StandardCharsets.US_ASCII));
@@ -76,7 +76,7 @@ public final class GeneratedAudioIntegrationCheck {
             Path cubeHash = assets.resolve("cubemap-plan.sha256");
             Files.write(cubeHash, "0000000000000000000000000000000000000000000000000000000000000000".getBytes(StandardCharsets.US_ASCII));
             try (InputStream in = new FileInputStream(args[3])) {
-                try { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid cubemap plan accepted"); }
+                try { LauncherPreparedSteamImport.install(in, context.getFilesDir(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid cubemap plan accepted"); }
                 catch (IOException expected) { require(new String(Files.readAllBytes(obb.toPath()), StandardCharsets.US_ASCII).equals("old-obb")); require(new String(Files.readAllBytes(steam.toPath()), StandardCharsets.US_ASCII).equals("old-steam")); }
             }
             Files.write(cubeHash, sha(new File(args[8])).getBytes(StandardCharsets.US_ASCII));
@@ -85,7 +85,7 @@ public final class GeneratedAudioIntegrationCheck {
             Path meshHash = assets.resolve("mesh-plan.sha256");
             Files.write(meshHash, "0000000000000000000000000000000000000000000000000000000000000000".getBytes(StandardCharsets.US_ASCII));
             try (InputStream in = new FileInputStream(args[3])) {
-                try { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid mesh plan accepted"); }
+                try { LauncherPreparedSteamImport.install(in, context.getFilesDir(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid mesh plan accepted"); }
                 catch (IOException expected) { require(new String(Files.readAllBytes(obb.toPath()), StandardCharsets.US_ASCII).equals("old-obb")); require(new String(Files.readAllBytes(steam.toPath()), StandardCharsets.US_ASCII).equals("old-steam")); }
             }
             Files.write(meshHash, sha(new File(args[7])).getBytes(StandardCharsets.US_ASCII));
@@ -94,7 +94,7 @@ public final class GeneratedAudioIntegrationCheck {
             Path textureHash = assets.resolve("texture-plan.sha256");
             Files.write(textureHash, "0000000000000000000000000000000000000000000000000000000000000000".getBytes(StandardCharsets.US_ASCII));
             try (InputStream in = new FileInputStream(args[3])) {
-                try { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid texture plan accepted"); }
+                try { LauncherPreparedSteamImport.install(in, context.getFilesDir(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid texture plan accepted"); }
                 catch (IOException expected) { require(new String(Files.readAllBytes(obb.toPath()), StandardCharsets.US_ASCII).equals("old-obb")); require(new String(Files.readAllBytes(steam.toPath()), StandardCharsets.US_ASCII).equals("old-steam")); }
             }
             Files.write(textureHash, sha(new File(args[6])).getBytes(StandardCharsets.US_ASCII));
@@ -103,20 +103,21 @@ public final class GeneratedAudioIntegrationCheck {
             Path packedHash = assets.resolve("packed-audio-plan.sha256");
             Files.write(packedHash, "0000000000000000000000000000000000000000000000000000000000000000".getBytes(StandardCharsets.US_ASCII));
             try (InputStream in = new FileInputStream(args[3])) {
-                try { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid packed plan accepted"); }
+                try { LauncherPreparedSteamImport.install(in, context.getFilesDir(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid packed plan accepted"); }
                 catch (IOException expected) { require(new String(Files.readAllBytes(obb.toPath()), StandardCharsets.US_ASCII).equals("old-obb")); require(new String(Files.readAllBytes(steam.toPath()), StandardCharsets.US_ASCII).equals("old-steam")); }
             }
             Files.write(packedHash, sha(new File(args[5])).getBytes(StandardCharsets.US_ASCII));
         }
         try (InputStream in = new FileInputStream(args[3])) {
-            try { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid plan accepted"); }
+            try { LauncherPreparedSteamImport.install(in, context.getFilesDir(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, null)); throw new AssertionError("invalid plan accepted"); }
             catch (IOException expected) { require(new String(Files.readAllBytes(obb.toPath()), StandardCharsets.US_ASCII).equals("old-obb")); require(new String(Files.readAllBytes(steam.toPath()), StandardCharsets.US_ASCII).equals("old-steam")); }
         }
         Files.write(planHash, sha(new File(args[2])).getBytes(StandardCharsets.US_ASCII));
         List<String> stages = new ArrayList<>();
-        try (InputStream in = new FileInputStream(args[3])) { LauncherPreparedSteamImport.install(in, cache.toFile(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, stages::add)); }
+        try (InputStream in = new FileInputStream(args[3])) { LauncherPreparedSteamImport.install(in, context.getFilesDir(), obb, steam, validSteam, validObb, 1024L * 1024 * 1024, LauncherDiagnosticIntegration.create(context, stages::add)); }
         require(validObb.valid(obb) && validSteam.valid(steam) && stages.contains("Preparando audio") && (args.length < 7 || stages.contains("Preparando texturas")) && (args.length < 8 || stages.contains("Preparando modelos")) && (args.length < 9 || stages.contains("Preparando cielos")) && (args.length < 10 || stages.contains("Preparando animaciones")) && (args.length < 11 || stages.contains("Preparando recursos")));
         try (java.util.stream.Stream<Path> children = Files.list(cache)) { require(!children.findAny().isPresent()); }
+        try (java.util.stream.Stream<Path> children = Files.list(context.getFilesDir().toPath())) { require(!children.findAny().isPresent()); }
         System.out.println("PASS: launcher discovery, invalid-plan rollback, progress, validated prepared-pair install and cleanup");
     }
     private GeneratedAudioIntegrationCheck() {}
