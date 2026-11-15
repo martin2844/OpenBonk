@@ -49,7 +49,7 @@ public class SniperWeaponPlayRunner : MonoBehaviour
         stats.stats[EStat.CritChance] = 0f; stats.stats[EStat.KnockbackMultiplier] = 0f; stats.stats[EStat.Projectiles] = 0f; stats.stats[EStat.ProjectileBounces] = 0f; player.inventory.playerStats = stats;
         player.playerMovement = root.AddComponent<PlayerMovement>(); player.playerMovement.playerCam = new GameObject("camera direction").transform;
         pool = root.AddComponent<PoolManager>(); PoolManager.Instance = pool;
-        string impactPath = AssetDatabase.GUIDToAssetPath("fc509692caceb454c8a2ba50740680cf"); pool.bulletHit = AssetDatabase.LoadAssetAtPath<GameObject>(impactPath); Check(pool.bulletHit != null, "original bullet impact prefab");
+        pool.bulletHit = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/GameObject/BulletHit.prefab"); Check(pool.bulletHit != null, "original bullet impact prefab");
         typeof(PoolManager).GetMethod("Start", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(pool, null); Check(pool.bulletHitPool != null, "bullet impact pool initialized");
         EffectManager.Instance = root.AddComponent<EffectManager>();
         var target = new GameObject("stationary enemy"); target.SetActive(false); target.layer = LayerMask.NameToLayer("Enemy"); target.transform.position = new Vector3(0f, .6f, 4f);
