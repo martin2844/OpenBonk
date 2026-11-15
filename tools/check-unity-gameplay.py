@@ -15,6 +15,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parent.parent
 MARKER = {'schema': 1, 'kind': 'openbonk-local-unity-workspace'}
 DEFINES = b'-define:OPENBONK_NO_REWIRED\n-define:OPENBONK_BETA_NO_PROBES\n'
+REWIRED_DEFINES = b'-define:OPENBONK_BETA_NO_PROBES\n'
 CHECKS = (
     ('AndroidInputBindingCheck', 'passed', False),
     ('AndroidMenuSwapCheck', 'PASS', False),
@@ -73,6 +74,7 @@ def main():
     p.add_argument('--unity', type=Path, required=True, help='Unity 2023.2.22f1 executable')
     p.add_argument('--output', type=Path, required=True, help='new directory for private Unity logs')
     p.add_argument('--runner', help='optional executable used to run Unity, e.g. steam-run')
+    p.add_argument('--include-rewired', action='store_true', help='use the runtime build\'s Rewired compile flags; editor behavior can still differ from Android')
     selection = p.add_mutually_exclusive_group()
     selection.add_argument('--weapons', action='store_true', help='also run controlled original-weapon checks')
     selection.add_argument('--weapons-only', action='store_true', help='run only the controlled original-weapon checks')
@@ -98,10 +100,12 @@ def main():
         return
     output.mkdir(mode=0o700)
     env = os.environ.copy()
-    env.update(OPENBONK_NO_REWIRED_CODE='1', OPENBONK_NO_REWIRED_PLUGINS='1', OPENBONK_NO_REWIRED_SCENE='1')
+    env.update(OPENBONK_NO_REWIRED_CODE='0' if a.include_rewired else '1',
+               OPENBONK_NO_REWIRED_PLUGINS='0' if a.include_rewired else '1', OPENBONK_NO_REWIRED_SCENE='1')
+    defines = REWIRED_DEFINES if a.include_rewired else DEFINES
     fd = os.open(rsp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     try:
-        with os.fdopen(fd, 'wb') as stream: stream.write(DEFINES)
+        with os.fdopen(fd, 'wb') as stream: stream.write(defines)
         checks = WEAPON_CHECKS if a.weapons_only else CHECKS + WEAPON_CHECKS if a.weapons else CHECKS
         for name, marker, play in checks:
             print('Checking ' + name, flush=True)
@@ -118,7 +122,7 @@ def main():
                 raise RuntimeError('outdoor collision comparison did not pass; inspect ' + str(log))
             print('PASS ' + name, flush=True)
     finally:
-        if rsp.is_file() and not rsp.is_symlink() and rsp.read_bytes() == DEFINES:
+        if rsp.is_file() and not rsp.is_symlink() and rsp.read_bytes() == defines:
             rsp.unlink()
             if meta.is_file() and not meta.is_symlink(): meta.unlink()
         for path in (scene, scene_meta):
