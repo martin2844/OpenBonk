@@ -47,6 +47,19 @@ class AttackPrefabTests(unittest.TestCase):
         self.assertEqual(result['reference_object_occurrences'], 2)
         self.assertEqual(len(result['differences']), 1)
 
+    def test_physics_fields_preserve_values_but_skip_object_pointers(self):
+        fields = {'m_IsTrigger': True, 'm_Size': {'x': 1.0, 'y': 2.0, 'z': 3.0},
+                  'm_Material': {'m_FileID': 1, 'm_PathID': 99}}
+        normalized = module.without_pointers(fields)
+        self.assertEqual(normalized['m_Size']['y'], 2.0)
+        self.assertTrue(normalized['m_IsTrigger'])
+        self.assertEqual(normalized['m_Material'], {'$unity_pointer': True})
+        changed = copy.deepcopy(fields)
+        changed['m_Material']['m_PathID'] = 7
+        self.assertEqual(module.without_pointers(changed), normalized)
+        changed['m_Size']['y'] = 4.0
+        self.assertNotEqual(module.without_pointers(changed), normalized)
+
     def test_rejects_inventory_from_different_apk_or_obb(self):
         with tempfile.TemporaryDirectory() as temp:
             apk, obb = Path(temp) / 'one.apk', Path(temp) / 'one.obb'
