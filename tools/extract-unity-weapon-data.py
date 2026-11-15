@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Decode weapon or weapon-upgrade records from a Unity APK/OBB pair.
+"""Decode weapon, upgrade, map or stage records from a Unity APK/OBB pair.
 
 Uses locally exported Steam GameAssemblies and an isolated temporary workspace.
 The output contains game-derived data and must remain private. Unity object
@@ -25,11 +25,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('apk', 'obb', 'assemblies', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--kind', choices=('weapon', 'upgrade'), default='weapon')
+    parser.add_argument('--kind', choices=('weapon', 'upgrade', 'map', 'stage'), default='weapon')
     args = parser.parse_args()
-    class_name, full_name, expected, id_field, registry_count, plural = (
-        ('WeaponData', 'WeaponData', 30, 'eWeapon', 2, 'weapons') if args.kind == 'weapon' else
-        ('UpgradeData', 'Assets.Scripts.Inventory__Items__Pickups.Upgrades.UpgradeData', 29, 'm_Name', 0, 'upgrades'))
+    class_name, full_name, expected, id_field, registry_count, plural = {
+        'weapon': ('WeaponData', 'WeaponData', 30, 'eWeapon', 2, 'weapons'),
+        'upgrade': ('UpgradeData', 'Assets.Scripts.Inventory__Items__Pickups.Upgrades.UpgradeData', 29, 'm_Name', 0, 'upgrades'),
+        'map': ('MapData', 'MapData', 5, 'eMap', 2, 'maps'),
+        'stage': ('StageData', 'StageData', 9, 'm_Name', 1, 'stages'),
+    }[args.kind]
     inputs = []
     for path in (args.apk, args.obb):
         path = path.expanduser()
@@ -129,8 +132,10 @@ def main():
                 continue
             data = obj.read_typetree(nodes=node)
             if (data.get('m_Name') != head.m_Name or not data.get('m_Name') or
-                    (args.kind == 'weapon' and type(data.get(id_field)) is not int) or
-                    (args.kind == 'upgrade' and not isinstance(data.get('upgradeModifiers'), list))):
+                    (args.kind in ('weapon', 'map') and type(data.get(id_field)) is not int) or
+                    (args.kind == 'upgrade' and not isinstance(data.get('upgradeModifiers'), list)) or
+                    (args.kind == 'map' and not isinstance(data.get('stages'), list)) or
+                    (args.kind == 'stage' and not isinstance(data.get('farClipPlane'), (int, float)))):
                 raise ValueError('data record failed structural validation')
             rows.append({'source_group': obj.assets_file.name, 'path_id': obj.path_id,
                          'external_files': [str(ref.path).replace('\\', '/').rsplit('/', 1)[-1]

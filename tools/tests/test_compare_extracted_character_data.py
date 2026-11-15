@@ -56,6 +56,16 @@ class CompareCharacterDataTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.compare(upgrades, candidate, kind='upgrade')
 
+    def test_map_and_stage_fields_use_correct_identity(self):
+        maps = {'schema': 1, 'unity_version': '2023.2.22f1',
+                'maps': [{'data': {'eMap': i, 'stageDuration': 100.0}} for i in range(5)]}
+        stages = {'schema': 1, 'unity_version': '2023.2.22f1',
+                  'stages': [{'data': {'m_Name': f'stage-{i}', 'farClipPlane': 200.0}} for i in range(9)]}
+        altered = copy.deepcopy(stages)
+        altered['stages'][4]['data']['farClipPlane'] = 201.0
+        self.assertEqual(module.compare(maps, maps, kind='map')['reference_maps'], 5)
+        self.assertEqual(module.compare(stages, altered, kind='stage')['differences'][0]['path'], ['stage-4', 'farClipPlane'])
+
 
 if __name__ == '__main__':
     unittest.main()

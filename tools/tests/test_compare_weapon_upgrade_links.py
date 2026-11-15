@@ -34,6 +34,24 @@ class CompareWeaponLinksTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.links(weapons, upgrades)
 
+    def test_map_stage_order_and_unresolved_references(self):
+        header = {'schema': 1, 'unity_version': '2023.2.22f1'}
+        stages = {**header, 'stages': [{'source_group': f'asset-{i}', 'path_id': 1,
+                                       'data': {'m_Name': f'stage-{i}'}} for i in range(9)]}
+        maps = {**header, 'maps': [{'source_group': f'map-{i}', 'external_files': ['asset-0', 'asset-1'],
+                                   'data': {'eMap': i, 'stages': [{'m_FileID': 1, 'm_PathID': 1},
+                                                                  {'m_FileID': 2, 'm_PathID': 1}]}}
+                                  for i in range(5)]}
+        candidate = copy.deepcopy(maps)
+        candidate['maps'][0]['data']['stages'].reverse()
+        result = module.compare_maps(maps, stages, candidate, stages)
+        self.assertEqual(result['reference_stage_links'], 10)
+        self.assertEqual(result['differences'][0]['reference'], ['stage-0', 'stage-1'])
+        self.assertEqual(result['differences'][0]['candidate'], ['stage-1', 'stage-0'])
+        candidate['maps'][0]['data']['stages'][0]['m_PathID'] = 999
+        with self.assertRaises(ValueError):
+            module.map_links(candidate, stages)
+
 
 if __name__ == '__main__':
     unittest.main()
