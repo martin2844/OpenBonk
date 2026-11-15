@@ -42,7 +42,7 @@ build_args=(
   --application-id com.example.openbonkresearch
   --output "$OPENBONK_OUTPUT"
   --include-rewired --quality-textures --font-fallback
-  --resource-fallback --shadow-fallback --partial-rgba --partial-etc2 --shared0-fonts
+  --resource-fallback --shadow-fallback --partial-rgba --shared0-fonts
   --gradle-online
 )
 
@@ -61,7 +61,7 @@ The initial check creates and removes a temporary file in the output's parent to
 
 For dual-platform builds, the initial check warns if the output filesystem has less than 35 GiB free. This is an estimate, not a reservation or a guarantee: available space can change and dependencies or intermediate files may require more. The warning does not stop the build.
 
-The example includes the experimental `--shared0-fonts` option. It relocates Unity's `sharedassets0` fragments into the prepared data and reconstructs selected font atlases, font metadata, embedded font files and the exact default skybox payload from Steam. It leaves the original runtime and Gradle export untouched and creates relocated copies inside the output. A fresh-clone build at `235df8a` completed all seven stages, and an independent desktop check reconstructed the expected data from both platform ZIPs. Its APK imported the generated Linux ZIP on an emulator, produced an OBB matching the build output and reached a short Forest run. A separate run accepted a prepared local bundle and reached Forest with the Pikachu mod. In an earlier `4db0f61` build, the generated Windows ZIP was also imported on an emulator, producing an OBB matching that build's output. Windows input came from an earlier ZIP, not a Windows PC. These builds have not been validated on a physical device or established as distributable releases. The option may require additional build space and make first import slower. See [BUILDING.md](BUILDING.md) for the tested scope.
+The example includes the experimental `--shared0-fonts` option. It relocates Unity's `sharedassets0` fragments into the prepared data and reconstructs selected font atlases, font metadata, embedded font files and the exact default skybox payload from Steam. It leaves the original runtime and Gradle export untouched and creates relocated copies inside the output. A fresh-clone build at `37c62dd` used these conversion options; after an interruption, its build resumed using existing intermediate outputs. Its combined APK imported a Linux Steam ZIP on a Retroid Pocket 5 and reached a short Forest run. Joystick movement, jumping and pause were also confirmed on that device using a prepared bundle, and the Pikachu mod reached level one. An independent desktop check reproduced the expected OBB from both Linux and Windows ZIPs; the Windows input came from an earlier prepared ZIP, not a Windows PC. These checks do not establish full gameplay parity or a distributable release. The option may require additional build space and make first import slower. See [BUILDING.md](BUILDING.md) for the tested scope and an observed character-selection issue.
 
 On success, the dual-platform APK is under `dual-launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk` within the output directory. For Linux-only builds it is under `research/launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk`. Failure logs and intermediate data remain in the output directory. Do not publish this APK, the output directory, your Steam ZIPs, saves, or signing keys.
 
@@ -81,7 +81,7 @@ For a dual-platform build, verify the plans actually packaged in that APK agains
 
 Add `--runner steam-run` if Java needs that wrapper. This compiles the checkout's Java import sources, extracts the packaged diagnostic plans into a temporary directory under `--workdir`, and checks that each ZIP reconstructs the expected OBB byte-for-byte. It removes its temporary files and does not install an APK. `--check` validates initial inputs only. These checks do not exercise Android UI, game rendering, physical controls or mods.
 
-The APK can be installed on an isolated Android test package and supplied with a Steam ZIP through the launcher. Short emulator runs have covered both ZIP variants, Forest, touch movement and an upgrade; they do not establish full game parity or physical-controller behavior. See [BUILDING.md](BUILDING.md) for exactly which revisions and configurations were tested.
+The APK can be installed on an isolated Android test package and supplied with a Steam ZIP through the launcher. Short emulator runs have covered both ZIP variants, Forest, touch movement and an upgrade; a Retroid test also covered the Linux ZIP and the controls described above. These tests do not establish full game parity or cover every physical control. See [BUILDING.md](BUILDING.md) for exactly which revisions and configurations were tested.
 
 To check that the checkout's C#, Java and shader sources were copied unchanged into the generated workspace:
 
