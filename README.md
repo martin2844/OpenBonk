@@ -10,7 +10,7 @@
 
 OpenBonk is an unofficial community project in beta. Bring your own compatible Steam copy of Megabonk: the launcher prepares its data on your Android device.
 
-[Download the beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) · [Installation guides](#installation-guides) · [Lua modding](docs/MODDING.md) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues) · [Support](#support-the-project)
+[Download the beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) · [Installation guides](#installation-guides) · [Install with an AI agent](#install-with-an-ai-agent) · [Lua modding](docs/MODDING.md) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues) · [Support](#support-the-project)
 
 ## Support the project
 
@@ -41,6 +41,38 @@ Choose a guide for detailed instructions on Steam data, installation, progress b
 | [Polski](docs/install/pl.md) | [Português](docs/install/pt.md) | [Русский](docs/install/ru.md) |
 | [ไทย](docs/install/th.md) | [Türkçe](docs/install/tr.md) | [Українська](docs/install/uk.md) |
 | [简体中文](docs/install/zh-Hans.md) | [繁體中文](docs/install/zh-Hant.md) | |
+
+## Install with an AI agent
+
+Have a coding agent on your computer? Connect your Android device by USB and paste the prompt below into your agent. USB debugging is optional: with authorized ADB access the agent can do more directly; without it, the agent can help transfer files and guide you through Android's installer. What it can automate depends on your computer, device and agent permissions.
+
+```text
+Help me install and launch OpenBonk on my Android device. Work through the
+steps with me and do whatever you can directly on this computer.
+
+Read https://github.com/martin2844/OpenBonk and the installation guide for my
+language. Detect my operating system, find my own compatible Megabonk Steam
+installation and download the official beta package linked by the project.
+Use the guide to create the game-data ZIP, including the size-limited helper
+if needed. Keep my game files, ZIPs, profile and account details private;
+do not upload or share them.
+
+Check for a connected Android device. If ADB is available and my device has
+authorized USB debugging, use it where appropriate to transfer the APK and
+ZIP and install or launch the app. If authorization is pending, explain the
+on-device prompt. Do not assume debugging is enabled or try to bypass it.
+
+If debugging is off or unavailable, use USB file transfer (MTP) if accessible
+and walk me through unlocking the device, selecting File transfer, copying the
+files if necessary, installing the APK and approving Android's prompts. If
+USB transfer is unavailable, suggest a local transfer method and guide me.
+
+Help me choose touch or controller, import the Steam ZIP in the launcher, wait
+for Data ready and start the game. Ask me to perform any step that requires
+interaction on the device. Preserve existing installations and saves: help me
+back up progress before any replacement or uninstall, and ask before removing
+anything. If a step fails, explain what happened and help me troubleshoot.
+```
 
 ## Mods
 
