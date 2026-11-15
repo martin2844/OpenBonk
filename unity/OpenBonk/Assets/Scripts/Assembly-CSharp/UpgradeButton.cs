@@ -67,6 +67,9 @@ public class UpgradeButton : MyButton
 		if (icon != null) icon.texture = upgradable.GetIcon();
 		string localizedName = upgradable.GetName();
 		if (t_name != null) t_name.text = string.IsNullOrEmpty(localizedName) ? ((UnlockableBase)upgradable).GetInternalName() : localizedName;
+		#if UNITY_ANDROID
+		FitOfferName();
+		#endif
 		if (t_level != null) t_level.text = level > 0 ? $"LVL {level}" : "NEW";
 		if (t_rarity != null) t_rarity.text = rarity.ToString();
 		if (t_description != null)
@@ -104,6 +107,9 @@ public class UpgradeButton : MyButton
 		if (background != null) background.color = MyColorUtility.GetRarityColorBackground(itemData.rarity);
 		if (icon != null) icon.texture = itemData.icon;
 		if (t_name != null) t_name.text = itemData.GetName();
+		#if UNITY_ANDROID
+		FitOfferName();
+		#endif
 		if (t_description != null) t_description.text = itemData.GetDummyItem().GetDescription(itemData.localizedDescription);
 		if (t_level != null) t_level.text = "";
 		if (t_rarity != null) t_rarity.text = itemData.rarity.ToString();
@@ -127,6 +133,17 @@ public class UpgradeButton : MyButton
 	{
 		GetButton().interactable = true;
 	}
+
+#if UNITY_ANDROID
+	private void FitOfferName()
+	{
+		if (t_name == null) return;
+		t_name.enableAutoSizing = true;
+		t_name.fontSizeMin = Mathf.Min(t_name.fontSizeMin, 12f);
+		t_name.textWrappingMode = TextWrappingModes.NoWrap;
+		t_name.overflowMode = TextOverflowModes.Ellipsis;
+	}
+#endif
 
 	public void SelectUpgrade()
 	{

@@ -36,6 +36,7 @@ CHECKS = (
     ('AndroidCameraOffsetCollisionCheck', 'PASS', False),
     ('ExplosionAndAnimationEventCheck', 'PASS', False),
     ('DamageZonePhysicsCheck', 'PASS', False),
+    ('UpgradeOfferNameLayoutCheck', 'PASS', False),
     ('CharacterSelectionPortCheck', 'passed', False),
     ('MapControllerMainMenuPortCheck', 'passed', False),
     ('CharacterEncounterPlayCheck', 'passed', True),
