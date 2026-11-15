@@ -208,18 +208,28 @@ public class PlayerCamera : MonoBehaviour
 		Vector3 direction = (targetPosition - headPosition).normalized;
 		float distance = Vector3.Distance(headPosition, targetPosition) - cameraRadius;
 		Ray ray = new Ray(headPosition - transform.forward * cameraRadius, direction);
-		RaycastHit[] hits = Physics.SphereCastAll(ray, cameraRadius, distance, GameManager.Instance.whatIsCameraCollision);
-		float nearest = float.MaxValue;
-		foreach (RaycastHit hit in hits)
+		targetDistance = LimitDistanceForObstacles(ray, cameraRadius, distance, GameManager.Instance.whatIsCameraCollision, targetDistance);
+#if UNITY_ANDROID
+		// The final camera position includes these offsets, so a cast from the
+		// head alone can miss an obstacle intersecting the actual camera path.
+		Ray offsetRay = new Ray(ray.origin + Vector3.up + GetBobOffset(), direction);
+		targetDistance = LimitDistanceForObstacles(offsetRay, cameraRadius, distance, GameManager.Instance.whatIsCameraCollision, targetDistance);
+#endif
+		CheckFadeObjects(ray, distance, 6f);
+		currentZ = Mathf.Lerp(currentZ, targetDistance, Time.deltaTime * 30f);
+		return headPosition + Get3rdPersonOffset(currentZ) + GetBobOffset();
+	}
+
+	private static float LimitDistanceForObstacles(Ray ray, float radius, float distance, int mask, float targetDistance)
+	{
+		foreach (RaycastHit hit in Physics.SphereCastAll(ray, radius, distance, mask))
 		{
 			Collider collider = hit.collider;
 			if (collider.CompareTag("CameraFade") || collider.CompareTag("CameraIgnore") ||
 				collider.CompareTag("Ignore") || collider.isTrigger || collider.CompareTag("Interactable")) continue;
-			if (hit.distance < nearest) { nearest = hit.distance; targetDistance = hit.distance; }
+			if (hit.distance < targetDistance) targetDistance = hit.distance;
 		}
-		CheckFadeObjects(ray, distance, 6f);
-		currentZ = Mathf.Lerp(currentZ, targetDistance, Time.deltaTime * 30f);
-		return headPosition + Get3rdPersonOffset(currentZ) + GetBobOffset();
+		return targetDistance;
 	}
 
 	private void CheckFadeObjects(Ray ray, float distance, float radius)
