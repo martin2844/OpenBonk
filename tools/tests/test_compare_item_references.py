@@ -30,6 +30,13 @@ class ItemReferenceTests(unittest.TestCase):
                                                                'script': ['Assembly-CSharp', '', 'Other']}}}
         self.assertEqual(module.compare(reference, candidate)[0]['field'], 'unlockRequirement')
 
+    def test_unlock_fields_preserve_scalars_and_ignore_unstable_pointers(self):
+        reference = {'targetValue': 5, 'nested': [{'m_FileID': 0, 'm_PathID': 12}]}
+        candidate = {'targetValue': 5, 'nested': [{'m_FileID': 1, 'm_PathID': 99}]}
+        self.assertEqual(module.without_pointers(reference), module.without_pointers(candidate))
+        candidate['targetValue'] = 6
+        self.assertNotEqual(module.without_pointers(reference), module.without_pointers(candidate))
+
 
 if __name__ == '__main__':
     unittest.main()

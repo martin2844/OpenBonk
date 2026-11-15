@@ -7,6 +7,7 @@ Requires UnityPy.
 """
 import argparse
 import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import os
@@ -50,7 +51,17 @@ def compare(reference, candidate):
             if reference[item][field] != candidate[item][field]]
 
 
-def read_build(apk, obb, document):
+def without_pointers(value):
+    if isinstance(value, dict):
+        if set(value) == {'m_FileID', 'm_PathID'}:
+            return {'$unity_pointer': True}
+        return {key: without_pointers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [without_pointers(item) for item in value]
+    return value
+
+
+def read_build(apk, obb, document, achievement_node=None):
     hashes = []
     for path in (apk, obb):
         with path.open('rb') as stream:
@@ -108,6 +119,13 @@ def read_build(apk, obb, document):
                     raise ValueError('unresolved unlock script')
                 script = script_obj.read()
                 result[item][field]['script'] = [script.m_AssemblyName, script.m_Namespace, script.m_ClassName]
+                if achievement_node is not None:
+                    if result[item][field]['script'] != ['Assembly-CSharp', 'Assets.Scripts.Saves___Serialization.Progression.Achievements', 'MyAchievement']:
+                        raise ValueError('unexpected unlock script')
+                    fields_data = obj.read_typetree(nodes=achievement_node)
+                    if fields_data.get('m_Name') != name or type(fields_data.get('targetValue')) is not int:
+                        raise ValueError('unlock data failed structural validation')
+                    result[item][field]['fields'] = without_pointers(fields_data)
     return result
 
 
@@ -115,6 +133,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('reference-apk', 'reference-obb', 'reference-items', 'candidate-apk', 'candidate-obb', 'candidate-items', 'output'):
         parser.add_argument('--' + name, required=True, type=Path)
+    parser.add_argument('--assemblies', type=Path, help='local exported Steam assemblies for decoding unlock fields')
     args = parser.parse_args()
     paths = [getattr(args, name).expanduser() for name in ('reference_apk', 'reference_obb', 'reference_items', 'candidate_apk', 'candidate_obb', 'candidate_items')]
     if any(path.is_symlink() or not path.is_file() for path in paths):
@@ -126,11 +145,37 @@ def main():
     output = output.parent.resolve() / output.name
     if output.is_relative_to(ROOT) or output in paths:
         parser.error('output must be separate from checkout and inputs')
-    reference = read_build(paths[0], paths[1], json.loads(paths[2].read_text(encoding='utf-8')))
-    candidate = read_build(paths[3], paths[4], json.loads(paths[5].read_text(encoding='utf-8')))
+    node, assembly_hashes = None, {}
+    if args.assemblies is not None:
+        assemblies = args.assemblies.expanduser()
+        if assemblies.is_symlink() or not assemblies.is_dir() or not (assemblies / 'Assembly-CSharp.dll').is_file():
+            parser.error('assemblies must be a local exported GameAssemblies directory')
+        assemblies = assemblies.resolve()
+        if output.is_relative_to(assemblies):
+            parser.error('output must be separate from assemblies')
+        for package, version in (('UnityPy', '1.25.4'), ('TypeTreeGeneratorAPI', '0.0.10')):
+            try:
+                if importlib.metadata.version(package) != version:
+                    parser.error(package + ' ' + version + ' is required')
+            except importlib.metadata.PackageNotFoundError:
+                parser.error(package + ' ' + version + ' is required')
+        from UnityPy.helpers.TypeTreeGenerator import TypeTreeGenerator
+        generator = TypeTreeGenerator('2023.2.22f1')
+        for path in sorted(assemblies.glob('*.dll')):
+            if path.is_symlink() or not path.is_file():
+                raise ValueError('assembly inputs must be regular files')
+            data = path.read_bytes()
+            generator.load_dll(data)
+            assembly_hashes[path.name] = hashlib.sha256(data).hexdigest()
+        node = generator.get_nodes_up('Assembly-CSharp.dll', 'Assets.Scripts.Saves___Serialization.Progression.Achievements.MyAchievement')
+        if sum(child.m_Name == 'references' for child in node.m_Children) != 1 or node.m_Children[-1].m_Name != 'references':
+            raise ValueError('unexpected achievement type tree')
+    reference = read_build(paths[0], paths[1], json.loads(paths[2].read_text(encoding='utf-8')), node)
+    candidate = read_build(paths[3], paths[4], json.loads(paths[5].read_text(encoding='utf-8')), node)
     differences = compare(reference, candidate)
     result = {'schema': 1, 'item_count': len(reference), 'reference': reference, 'candidate': candidate,
-              'differences': differences, 'limitations': 'Target type, name and unlock script identity only; contents, code and behavior are not compared.'}
+              'differences': differences, 'unlock_fields_checked': node is not None, 'assembly_sha256': assembly_hashes,
+              'limitations': 'Target identity and optional non-pointer unlock fields only; assets, code and behavior are not compared.'}
     fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8') as stream:
         json.dump(result, stream, ensure_ascii=False, indent=2)
