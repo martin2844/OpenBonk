@@ -1,45 +1,57 @@
 # OpenBonk
 
-**An unofficial native Android port of Megabonk, with a launcher and experimental Lua mods.** Bring your own compatible Steam copy; the launcher prepares its game data on your device.
+**Play Megabonk on Android with a native launcher, controller or touch input, and experimental Lua mods.**
 
-[Download the Android beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) · [Installation guide (Español)](BETA_TESTER_GUIDE.md) · [Lua modding](docs/MODDING.md) · [Source and build status](docs/BUILDING.md)
+OpenBonk is an unofficial community project in beta. Bring your own compatible Steam copy of Megabonk: the launcher prepares its data on your Android device.
 
-![OpenBonk launcher showing game data, controller selection and mods](docs/screenshots/launcher.png)
+[Download the beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) · [Installation guides](#installation-guides) · [Lua modding](docs/MODDING.md) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues)
 
-*The Android launcher imports your game data and mod ZIPs, manages mods, and lets you select touch or controller input.*
+![The OpenBonk launcher, with game data, control and mod options](docs/screenshots/launcher.png)
 
-![OpenBonk gameplay in Forest with touch controls](docs/screenshots/gameplay.png)
+## Start playing
 
-## Get started
-
-1. Download **OpenBonk-beta.zip** from the [beta release](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) and extract it on your computer.
-2. In Steam, open Megabonk's installed files and create a ZIP containing the `Megabonk_Data` folder. The [installation guide](BETA_TESTER_GUIDE.md) has Windows and Linux instructions, a 1 GiB limit and an optional smaller-ZIP helper.
-3. Copy both `OpenBonk.apk` and your game-data ZIP to your Android device. Install the APK, open OpenBonk and choose **Import Steam game**. Wait for **Data ready**.
+1. Download `OpenBonk-beta.zip` from the [beta release](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) and extract it on your computer.
+2. Create a ZIP containing the `Megabonk_Data` folder from your own compatible Steam installation. The ZIP must be no larger than **1 GiB**; the guide explains how to create a smaller ZIP if necessary.
+3. Copy `OpenBonk.apk` and your private game-data ZIP to Android. Install and open the APK, choose **Import Steam game**, and wait for **Data ready**.
 4. Choose **Touch** or **Controller**, then press **Play**. The first launch also imports text and textures.
 
-OpenBonk requires 64-bit Android 8 or newer and a supported version of the game. It has been tested on Retroid Pocket 5 and iPlay 70 mini Pro. This is a beta: installation from Windows on a physical Windows PC and installation through the Android system installer have not yet been verified end to end. Back up existing progress before replacing or uninstalling an app.
+OpenBonk requires **64-bit Android 8 or later**. It has been tested on a Retroid Pocket 5 and an iPlay 70 mini Pro. Device compatibility is still being established, and installation from a physical Windows PC and through the Android system installer have not been verified end to end. Back up existing progress before replacing or uninstalling an app.
+
+![OpenBonk gameplay in Forest using touch controls](docs/screenshots/gameplay.png)
+
+## Installation guides
+
+Choose a guide for detailed instructions on Steam data, installation, progress backups and troubleshooting. Translations other than English and Spanish are machine-generated from the English guide; please report unclear instructions.
+
+| | | |
+| --- | --- | --- |
+| [English](docs/install/en.md) | [Español](docs/install/es.md) | [Español (Latinoamérica)](BETA_TESTER_GUIDE.md) |
+| [Čeština](docs/install/cs.md) | [Deutsch](docs/install/de.md) | [Français](docs/install/fr.md) |
+| [Italiano](docs/install/it.md) | [日本語](docs/install/ja.md) | [한국어](docs/install/ko.md) |
+| [Polski](docs/install/pl.md) | [Português](docs/install/pt.md) | [Русский](docs/install/ru.md) |
+| [ไทย](docs/install/th.md) | [Türkçe](docs/install/tr.md) | [Українська](docs/install/uk.md) |
+| [简体中文](docs/install/zh-Hans.md) | [繁體中文](docs/install/zh-Hant.md) | |
 
 ## Mods
 
-From the launcher, choose **Import mod**, select a compatible mod ZIP, and enable it under **Manage mods**. Imports and updates start disabled. The [modding guide](docs/MODDING.md) explains the package format and provides a first Lua mod. See [`mods/`](mods/) for examples, including the experimental [Pikachu mod](mods/pikachu/README.md).
+Import mod ZIPs from the launcher with **Import mod**, then enable them under **Manage mods**. New imports and updates start disabled. The [Lua modding guide](docs/MODDING.md) covers the package format and a first mod; [`mods/`](mods/) contains examples, including the experimental [Pikachu mod](mods/pikachu/README.md).
 
-![Pikachu mod selected in OpenBonk](docs/screenshots/pikachu.png)
+![Pikachu selected in the OpenBonk character menu](docs/screenshots/pikachu.png)
 
-The Lua interface is in development: it has specific stat hooks and experimental content callbacks, not unrestricted access to every game system or automatic compatibility with other recomp projects. Install mods from sources you trust; the current sandbox is not a security boundary.
+The Lua interface is under development. It offers specific stat hooks and experimental content callbacks; it does not yet expose every game system or provide automatic compatibility with other recomp projects. Install mods from sources you trust: the current sandbox is not a security boundary.
 
-## Source and contribution
+## Source and development
 
-This repository includes the reconstructed C# game scripts, Android launcher and import code, native Lua bridge, and development tools. The current checkout **cannot yet reproduce the release APK on its own**: parts of the Unity project, third-party dependencies, generated plans, and game-derived data are not included. See [BUILDING.md](docs/BUILDING.md) for the layout and limitations. The code is a reconstruction, not a byte-for-byte decompilation.
+The repository contains reconstructed C# game scripts, the Android launcher and import code, a native Lua bridge, shaders and development tools. The code is a reconstruction, not a byte-for-byte decompilation.
 
-Developers with compatible game files can follow the [local build quickstart](docs/BUILD_QUICKSTART.md) to generate a private research APK from a clean checkout.
+- [Local build quickstart](docs/BUILD_QUICKSTART.md) — create a private research APK using compatible local game files and the required tools.
+- [Build status and limitations](docs/BUILDING.md) — dependencies, verification results and known gaps.
+- [Unity source](unity/OpenBonk/Assets/) · [Lua runtime](native/lua/) · [Mod examples](mods/) · [Preparation tools](tools/)
 
-- [Unity project source](unity/OpenBonk/Assets/) — reconstructed game scripts, Android launcher, and shaders.
-- [Lua runtime](native/lua/) — native bridge and API reference.
-- [Mod examples](mods/) — example packages and Pikachu.
-- [Preparation tools](tools/) — game-data import helpers and development scripts.
+The checkout cannot yet reproduce the published APK on its own: parts of the Unity project, third-party dependencies, generated plans and game-derived data are not included. The local research APK is not a redistributable release.
 
-## Privacy and project status
+## Privacy and attribution
 
-The APK does not request Android's Internet permission, although Android's system backup may include app data according to device settings. Do not attach your Steam game-data ZIP, profile, signing keys, or account information to a report. Back up your progress before changing installations.
+Keep your Steam game-data ZIP, profile, signing keys and account information private. The APK does not request Android's Internet permission, but Android system backup may include app data depending on device settings.
 
-OpenBonk is an unofficial community project and is not affiliated with or endorsed by Megabonk or its developer. Game-derived code, shaders, assets and third-party components have differing provenance; distribution rights and a complete license inventory have not yet been established. Pokémon and Pikachu belong to their respective rights holders. See the [Pikachu notes](mods/pikachu/README.md) for model attribution and provenance.
+OpenBonk is not affiliated with or endorsed by Megabonk or its developer. Game-derived code, shaders, assets and third-party components have differing provenance; distribution rights and a complete license inventory have not yet been established. Pokémon and Pikachu belong to their respective rights holders. See the [Pikachu notes](mods/pikachu/README.md) for model attribution and provenance.
