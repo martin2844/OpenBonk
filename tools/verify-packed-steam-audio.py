@@ -116,7 +116,7 @@ def main():
                 normalized[start:start + 16] = a[start:start + 16]
                 old_payload = old_resource[x.m_Offset:x.m_Offset + x.m_Size]
                 new_payload = new_resource[y.m_Offset:y.m_Offset + y.m_Size]
-                candidates = [c for c in clips[old.m_Name] if audio.compatible(old, c)]
+                candidates = audio.matching_clips(clips, old, group)
                 if len(candidates) > 1:
                     raise ValueError('ambiguous Steam clip')
                 if not candidates:

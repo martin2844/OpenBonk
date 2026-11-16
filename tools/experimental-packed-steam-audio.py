@@ -114,7 +114,7 @@ def build(obb, steam, output):
                 if (len(body) < 20 or data[obj.byte_start:obj.byte_start + len(body)] != body or
                         struct.unpack_from('<QQ', body, len(body) - 20) != (dst.m_Offset, dst.m_Size)):
                     raise ValueError('unexpected audio object layout')
-                candidates = [c for c in index[clip.m_Name] if audio.compatible(clip, c)]
+                candidates = audio.matching_clips(index, clip, group)
                 if len(candidates) > 1:
                     raise ValueError('ambiguous Steam audio clip')
                 payload = None

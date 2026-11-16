@@ -21,6 +21,19 @@ def compatible(target, candidate):
     return all(getattr(target, field, None) == getattr(candidate, field, None) for field in FIELDS)
 
 
+def matching_clips(index, target, group):
+    """Resolve two observed export renames only after exact matching fails."""
+    exact = [c for c in index.get(target.m_Name, ()) if compatible(target, c)]
+    if exact:
+        return exact
+    aliases = {'Hit1_0': 'Hit1', 'Hit2_0': 'Hit2'}
+    original = aliases.get(target.m_Name) if group == 'sharedassets2' else None
+    if original is None:
+        return []
+    return [c for c in index.get(original, ()) if compatible(target, c)
+            and c.m_Resource.m_Source == 'sharedassets2.resource']
+
+
 def fsb_codec(data):
     if len(data) < 60 or data[:4] != b'FSB5':
         raise ValueError('not a supported FSB5 clip')
@@ -74,7 +87,7 @@ def inspect(obb, steam_data):
                 dst = clip.m_Resource
                 if not dst.m_Source or not dst.m_Size:
                     continue
-                matches = [candidate for candidate in index[clip.m_Name] if compatible(clip, candidate)]
+                matches = matching_clips(index, clip, group)
                 outcome = 'ambiguous' if len(matches) > 1 else 'no_match' if not matches else None
                 if outcome is None:
                     src = matches[0].m_Resource

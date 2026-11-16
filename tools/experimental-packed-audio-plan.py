@@ -107,7 +107,7 @@ def generate(args):
                     dst = clip.m_Resource
                     if not dst.m_Source or not dst.m_Size:
                         continue
-                    matches = [c for c in index[clip.m_Name] if audio.compatible(clip, c)]
+                    matches = audio.matching_clips(index, clip, group)
                     if len(matches) > 1:
                         raise ValueError('ambiguous Steam clip')
                     if not matches:

@@ -1,6 +1,7 @@
 import importlib.util
 import io
 from pathlib import Path
+from types import SimpleNamespace
 import struct
 import unittest
 import zipfile
@@ -13,6 +14,20 @@ spec.loader.exec_module(module)
 
 
 class PackedAudioTests(unittest.TestCase):
+    def test_audio_aliases_are_narrow_and_require_matching_metadata(self):
+        def clip(name, length, source='sharedassets2.resource'):
+            values = {field: 1 for field in module.FIELDS}
+            values.update(m_Name=name, m_Length=length, m_Resource=SimpleNamespace(m_Source=source))
+            return SimpleNamespace(**values)
+        target = clip('Hit1_0', 1.4)
+        original = clip('Hit1', 1.4)
+        other_group = clip('Hit1', 1.4, 'sharedassets1.resource')
+        wrong_duration = clip('Hit1', 0.4)
+        self.assertEqual(module.matching_clips({'Hit1': [original, other_group, wrong_duration]}, target, 'sharedassets2'), [original])
+        self.assertEqual(module.matching_clips({'Hit1': [original]}, target, 'sharedassets1'), [])
+        self.assertEqual(module.matching_clips({'Hit1': [wrong_duration]}, target, 'sharedassets2'), [])
+        exact = clip('Hit1_0', 1.4)
+        self.assertEqual(module.matching_clips({'Hit1': [original], 'Hit1_0': [exact]}, target, 'sharedassets2'), [exact])
     def test_fsb_header_and_bounds(self):
         clip = bytearray(72)
         clip[:4] = b'FSB5'
