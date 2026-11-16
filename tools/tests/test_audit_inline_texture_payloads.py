@@ -37,14 +37,19 @@ class InlineTexturePayloadTest(unittest.TestCase):
         streamed = SimpleNamespace(type=SimpleNamespace(name='Texture2D'), path_id=2,
                                    read=lambda: SimpleNamespace(image_data=b'', m_Name='streamed'),
                                    get_raw_data=lambda: b'')
+        empty = SimpleNamespace(type=SimpleNamespace(name='Texture2D'), path_id=3,
+                                read=lambda: SimpleNamespace(image_data=b'', m_Name='empty', m_Width=0, m_Height=0,
+                                                             m_StreamData=SimpleNamespace(path='', size=0)),
+                                get_raw_data=lambda: b'')
         reference = SimpleNamespace(read=lambda _: b'HEADabcd')
         template = SimpleNamespace(read=lambda _: b'HEADa\0c\0')
         with patch.object(audit.objects, 'asset_groups', return_value={'x': [part]}), \
-             patch.object(audit.UnityPy, 'load', return_value=SimpleNamespace(objects=[obj, streamed])):
+             patch.object(audit.UnityPy, 'load', return_value=SimpleNamespace(objects=[obj, streamed, empty])):
             report = audit.audit(reference, template)
         self.assertEqual(report['retained_nonzero_bytes'], 2)
         self.assertEqual(report['inline_texture_count'], 1)
         self.assertEqual(report['skipped'][0]['reason'], 'no inline payload')
+        self.assertEqual(report['empty_textures'][0]['path_id'], 3)
 
 
 if __name__ == '__main__':
