@@ -162,6 +162,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn('--resource-fallback', dict(module.commands(a))['converted textures'])
             a.nodraw_fallback = True
             self.assertIn('--nodraw-fallback', dict(module.commands(a))['converted textures'])
+            a.atlas_fallback = True
+            self.assertIn('--atlas-fallback', dict(module.commands(a))['converted textures'])
             a.shadow_fallback = True
             self.assertIn('--shadow-fallback', dict(module.commands(a))['converted textures'])
             a.emoji_fallback = True

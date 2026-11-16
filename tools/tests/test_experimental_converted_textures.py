@@ -92,6 +92,20 @@ class TextureConversionTests(unittest.TestCase):
         changed = Image.new('RGBA', (10, 10), (100, 100, 100, 250))
         self.assertFalse(module.acceptable_nodraw_image(original, changed))
 
+    def test_atlas_gate_requires_exact_visible_top_and_bounded_other_mips(self):
+        from PIL import Image
+        original = Image.new('RGBA', (10, 10), (100, 100, 100, 255))
+        changed = Image.new('RGBA', (10, 10), (110, 100, 100, 255))
+        self.assertFalse(module.acceptable_atlas_mip(original, changed, 0))
+        self.assertTrue(module.acceptable_atlas_mip(original, changed, 1))
+        changed.putpixel((0, 0), (165, 100, 100, 255))
+        self.assertFalse(module.acceptable_atlas_mip(original, changed, 1))
+        changed = Image.new('RGBA', (10, 10), (100, 100, 100, 247))
+        self.assertFalse(module.acceptable_atlas_mip(original, changed, 1))
+        transparent_a = Image.new('RGBA', (3, 3), (10, 20, 30, 0))
+        transparent_b = Image.new('RGBA', (3, 3), (90, 80, 70, 0))
+        self.assertTrue(module.acceptable_atlas_mip(transparent_a, transparent_b, 0))
+
     def test_texture_error_gate_rejects_large_or_invalid_errors(self):
         self.assertTrue(module.acceptable_texture_error([0.0, 2.0, 10.0, 0.0]))
         for error in ([0, 0, 10.01, 0], [0, 0, float('nan'), 0], [0, 0, -1, 0], [0, 0, 0]):

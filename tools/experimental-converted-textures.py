@@ -23,6 +23,7 @@ NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
 FONT_ALIASES = {'LiberationSans SDF Atlas_0': 'LiberationSans SDF Atlas'}
 RESOURCE_TEXTURES = frozenset(('GridBox_Collider', 'GridBox_Trigger', 'GridBox_Default', 'GridBox_NoDraw'))
 EMOJI_TEXTURES = frozenset(('psd_EmojiOne', 'psd_EmojiOne2'))
+ATLAS_TEXTURES = frozenset(('bakedtexture 1', 't_pig'))
 COLLISION_TEXTURES = {'bush': (64, 64, 7, 3, 45), 'retaliation': (32, 32, 1, 12, 47)}
 FOREST_TEXTURES = {'Forest1_TopGrass': ('Forest1_TopGrass', 128, 128, 8),
                    'Forest1_TopGrass_0': ('Forest1_TopGrass', 128, 128, 8),
@@ -106,6 +107,22 @@ def acceptable_nodraw_image(original, converted):
     return (ImageStat.Stat(diff.getchannel('A')).mean[0] <= 1 and
             max(ImageStat.Stat(diff.convert('RGB')).mean) <= 12 and
             max(high for _, high in diff.convert('RGB').getextrema()) <= 110)
+
+
+def acceptable_atlas_mip(original, converted, level):
+    """Bound visible differences in the two specifically identified atlases."""
+    from PIL import Image, ImageChops, ImageStat
+    a, b = original.convert('RGBA'), converted.convert('RGBA')
+    if a.size != b.size or a.width < 1 or a.height < 1 or level < 0: return False
+    alpha_error = ImageStat.Stat(ImageChops.difference(a.getchannel('A'), b.getchannel('A'))).mean[0]
+    if alpha_error > (0 if level == 0 else 7): return False
+    for shade in (0, 255):
+        background = Image.new('RGBA', a.size, (shade, shade, shade, 255))
+        diff = ImageChops.difference(Image.alpha_composite(background, a).convert('RGB'),
+                                     Image.alpha_composite(background, b).convert('RGB'))
+        if (max(ImageStat.Stat(diff).mean) > (0 if level == 0 else 18) or
+                max(high for _, high in diff.getextrema()) > (0 if level == 0 else 64)): return False
+    return True
 
 
 def should_try_quality(mean, encoder, normal, target_format, width, height):
@@ -315,6 +332,8 @@ def run(args):
                     collision = bool(group == 'sharedassets1' and collision_spec and
                                      (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (*collision_spec[:3], 1, collision_spec[4]))
                     forest_candidate = group == 'sharedassets1' and target.m_Name in FOREST_TEXTURES
+                    atlas_candidate = bool(getattr(args, 'atlas_fallback', False) and group == 'sharedassets1' and target.m_Name in ATLAS_TEXTURES and
+                                           (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (256, 256, 9, 1, 4))
                     shadow_candidate = bool(shadow_fallback and group == 'sharedassets1' and target.m_Name in ('DropShadow', 'DropShadow_0'))
                     source_name = (FONT_ALIASES[target.m_Name] if font_candidate else alias_source if collision else
                                    'DropShadow' if shadow_candidate else
@@ -328,6 +347,8 @@ def run(args):
                         outcomes['missing_or_ambiguous'] += 1; continue
                     if shared0_candidate and (src.m_Name != target.m_Name or int(src.m_TextureFormat) != 1):
                         outcomes['shared0_sdf_metadata_differs'] += 1; continue
+                    if atlas_candidate and int(src.m_TextureFormat) != 12:
+                        outcomes['atlas_metadata_differs'] += 1; continue
                     if collision and int(src.m_TextureFormat) != collision_spec[3]:
                         outcomes['collision_metadata_differs'] += 1; continue
                     font = bool(font_candidate and
@@ -376,6 +397,10 @@ def run(args):
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     if not acceptable_normal_image(original, converted): raise NormalQualityError('normal direction differs')
+                                if atlas_candidate:
+                                    original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                    converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                    if not acceptable_atlas_mip(original, converted, level): raise ResourceQualityError('atlas mip quality differs')
                                 if resource or shadow:
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
@@ -421,7 +446,7 @@ def run(args):
                         continue
                     # A high level-zero error indicates a questionable match or
                     # conversion; keep the existing texture for local review.
-                    accepted = (True if forest_candidate else acceptable_emoji_image(original_image, converted_image) if emoji_candidate else acceptable_nodraw_image(original_image, converted_image) if resource and source_name == 'GridBox_NoDraw' else acceptable_sdf_image(original_image, converted_image) if font or shared0_candidate else
+                    accepted = (True if forest_candidate or atlas_candidate else acceptable_emoji_image(original_image, converted_image) if emoji_candidate else acceptable_nodraw_image(original_image, converted_image) if resource and source_name == 'GridBox_NoDraw' else acceptable_sdf_image(original_image, converted_image) if font or shared0_candidate else
                                 acceptable_quality_image(original_image, converted_image) if high_quality else acceptable_texture_error(mean))
                     if not accepted:
                         if group not in GROUPS: quality_excluded.add(PREFIX + group)
@@ -497,6 +522,7 @@ def main():
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct an SDF font atlas with the quality encoder')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures with per-mip quality checks')
     p.add_argument('--nodraw-fallback', action='store_true', help='also reconstruct the debug NoDraw grid; requires --resource-fallback')
+    p.add_argument('--atlas-fallback', action='store_true', help='experimentally reconstruct two alpha atlases with bounded mip differences')
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases with bounded sparse pixel differences')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally choose a unique matching DropShadow with strict quality checks')
     run(p.parse_args())
