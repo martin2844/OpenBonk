@@ -12,7 +12,9 @@ class TextureStageTests(unittest.TestCase):
     def test_invalid_base_is_rejected_without_output(self):
         stages = (('generate-android-shared1-exact-textures-plan.py', ()),
                   ('generate-android-shared1-exact-textures-plan.py', ('rgba',)),
-                  ('generate-android-shared1-rgba-converted-plan.py', ()))
+                  ('generate-android-shared1-rgba-converted-plan.py', ()),
+                  *(( 'generate-android-shared1-etc-plan.py', (mode,) if mode else ())
+                    for mode in ('', 'rgba', 'alias', 'matched', 'alpha', 'large', 'renamed', 'last')))
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); base = root/'base'; base.write_bytes(b'invalid')
             for index, (name, mode) in enumerate(stages):

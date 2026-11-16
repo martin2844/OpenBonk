@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Map Steam mip textures to the experimental ETC reference assets."""
-import hashlib,json,struct,sys,zipfile
+import argparse,hashlib,json,struct,zipfile
 from pathlib import Path
 import UnityPy
 from UnityPy.export import Texture2DConverter as C
 ROOT=Path(__file__).resolve().parents[2];B=ROOT/'build/android';BASE=B/'shared1-rgba-converted-plan/linux.assets';TARGET=B/'launcher-steam-picker-integrated/main.1.com.megabonk.nativeport.splittest.obb';ZIPS=(B/'linux-steam-regression.zip',B/'windows-steam-full-input.zip');MANIFESTS=(B/'local-research-manifests/etc-mip-template/manifest.json',B/'local-research-manifests/bc-etc-template/manifest.json');OUT=B/'shared1-etc-plan/plan.bin'
 def sha(b):return hashlib.sha256(b).digest()
 def main():
- rgba=len(sys.argv)==2 and sys.argv[1]=='rgba';matched=len(sys.argv)==2 and sys.argv[1]=='matched';alpha=len(sys.argv)==2 and sys.argv[1]=='alpha';large=len(sys.argv)==2 and sys.argv[1]=='large';renamed=len(sys.argv)==2 and sys.argv[1]=='renamed';last=len(sys.argv)==2 and sys.argv[1]=='last';alias=last or renamed or large or alpha or matched or len(sys.argv)==2 and sys.argv[1]=='alias'
- if len(sys.argv)>2 or len(sys.argv)==2 and not (rgba or alias):raise ValueError('usage: generator [rgba|alias|matched|alpha]')
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('mode',nargs='?',choices=('rgba','alias','matched','alpha','large','renamed','last'));p.add_argument('--base',type=Path);p.add_argument('--linux-zip',type=Path,default=ZIPS[0]);p.add_argument('--windows-zip',type=Path,default=ZIPS[1]);p.add_argument('--manifest',type=Path,action='append');p.add_argument('--output',type=Path)
+ target_group=p.add_mutually_exclusive_group();target_group.add_argument('--target-obb',type=Path);target_group.add_argument('--target-asset',type=Path);args=p.parse_args()
+ rgba=args.mode=='rgba';matched=args.mode=='matched';alpha=args.mode=='alpha';large=args.mode=='large';renamed=args.mode=='renamed';last=args.mode=='last';alias=last or renamed or large or alpha or matched or args.mode=='alias'
  global BASE,MANIFESTS,OUT
  if rgba:BASE=B/'shared1-etc-plan/linux.assets';MANIFESTS=(B/'local-research-manifests/bc-rgba-template/manifest.json',);OUT=B/'shared1-bc-rgba-plan/plan.bin'
  if alias:BASE=B/'shared1-bc-rgba-plan/linux.assets';MANIFESTS=(B/'local-research-manifests/shared1-last-textures-template/textures-manifest.json',);OUT=B/'shared1-alias-textures-plan/plan.bin'
@@ -17,15 +18,20 @@ def main():
  if large:BASE=B/'shared1-alpha-textures-plan/linux.assets';MANIFESTS=(B/'local-research-manifests/large-template/manifest.json',);OUT=B/'shared1-large-textures-plan/plan.bin'
  if renamed:BASE=B/'shared1-large-textures-plan/linux.assets';MANIFESTS=(B/'local-research-manifests/full-exact-stripped/exact-renamed.json',);OUT=B/'shared1-renamed-textures-plan/plan.bin'
  if last:BASE=B/'shared1-renamed-textures-plan/linux.assets';MANIFESTS=(B/'share-source-experiment/shared1-four-textures-template/textures-manifest.json',);OUT=B/'shared1-three-textures-plan/plan.bin'
- if OUT.exists():raise ValueError('output exists')
- base=BASE.read_bytes()
+ base_path=args.base or BASE;manifests=args.manifest or MANIFESTS;output=args.output or OUT
+ if output.exists() or output.is_symlink():raise ValueError('output exists')
+ base=base_path.read_bytes()
  if sha(base).hex()!=('571f134d24d874a6537b2648580ee1e6eb77bed5f2dfac43f09584a4caf97117' if last else 'c7e867a69354c18c908bf7d0f4ab26a2740786cd3eabf2c9055a8be714b38b57' if renamed else 'b68de113a869c7c0ce009fcde2702d6a9fb4c5ce68007461bca6898f630fb091' if large else '28370f83ecd06bdab5ce2209883e1e34f61c0a9c1f980ae14a57d5373926cb0b' if alpha else 'eeec5fd78e2f86a2f61062fc8aff2d689b98a54aad2f0048e80904e0a27f226e' if matched else 'cfb61e4dca3918522e44b62f03ff6924987e0a2a0eafb7fb7b1b262e28dcf2bd' if alias else '48eb60ddb23455cb0fb7cadaeab8135940c055ccdc18d9ac719e39bed53a4bcf' if rgba else '72792c774df00852df4d36bfdaba74c13597e35ea4b8814cc03ec421424408fd'):raise ValueError('invalid base')
- with zipfile.ZipFile(TARGET) as z:target=b''.join(z.read(f'assets/bin/Data/sharedassets1.assets.split{i}') for i in range(117))
+ if args.target_asset:
+  target=args.target_asset.read_bytes()
+  if sha(target).hex()!='b6b1d5fd2d261c1163608dfcdf354eca87afbec514840b963a9b5c50ce7fd33e':raise ValueError('reconstructed target asset differs')
+ else:
+  with zipfile.ZipFile(args.target_obb or TARGET) as z:target=b''.join(z.read(f'assets/bin/Data/sharedassets1.assets.split{i}') for i in range(117))
  objects={o.path_id:o for o in UnityPy.load(target).objects};files=[];sources=[]
- for path in ZIPS:
+ for path in (args.linux_zip,args.windows_zip):
   with zipfile.ZipFile(path) as z:files.append([z.read('Megabonk_Data/'+n) for n in ('sharedassets1.assets','sharedassets1.assets.resS')])
   sources.append({o.path_id:o for o in UnityPy.load(files[-1][0]).objects})
- recs=[r for path in MANIFESTS for r in json.loads(path.read_text())['textures']];work=bytearray(base);rows=[]
+ recs=[r for path in manifests for r in json.loads(path.read_text())['textures']];work=bytearray(base);rows=[]
  if last:recs=[r for r in recs if r['target_id']!=1072]
  expected=3 if last else 6 if renamed else 2 if large else 6 if alpha else 26 if matched else 59 if alias else 17 if rgba else 268
  if len(recs)!=expected or len({r['target_id'] for r in recs})!=expected:raise ValueError('invalid texture inventory')
@@ -71,7 +77,7 @@ def main():
  for r in rows:
   if alias:out.extend(struct.pack('>IIIIIIIIIIIIQQIQIQI',*r[:19])+b''.join(r[19:]))
   else:out.extend(struct.pack('>IIIIIIIIIIQQIQIQI',*(r[:10]+r[12:19]))+b''.join(r[19:]))
- OUT.parent.mkdir(parents=True,exist_ok=True)
- with OUT.open('xb') as f:f.write(out)
+ output.parent.mkdir(parents=True,exist_ok=True)
+ with output.open('xb') as f:f.write(out)
  print('plan',sha(out).hex(),'partial',sha(work).hex(),'textures',len(rows),'source bytes',sum(r[18] for r in rows))
 if __name__=='__main__':main()

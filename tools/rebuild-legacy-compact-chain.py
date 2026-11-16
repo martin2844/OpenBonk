@@ -38,7 +38,7 @@ def main():
     parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
     parser.add_argument('--include-layout-plan', action='store_true', help='also generate the shared1 layout plan (requires localization base)')
     parser.add_argument('--include-material-mesh-plans', action='store_true', help='also generate and verify the shared1 material/audio and mesh plans')
-    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify the first three shared1 texture plans')
+    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify the shared1 texture plans')
     parser.add_argument('--java-home', type=Path, help='JDK directory for material and mesh plan checks')
     parser.add_argument('--java-runner', default='none', help='wrapper for Java tools, or none')
     parser.add_argument('--host-texture-library', type=Path, help='local host JNI texture conversion library')
@@ -127,7 +127,7 @@ def main():
         run('tools/rebuild-legacy-scene-base.py', '--steam-data', steam, '--apk', new_apk, '--obb', new_obb, '--manifest-root', scene_plans, '--output', scene)
         run('tools/generate-legacy-transplant-reports.py', '--old-apk', old_apk, '--old-obb', old_obb, '--new-apk', new_apk, '--new-obb', new_obb, '--converted-obb', converted, '--output', shared_inputs, *(['--include-private-shared1'] if args.include_layout_plan else []))
         generated_plans = tmp/'generated-plans'
-        run('tools/generate-legacy-shared-plans.py', '--steam-data', steam, '--android-obb', old_obb, '--shared1-terrain-from-obb', '--shared1-source-from-obb', '--crunch-decoder', decoder, '--output', generated_plans)
+        run('tools/generate-legacy-shared-plans.py', '--steam-data', steam, '--android-obb', old_obb, '--shared1-terrain-from-obb', '--shared1-source-from-obb', '--crunch-decoder', decoder, '--output', generated_plans, *(['--include-private-templates'] if args.include_texture_plans else []))
         shutil.move(generated_plans/'share-source-experiment', shared_inputs/'share-source-experiment')
         run('analysis/port-inventory/scrub-no-rewired-shared-prototype.py', scene, converted, shared, '--include-identical-rebuilt', '--inputs-root', shared_inputs)
         run('tools/generate-legacy-hashed-manifests.py', '--steam-data', steam, '--expanded-obb', old_obb, '--output', hashed_plans)
@@ -231,6 +231,31 @@ def main():
                     plan = tmp/f'shared1-texture-{stage}-plan.bin'
                     run('analysis/data-conversion/'+script, *mode, '--base', mesh_assets[0], '--target-asset', target,
                         '--linux-zip', zips[0], '--windows-zip', zips[1], '--manifest', shared_inputs/'share-source-experiment'/manifest, '--output', plan)
+                    with plan.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != plan_sha: raise ValueError('texture '+stage+' plan differs')
+                    next_assets = []
+                    for i, steam_zip in enumerate(zips):
+                        result = tmp/f'texture-{stage}-{i}.assets'
+                        check_java('SteamShared1ExactTexturesCheck', texture_library, mesh_assets[i], steam_zip, plan, result, 'pass')
+                        with result.open('rb') as f:
+                            if hashlib.file_digest(f, 'sha256').hexdigest() != asset_sha: raise ValueError('texture '+stage+' output differs')
+                        next_assets.append(result)
+                    mesh_assets = next_assets; texture_plans.append(plan)
+                extra_stages = (
+                    ('etc', (), ('etc-mip-template/manifest.json', 'bc-etc-template/manifest.json'), '9073d61c766894381ce4f8851e510fde68cb536ef72fe9ad7cfbe69c924c2f1c', '48eb60ddb23455cb0fb7cadaeab8135940c055ccdc18d9ac719e39bed53a4bcf'),
+                    ('bc-rgba', ('rgba',), ('bc-rgba-template/manifest.json',), '6f0f87f9da1878fa42f077966ced8f8818c907aee9c61a5586dac2c73dc22d78', 'cfb61e4dca3918522e44b62f03ff6924987e0a2a0eafb7fb7b1b262e28dcf2bd'),
+                    ('alias', ('alias',), ('shared1-last-textures-template/textures-manifest.json',), 'bfbfdd0ef0edb0b3ecdc2e7f980efba27a22f39c290f6b937085876ddd1894eb', 'eeec5fd78e2f86a2f61062fc8aff2d689b98a54aad2f0048e80904e0a27f226e'),
+                    ('matched', ('matched',), ('matched-template/matched.json',), '5c8d467e1ddafd6c78e5417e32be5061fab6e4ebeeddcbc22c7ae5cc412b93c2', '28370f83ecd06bdab5ce2209883e1e34f61c0a9c1f980ae14a57d5373926cb0b'),
+                    ('alpha', ('alpha',), ('alpha8-template/manifest.json',), 'a239ccca1e72f1a5d571266a0bb449cf23b654829ea181cc52e21befbc54c297', 'b68de113a869c7c0ce009fcde2702d6a9fb4c5ce68007461bca6898f630fb091'),
+                    ('large', ('large',), ('large-template/manifest.json',), 'd9c84839c9f1246c0034875f14e0a03067f7034a04d86d904a32731e9cc9448f', 'c7e867a69354c18c908bf7d0f4ab26a2740786cd3eabf2c9055a8be714b38b57'),
+                    ('renamed', ('renamed',), ('full-exact-stripped/exact-renamed.json',), '0f828293b10ada34a9ce63162ccee078d1431af86453bcdf55249b6f983f3214', '571f134d24d874a6537b2648580ee1e6eb77bed5f2dfac43f09584a4caf97117'),
+                    ('last', ('last',), ('shared1-four-textures-template/textures-manifest.json',), '133e184ea15a36f2802c7a8060f43ff955037f7fa7673a8ef59393dc26164f24', '407cc3a2b9644960eff549169c15d8515d5a59da615fca50e7479b717f1c7305'),
+                )
+                for stage, mode, manifests, plan_sha, asset_sha in extra_stages:
+                    plan = tmp/f'shared1-texture-{stage}-plan.bin'
+                    manifest_args = [item for name in manifests for item in ('--manifest', shared_inputs/'share-source-experiment'/name)]
+                    run('analysis/data-conversion/generate-android-shared1-etc-plan.py', *mode, '--base', mesh_assets[0], '--target-asset', target,
+                        '--linux-zip', zips[0], '--windows-zip', zips[1], *manifest_args, '--output', plan)
                     with plan.open('rb') as f:
                         if hashlib.file_digest(f, 'sha256').hexdigest() != plan_sha: raise ValueError('texture '+stage+' plan differs')
                     next_assets = []
