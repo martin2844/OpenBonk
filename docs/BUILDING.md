@@ -727,6 +727,8 @@ The same option also rebuilds the subsequent shared1 shader plan and private sha
 
 It also regenerates the following private terrain and animation plan using the reconstructed target and locally generated object inventory. In a full chain run, all 13 objects produced the pinned plan and the expected restored asset from both Steam ZIPs. This plan contains Android-derived patches and must remain private. It does not validate animation or terrain appearance in a running game.
 
+The chain then regenerates the seven-cubemap plan from the reconstructed target, both Steam ZIPs and the local Crunch decoder. A full local run reproduced the pinned plan and restored the expected asset for both platforms using the host texture library. This checks bytes, not visual appearance on Android; further stages and the final APK remain.
+
 `tools/generate-legacy-hashed-manifests.py --steam-data <Linux Megabonk_Data> --expanded-obb <expanded shared base OBB> --output <new private directory>` generates all eight category manifests from that OBB and Steam data. It regenerates the texture comparisons and audio inventory, checks their historical hashes, and checks each resulting manifest against its historical hash. Their historical base-OBB fields remain canonical identifiers, although the generator reads the separately pinned expanded OBB. The manifests include game-derived data and must remain private. Producing the earlier expanded shared base still remains a prerequisite.
 
 The same `--expanded-obb` argument also accepts the pinned old split OBB. `--include-private-templates` retains the generated template payloads when a later local stage needs them; without it only manifests are retained. Both forms of output contain game-derived data and must remain private.

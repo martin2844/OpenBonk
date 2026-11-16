@@ -38,7 +38,7 @@ def main():
     parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
     parser.add_argument('--include-layout-plan', action='store_true', help='also generate the shared1 layout plan (requires localization base)')
     parser.add_argument('--include-material-mesh-plans', action='store_true', help='also generate and verify the shared1 material/audio and mesh plans')
-    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify shared1 texture, shader and animation/terrain plans')
+    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify shared1 texture, shader, animation/terrain and cubemap plans')
     parser.add_argument('--java-home', type=Path, help='JDK directory for material and mesh plan checks')
     parser.add_argument('--java-runner', default='none', help='wrapper for Java tools, or none')
     parser.add_argument('--host-texture-library', type=Path, help='local host JNI texture conversion library')
@@ -170,7 +170,7 @@ def main():
             def java_run(*command): subprocess.run([*prefix, *(str(x) for x in command)], check=True)
             java_names = ['SteamExactTextures', 'SteamShared1Layout', 'SteamShared1LayoutCheck',
                           'SteamShared1MaterialAudio', 'SteamShared1MaterialAudioCheck', 'SteamShared1Meshes', 'SteamShared1MeshesCheck']
-            if args.include_texture_plans: java_names += ['SteamConvertedTextures', 'SteamShared1ExactTextures', 'SteamShared1ExactTexturesCheck', 'SteamShared1Shaders', 'SteamShared1ShadersCheck', 'SteamShared1AnimationTerrain', 'SteamShared1AnimationTerrainCheck']
+            if args.include_texture_plans: java_names += ['SteamConvertedTextures', 'SteamShared1ExactTextures', 'SteamShared1ExactTexturesCheck', 'SteamShared1Shaders', 'SteamShared1ShadersCheck', 'SteamShared1AnimationTerrain', 'SteamShared1AnimationTerrainCheck', 'SteamCubemapResources', 'SteamCubemapResourcesCheck']
             java_run(java/'bin/javac', '-d', classes, *(java_source/(name+'.java') for name in java_names))
             def check_java(name, *arguments): java_run(java/'bin/java', '-cp', classes, 'com.openbonk.dataprep.'+name, *arguments)
             layout_asset = tmp/'layout.assets'
@@ -303,12 +303,26 @@ def main():
                     '--manifest', shared_inputs/'share-source-experiment/shared1-terrain-animation-template/objects-manifest.json', '--output', animation_plan)
                 with animation_plan.open('rb') as f:
                     if hashlib.file_digest(f, 'sha256').hexdigest() != '7da8e6a43ca0d9a3a1738c79ce707b3072d1b3d3ca721e51f34b6b827b1ff4da': raise ValueError('animation terrain plan differs')
+                animation_assets = []
                 for i, steam_zip in enumerate(zips):
                     result = tmp/f'animation-{i}.assets'
                     check_java('SteamShared1AnimationTerrainCheck', shader_assets[i], steam_zip, animation_plan, result, 'pass')
                     with result.open('rb') as f:
                         if hashlib.file_digest(f, 'sha256').hexdigest() != 'e0b079e987a1928b2207ae9fcb4e4bae29220928cd42c90188a2d2f63db70646': raise ValueError('animation terrain asset differs')
+                    animation_assets.append(result)
                 texture_plans.append(animation_plan)
+                cubemap_plan = tmp/'shared1-cubemap.bin'
+                run('analysis/data-conversion/generate-android-shared1-cubemap-plan.py',
+                    '--base', animation_assets[0], '--target-asset', target, '--linux-zip', zips[0], '--windows-zip', zips[1],
+                    '--decoder', decoder, '--output', cubemap_plan)
+                with cubemap_plan.open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != 'e7fd277acda57efac892a1921d85ae35fd947d1d8a10f648923636f4a4ed62be': raise ValueError('cubemap plan differs')
+                for i, steam_zip in enumerate(zips):
+                    result = tmp/f'cubemap-{i}.assets'
+                    check_java('SteamCubemapResourcesCheck', texture_library, animation_assets[i], steam_zip, cubemap_plan, result, 'pass')
+                    with result.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != 'fde2b6fe5f08ba2cdcd4edb120a29e4b7c2cf2f5ea5537d8c5dfda947481cf0c': raise ValueError('cubemap asset differs')
+                texture_plans.append(cubemap_plan)
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:
