@@ -128,6 +128,10 @@ class ResearchChainTests(unittest.TestCase):
             steps = dict(module.commands(a))
             self.assertIn('--include-small-etc2', steps['partial RGBA plan'])
             self.assertNotIn('--include-small-etc2', steps['bind Android partial RGBA plan'])
+            a.transparent_atlas_scrub = True
+            steps = dict(module.commands(a))
+            self.assertEqual(steps['individual audio plan'][steps['individual audio plan'].index('--obb') + 1],
+                             str(a.output / 'transparent-atlas-study/converted.obb'))
 
     def test_missing_optional_inputs_are_generated_before_use(self):
         with tempfile.TemporaryDirectory() as temp:

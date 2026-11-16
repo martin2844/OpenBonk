@@ -101,6 +101,7 @@ def commands(a):
     if getattr(a, 'partial_rgba', False): chain += ['--partial-rgba']
     if getattr(a, 'partial_etc2', False): chain += ['--partial-etc2']
     if getattr(a, 'partial_etc2_small', False): chain += ['--partial-etc2-small']
+    if getattr(a, 'transparent_atlas_scrub', False): chain += ['--transparent-atlas-scrub']
     if shared0: chain += ['--shared0-fonts']
     if getattr(a, 'gradle_online', False): chain += ['--gradle-online']
     for attr in ('steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home'):
@@ -133,6 +134,7 @@ def commands(a):
         if getattr(a, 'partial_rgba', False): windows_chain += ['--partial-rgba']
         if getattr(a, 'partial_etc2', False): windows_chain += ['--partial-etc2']
         if getattr(a, 'partial_etc2_small', False): windows_chain += ['--partial-etc2-small']
+        if getattr(a, 'transparent_atlas_scrub', False): windows_chain += ['--transparent-atlas-scrub']
         if shared0: windows_chain += ['--shared0-fonts']
         if getattr(a, 'gradle_online', False): windows_chain += ['--gradle-online']
         if a.gradle_user_home: windows_chain += ['--gradle-user-home', a.gradle_user_home]
@@ -169,6 +171,7 @@ def main():
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
     p.add_argument('--partial-etc2-small', action='store_true', help='also attempt smaller ETC2 textures; requires --partial-etc2')
+    p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally relocate sharedassets0 and reconstruct selected fonts and the default skybox')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()

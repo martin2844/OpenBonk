@@ -110,6 +110,9 @@ def commands(a):
     if getattr(a, 'animation_curve_fallback', False):
         py('compatible Steam animation curves', 'experimental-steam-animation-curves.py', '--steam-data', steam, '--obb', converted, '--output', out / 'animation-curve-study')
         converted = out / 'animation-curve-study/converted.obb'
+    if getattr(a, 'transparent_atlas_scrub', False):
+        py('transparent atlas scrub', 'experimental-transparent-atlas-scrub.py', '--steam-data', steam, '--obb', converted, '--output', out / 'transparent-atlas-study')
+        converted = out / 'transparent-atlas-study/converted.obb'
     toolplan('individual audio plan', 'experimental-steam-audio-plan.py', converted, plans / 'audio')
     toolplan('packed audio plan', 'experimental-packed-audio-plan.py', plans / 'audio/template.obb', plans / 'packed')
     toolplan('texture plan', 'experimental-converted-texture-plan.py', plans / 'packed/template.obb', plans / 'texture', '--manifest', out / 'texture-study/report.json', *(['--quality-library', hostlib] if quality else []))
@@ -183,6 +186,7 @@ def main():
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
     p.add_argument('--partial-etc2-small', action='store_true', help='also attempt smaller ETC2 textures; requires --partial-etc2')
+    p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally reconstruct selected fonts and the default skybox from a relocated sharedassets0')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
     p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
