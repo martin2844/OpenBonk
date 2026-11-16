@@ -33,6 +33,7 @@ objects = load('animation_objects', ROOT / 'tools/experimental-exact-object-plan
 curve = load('animation_curves', ROOT / 'analysis/data-conversion/analyze-shared2-animation-streams.py')
 extrema = load('animation_extrema', ROOT / 'analysis/data-conversion/verify-hybrid-animation-extrema.py').extrema
 LIMIT = 1e-6
+RELAXED_LIMIT = 1e-4
 
 
 def stream(tree):
@@ -65,7 +66,7 @@ def compatible_frames(left, right, limit=LIMIT):
     return worst if segments else None
 
 
-def candidate(target, source):
+def candidate(target, source, limit=LIMIT):
     left, right = target.read_typetree(), source.read_typetree()
     lw, rw = stream(left), stream(right)
     if not lw or len(lw) != len(rw):
@@ -75,7 +76,7 @@ def candidate(target, source):
     b['m_MuscleClip']['m_Clip']['data']['m_StreamedClip']['data'] = []
     if a != b:
         return None
-    difference = compatible_frames(curve.frames(lw), curve.frames(rw))
+    difference = compatible_frames(curve.frames(lw), curve.frames(rw), limit=limit)
     if difference is None:
         return None
     before = struct.pack('<%dI' % len(lw), *lw)
@@ -89,6 +90,7 @@ def candidate(target, source):
 
 
 def generate(args):
+    limit = RELAXED_LIMIT if getattr(args, 'relaxed', False) else LIMIT
     source = args.steam_data.resolve(strict=True)
     obb = args.obb.resolve(strict=True)
     output = animation.regular_output(args.output, (source, obb))
@@ -122,7 +124,7 @@ def generate(args):
                     name = obj.read().m_Name
                     found = []
                     for source_name, source_obj in sources.get((name, obj.byte_size), []):
-                        item = candidate(obj, source_obj)
+                        item = candidate(obj, source_obj, limit=limit)
                         if item is not None:
                             found.append((source_name, item))
                     fingerprints = {hashlib.sha256(item[2]).digest() for _, item in found}
@@ -150,7 +152,7 @@ def generate(args):
             for info in infos:
                 data = changes[info.filename] if info.filename in changes else archive.read(info)
                 dest.writestr(info, data)
-    report = {'schema': 1, 'threshold': LIMIT, 'selected': results, 'outcomes': dict(outcomes),
+    report = {'schema': 1, 'threshold': limit, 'selected': results, 'outcomes': dict(outcomes),
               'limitations': ['Curve extrema use double precision, not Unity runtime pose evaluation.',
                               'Sentinel intervals are not sampled; differing sentinel keys are rejected.',
                               'Other game assets remain in the output.']}
@@ -163,6 +165,7 @@ def main():
     p.add_argument('--steam-data', required=True, type=Path)
     p.add_argument('--obb', required=True, type=Path)
     p.add_argument('--output', required=True, type=Path)
+    p.add_argument('--relaxed', action='store_true', help='use an experimental 1e-4 per-segment curve bound')
     generate(p.parse_args())
 
 

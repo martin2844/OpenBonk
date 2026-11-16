@@ -94,6 +94,7 @@ def commands(a):
     if a.quality_textures: chain += ['--quality-textures']
     if a.normal_fallback: chain += ['--normal-fallback']
     if getattr(a, 'animation_curve_fallback', False): chain += ['--animation-curve-fallback']
+    if getattr(a, 'animation_curve_relaxed', False): chain += ['--animation-curve-relaxed']
     if a.font_fallback: chain += ['--font-fallback']
     if a.resource_fallback: chain += ['--resource-fallback']
     if getattr(a, 'nodraw_fallback', False): chain += ['--nodraw-fallback']
@@ -133,6 +134,7 @@ def commands(a):
         if a.quality_textures: windows_chain += ['--quality-textures']
         if a.normal_fallback: windows_chain += ['--normal-fallback']
         if getattr(a, 'animation_curve_fallback', False): windows_chain += ['--animation-curve-fallback']
+        if getattr(a, 'animation_curve_relaxed', False): windows_chain += ['--animation-curve-relaxed']
         if a.font_fallback: windows_chain += ['--font-fallback']
         if a.resource_fallback: windows_chain += ['--resource-fallback']
         if getattr(a, 'nodraw_fallback', False): windows_chain += ['--nodraw-fallback']
@@ -176,6 +178,7 @@ def main():
     p.add_argument('--quality-textures', action='store_true', help='experimentally use higher-quality ETC2 for selected textures')
     p.add_argument('--normal-fallback', action='store_true', help='experimentally recover RGB normal maps that pass every mip direction check')
     p.add_argument('--animation-curve-fallback', action='store_true', help='experimentally substitute tightly bounded Steam animation curves')
+    p.add_argument('--animation-curve-relaxed', action='store_true', help='use a 1e-4 curve bound; requires --animation-curve-fallback')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--nodraw-fallback', action='store_true', help='also reconstruct the NoDraw debug grid; requires --resource-fallback')
@@ -193,6 +196,7 @@ def main():
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally relocate sharedassets0 and reconstruct selected fonts and the default skybox')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
+    if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')
     if a.resource_fallback and not a.quality_textures: p.error('--resource-fallback requires --quality-textures')
     if a.nodraw_fallback and not a.resource_fallback: p.error('--nodraw-fallback requires --resource-fallback')

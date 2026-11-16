@@ -27,10 +27,12 @@ class SteamResearchBuildTests(unittest.TestCase):
     def test_animation_curve_option_reaches_both_platforms(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
-        self.invoke('--windows-game', str(windows), '--animation-curve-fallback')
+        self.invoke('--windows-game', str(windows), '--animation-curve-fallback', '--animation-curve-relaxed')
         chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
         self.assertEqual(len(chains), 2)
-        for command in chains: self.assertIn('--animation-curve-fallback', command)
+        for command in chains:
+            self.assertIn('--animation-curve-fallback', command)
+            self.assertIn('--animation-curve-relaxed', command)
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup); self.root = Path(self.temp.name)
@@ -295,6 +297,7 @@ class SteamResearchBuildTests(unittest.TestCase):
         with self.assertRaises(SystemExit): self.invoke('--lightmap-fallback')
         with self.assertRaises(SystemExit): self.invoke('--fox-fallback')
         with self.assertRaises(SystemExit): self.invoke('--bounded-fallback')
+        with self.assertRaises(SystemExit): self.invoke('--animation-curve-relaxed')
         with self.assertRaises(SystemExit): self.invoke('--atlas-fallback', '--transparent-atlas-scrub')
         with self.assertRaises(SystemExit): self.invoke('--shadow-fallback')
         with self.assertRaises(SystemExit): self.invoke('--emoji-fallback')

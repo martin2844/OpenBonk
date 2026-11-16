@@ -22,6 +22,14 @@ class AnimationCurveTest(unittest.TestCase):
         self.assertIsNotNone(study.compatible_frames(left, close))
         self.assertIsNone(study.compatible_frames(left, far))
 
+    def test_relaxed_bound_is_explicit_and_still_rejects_larger_differences(self):
+        left = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0))]), (1.0, [])]
+        close = [(0.0, [(3, (0.0, 0.0, 0.0, 1.00005))]), (1.0, [])]
+        far = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0002))]), (1.0, [])]
+        self.assertIsNone(study.compatible_frames(left, close))
+        self.assertIsNotNone(study.compatible_frames(left, close, limit=study.RELAXED_LIMIT))
+        self.assertIsNone(study.compatible_frames(left, far, limit=study.RELAXED_LIMIT))
+
     def test_rejects_curve_mapping_and_sentinel_differences(self):
         coeff = (0.0, 0.0, 0.0, 1.0)
         left = [(-1.0, [(3, coeff)]), (0.0, [(3, coeff)]), (1.0, [])]
