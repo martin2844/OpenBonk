@@ -16,6 +16,8 @@ import zipfile
 import UnityPy
 
 PRELOAD = 'fb3896524cca9e8b137eb5d4c7c6f17eaca57d02185b8f1a31fcf83ab0fd99a0'
+OBB_PRELOAD = '6185cfca7d60e4518d0f6d37753367230a8d15f899cdb674348aba04c5722f2f'
+TARGETS_SHA = 'e5d4a56c6ef45d1b456615273b8b8bfe682440ac98101a031fa441619c4e071a'
 OBB = 'ca916fd870e4546c70a66428591272ef155987140495c1a0dd446a332b578cc2'
 STEAM = {'sharedassets1.assets': 'd9c955e43af9151f4d9d4e3ae9328ff2582bde7a1c9aa4580ddb2ba95ad66b35',
          'sharedassets2.assets': 'e4c4298e57fe5aaa76836132e6821b297199c60b2106fa12a0db4ef17a67f5da'}
@@ -66,8 +68,10 @@ def main():
     p.add_argument('--include-gameobjects', action='store_true', help='also reconstruct matching GameObject bodies')
     p.add_argument('--include-extra-components', action='store_true', help='also reconstruct other exact matching component bodies; requires --include-gameobjects')
     p.add_argument('--windows-source', action='store_true', help='use pinned Windows inputs for restore')
+    p.add_argument('--obb-preload', action='store_true', help='use equivalent pinned sharedassets4 from the original OBB when creating a template')
     a = p.parse_args()
     if a.windows_source and a.action != 'restore': p.error('--windows-source requires restore')
+    if a.obb_preload and a.action != 'template': p.error('--obb-preload requires template')
     if a.include_extra_components and not a.include_gameobjects:
         p.error('--include-extra-components requires --include-gameobjects')
     included = {'ParticleSystem'} | ({'GameObject'} if a.include_gameobjects else set()) | (EXTRA_TYPES if a.include_extra_components else set())
@@ -79,7 +83,13 @@ def main():
         path = src.resolve()
         if out == path or out.is_relative_to(path) or path.is_relative_to(out):
             p.error('output must be separate from inputs')
-    targets = preload_targets(read_pinned(a.preload, PRELOAD))
+    targets = preload_targets(read_pinned(a.preload, OBB_PRELOAD if a.obb_preload else PRELOAD))
+    if a.obb_preload:
+        # The legacy manifest identifies the canonical preload asset. Keep its
+        # pinned identifier only after proving this alternate asset has exactly
+        # the same serialized reference inventory.
+        canonical = json.dumps({key: sorted(value) for key, value in targets.items()}, sort_keys=True, separators=(',', ':')).encode()
+        if digest(canonical) != TARGETS_SHA: raise ValueError('preload reference inventory differs')
     source_index, source_ids = defaultdict(list), {}
     for name, expected in (WINDOWS if a.windows_source else STEAM).items():
         env = UnityPy.load(read_pinned(a.steam_data / name, expected))

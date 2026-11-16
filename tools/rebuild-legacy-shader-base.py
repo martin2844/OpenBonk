@@ -52,7 +52,9 @@ def main():
     parser.add_argument('--scene-source-obb', type=Path, help='pinned original Android OBB, to reconstruct the earlier scene GameObject stage')
     parser.add_argument('--include-scene-transforms', action='store_true', help='also reconstruct the preceding scene transform stage')
     parser.add_argument('--include-splash', action='store_true', help='also reconstruct the preceding Unity splash stage')
-    parser.add_argument('--preload-asset', type=Path, help='pinned sharedassets4.assets with preload references, to include the preceding preload stage')
+    preload_group = parser.add_mutually_exclusive_group()
+    preload_group.add_argument('--preload-asset', type=Path, help='pinned sharedassets4.assets with preload references, to include the preceding preload stage')
+    preload_group.add_argument('--preload-from-obb', action='store_true', help='derive equivalent preload references from the original OBB')
     parser.add_argument('--output', required=True, type=Path, help='new private base directory')
     args = parser.parse_args()
     if args.include_shared1_material and args.steam_data is None:
@@ -63,8 +65,8 @@ def main():
         parser.error('--include-scene-transforms requires --scene-source-obb')
     if args.include_splash and not args.include_scene_transforms:
         parser.error('--include-splash requires --include-scene-transforms')
-    if args.preload_asset and not args.include_splash:
-        parser.error('--preload-asset requires --include-splash')
+    if (args.preload_asset or args.preload_from_obb) and not args.include_splash:
+        parser.error('--preload-asset or --preload-from-obb requires --include-splash')
     base, shaders = args.base.resolve(strict=True), args.shader_bundles.resolve(strict=True)
     steam = args.steam_data.resolve(strict=True) if args.steam_data else None
     scene_obb = args.scene_source_obb.resolve(strict=True) if args.scene_source_obb else None
@@ -82,10 +84,13 @@ def main():
     with tempfile.TemporaryDirectory(prefix='.openbonk-legacy-shaders-', dir=output.parent) as tmp:
         tmp = Path(tmp)
         current = base
-        if preload:
+        if preload or args.preload_from_obb:
             template, next_base = tmp/'preload-template', tmp/'preload-base'
+            if args.preload_from_obb:
+                preload = tmp/'preload-from-obb.assets'
+                extract(scene_obb, preload, 'assets/bin/Data/sharedassets4.assets.split', True)
             run('analysis/data-conversion/preload-particle-bodies-prototype.py', 'template', steam, preload, scene_obb, template,
-                '--include-gameobjects', '--include-extra-components')
+                '--include-gameobjects', '--include-extra-components', *(['--obb-preload'] if args.preload_from_obb else []))
             run('analysis/port-inventory/scrub-preload-particle-base.py', current, template, next_base,
                 '--include-gameobjects', '--include-extra-components')
             current = next_base

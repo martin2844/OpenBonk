@@ -35,10 +35,12 @@ class ExtractTest(unittest.TestCase):
         self.assertIn('--include-splash requires', result.stderr)
 
     def test_preload_stage_requires_splash_stage(self):
-        result = subprocess.run([sys.executable, str(SCRIPT), '--base', 'base', '--shader-bundles', 'shaders',
-                                 '--output', 'output', '--preload-asset', 'asset'], capture_output=True, text=True)
-        self.assertEqual(result.returncode, 2)
-        self.assertIn('--preload-asset requires', result.stderr)
+        for option in (['--preload-asset', 'asset'], ['--preload-from-obb']):
+            with self.subTest(option=option):
+                result = subprocess.run([sys.executable, str(SCRIPT), '--base', 'base', '--shader-bundles', 'shaders',
+                                         '--output', 'output', *option], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn('requires --include-splash', result.stderr)
 
     def test_orders_split_assets_numerically(self):
         with tempfile.TemporaryDirectory() as temporary:
