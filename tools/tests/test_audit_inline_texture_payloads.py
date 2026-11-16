@@ -29,6 +29,12 @@ class InlineTexturePayloadTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'range'):
             audit.retained_payload(b'abcd', b'abc', 0, b'abcd', b'abcd')
 
+    def test_ambiguous_zero_payload_requires_mask_only_object(self):
+        body = b'\0a\0b'
+        self.assertEqual(audit.retained_payload(body, b'\0\0\0b', 0, body, b'\0'), 0)
+        with self.assertRaisesRegex(ValueError, 'beyond masking'):
+            audit.retained_payload(body, b'\0aXb', 0, body, b'\0')
+
     def test_audit_reports_skipped_and_counts_retained_data(self):
         part = SimpleNamespace(filename='assets/bin/Data/x', file_size=8)
         obj = SimpleNamespace(type=SimpleNamespace(name='Texture2D'), path_id=1, byte_start=4,

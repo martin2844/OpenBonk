@@ -27,8 +27,18 @@ def retained_payload(target, masked, start, body, payload):
         raise ValueError('invalid serialized object range')
     if target[start:start + len(body)] != body:
         raise ValueError('serialized object differs from reference')
-    if not payload or body.count(payload) != 1:
+    if not payload or payload not in body:
         raise ValueError('inline payload missing or ambiguous')
+    if body.count(payload) != 1:
+        # An all-zero payload cannot contribute retained nonzero bytes if the
+        # entire object is demonstrably only masked, even when its offset is
+        # ambiguous. Reject any other change before making that inference.
+        if any(payload):
+            raise ValueError('inline payload missing or ambiguous')
+        remaining_body = masked[start:start + len(body)]
+        if any(value and value != original for value, original in zip(remaining_body, body)):
+            raise ValueError('template object differs beyond masking')
+        return 0
     offset = start + body.index(payload)
     remaining = masked[offset:offset + len(payload)]
     if any(value and value != original for value, original in zip(remaining, payload)):
