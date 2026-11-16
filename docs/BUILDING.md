@@ -1210,4 +1210,8 @@ That build's final OBB did not have the same hash as the `276b8d0` build. A loca
 
 On a Retroid Pocket 5, the combined `e3a7a99` APK was installed separately and imported its generated Linux ZIP. The resulting device OBB had the same SHA-256 as the build's expected final OBB. In a brief Forest run, Fox defeated enemies, reached level one, selected an upgrade and resumed combat. The isolated installation and copied ZIP were removed afterward. This smoke test did not exercise the Windows ZIP interactively, physical controls, mods, all game content or long-run stability.
 
+In a separate Retroid installation of the same APK, its generated Windows ZIP also imported and produced that exact expected OBB. With touch controls enabled, Fox entered Forest, defeated enemies and selected a level-one upgrade; the bottom Edit button opened the control editor and its bottom Done button closed it. The isolated installation and copied ZIP were removed afterward. This brief test does not establish physical controller behavior, every touch gesture, mods, all game content or long-run stability. The Windows data originated from a prepared ZIP, not a fresh Windows Steam installation.
+
+Additional comparisons between the two clean builds decoded 53 enemy, three noise and four terrain-parameter records; their 3,025 selected scalar values matched. The checked links between the nine stages and selected boss and terrain records also matched. Object fields and links outside these tools' scope remain unverified.
+
 The project includes reconstructed game-derived material and third-party components of different provenance. No blanket source license is asserted here; check the applicable rights and component notices before redistribution or reuse.
