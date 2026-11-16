@@ -208,18 +208,48 @@ public final class SplitDataLauncher extends Activity {
         TextView resolutionLabel = new TextView(this); resolutionLabel.setTextColor(Color.WHITE); resolutionLabel.setTextSize(13);
         resolutionLabel.setText(es ? "Resolución del juego" : "Game resolution"); settingsCard.addView(resolutionLabel);
         RadioGroup resolution = new RadioGroup(this); resolution.setOrientation(RadioGroup.HORIZONTAL);
+        RadioGroup resolutionPresets = new RadioGroup(this); resolutionPresets.setOrientation(RadioGroup.HORIZONTAL);
         String[] resolutionNames = es ? new String[] { "Juego", "Nativa", "75%", "50%" } : new String[] { "Game", "Native", "75%", "50%" };
         int[] resolutionValues = {0, 100, 75, 50}; int savedResolution = launcherPrefs.getInt("render_resolution_percent", 0);
         for (int i = 0; i < resolutionValues.length; i++) {
             final int value = resolutionValues[i]; RadioButton option = new RadioButton(this); option.setId(View.generateViewId()); option.setText(resolutionNames[i]);
             option.setTextColor(Color.WHITE); option.setTextSize(12); option.setButtonTintList(ColorStateList.valueOf(Color.rgb(213, 245, 95))); styleControlOption(option);
             resolution.addView(option, new RadioGroup.LayoutParams(0, -2, 1)); if (value == savedResolution) resolution.check(option.getId());
-            option.setOnClickListener(v -> launcherPrefs.edit().putInt("render_resolution_percent", value).apply());
+            option.setOnClickListener(v -> { resolutionPresets.clearCheck(); launcherPrefs.edit().putInt("render_resolution_percent", value).apply(); });
         }
-        if (resolution.getCheckedRadioButtonId() == -1) resolution.check(((RadioButton)resolution.getChildAt(0)).getId());
         settingsCard.addView(resolution);
+        int[] presetHeights = {540, 720, 1080, 1440};
+        for (int height : presetHeights) {
+            RadioButton option = new RadioButton(this); option.setId(View.generateViewId()); option.setText(height + "p");
+            option.setTextColor(Color.WHITE); option.setTextSize(12); option.setButtonTintList(ColorStateList.valueOf(Color.rgb(213, 245, 95))); styleControlOption(option);
+            resolutionPresets.addView(option, new RadioGroup.LayoutParams(0, -2, 1));
+            if (savedResolution == -height) resolutionPresets.check(option.getId());
+            option.setOnClickListener(v -> { resolution.clearCheck(); launcherPrefs.edit().putInt("render_resolution_percent", -height).apply(); });
+        }
+        if (resolution.getCheckedRadioButtonId() == -1 && resolutionPresets.getCheckedRadioButtonId() == -1 && !(savedResolution <= -240 && savedResolution >= -2160))
+            resolution.check(((RadioButton)resolution.getChildAt(0)).getId());
+        settingsCard.addView(resolutionPresets);
+        LinearLayout customRow = new LinearLayout(this); customRow.setOrientation(LinearLayout.HORIZONTAL); customRow.setGravity(Gravity.CENTER_VERTICAL);
+        android.widget.EditText customHeight = new android.widget.EditText(this); customHeight.setSingleLine(true); customHeight.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        customHeight.setTextColor(Color.WHITE); customHeight.setHintTextColor(Color.LTGRAY); customHeight.setTextSize(13);
+        customHeight.setHint(es ? "Altura personalizada (240–2160)" : "Custom height (240–2160)");
+        if (savedResolution <= -240 && savedResolution >= -2160) customHeight.setText(Integer.toString(-savedResolution));
+        customRow.addView(customHeight, new LinearLayout.LayoutParams(0, -2, 1));
+        Button applyHeight = new Button(this); applyHeight.setText(es ? "Aplicar" : "Apply"); styleButton(applyHeight, false);
+        applyHeight.setOnClickListener(v -> {
+            try {
+                int height = Integer.parseInt(customHeight.getText().toString());
+                if (height < 240 || height > 2160) throw new NumberFormatException();
+                resolution.clearCheck(); resolutionPresets.clearCheck();
+                launcherPrefs.edit().putInt("render_resolution_percent", -height).apply();
+                customHeight.clearFocus();
+            } catch (NumberFormatException invalid) {
+                customHeight.setError(es ? "Usá un valor entre 240 y 2160" : "Enter a value from 240 to 2160");
+            }
+        });
+        customRow.addView(applyHeight, new LinearLayout.LayoutParams(-2, -2)); settingsCard.addView(customRow);
         TextView resolutionHint = new TextView(this); resolutionHint.setTextColor(Color.rgb(225, 205, 235)); resolutionHint.setTextSize(12);
-        resolutionHint.setText(es ? "Se aplica al iniciar. Elegí Juego para usar la resolución del menú del juego." : "Applies on launch. Choose Game to use the in-game resolution setting."); settingsCard.addView(resolutionHint);
+        resolutionHint.setText(es ? "Se aplica al iniciar y conserva la proporción de la pantalla. Juego usa el ajuste del menú del juego." : "Applies on launch and keeps the screen's aspect ratio. Game uses the in-game setting."); settingsCard.addView(resolutionHint);
         android.widget.CheckBox autoUpdates = new android.widget.CheckBox(this); autoUpdates.setTextColor(Color.WHITE);
         autoUpdates.setText(es ? "Buscar actualizaciones automáticamente" : "Check for updates automatically");
         autoUpdates.setChecked(launcherPrefs.getBoolean("auto_update_checks", true));

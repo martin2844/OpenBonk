@@ -8,14 +8,18 @@ internal static class AndroidPerformanceSettings
 {
     internal static bool OverrideActive { get; private set; }
 
-    internal static bool UsesLauncherResolution(int percent) => percent == 50 || percent == 75 || percent == 100;
+    // Positive values are legacy percentages; negative values encode the
+    // requested short side in pixels without invalidating existing settings.
+    internal static bool UsesLauncherResolution(int value) => value == 50 || value == 75 || value == 100 || (value <= -240 && value >= -2160);
 
     internal static Vector2Int ScaledSize(int width, int height, int percent)
     {
-        if (width <= 0 || height <= 0 || (percent != 50 && percent != 75 && percent != 100)) return Vector2Int.zero;
+        if (width <= 0 || height <= 0 || !UsesLauncherResolution(percent)) return Vector2Int.zero;
         int longSide = Mathf.Max(width, height), shortSide = Mathf.Min(width, height);
-        int scaledWidth = Mathf.Max(2, (longSide * percent / 100) & ~1);
-        int scaledHeight = Mathf.Max(2, (shortSide * percent / 100) & ~1);
+        int scaledWidth = percent < 0 ? (int)((long)longSide * -percent / shortSide) : (int)((long)longSide * percent / 100);
+        int scaledHeight = percent < 0 ? -percent : shortSide * percent / 100;
+        scaledWidth = Mathf.Max(2, scaledWidth & ~1);
+        scaledHeight = Mathf.Max(2, scaledHeight & ~1);
         return new Vector2Int(scaledWidth, scaledHeight);
     }
 
@@ -37,7 +41,7 @@ internal static class AndroidPerformanceSettings
             Vector2Int size = ScaledSize(width, height, percent);
             if (size == Vector2Int.zero) { OverrideActive = false; return; }
             Screen.SetResolution(size.x, size.y, FullScreenMode.FullScreenWindow);
-            Debug.Log("OpenBonk render resolution requested: " + size.x + "x" + size.y + " (" + percent + "%)");
+            Debug.Log("OpenBonk render resolution requested: " + size.x + "x" + size.y + " (setting " + percent + ")");
             var reporter = new GameObject("Android resolution report"); Object.DontDestroyOnLoad(reporter);
             reporter.AddComponent<AndroidResolutionReport>();
         }

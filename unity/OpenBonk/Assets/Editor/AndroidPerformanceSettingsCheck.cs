@@ -17,6 +17,9 @@ public static class AndroidPerformanceSettingsCheck
         Check(Size(1920, 1080, 75) == new Vector2Int(1440, 810), "75 percent");
         Check(Size(1920, 1080, 50) == new Vector2Int(960, 540), "50 percent");
         Check(Size(2401, 1081, 50) == new Vector2Int(1200, 540), "even dimensions");
+        Check(Size(2400, 1080, -720) == new Vector2Int(1600, 720), "720p preserves native aspect ratio");
+        Check(Size(1080, 1920, -540) == new Vector2Int(960, 540), "540p normalizes orientation");
+        Check(Size(1920, 1080, -239) == Vector2Int.zero && Size(1920, 1080, -2161) == Vector2Int.zero, "custom bounds");
         Check(Size(0, 1080, 50) == Vector2Int.zero && Size(1920, 1080, 25) == Vector2Int.zero, "invalid dimensions or scale");
         Debug.Log("AndroidPerformanceSettingsCheck PASS");
     }
