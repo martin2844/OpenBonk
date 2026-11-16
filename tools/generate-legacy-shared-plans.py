@@ -39,6 +39,7 @@ def main():
     mesh_group.add_argument('--shared1-source-dir', type=Path, help='pinned pre-template asset directory; regenerate the texture template')
     mesh_group.add_argument('--shared1-source-from-obb', action='store_true', help='rebuild the pre-template asset from the old OBB and Steam audio')
     parser.add_argument('--output', required=True, type=Path, help='new private directory')
+    parser.add_argument('--include-private-templates', action='store_true', help='retain regenerated shared1/shared2 asset templates for local reconstruction')
     args = parser.parse_args()
     if args.shared1_terrain_from_obb and not args.shared1_source_from_obb:
         parser.error('--shared1-terrain-from-obb requires --shared1-source-from-obb')
@@ -121,6 +122,14 @@ def main():
         for folder, manifest, expected in shared1:
             if hashlib.sha256((tmp/folder/manifest).read_bytes()).hexdigest() != expected:
                 raise ValueError('generated plan differs: '+folder)
+        if args.include_private_templates:
+            remaining, four = tmp/'shared1-last-textures-template', tmp/'shared1-four-textures-template'
+            helper.run('analysis/data-conversion/shared1-remaining-textures-prototype.py', 'template', steam, terrain_output/'sharedassets1.assets', remaining)
+            helper.run('analysis/data-conversion/shared1-four-textures-prototype.py', 'template', steam, remaining/'sharedassets1.assets', four)
+            for folder, expected in ((remaining, '721bfcb5ee20eb0e713f6ae2c61e21a72ed016d1cb60d8279151b9f2f41e2c63'),
+                                     (four, 'a8c72940f67acabb614f4e9a5c1cccab198f6b7a312960c738890795ecbb3be1')):
+                if hashlib.sha256((folder/'textures-manifest.json').read_bytes()).hexdigest() != expected:
+                    raise ValueError('generated texture plan differs: '+folder.name)
         output.mkdir(mode=0o700)
         try:
             plan_root = output/'share-source-experiment'
@@ -131,6 +140,13 @@ def main():
             for folder, manifest, _ in shared1:
                 (plan_root/folder).mkdir(mode=0o700)
                 shutil.copyfile(tmp/folder/manifest, plan_root/folder/manifest)
+            if args.include_private_templates:
+                for folder, _, _, _ in STAGES:
+                    shutil.copyfile(tmp/folder/'sharedassets2.assets', plan_root/folder/'sharedassets2.assets')
+                for folder, _, _ in shared1:
+                    if folder == 'shared1-terrain-animation-template':
+                        shutil.copyfile(tmp/folder/'sharedassets1.assets', plan_root/folder/'sharedassets1.assets')
+                for folder in (remaining, four): shutil.copytree(folder, plan_root/folder.name)
         except BaseException:
             shutil.rmtree(output)
             raise
