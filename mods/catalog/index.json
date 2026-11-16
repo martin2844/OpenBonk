@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "mods": [
+    {
+      "id": "pikachu",
+      "name": "Pikachu",
+      "description": "Pikachu joins the adventure with Thunderbolt.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.0-beta/Pikachu-mod.zip",
+      "size": 411262,
+      "sha256": "200bcd95347c695b75f464aa0f824d8d2e2fb21d069fb0c713eb5d6d67bc611c"
+    }
+  ]
+}

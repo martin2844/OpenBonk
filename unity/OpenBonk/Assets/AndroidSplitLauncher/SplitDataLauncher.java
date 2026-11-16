@@ -66,6 +66,7 @@ public final class SplitDataLauncher extends Activity {
     private Button exportCurrentProfile;
     private Button mods;
     private Button importModButton;
+    private Button onlineMods, updateButton;
     private RadioGroup controls;
     private boolean es;
     private boolean dataReady;
@@ -183,6 +184,10 @@ public final class SplitDataLauncher extends Activity {
         modCard.addView(cardTitle("MODS  ✦"));
         modHint = new TextView(this); modHint.setText(es ? "Importá y elegí tus mods Lua" : "Import and choose your Lua mods"); modHint.setTextColor(Color.rgb(225, 205, 235)); modHint.setTextSize(12); modHint.setPadding(0, dp(3), 0, dp(5)); modCard.addView(modHint);
         importModButton = new Button(this); importModButton.setText(es ? "＋ Importar mod" : "＋ Import mod"); importModButton.setEnabled(false); importModButton.setOnClickListener(v -> openModPicker()); styleButton(importModButton, true); modCard.addView(importModButton, buttonParams());
+        onlineMods = new Button(this); onlineMods.setText(es ? "Buscar mods" : "Browse mods");
+        onlineMods.setOnClickListener(v -> LauncherOnlineUi.browse(this, es)); styleButton(onlineMods, false); modCard.addView(onlineMods, buttonParams());
+        updateButton = new Button(this); updateButton.setText(es ? "Buscar actualización" : "Check for updates");
+        updateButton.setOnClickListener(v -> LauncherOnlineUi.checkUpdate(this, es)); styleButton(updateButton, false); modCard.addView(updateButton, buttonParams());
         mods = new Button(this); mods.setText(es ? "Gestionar mods" : "Manage mods");
         mods.setEnabled(false); mods.setOnClickListener(v -> showMods());
         styleButton(mods, false); modCard.addView(mods, buttonParams());
@@ -191,6 +196,11 @@ public final class SplitDataLauncher extends Activity {
         stylePlay(play); LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, dp(58)); playParams.topMargin = dp(9); right.addView(play, playParams);
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.addView(layout); setContentView(scroll);
         checkData();
+        long lastCheck = launcherPrefs.getLong("last_update_check", 0);
+        if (System.currentTimeMillis() - lastCheck >= 24L * 60 * 60 * 1000) {
+            launcherPrefs.edit().putLong("last_update_check", System.currentTimeMillis()).apply();
+            LauncherOnlineUi.checkUpdate(this, es, true);
+        }
     }
 
     private void checkData() {
@@ -213,6 +223,7 @@ public final class SplitDataLauncher extends Activity {
                     if (!embeddedData() && existing != null) {
                         LauncherDataBundle.recoverTransactions(existing, legacyPendingSteam(), pendingSteam());
                         SplitFileRecovery.recover(existing, this::valid);
+                        migrateCompatibleObb(existing);
                     }
                     File modRoot = getExternalFilesDir(null);
                     if (modRoot == null) throw new IOException("mod storage unavailable");
@@ -571,14 +582,14 @@ public final class SplitDataLauncher extends Activity {
             ? (es ? "Importar datos Android preparados" : "Import prepared Android data")
             : (ready ? (es ? "Cambiar datos" : "Change data") : (es ? "Seleccionar datos" : "Choose data")));
         choose.setEnabled(true); chooseSteam.setEnabled(true); chooseProfile.setEnabled(true); exportCurrentProfile.setEnabled(true); play.setEnabled(ready);
-        mods.setEnabled(true); importModButton.setEnabled(true);
+        mods.setEnabled(true); importModButton.setEnabled(true); onlineMods.setEnabled(true); updateButton.setEnabled(true);
         (ready ? play : LauncherDiagnosticIntegration.available(this) ? chooseSteam : choose).requestFocus();
     }
 
     private void setImportBusy() {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         choose.setEnabled(false); chooseSteam.setEnabled(false); chooseProfile.setEnabled(false); exportCurrentProfile.setEnabled(false);
-        play.setEnabled(false); mods.setEnabled(false); importModButton.setEnabled(false);
+        play.setEnabled(false); mods.setEnabled(false); importModButton.setEnabled(false); onlineMods.setEnabled(false); updateButton.setEnabled(false);
     }
 
     private void showSteamImportFailure() {
@@ -659,6 +670,34 @@ public final class SplitDataLauncher extends Activity {
         } catch (Exception e) { return null; }
     }
 
+    // Preserve the previous version's OBB; reuse it only if this build accepts its exact hash.
+    private void migrateCompatibleObb(File destination) throws IOException {
+        if (destination.exists()) return;
+        File dir = destination.getParentFile(); File[] files = dir.listFiles();
+        if (files == null) return;
+        long current;
+        try { current = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode; }
+        catch (Exception e) { throw new IOException("cannot inspect installed version", e); }
+        File candidate = null; long best = 0; String suffix = "." + getPackageName() + ".obb";
+        for (File file : files) {
+            String name = file.getName();
+            if (!name.startsWith("main.") || !name.endsWith(suffix)) continue;
+            String number = name.substring(5, name.length() - suffix.length());
+            try { long version = Long.parseLong(number); if (version > best && version < current && valid(file)) { best = version; candidate = file; } }
+            catch (NumberFormatException ignored) { }
+        }
+        if (candidate == null) return;
+        File staging = File.createTempFile("openbonk-obb-migration-", ".tmp", dir);
+        try {
+            try (InputStream in = new FileInputStream(candidate); FileOutputStream out = new FileOutputStream(staging)) {
+                byte[] buffer = new byte[65536]; int n; while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+                out.getFD().sync();
+            }
+            if (!valid(staging)) throw new IOException("migrated game data failed validation");
+            if (destination.exists() || !staging.renameTo(destination)) throw new IOException("cannot install migrated game data");
+        } finally { staging.delete(); }
+    }
+
     private boolean valid(File file) {
         if (!file.isFile() || file.length() <= 0 || file.length() > MAX_BYTES) return false;
         try (ZipFile zip = new ZipFile(file)) {
@@ -717,6 +756,29 @@ public final class SplitDataLauncher extends Activity {
             ? "Esta versión necesita un paquete Android preparado en la PC. Seleccionalo con «Seleccionar datos». También podés elegir el ZIP de Steam para importar textos y texturas.\n\nSe necesita una copia y versión compatibles; mantené los archivos del juego para uso personal."
             : "This build needs an Android data package prepared on a PC. Select it using ‘Choose data’. You can also choose a Steam ZIP to import text and textures.\n\nA compatible game copy and version are required; keep game files for personal use.");
         showDialog(new AlertDialog.Builder(this).setTitle(es ? "Preparar datos del juego" : "Prepare game data").setMessage(instructions).setPositiveButton("OK", null).create());
+    }
+
+    void importOnlineMod(JSONObject item) {
+        if (!IMPORT_GATE.begin()) { modHint.setText(es ? "Ya hay una importación en curso." : "An import is already in progress."); return; }
+        setImportBusy(); modHint.setText(es ? "Descargando mod…" : "Downloading mod…");
+        final long generation = IMPORT_GATE.generation();
+        runImport(() -> {
+            String id = null, error = null; File file = null;
+            try {
+                file = File.createTempFile("openbonk-mod-", ".zip", getCacheDir());
+                LauncherOnline.download(item, file, 128L * 1024 * 1024); LauncherOnline.checkModId(file, item.getString("id"));
+                synchronized (DATA_LOCK) {
+                    File root = getExternalFilesDir(null); if (root == null) throw new IOException("storage unavailable");
+                    try (InputStream in = new FileInputStream(file)) { id = LauncherModImporter.install(in, new File(root, "Mods"), getSharedPreferences("megabonk_mod_state", MODE_PRIVATE)); }
+                }
+            } catch (Exception e) { error = LauncherImportError.describe(e, es); }
+            finally { if (file != null) file.delete(); }
+            IMPORT_GATE.modResult(id, error, false); final String failure = error;
+            runOnUiThread(() -> { if (isFinishing() || isDestroyed() || IMPORT_GATE.generation() != generation) return;
+                setReady(dataReady); showModImportResult();
+                if (failure == null) showMods(); else new AlertDialog.Builder(this).setTitle("Mods").setMessage(failure).setPositiveButton("OK", null).show();
+            });
+        }, "openbonk-online-mod");
     }
 
     private void openModPicker() {

@@ -45,8 +45,8 @@ def check_conversion_imports():
             raise ValueError(f'cannot load conversion module {name}: {error}') from error
 
 
-def check_offline_apk(aapt2, apk, application_id, runner=None):
-    """Reject a final APK that accidentally requests Android network access."""
+def check_online_apk(aapt2, apk, application_id, runner=None):
+    """Require the permissions needed by the launcher online features."""
     command = ([runner] if runner else []) + [str(aapt2), 'dump', 'permissions', str(apk)]
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=True)
@@ -55,13 +55,16 @@ def check_offline_apk(aapt2, apk, application_id, runner=None):
     lines = result.stdout.splitlines()
     if f'package: {application_id}' not in lines:
         raise ValueError('final APK package does not match the requested application ID')
+    permissions = set()
     for line in lines:
         if line.startswith('uses-permission:'):
             match = re.match(r"^uses-permission: name='([^']+)'(?:\s|$)", line)
             if not match:
                 raise ValueError('could not parse final APK permission')
-            if match.group(1) == 'android.permission.INTERNET':
-                raise ValueError('final APK unexpectedly requests Internet permission')
+            permissions.add(match.group(1))
+    for required in ('android.permission.INTERNET', 'android.permission.REQUEST_INSTALL_PACKAGES'):
+        if required not in permissions:
+            raise ValueError('final APK missing required permission: ' + required)
 
 
 def commands(a):
@@ -248,7 +251,7 @@ def main():
     result = 'dual-launcher' if a.windows_game else 'research/launcher'
     apk = a.output / result / 'gradle/launcher/build/outputs/apk/release/launcher-release.apk'
     try:
-        check_offline_apk(aapt2, apk, a.application_id, a.runner)
+        check_online_apk(aapt2, apk, a.application_id, a.runner)
     except ValueError as error:
         raise SystemExit(f'{error}; local outputs and log retained at {a.output}') from error
     print('Private research APK created:', apk, flush=True)

@@ -75,7 +75,7 @@ The example includes the experimental `--shared0-fonts` option. It relocates Uni
 
 A later fresh clone at `2aadaec` completed all seven stages without interruption using those options, existing host tools and dependency caches. Its APK imported both generated ZIPs in an Android emulator and reached short Forest runs; the Pikachu example was also imported and played briefly using prepared data from that build. This is not a test on a second clean computer or proof of full parity with the published beta.
 
-On success, the dual-platform APK is under `dual-launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk` within the output directory. For Linux-only builds it is under `research/launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk`. Before reporting success, the builder uses Unity's `aapt2` to check the final package ID and reject an APK requesting Internet permission. Failure logs and intermediate data remain in the output directory. Do not publish this APK, the output directory, your Steam ZIPs, saves, or signing keys.
+On success, the dual-platform APK is under `dual-launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk` within the output directory. For Linux-only builds it is under `research/launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk`. Before reporting success, the builder uses Unity's `aapt2` to check the final package ID and require the Internet and package-install permissions used by the launcher. Failure logs and intermediate data remain in the output directory. Do not publish this APK, the output directory, your Steam ZIPs, saves, or signing keys.
 
 For a dual-platform build, verify the plans actually packaged in that APK against both generated Steam ZIPs:
 

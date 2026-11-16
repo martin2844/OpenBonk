@@ -45,19 +45,20 @@ class SteamResearchBuildTests(unittest.TestCase):
     def invoke(self, *extra):
         with patch.object(sys, 'argv', self.argv + list(extra)), patch.object(module, 'check_conversion_imports'), \
                 patch.object(module.research_chain, 'validate_steam_inputs'), \
-                patch.object(module, 'check_offline_apk'), \
+                patch.object(module, 'check_online_apk'), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()): module.main()
 
-    def test_final_permission_check_accepts_offline_and_rejects_internet(self):
-        offline = "package: com.example.openbonk\nuses-permission: name='android.permission.VIBRATE'\n"
-        with patch.object(module.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=offline)):
-            module.check_offline_apk(self.ripper, self.root / 'app.apk', 'com.example.openbonk')
-        with patch.object(module.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=offline + "uses-permission: name='android.permission.INTERNET'\n")):
-            with self.assertRaisesRegex(ValueError, 'Internet permission'):
-                module.check_offline_apk(self.ripper, self.root / 'app.apk', 'com.example.openbonk')
-        with patch.object(module.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=offline)):
+    def test_final_permission_check_requires_online_permissions(self):
+        base = "package: com.example.openbonk\n"
+        online = base + "uses-permission: name='android.permission.INTERNET'\nuses-permission: name='android.permission.REQUEST_INSTALL_PACKAGES'\n"
+        with patch.object(module.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=online)):
+            module.check_online_apk(self.ripper, self.root / 'app.apk', 'com.example.openbonk')
+        with patch.object(module.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=base)):
+            with self.assertRaisesRegex(ValueError, 'missing required permission'):
+                module.check_online_apk(self.ripper, self.root / 'app.apk', 'com.example.openbonk')
+        with patch.object(module.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=online)):
             with self.assertRaisesRegex(ValueError, 'package does not match'):
-                module.check_offline_apk(self.ripper, self.root / 'app.apk', 'com.example.other')
+                module.check_online_apk(self.ripper, self.root / 'app.apk', 'com.example.other')
 
     def test_bad_steam_data_fails_before_unity_export(self):
         with patch.object(sys, 'argv', self.argv), patch.object(module, 'check_conversion_imports'), \

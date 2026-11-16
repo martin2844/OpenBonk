@@ -37,15 +37,19 @@ internal sealed class AndroidSplitLauncherBuild : IPostGenerateGradleAndroidProj
         var launcherApplication = launcherDoc.SelectSingleNode("/manifest/application") as XmlElement;
         if (launcherApplication == null) throw new InvalidDataException("Android launcher application missing");
         Set(launcherApplication, "icon", "@drawable/openbonk_icon", android);
-        if (System.Environment.GetEnvironmentVariable("OPENBONK_OFFLINE_BETA") == "1")
+        // Online catalog and user-confirmed package updates.
+        foreach (string name in new[] { "android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES" })
         {
-            const string tools = "http://schemas.android.com/tools";
             var permission = launcherDoc.CreateElement("uses-permission");
-            Set(permission, "name", "android.permission.INTERNET", android);
-            permission.SetAttribute("node", tools, "remove");
+            Set(permission, "name", name, android);
             launcherDoc.DocumentElement.InsertBefore(permission, launcherApplication);
-            Debug.Log("OpenBonk: remove Android INTERNET permission for offline beta");
         }
+        var provider = doc.CreateElement("provider");
+        Set(provider, "name", "com.megabonk.launcher.LauncherUpdateProvider", android);
+        Set(provider, "authorities", "${applicationId}.openbonk.updates", android);
+        Set(provider, "exported", "false", android);
+        Set(provider, "grantUriPermissions", "true", android);
+        application.AppendChild(provider);
         launcherDoc.Save(launcherManifest);
         XmlElement unityActivity = null;
         foreach (XmlNode node in application.SelectNodes("activity"))

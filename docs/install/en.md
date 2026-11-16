@@ -54,7 +54,7 @@ Importing a Steam profile is optional. First close the game on your computer and
 
 To back up Android progress, close the game completely, open the launcher and select **Export progress**. Choose a profile and save the ZIP somewhere private. You can restore it using **Import profile ZIP**. The ZIP contains progress and statistics, but not controls or mods. Export was tested on an iPlay with a test profile; keep the original Steam backup as well.
 
-**Android backups:** this version does not disable Auto Backup. Depending on device settings, Android may include app data, such as saves or a pending profile import, in account backups and device transfers. The APK does not request Internet permission, but Android can manage its own backups. Review Android's backup settings if you do not want this. Uninstalling the app can delete local data; back up progress first. [Android Auto Backup](https://developer.android.com/identity/data/autobackup).
+**Android backups:** this version does not disable Auto Backup. Depending on device settings, Android may include app data, such as saves or a pending profile import, in account backups and device transfers. The currently published beta APK does not request Internet permission, but Android can manage its own backups. A future release with update and mod-catalog features will request Internet access. Review Android's backup settings if you do not want this. Uninstalling the app can delete local data; back up progress first. [Android Auto Backup](https://developer.android.com/identity/data/autobackup).
 
 ## Troubleshooting
 

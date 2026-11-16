@@ -338,7 +338,11 @@ public static class NativeAndroidBuild
 			PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)35;
 		else
 			throw new System.InvalidOperationException("Unsupported OPENBONK_ANDROID_TARGET_SDK");
-		PlayerSettings.Android.bundleVersionCode = 1;
+		string androidVersion = System.Environment.GetEnvironmentVariable("OPENBONK_ANDROID_VERSION_CODE");
+		if (string.IsNullOrEmpty(androidVersion)) androidVersion = "1";
+		if (!int.TryParse(androidVersion, out int versionCode) || versionCode < 1 || versionCode > 2100000000)
+			throw new System.InvalidOperationException("Invalid OPENBONK_ANDROID_VERSION_CODE");
+		PlayerSettings.Android.bundleVersionCode = versionCode;
 
 		string projectRoot = Directory.GetParent(Application.dataPath).FullName;
 		string absoluteOutput = BuildPath(projectRoot, Path.Combine("android", fileName));

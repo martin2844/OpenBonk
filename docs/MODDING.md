@@ -11,6 +11,12 @@ OpenBonk's mod API is experimental and specific to OpenBonk. Mods can use suppor
 
 The [Pikachu example](../mods/pikachu/README.md) adds an experimental character and weapon. Its guide links to the downloadable ZIP and explains how to build it from the checked-in files; the mod is not built into the APK. Additional examples are under [`mods/`](../mods/).
 
+## Online catalog (upcoming release)
+
+The launcher can search the curated [mod catalog](../mods/catalog/index.json), download a selected ZIP, check its size and SHA-256, and pass it through the normal mod importer. Imports start disabled: enable them under **Manage mods**. A checksum detects corrupt or unexpected downloads; it does not make a mod trustworthy. The existing beta does not yet contain this feature.
+
+To propose a catalog entry, open a pull request updating the index with the mod ID, name, description, version, GitHub release ZIP URL, exact byte size and SHA-256. The ZIP must use the documented mod format and its manifest ID must match the entry. Downloads currently support GitHub release assets only. Keep old release assets available for reproducibility.
+
 ## Your first stat mod
 
 Create `manifest.json`:
