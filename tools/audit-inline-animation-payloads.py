@@ -14,6 +14,7 @@ import struct
 import zipfile
 
 import UnityPy
+from UnityPy.helpers import TypeTreeHelper
 
 ROOT = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location('texture_audit', ROOT / 'tools/audit-inline-texture-payloads.py')
@@ -28,6 +29,59 @@ def sample_payloads(tree):
               ('constant', clip['m_ConstantClip']['data'], 'f'))
     return [(name, struct.pack('<%d%s' % (len(values), fmt), *values))
             for name, values, fmt in arrays if values]
+
+
+def constant_offset(obj, body, payload):
+    """Locate an ambiguous constant array by tracing its serialized typetree.
+
+    The ordinary byte search remains preferable. This fallback accepts a
+    location only if the parser consumes the complete object and the traced
+    vector length and bytes agree with the independently read sample array.
+    """
+    original = TypeTreeHelper.read_value
+    path, found = [], []
+    expected = ('m_MuscleClip', 'm_Clip', 'data', 'm_ConstantClip', 'data')
+
+    def trace(node, reader, config):
+        path.append(node.m_Name)
+        start = reader.Position
+        try:
+            value = original(node, reader, config)
+            if tuple(path[-len(expected):]) == expected:
+                found.append((start, reader.Position))
+            return value
+        finally:
+            path.pop()
+
+    try:
+        obj.reset()
+        start = obj.reader.Position
+        TypeTreeHelper.read_value = trace
+        TypeTreeHelper.read_value(obj._get_typetree_node(), obj.reader,
+                                  TypeTreeHelper.TypeTreeConfig(True, obj.assets_file, False))
+        end = obj.reader.Position
+    finally:
+        TypeTreeHelper.read_value = original
+    if end - start != len(body) or len(found) != 1:
+        raise ValueError('constant array typetree location ambiguous')
+    first, last = found[0]
+    offset = first - start + 4
+    if (first < start or last - first < len(payload) + 4 or offset + len(payload) > len(body)
+            or body[offset - 4:offset] != struct.pack('<i', len(payload) // 4)
+            or body[offset:offset + len(payload)] != payload):
+        raise ValueError('constant array typetree payload mismatch')
+    return offset
+
+
+def count_at_offset(target, masked, start, body, payload, offset):
+    if (len(target) != len(masked) or start < 0 or start + len(body) > len(target)
+            or target[start:start + len(body)] != body or offset < 0
+            or body[offset:offset + len(payload)] != payload):
+        raise ValueError('invalid serialized payload range')
+    remaining = masked[start + offset:start + offset + len(payload)]
+    if len(remaining) != len(payload) or any(v and v != b for v, b in zip(remaining, payload)):
+        raise ValueError('template payload differs from reference')
+    return len(remaining) - remaining.count(0)
 
 
 def audit(reference, template):
@@ -55,7 +109,13 @@ def audit(reference, template):
                     empty.append({'group': name, 'path_id': obj.path_id, 'name': tree['m_Name']})
                 for kind, payload in payloads:
                     try:
-                        count = texture_audit.retained_payload(data, masked, obj.byte_start, body, payload)
+                        try:
+                            count = texture_audit.retained_payload(data, masked, obj.byte_start, body, payload)
+                        except ValueError as error:
+                            if kind != 'constant' or str(error) != 'inline payload missing or ambiguous':
+                                raise
+                            offset = constant_offset(obj, body, payload)
+                            count = count_at_offset(data, masked, obj.byte_start, body, payload, offset)
                         rows.append({'group': name, 'path_id': obj.path_id, 'name': tree['m_Name'], 'kind': kind,
                                      'payload_bytes': len(payload), 'retained_nonzero_bytes': count})
                     except ValueError as error:

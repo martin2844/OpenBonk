@@ -24,6 +24,16 @@ class AnimationPayloadAuditTest(unittest.TestCase):
         self.assertEqual(result['dense'], struct.pack('<f', 1.5))
         self.assertEqual(result['constant'], struct.pack('<f', -2.0))
 
+    def test_counts_at_traced_offset_when_payload_repeats(self):
+        payload = struct.pack('<f', 1.0)
+        body = payload + b'HEAD' + payload
+        masked = payload + b'HEAD' + b'\0\0\x80\0'
+        self.assertEqual(audit.count_at_offset(body, masked, 0, body, payload, 8), 1)
+        with self.assertRaises(ValueError):
+            audit.count_at_offset(body, payload + b'HEAD' + b'\0\0\x81\0', 0, body, payload, 8)
+        with self.assertRaises(ValueError):
+            audit.count_at_offset(body, masked, 0, body, payload, 7)
+
     def test_counts_retained_bytes_and_reports_empty_clip(self):
         payload = struct.pack('<II', 0x11223344, 0x55667788)
         body = b'HEAD' + payload + b'END!'
