@@ -45,21 +45,28 @@ def run(script, *args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--base', required=True, type=Path, help='pinned additional-material-scrubbed base, or shared1-material-scrubbed base with --steam-data')
+    parser.add_argument('--base', required=True, type=Path, help='pinned starting base for the selected stages')
     parser.add_argument('--shader-bundles', required=True, type=Path, help='pinned local shader cache')
     parser.add_argument('--steam-data', type=Path, help='Linux Megabonk_Data, to generate the preceding material templates')
     parser.add_argument('--include-shared1-material', action='store_true', help='also reconstruct the earlier shared1 material stage')
+    parser.add_argument('--scene-source-obb', type=Path, help='pinned original Android OBB, to reconstruct the earlier scene GameObject stage')
+    parser.add_argument('--include-scene-transforms', action='store_true', help='also reconstruct the preceding scene transform stage')
     parser.add_argument('--output', required=True, type=Path, help='new private base directory')
     args = parser.parse_args()
     if args.include_shared1_material and args.steam_data is None:
         parser.error('--include-shared1-material requires --steam-data')
+    if args.scene_source_obb and (not args.include_shared1_material or not args.steam_data):
+        parser.error('--scene-source-obb requires --steam-data and --include-shared1-material')
+    if args.include_scene_transforms and not args.scene_source_obb:
+        parser.error('--include-scene-transforms requires --scene-source-obb')
     base, shaders = args.base.resolve(strict=True), args.shader_bundles.resolve(strict=True)
     steam = args.steam_data.resolve(strict=True) if args.steam_data else None
+    scene_obb = args.scene_source_obb.resolve(strict=True) if args.scene_source_obb else None
     output = args.output.expanduser().absolute()
-    if not base.is_dir() or not shaders.is_dir() or (steam is not None and not steam.is_dir()) or output.exists() or output.is_symlink() or not output.parent.is_dir():
+    if not base.is_dir() or not shaders.is_dir() or (steam is not None and not steam.is_dir()) or (scene_obb is not None and not scene_obb.is_file()) or output.exists() or output.is_symlink() or not output.parent.is_dir():
         parser.error('inputs must exist and output must be new')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(path) or path.is_relative_to(output) for path in (base, shaders, ROOT, *([steam] if steam else []))):
+    if any(output.is_relative_to(path) or path.is_relative_to(output) for path in (base, shaders, ROOT, *([steam] if steam else []), *([scene_obb] if scene_obb else []))):
         parser.error('output must be separate from the checkout and inputs')
     spec = importlib.util.spec_from_file_location('shader_pins', ROOT / 'tools/pinned-shader-bundles.py')
     pins = importlib.util.module_from_spec(spec)
@@ -68,6 +75,16 @@ def main():
     with tempfile.TemporaryDirectory(prefix='.openbonk-legacy-shaders-', dir=output.parent) as tmp:
         tmp = Path(tmp)
         current = base
+        if args.include_scene_transforms:
+            template, next_base = tmp/'scene-transform-template', tmp/'scene-transform-base'
+            run('analysis/data-conversion/scene-transform-values-template.py', 'template', steam, scene_obb, template)
+            run('analysis/port-inventory/scrub-scene-transform-base.py', current, template, scene_obb, next_base)
+            current = next_base
+        if scene_obb:
+            template, next_base = tmp/'scene-gameobject-template', tmp/'scene-gameobject-base'
+            run('analysis/data-conversion/scene-gameobject-values-template.py', 'template', steam, scene_obb, template)
+            run('analysis/port-inventory/scrub-scene-gameobject-base.py', current, template, scene_obb, next_base)
+            current = next_base
         if args.include_shared1_material:
             source, template, next_base = tmp/'shared1-material.assets', tmp/'shared1-material-template', tmp/'shared1-material-base'
             extract(current/'base.obb', source, 'assets/bin/Data/sharedassets1.assets.split', True)

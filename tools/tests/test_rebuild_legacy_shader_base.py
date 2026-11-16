@@ -1,5 +1,7 @@
 import importlib.util
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 import warnings
@@ -13,6 +15,19 @@ spec.loader.exec_module(module)
 
 
 class ExtractTest(unittest.TestCase):
+    def test_scene_stage_requires_steam_and_shared_materials(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--base', 'base', '--shader-bundles', 'shaders',
+                                 '--output', 'output', '--scene-source-obb', 'original.obb'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--scene-source-obb requires', result.stderr)
+
+    def test_transform_stage_requires_original_scene_obb(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--base', 'base', '--shader-bundles', 'shaders',
+                                 '--output', 'output', '--include-scene-transforms'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--include-scene-transforms requires', result.stderr)
+
     def test_orders_split_assets_numerically(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
