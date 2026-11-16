@@ -32,6 +32,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('steam-data', 'old-apk', 'old-obb', 'new-apk', 'new-obb', 'crunch-decoder', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--shader-bundles', type=Path, help='also rebuild the subsequent pinned scene and shader base using this local shader cache')
     converted_group = parser.add_mutually_exclusive_group(required=True)
     converted_group.add_argument('--converted-obb', type=Path, help='pinned historical converted OBB')
     converted_group.add_argument('--converted-assets', type=Path, help='directory of three independently rebuilt shared assets')
@@ -41,14 +42,19 @@ def main():
     inputs = {name: getattr(args, name).expanduser().resolve(strict=True) for name in names}
     converted_path = args.converted_obb or args.converted_assets
     converted_input = converted_path.expanduser().resolve(strict=True) if converted_path else None
+    shaders = args.shader_bundles.expanduser().resolve(strict=True) if args.shader_bundles else None
     out = args.output.expanduser().absolute()
     if not inputs['steam_data'].is_dir() or not all(inputs[n].is_file() for n in (*PINS, 'crunch_decoder')):
         parser.error('Steam data must be a directory and other inputs must be files')
     if out.exists() or out.is_symlink() or not out.parent.is_dir():
         parser.error('output must be a new directory in an existing parent')
     out = out.parent.resolve() / out.name
-    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *inputs.values())):
+    if shaders is not None and not shaders.is_dir(): parser.error('shader bundles must be a directory')
+    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *inputs.values())):
         parser.error('output must be separate from checkout and inputs')
+    if shaders is not None:
+        spec = importlib.util.spec_from_file_location('shader_pins', ROOT/'tools/pinned-shader-bundles.py')
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod); mod.verify(shaders)
     for name, expected in PINS.items():
         with inputs[name].open('rb') as f:
             actual = hashlib.file_digest(f, 'sha256').hexdigest()
@@ -91,17 +97,31 @@ def main():
             with (compact/name).open('rb') as f:
                 if hashlib.file_digest(f, 'sha256').hexdigest() != expected:
                     raise ValueError('compact result differs: ' + name)
+        final = compact
+        if shaders is not None:
+            final = tmp/'shader-base'
+            run('tools/rebuild-legacy-shader-base.py', '--base', compact, '--shader-bundles', shaders,
+                '--steam-data', steam, '--scene-source-obb', new_obb, '--include-shared1-material',
+                '--include-scene-transforms', '--include-splash', '--preload-from-obb', '--output', final)
+            for name, expected in (('base.apk', '66f75a49dbaf514fa254f2aacb88d1e5117abb1360789b4ecf32b577d493cf8d'),
+                                   ('base.obb', 'ca0fc86fa3f1344191b04e4be6f0fb05a97fc4bbdb6e0f4dac105b94b3aa7f21')):
+                with (final/name).open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != expected:
+                        raise ValueError('shader result differs: '+name)
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:
-            for path in compact.iterdir():
-                if not path.is_file() or path.is_symlink():
-                    raise ValueError('unexpected compact output')
-                shutil.copyfile(path, out/path.name)
+            for path in final.iterdir():
+                if path.is_symlink(): raise ValueError('unexpected output symlink')
+                if path.is_file(): shutil.copyfile(path, out/path.name)
+                elif path.is_dir():
+                    if any(p.is_symlink() for p in path.rglob('*')): raise ValueError('unexpected nested output symlink')
+                    shutil.copytree(path, out/path.name)
+                else: raise ValueError('unexpected output type')
         except BaseException:
             shutil.rmtree(out)
             raise
-    print('Rebuilt the pinned compact base. Keep it private; this is not an APK build.')
+    print('Rebuilt the pinned '+('shader' if shaders else 'compact')+' base. Keep it private; this is not an APK build.')
 
 
 if __name__ == '__main__':
