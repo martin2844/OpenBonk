@@ -93,8 +93,8 @@ public final class SteamPlannedMeshes {
                 f.targetOffset = row.getInt("target_offset"); f.sourceOffset = row.getLong("source_offset"); f.size = row.getInt("size");
                 String pattern = animations ? "assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)(?:\\.split(?:0|[1-9][0-9]*))?)" : objects ?
                         "(?:assets/bin/Data/(?:[0-9a-f]{32}|(?:sharedassets[0-9]+\\.assets|level[0-9]+|resources\\.assets)(?:\\.split(?:0|[1-9][0-9]*))?)|assets/aa/StandaloneLinux64/localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\\.bundle)" :
-                        "assets/bin/Data/sharedassets[124]\\.assets\\.split(?:0|[1-9][0-9]*)";
-                int entryLimit = (objects || animations) && !f.entry.matches(".*\\.split(?:0|[1-9][0-9]*)") ? MAX_OBJECT_ENTRY : MAX_SPLIT;
+                        "assets/bin/Data/(?:sharedassets[124]\\.assets\\.split(?:0|[1-9][0-9]*)|[0-9a-f]{32})";
+                int entryLimit = !f.entry.matches(".*\\.split(?:0|[1-9][0-9]*)") ? MAX_OBJECT_ENTRY : MAX_SPLIT;
                 if (!f.entry.matches(pattern) || !sourceHashes.containsKey(f.source) ||
                         f.size <= 0 || f.size > entryLimit || f.targetOffset < 0 || f.targetOffset > entryLimit - f.size || f.sourceOffset < 0 || f.sourceOffset > MAX_FILE - f.size) throw new IOException("invalid mesh fragment");
                 if (animations) {
@@ -143,7 +143,7 @@ public final class SteamPlannedMeshes {
                     if (seen.size() >= MAX_ENTRIES || !seen.add(name) || entry.getSize() < 0 || entry.getSize() > MAX_FILE - total) throw new IOException("invalid template entry");
                     total += entry.getSize(); List<Fragment> fs = byEntry.get(name); byte[] patched = null; long crc = entry.getCrc();
                     if (fs != null) {
-                        long entryLimit = (objects || animations) && !name.matches(".*\\.split(?:0|[1-9][0-9]*)") ? MAX_OBJECT_ENTRY : MAX_SPLIT;
+                        long entryLimit = !name.matches(".*\\.split(?:0|[1-9][0-9]*)") ? MAX_OBJECT_ENTRY : MAX_SPLIT;
                         if (entry.getSize() > entryLimit) throw new IOException("asset entry too large");
                         patched = new byte[(int)entry.getSize()];
                         try (DataInputStream in = new DataInputStream(template.getInputStream(entry))) { in.readFully(patched); if (in.read() != -1) throw new IOException("oversized split"); }

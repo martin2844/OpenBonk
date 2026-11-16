@@ -49,7 +49,16 @@ class MeshPlanTests(unittest.TestCase):
 
     def test_sharedassets4_split_is_allowed_but_unrelated_entry_is_not(self):
         self.assertIsNotNone(module.ENTRY.fullmatch(module.study.PREFIX + 'sharedassets4.assets.split1'))
+        self.assertIsNotNone(module.ENTRY.fullmatch(module.study.PREFIX + 'a' * 32))
         self.assertIsNone(module.ENTRY.fullmatch(module.study.PREFIX + 'sharedassets9.assets.split1'))
+        self.assertIsNone(module.ENTRY.fullmatch(module.study.PREFIX + 'g' * 32))
+
+    def test_defer_exact_standalone_mesh_for_later_object_plan(self):
+        raw = b'x' * 64; known = {(len(raw), module.sha(raw))}
+        self.assertTrue(module.defer_exact_standalone('a' * 32, raw, known))
+        self.assertFalse(module.defer_exact_standalone('sharedassets1', raw, known))
+        self.assertFalse(module.defer_exact_standalone('a' * 32, b'y' * 64, known))
+        self.assertFalse(module.defer_exact_standalone('a' * 32, b'x', {(1, module.sha(b'x'))}))
 
 
 if __name__ == '__main__': unittest.main()

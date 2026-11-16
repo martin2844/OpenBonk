@@ -20,7 +20,7 @@ spec = importlib.util.spec_from_file_location('texture_study', ROOT / 'tools/exp
 study = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(study)
 SOURCE = re.compile(r'(?:sharedassets\d+\.assets|level\d+)(?:\.resS)?\Z')
-ENTRY = re.compile(re.escape(study.PREFIX) + r'sharedassets[124]\.assets\.split(?:0|[1-9]\d*)\Z')
+ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:sharedassets[124]\.assets\.split(?:0|[1-9]\d*)|[0-9a-f]{32})\Z')
 TARGET_GROUPS = (*study.GROUPS, 'sharedassets4')
 SOURCE_ASSETS = ('sharedassets0.assets', 'sharedassets1.assets', 'sharedassets2.assets', 'sharedassets4.assets', 'level1', 'level2', 'level4')
 
@@ -35,6 +35,11 @@ def file_hash(path):
 def geometry(mesh):
     return (mesh.m_VertexData.m_VertexCount,
             tuple((c.stream, c.offset, c.format, c.dimension) for c in mesh.m_VertexData.m_Channels), mesh.m_IndexFormat)
+
+
+def defer_exact_standalone(group, raw, whole_meshes):
+    """Keep exact whole objects intact for the later, more complete object plan."""
+    return bool(re.fullmatch(r'[0-9a-f]{32}', group) and len(raw) >= 64 and (len(raw), sha(raw)) in whole_meshes)
 
 
 def buffers(mesh):
@@ -108,12 +113,14 @@ def apply(raw, rows, streams=None):
 def generate(args):
     import UnityPy
     source, obb = args.steam_data.resolve(strict=True), args.obb.resolve(strict=True)
-    output = new_output(args.output, (source, obb)); index = defaultdict(list)
+    output = new_output(args.output, (source, obb)); index = defaultdict(list); whole_meshes = set()
     for name in SOURCE_ASSETS:
         path = source / name
         if not path.is_file() or path.is_symlink(): raise ValueError('missing Steam asset')
         for obj in UnityPy.load(str(path)).objects:
             if obj.type.name != 'Mesh': continue
+            raw = obj.get_raw_data()
+            if len(raw) >= 64: whole_meshes.add((len(raw), sha(raw)))
             mesh = obj.read(); vertices, indices = buffers(mesh)
             if not vertices and not indices: continue
             vref = source_reference(source, name, obj, mesh, vertices, True)
@@ -125,15 +132,24 @@ def generate(args):
         with zipfile.ZipFile(obb) as zin:
             infos = zin.infolist()
             if len(infos) != len({i.filename for i in infos}): raise ValueError('duplicate ZIP entry')
-            for group in TARGET_GROUPS:
+            standalone = [info.filename[len(study.PREFIX):] for info in infos
+                          if re.fullmatch(re.escape(study.PREFIX) + r'[0-9a-f]{32}', info.filename)
+                          and 0 < info.file_size <= 32 * 1024 * 1024]
+            for group in (*TARGET_GROUPS, *standalone):
                 if group == 'sharedassets4' and not any(info.filename.startswith(study.PREFIX + group + '.assets.split') for info in infos):
                     continue
                 parts = study.parts(zin, group); data = b''.join(zin.read(p) for p in parts)
-                for obj in UnityPy.load(data).objects:
+                try: objects = UnityPy.load(data).objects
+                except Exception:
+                    if group in TARGET_GROUPS: raise
+                    outcomes['standalone_unreadable'] += 1
+                    continue
+                for obj in objects:
                     if obj.type.name != 'Mesh': continue
                     mesh = obj.read(); vertices, indices = buffers(mesh)
                     if not vertices and not indices: outcomes['empty'] += 1; continue
                     raw = obj.get_raw_data()
+                    if defer_exact_standalone(group, raw, whole_meshes): outcomes['deferred_whole_object'] += 1; continue
                     if (vertices and raw.count(vertices) != 1) or (indices and raw.count(indices) != 1): outcomes['unsupported_target'] += 1; continue
                     matches = index[(geometry(mesh), sha(vertices), sha(indices))]
                     if not matches: outcomes['unmatched'] += 1; continue
