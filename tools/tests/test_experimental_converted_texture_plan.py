@@ -12,6 +12,15 @@ spec.loader.exec_module(module)
 
 
 class ConvertedTexturePlanTests(unittest.TestCase):
+    def test_emission_record_requires_supported_target_and_source_hash(self):
+        row = {'emission_source': True, 'group': 'sharedassets1', 'name': 'Emission_0', 'source_name': 'Emission',
+               'source_sha256': 'ab' * 32, 'source_format': 10, 'target_format': 4, 'bytes': 87380,
+               'normal': False, 'quality': False, 'direct_normal': False}
+        self.assertTrue(module.valid_emission_record(row))
+        self.assertTrue(module.valid_emission_record(dict(row, group='a' * 32, name='Emission')))
+        for change in ({'name': 'other'}, {'source_sha256': 'bad'}, {'quality': True}, {'target_format': 47}, {'shadow': True}):
+            self.assertFalse(module.valid_emission_record(dict(row, **change)))
+
     def test_lightmap_alias_requires_known_identity_and_format(self):
         row = {'lightmap_alias': True, 'group': 'sharedassets1', 'name': 'LDR_LLL1_4_0',
                'source_name': 'LDR_LLL1_4', 'source_format': 1, 'target_format': 47,

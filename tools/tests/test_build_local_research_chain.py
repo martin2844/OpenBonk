@@ -166,6 +166,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn('--atlas-fallback', dict(module.commands(a))['converted textures'])
             a.lightmap_fallback = True
             self.assertIn('--lightmap-fallback', dict(module.commands(a))['converted textures'])
+            a.emission_fallback = True
+            self.assertIn('--emission-fallback', dict(module.commands(a))['converted textures'])
             a.shadow_fallback = True
             self.assertIn('--shadow-fallback', dict(module.commands(a))['converted textures'])
             a.emoji_fallback = True

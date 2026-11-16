@@ -138,6 +138,28 @@ def acceptable_lightmap_image(original, converted):
             max(ImageStat.Stat(rgb).mean) <= 0.01 and max(high for _, high in rgb.getextrema()) <= 2)
 
 
+def acceptable_emission_mip(original, converted, level):
+    from PIL import ImageChops, ImageStat
+    a, b = original.convert('RGBA'), converted.convert('RGBA')
+    if a.size != b.size or a.width < 1 or a.height < 1 or level < 0: return False
+    diff = ImageChops.difference(a, b)
+    return (max(ImageStat.Stat(diff).mean) <= (0 if level == 0 else 2) and
+            max(high for _, high in diff.getextrema()) <= (0 if level == 0 else 40))
+
+
+def select_emission_source(target, candidates, texture=lambda item: item):
+    """Choose a unique source with an exactly matching decoded top mip."""
+    try:
+        matches = [item for item in candidates if int(texture(item).m_TextureFormat) == 10 and
+                   (texture(item).m_MipCount, texture(item).m_ImageCount, texture(item).m_ColorSpace) ==
+                   (target.m_MipCount, target.m_ImageCount, target.m_ColorSpace) and
+                   acceptable_emission_mip(target.image, texture(item).image, 0)]
+        hashes = {hashlib.sha256(bytes(texture(item).get_image_data())).digest() for item in matches}
+        return matches[0] if len(hashes) == 1 else None
+    except (ValueError, OSError, TypeError, NotImplementedError):
+        return None
+
+
 def should_try_quality(mean, encoder, normal, target_format, width, height):
     return bool(not acceptable_texture_error(mean) and encoder and not normal and target_format == 47 and
                 1 <= width <= 2048 and 1 <= height <= 2048)
@@ -348,14 +370,18 @@ def run(args):
                     forest_candidate = group == 'sharedassets1' and target.m_Name in FOREST_TEXTURES
                     lightmap_candidate = bool(lightmap_fallback and group == 'sharedassets1' and target.m_Name in LIGHTMAP_ALIASES and
                                               (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (256, 256, 1, 1, 47))
+                    emission_candidate = bool(getattr(args, 'emission_fallback', False) and
+                                              ((group == 'sharedassets1' and target.m_Name == 'Emission_0') or
+                                               (re.fullmatch(r'[0-9a-f]{32}', group) and target.m_Name == 'Emission')) and
+                                              (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (128, 128, 8, 1, 4))
                     atlas_candidate = bool(getattr(args, 'atlas_fallback', False) and group == 'sharedassets1' and target.m_Name in ATLAS_TEXTURES and
                                            (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (256, 256, 9, 1, 4))
                     shadow_candidate = bool(shadow_fallback and group == 'sharedassets1' and target.m_Name in ('DropShadow', 'DropShadow_0'))
-                    source_name = (FONT_ALIASES[target.m_Name] if font_candidate else LIGHTMAP_ALIASES[target.m_Name] if lightmap_candidate else alias_source if collision else
+                    source_name = (FONT_ALIASES[target.m_Name] if font_candidate else LIGHTMAP_ALIASES[target.m_Name] if lightmap_candidate else 'Emission' if emission_candidate else alias_source if collision else
                                    'DropShadow' if shadow_candidate else
                                    FOREST_TEXTURES[target.m_Name][0] if forest_candidate else target.m_Name)
                     candidates = (shared0_index if shared0_candidate else resources_index if font_candidate or resource_candidate else index)[(source_name, target.m_Width, target.m_Height)]
-                    src = select_forest_source(target, candidates) if forest_candidate else select_source(target, candidates)
+                    src = select_forest_source(target, candidates) if forest_candidate else select_emission_source(target, candidates) if emission_candidate else select_source(target, candidates)
                     shadow = bool(shadow_candidate and (src is None or target.m_Name == 'DropShadow_0'))
                     if shadow: src = select_shadow_source(target, candidates)
                     if src is None:
@@ -423,6 +449,10 @@ def run(args):
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     if not acceptable_lightmap_image(original, converted): raise ResourceQualityError('lightmap quality differs')
+                                if emission_candidate:
+                                    original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                    converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                    if not acceptable_emission_mip(original, converted, level): raise ResourceQualityError('emission mip quality differs')
                                 if resource or shadow:
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
@@ -468,7 +498,7 @@ def run(args):
                         continue
                     # A high level-zero error indicates a questionable match or
                     # conversion; keep the existing texture for local review.
-                    accepted = (True if forest_candidate or atlas_candidate or lightmap_candidate else acceptable_emoji_image(original_image, converted_image) if emoji_candidate else acceptable_nodraw_image(original_image, converted_image) if resource and source_name == 'GridBox_NoDraw' else acceptable_sdf_image(original_image, converted_image) if font or shared0_candidate else
+                    accepted = (True if forest_candidate or atlas_candidate or lightmap_candidate or emission_candidate else acceptable_emoji_image(original_image, converted_image) if emoji_candidate else acceptable_nodraw_image(original_image, converted_image) if resource and source_name == 'GridBox_NoDraw' else acceptable_sdf_image(original_image, converted_image) if font or shared0_candidate else
                                 acceptable_quality_image(original_image, converted_image) if high_quality else acceptable_texture_error(mean))
                     if not accepted:
                         if group not in GROUPS: quality_excluded.add(PREFIX + group)
@@ -483,11 +513,12 @@ def run(args):
                     if shared0_candidate: rows[-1].update(shared0_sdf=True)
                     if resource: rows[-1].update(resource=True, source_name=source_name)
                     if lightmap_candidate: rows[-1].update(lightmap_alias=True, source_name=source_name)
+                    if emission_candidate: rows[-1].update(emission_source=True, source_name=source_name, source_sha256=hashlib.sha256(src_data).hexdigest())
                     if shadow: rows[-1].update(shadow=True)
                     if collision: rows[-1].update(collision_alias=True, source_name=source_name)
                     if forest_candidate: rows[-1].update(forest_source=True, source_name=source_name, source_sha256=hashlib.sha256(src_data).hexdigest())
                     alias_key = (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, target.m_ColorSpace, target.m_TextureFormat, hashlib.sha256(old).digest())
-                    if group in GROUPS and not shadow and not collision and not forest_candidate and not lightmap_candidate: aliases[alias_key].append((rows[-1], new))
+                    if group in GROUPS and not shadow and not collision and not forest_candidate and not lightmap_candidate and not emission_candidate: aliases[alias_key].append((rows[-1], new))
                     outcomes['converted'] += 1
                 if group not in target_groups and len(rows) == converted_before: continue
                 offset = 0
@@ -547,6 +578,7 @@ def main():
     p.add_argument('--nodraw-fallback', action='store_true', help='also reconstruct the debug NoDraw grid; requires --resource-fallback')
     p.add_argument('--atlas-fallback', action='store_true', help='experimentally reconstruct two alpha atlases with bounded mip differences')
     p.add_argument('--lightmap-fallback', action='store_true', help='experimentally reconstruct six alpha lightmaps; requires --quality-library')
+    p.add_argument('--emission-fallback', action='store_true', help='experimentally reconstruct uniquely matched emission textures')
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases with bounded sparse pixel differences')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally choose a unique matching DropShadow with strict quality checks')
     run(p.parse_args())

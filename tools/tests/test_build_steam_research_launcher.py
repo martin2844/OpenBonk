@@ -232,7 +232,7 @@ class SteamResearchBuildTests(unittest.TestCase):
     def test_quality_option_reaches_both_platforms(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
-        self.invoke('--windows-game', str(windows), '--quality-textures', '--normal-fallback', '--font-fallback', '--resource-fallback', '--nodraw-fallback', '--atlas-fallback', '--lightmap-fallback', '--shadow-fallback', '--emoji-fallback')
+        self.invoke('--windows-game', str(windows), '--quality-textures', '--normal-fallback', '--font-fallback', '--resource-fallback', '--nodraw-fallback', '--atlas-fallback', '--lightmap-fallback', '--emission-fallback', '--shadow-fallback', '--emoji-fallback')
         self.assertIn('--quality-textures', run.call_args_list[-3].args[0])
         self.assertIn('--quality-textures', run.call_args_list[-2].args[0])
         self.assertIn('--normal-fallback', run.call_args_list[-3].args[0])
@@ -247,6 +247,8 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertIn('--atlas-fallback', run.call_args_list[-2].args[0])
         self.assertIn('--lightmap-fallback', run.call_args_list[-3].args[0])
         self.assertIn('--lightmap-fallback', run.call_args_list[-2].args[0])
+        self.assertIn('--emission-fallback', run.call_args_list[-3].args[0])
+        self.assertIn('--emission-fallback', run.call_args_list[-2].args[0])
         self.assertIn('--shadow-fallback', run.call_args_list[-3].args[0])
         self.assertIn('--shadow-fallback', run.call_args_list[-2].args[0])
         self.assertIn('--emoji-fallback', run.call_args_list[-3].args[0])

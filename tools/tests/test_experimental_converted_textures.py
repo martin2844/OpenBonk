@@ -122,6 +122,22 @@ class TextureConversionTests(unittest.TestCase):
         close = Image.new('RGBA', (10, 10), (131, 128, 128, 128))
         self.assertFalse(module.acceptable_lightmap_image(original, close))
 
+    def test_emission_mips_and_source_selection_are_unambiguous(self):
+        from PIL import Image
+        image = Image.new('RGBA', (10, 10), (20, 20, 20, 255))
+        target = SimpleNamespace(image=image, m_MipCount=8, m_ImageCount=1, m_ColorSpace=0)
+        def source(data, img=image):
+            return SimpleNamespace(image=img, m_MipCount=8, m_ImageCount=1, m_ColorSpace=0,
+                                   m_TextureFormat=10, get_image_data=lambda: data)
+        first, duplicate, other = source(b'a'), source(b'a'), source(b'b')
+        self.assertIs(module.select_emission_source(target, [first, duplicate]), first)
+        self.assertIsNone(module.select_emission_source(target, [first, other]))
+        changed = image.copy(); changed.putpixel((0, 0), (60, 20, 20, 255))
+        self.assertFalse(module.acceptable_emission_mip(image, changed, 0))
+        self.assertTrue(module.acceptable_emission_mip(image, changed, 1))
+        changed.putpixel((0, 0), (61, 20, 20, 255))
+        self.assertFalse(module.acceptable_emission_mip(image, changed, 1))
+
     def test_shared0_sdf_accepts_only_known_atlas_layouts(self):
         texture = SimpleNamespace(m_Name='NotoSansSC-Bold SDF Atlas 19', m_Width=1024, m_Height=1024,
                                   m_MipCount=1, m_ImageCount=1, m_TextureFormat=47)
