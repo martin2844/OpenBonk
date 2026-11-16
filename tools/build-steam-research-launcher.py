@@ -96,6 +96,7 @@ def commands(a):
     if getattr(a, 'animation_curve_fallback', False): chain += ['--animation-curve-fallback']
     if getattr(a, 'animation_curve_relaxed', False): chain += ['--animation-curve-relaxed']
     if getattr(a, 'animation_curve_extended', False): chain += ['--animation-curve-extended']
+    if getattr(a, 'animation_curve_hybrid', False): chain += ['--animation-curve-hybrid']
     if a.font_fallback: chain += ['--font-fallback']
     if a.resource_fallback: chain += ['--resource-fallback']
     if getattr(a, 'nodraw_fallback', False): chain += ['--nodraw-fallback']
@@ -137,6 +138,7 @@ def commands(a):
         if getattr(a, 'animation_curve_fallback', False): windows_chain += ['--animation-curve-fallback']
         if getattr(a, 'animation_curve_relaxed', False): windows_chain += ['--animation-curve-relaxed']
         if getattr(a, 'animation_curve_extended', False): windows_chain += ['--animation-curve-extended']
+        if getattr(a, 'animation_curve_hybrid', False): windows_chain += ['--animation-curve-hybrid']
         if a.font_fallback: windows_chain += ['--font-fallback']
         if a.resource_fallback: windows_chain += ['--resource-fallback']
         if getattr(a, 'nodraw_fallback', False): windows_chain += ['--nodraw-fallback']
@@ -182,6 +184,7 @@ def main():
     p.add_argument('--animation-curve-fallback', action='store_true', help='experimentally substitute tightly bounded Steam animation curves')
     p.add_argument('--animation-curve-relaxed', action='store_true', help='use a 1e-4 curve bound; requires --animation-curve-fallback')
     p.add_argument('--animation-curve-extended', action='store_true', help='use a 1e-3 curve bound; requires --animation-curve-fallback')
+    p.add_argument('--animation-curve-hybrid', action='store_true', help='also try per-curve substitutions; requires --animation-curve-fallback')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--nodraw-fallback', action='store_true', help='also reconstruct the NoDraw debug grid; requires --resource-fallback')
@@ -201,6 +204,7 @@ def main():
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')
     if a.animation_curve_extended and (not a.animation_curve_fallback or a.animation_curve_relaxed): p.error('--animation-curve-extended requires --animation-curve-fallback and excludes --animation-curve-relaxed')
+    if a.animation_curve_hybrid and not a.animation_curve_fallback: p.error('--animation-curve-hybrid requires --animation-curve-fallback')
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')
     if a.resource_fallback and not a.quality_textures: p.error('--resource-fallback requires --quality-textures')
     if a.nodraw_fallback and not a.resource_fallback: p.error('--nodraw-fallback requires --resource-fallback')

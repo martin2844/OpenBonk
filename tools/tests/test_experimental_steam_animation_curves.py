@@ -16,21 +16,23 @@ spec.loader.exec_module(study)
 
 class AnimationCurveTest(unittest.TestCase):
     def test_accepts_small_curve_difference_and_rejects_larger_one(self):
-        left = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0))]), (1.0, [])]
-        close = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0000001))]), (1.0, [])]
-        far = [(0.0, [(3, (0.0, 0.0, 0.0, 1.01))]), (1.0, [])]
+        end = [(3, (0.0, 0.0, 0.0, 1.0))]
+        left = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0))]), (1.0, end)]
+        close = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0000001))]), (1.0, end)]
+        far = [(0.0, [(3, (0.0, 0.0, 0.0, 1.01))]), (1.0, end)]
         self.assertIsNotNone(study.compatible_frames(left, close))
         self.assertIsNone(study.compatible_frames(left, far))
 
     def test_relaxed_bound_is_explicit_and_still_rejects_larger_differences(self):
-        left = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0))]), (1.0, [])]
-        close = [(0.0, [(3, (0.0, 0.0, 0.0, 1.00005))]), (1.0, [])]
-        far = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0002))]), (1.0, [])]
+        end = [(3, (0.0, 0.0, 0.0, 1.0))]
+        left = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0))]), (1.0, end)]
+        close = [(0.0, [(3, (0.0, 0.0, 0.0, 1.00005))]), (1.0, end)]
+        far = [(0.0, [(3, (0.0, 0.0, 0.0, 1.0002))]), (1.0, end)]
         self.assertIsNone(study.compatible_frames(left, close))
         self.assertIsNotNone(study.compatible_frames(left, close, limit=study.RELAXED_LIMIT))
         self.assertIsNone(study.compatible_frames(left, far, limit=study.RELAXED_LIMIT))
         self.assertIsNotNone(study.compatible_frames(left, far, limit=study.EXTENDED_LIMIT))
-        too_far = [(0.0, [(3, (0.0, 0.0, 0.0, 1.002))]), (1.0, [])]
+        too_far = [(0.0, [(3, (0.0, 0.0, 0.0, 1.002))]), (1.0, end)]
         self.assertIsNone(study.compatible_frames(left, too_far, limit=study.EXTENDED_LIMIT))
 
     def test_rejects_curve_mapping_and_sentinel_differences(self):
@@ -42,9 +44,47 @@ class AnimationCurveTest(unittest.TestCase):
         self.assertIsNone(study.compatible_frames(left, different_index))
 
     def test_detects_difference_between_equal_segment_endpoints(self):
-        zero = [(0.0, [(1, (0.0, 0.0, 0.0, 0.0))]), (1.0, [])]
-        hump = [(0.0, [(1, (0.0, -4.0, 4.0, 0.0))]), (1.0, [])]
+        end = [(1, (0.0, 0.0, 0.0, 0.0))]
+        zero = [(0.0, [(1, (0.0, 0.0, 0.0, 0.0))]), (1.0, end)]
+        hump = [(0.0, [(1, (0.0, -4.0, 4.0, 0.0))]), (1.0, end)]
         self.assertIsNone(study.compatible_frames(zero, hump))
+
+    def test_sparse_curve_is_checked_until_its_next_own_key(self):
+        zero = (0.0, 0.0, 0.0, 0.0)
+        slope = (0.0, 0.0, 0.001, 0.0)
+        left = [(0.0, [(1, zero)]), (0.5, [(2, zero)]), (2.0, [(1, zero), (2, zero)])]
+        right = [(0.0, [(1, slope)]), (0.5, [(2, zero)]), (2.0, [(1, zero), (2, zero)])]
+        self.assertIsNone(study.compatible_frames(left, right, limit=0.001))
+
+    def test_changed_key_without_known_successor_is_rejected(self):
+        zero = (0.0, 0.0, 0.0, 0.0)
+        other = (0.0, 0.0, 0.0, 0.00001)
+        left = [(0.0, [(1, zero), (2, zero)]), (1.0, [(1, zero)])]
+        right = [(0.0, [(1, zero), (2, other)]), (1.0, [(1, zero)])]
+        self.assertIsNone(study.compatible_frames(left, right, limit=0.001))
+
+    def test_hybrid_copies_only_bounded_segments_and_keeps_sentinel(self):
+        def word(value): return struct.unpack('<I', struct.pack('<f', value))[0]
+        def obj(first, second, last=1.0, duplicate=False):
+            words = [word(0), 2, 1, word(0), word(0), word(0), word(first),
+                     2, word(0), word(0), word(0), word(second),
+                     word(1), 2, 1, word(0), word(0), word(0), word(last),
+                     2, word(0), word(0), word(0), word(1)]
+            payload = struct.pack('<%dI' % len(words), *words)
+            tree = {'m_MuscleClip': {'m_Clip': {'data': {'m_StreamedClip': {'data': words}}}}}
+            body = b'HEAD' + payload + (payload if duplicate else b'END')
+            return SimpleNamespace(read_typetree=lambda: tree, get_raw_data=lambda: body)
+        target = obj(1, 1)
+        source = obj(1.0002, 1.5, last=2)
+        self.assertIsNone(study.candidate(target, source, limit=0.001))
+        result = study.hybrid_candidate(target, source, limit=0.001)
+        self.assertIsNotNone(result)
+        words = struct.unpack('<%dI' % (len(result[2]) // 4), result[2])
+        frames = study.curve.frames(words)
+        self.assertAlmostEqual(frames[0][1][0][1][3], 1.0002, places=5)
+        self.assertEqual(frames[0][1][1][1][3], 1.0)
+        self.assertEqual(frames[1][1][0][1][3], 1.0)
+        self.assertIsNone(study.hybrid_candidate(obj(1, 1, duplicate=True), source, limit=0.001))
 
     def test_rejects_unchecked_or_nonfinite_intervals(self):
         coeff = (0.0, 0.0, 0.0, 1.0)
@@ -55,7 +95,7 @@ class AnimationCurveTest(unittest.TestCase):
         def word(value):
             return struct.unpack('<I', struct.pack('<f', value))[0]
         def obj(value, label='same', duplicate=False):
-            words = [word(0), 1, 3, word(0), word(0), word(0), word(value), word(1), 0]
+            words = [word(0), 1, 3, word(0), word(0), word(0), word(value), word(1), 1, 3, word(0), word(0), word(0), word(1)]
             payload = struct.pack('<%dI' % len(words), *words)
             tree = {'name': label, 'm_MuscleClip': {'m_Clip': {'data': {'m_StreamedClip': {'data': words}}}}}
             body = b'HEAD' + payload + (payload if duplicate else b'END')

@@ -42,23 +42,23 @@ def stream(tree):
 
 
 def compatible_frames(left, right, limit=LIMIT):
-    """Compare key identity and cubic extrema; reject changed sentinel keys."""
+    """Bound each curve until its next key, not merely the next global frame."""
     if len(left) != len(right):
         return None
-    worst, segments = 0.0, 0
-    for i, ((lt, lk), (rt, rk)) in enumerate(zip(left, right)):
+    for (lt, lk), (rt, rk) in zip(left, right):
         if lt != rt or [key for key, _ in lk] != [key for key, _ in rk]:
             return None
-        if i + 1 == len(left):
-            if lk != rk:
-                return None
-            continue
-        dt = left[i + 1][0] - lt
-        if lt < 0 or not math.isfinite(dt) or dt <= 0 or dt > 60:
-            if lk != rk:
-                return None
-            continue
-        for (_, lc), (_, rc) in zip(lk, rk):
+    worst, segments = 0.0, 0
+    next_key_time = {}
+    for (lt, lk), (_, rk) in reversed(list(zip(left, right))):
+        for (key, lc), (_, rc) in zip(lk, rk):
+            next_time = next_key_time.get(key)
+            next_key_time[key] = lt
+            dt = next_time - lt if next_time is not None else float('nan')
+            if lt < 0 or not math.isfinite(dt) or dt <= 0 or dt > 60:
+                if lc != rc:
+                    return None
+                continue
             value, _ = extrema(lc, rc, dt)
             if not math.isfinite(value) or value > limit:
                 return None
@@ -88,6 +88,57 @@ def candidate(target, source, limit=LIMIT):
     if raw.count(before) != 1:
         return None
     return raw.index(before), before, after, difference
+
+
+def hybrid_candidate(target, source, limit=LIMIT):
+    """Use Steam coefficients only for individually bounded curve segments."""
+    left, right = target.read_typetree(), source.read_typetree()
+    lw, rw = stream(left), stream(right)
+    if not lw or len(lw) != len(rw):
+        return None
+    a, b = copy.deepcopy(left), copy.deepcopy(right)
+    a['m_MuscleClip']['m_Clip']['data']['m_StreamedClip']['data'] = []
+    b['m_MuscleClip']['m_Clip']['data']['m_StreamedClip']['data'] = []
+    if a != b:
+        return None
+    lf, rf = curve.frames(lw), curve.frames(rw)
+    if len(lf) != len(rf):
+        return None
+    offsets, pos = [], 0
+    for (lt, lk), (rt, rk) in zip(lf, rf):
+        if lt != rt or [key for key, _ in lk] != [key for key, _ in rk]:
+            return None
+        offsets.append([pos + 3 + 5 * i for i in range(len(lk))])
+        pos += 2 + 5 * len(lk)
+    if pos != len(lw):
+        return None
+    result, next_key_time, worst = list(lw), {}, 0.0
+    for frame in range(len(lf) - 1, -1, -1):
+        lt, lk = lf[frame]; _, rk = rf[frame]
+        for index, ((key, lc), (_, rc)) in enumerate(zip(lk, rk)):
+            next_time = next_key_time.get(key)
+            next_key_time[key] = lt
+            dt = next_time - lt if next_time is not None else float('nan')
+            if lt < 0 or not math.isfinite(dt) or dt <= 0 or dt > 60:
+                continue
+            difference, _ = extrema(lc, rc, dt)
+            if not math.isfinite(difference) or difference > limit:
+                continue
+            offset = offsets[frame][index]
+            result[offset:offset + 4] = rw[offset:offset + 4]
+            worst = max(worst, difference)
+    before = struct.pack('<%dI' % len(lw), *lw)
+    after = struct.pack('<%dI' % len(result), *result)
+    if before == after:
+        return None
+    raw = target.get_raw_data()
+    if raw.count(before) != 1:
+        return None
+    # Independently recheck the final mixed stream, including sparse keys.
+    verified = compatible_frames(lf, curve.frames(result), limit=limit)
+    if verified is None:
+        return None
+    return raw.index(before), before, after, max(worst, verified)
 
 
 def generate(args):
@@ -128,6 +179,8 @@ def generate(args):
                     found = []
                     for source_name, source_obj in sources.get((name, obj.byte_size), []):
                         item = candidate(obj, source_obj, limit=limit)
+                        if item is None and getattr(args, 'hybrid', False):
+                            item = hybrid_candidate(obj, source_obj, limit=limit)
                         if item is not None:
                             found.append((source_name, item))
                     fingerprints = {hashlib.sha256(item[2]).digest() for _, item in found}
@@ -171,6 +224,7 @@ def main():
     mode = p.add_mutually_exclusive_group()
     mode.add_argument('--relaxed', action='store_true', help='use an experimental 1e-4 per-segment curve bound')
     mode.add_argument('--extended', action='store_true', help='use an experimental 1e-3 per-segment curve bound')
+    p.add_argument('--hybrid', action='store_true', help='also try bounded per-curve partial substitution')
     generate(p.parse_args())
 
 
