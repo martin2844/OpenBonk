@@ -63,6 +63,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
             {
                 locale = currentLocale;
                 foreach (var button in buttons) button.RefreshLabel();
+                layoutEditor?.RefreshToggleLabel();
             }
         }
     }
@@ -290,6 +291,8 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private AndroidTouchButton swapFrom;
     private GameObject toolbar;
     private TextMeshProUGUI selectedLabel;
+    private TextMeshProUGUI toggleLabel;
+    private Image toggleBackground;
     private int profileSlot = 1;
     private bool pausedForEditing;
     internal bool SnapToGrid => PlayerPrefs.GetInt(Prefix + "grid", 0) != 0;
@@ -308,7 +311,12 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
             AddTarget(list, (RectTransform)button.transform, id, button);
         }
         targets = list.ToArray();
-        MakeButton(safe, "Customize", new Vector2(92, -58), new Vector2(166, 76), () => StartEditing(), false);
+        var toggle = MakeButton(safe, "Customize", new Vector2(0, 65), new Vector2(150, 64), ToggleEditing, false);
+        var toggleRect = (RectTransform)toggle.transform;
+        toggleRect.anchorMin = toggleRect.anchorMax = new Vector2(.5f, 0);
+        toggleRect.anchoredPosition = new Vector2(0, 65);
+        toggleBackground = toggle.GetComponent<Image>();
+        toggleLabel = toggle.GetComponentInChildren<TextMeshProUGUI>();
         toolbar = new GameObject("Touch layout toolbar", typeof(RectTransform));
         var bar = (RectTransform)toolbar.transform; bar.SetParent(safe, false);
         bar.anchorMin = bar.anchorMax = new Vector2(.5f, 1); bar.pivot = new Vector2(.5f, 1);
@@ -333,6 +341,8 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         selectedLabel = text.GetComponent<TextMeshProUGUI>(); selectedLabel.font = TMP_Settings.defaultFontAsset;
         selectedLabel.fontSize = 25; selectedLabel.alignment = TextAlignmentOptions.Center; selectedLabel.raycastTarget = false;
         toolbar.SetActive(false);
+        toggle.transform.SetAsLastSibling();
+        RefreshToggleLabel();
     }
 
     private void AddTarget(System.Collections.Generic.List<AndroidTouchLayoutTarget> list, RectTransform rect, string id, AndroidTouchButton button)
@@ -341,17 +351,19 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     }
     internal static bool ValidAction(string id, string action) => id == action || (IsRemappable(id) && IsRemappable(action));
     private static bool IsRemappable(string action) => action == "Jump" || action == "Slide" || action == "Interact" || action == "Aim" || action == "MapOverlay";
+    private void ToggleEditing() { if (Editing) FinishEditing(); else StartEditing(); }
     private void StartEditing()
     {
+        if (Editing) return;
         foreach (var stick in safe.GetComponentsInChildren<AndroidTouchStick>()) stick.ResetPointer();
         foreach (var button in buttons) button.ResetPointer();
         AndroidTouchInput.ReleaseAll();
         pausedForEditing = !MyTime.paused; if (pausedForEditing) MyTime.Pause();
         Editing = true; selected = null; swapFrom = null;
-        foreach (var target in targets) target.UpdateAppearance(); toolbar.SetActive(true); Refresh();
+        foreach (var target in targets) target.UpdateAppearance(); toolbar.SetActive(true); RefreshToggleLabel(); Refresh();
     }
     private void FinishEditing() {
-        Editing = false; swapFrom = null; toolbar.SetActive(false); foreach (var target in targets) target.UpdateAppearance();
+        Editing = false; swapFrom = null; toolbar.SetActive(false); foreach (var target in targets) target.UpdateAppearance(); RefreshToggleLabel();
         AndroidTouchInput.ReleaseAll(); if (pausedForEditing) { pausedForEditing = false; if (MyTime.paused) MyTime.Unpause(); }
         PlayerPrefs.Save(); AndroidTouchSettingsBridge.Publish();
     }
@@ -399,6 +411,13 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         PlayerPrefs.DeleteKey(Prefix + "grid"); PlayerPrefs.DeleteKey(Prefix + "autorun");
         foreach (var button in buttons) button.RefreshLabel(); PlayerPrefs.Save(); Refresh();
     }
+    internal void RefreshToggleLabel()
+    {
+        if (toggleLabel == null || toggleBackground == null) return;
+        toggleLabel.text = Editing ? (Spanish ? "Listo" : "Done") : (Spanish ? "Editar" : "Edit");
+        toggleLabel.color = new Color(.96f, .97f, .90f, Editing ? .95f : .72f);
+        toggleBackground.color = new Color(.06f, .1f, .12f, Editing ? .78f : .36f);
+    }
     private void Refresh()
     {
         if (selectedLabel == null) return;
@@ -409,7 +428,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         if (selected != null && selected.Id == "Move" && PlayerPrefs.GetInt(Prefix + "autorun", 0) != 0)
             selectedLabel.text += Spanish ? "\nArrastrá hacia arriba y soltá; tocá para cancelar." : "\nDrag upward and release; tap to cancel.";
     }
-    private void MakeButton(RectTransform parent, string id, Vector2 position, Vector2 size, UnityEngine.Events.UnityAction click, bool center)
+    private GameObject MakeButton(RectTransform parent, string id, Vector2 position, Vector2 size, UnityEngine.Events.UnityAction click, bool center)
     {
         var obj = new GameObject(id, typeof(RectTransform), typeof(Image), typeof(Button));
         var rect = (RectTransform)obj.transform; rect.SetParent(parent, false);
@@ -419,6 +438,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         tr.SetParent(rect, false); tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.offsetMin = tr.offsetMax = Vector2.zero;
         var label = child.GetComponent<TextMeshProUGUI>(); label.font = TMP_Settings.defaultFontAsset; label.fontSize = 24; label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
         label.text = Spanish ? (id == "Customize" ? "Editar" : id == "Done" ? "Listo" : id == "Reset" ? "Reiniciar" : id == "Swap" ? "Cambiar" : id == "Show" ? "Visible" : id == "All" ? "Todos" : id == "Opacity -" ? "Opacidad -" : id == "Opacity +" ? "Opacidad +" : id == "Grid" ? "Cuadrícula" : id == "Slot" ? "Perfil" : id == "Save" ? "Guardar" : id == "Load" ? "Cargar" : id == "Auto run" ? "Autoavance" : id) : (id == "Customize" ? "Edit" : id);
+        return obj;
     }
 }
 
