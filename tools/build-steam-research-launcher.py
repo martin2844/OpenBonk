@@ -232,7 +232,10 @@ def main():
     # The output's parent already exists, so the nested preflight can run
     # before creating the outer output directory.
     preflight = list(steps[0][1]); preflight[preflight.index('--output') + 1] = str(a.output); preflight.append('--check')
-    subprocess.run(preflight, check=True)
+    try:
+        subprocess.run(preflight, check=True)
+    except subprocess.CalledProcessError as error:
+        p.error(f'Unity/export preflight failed (status {error.returncode}); see the error above')
     if a.check:
         print('Initial inputs checked; export, Unity builds and research launcher remain unverified.', flush=True)
         return

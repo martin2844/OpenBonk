@@ -131,6 +131,16 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertEqual(run.call_count, 1)
         self.assertIn('--check', run.call_args.args[0]); self.assertFalse(self.out.exists())
 
+    def test_failed_nested_preflight_reports_error_without_creating_output(self):
+        errors = io.StringIO()
+        with patch.object(sys, 'argv', self.argv + ['--check']), patch.object(module, 'check_conversion_imports'), \
+                patch.object(module.research_chain, 'validate_steam_inputs'), \
+                patch.object(module.subprocess, 'run', side_effect=subprocess.CalledProcessError(2, ['preflight'])), \
+                contextlib.redirect_stderr(errors):
+            with self.assertRaises(SystemExit): module.main()
+        self.assertIn('Unity/export preflight failed (status 2)', errors.getvalue())
+        self.assertFalse(self.out.exists())
+
     @patch.object(module.subprocess, 'run')
     def test_noexec_output_fails_before_export_and_leaves_no_output(self, run):
         with patch.object(module, 'output_allows_execution', return_value=False):

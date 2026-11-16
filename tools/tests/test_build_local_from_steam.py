@@ -46,6 +46,15 @@ class SteamBuildTest(unittest.TestCase):
         self.assertIn('--check', run.call_args.args[0])
         self.assertFalse(self.out.exists())
 
+    def test_failed_export_preflight_exits_cleanly(self):
+        errors = io.StringIO()
+        with patch.object(sys, 'argv', self.argv + ['--check']), \
+                patch.object(MODULE.subprocess, 'run', side_effect=subprocess.CalledProcessError(2, ['preflight'])), \
+                contextlib.redirect_stderr(errors):
+            with self.assertRaises(SystemExit): MODULE.main()
+        self.assertIn('Steam export preflight failed (status 2)', errors.getvalue())
+        self.assertFalse(self.out.exists())
+
     @patch.object(MODULE.subprocess, 'run')
     def test_export_failure_stops_and_preserves_local_output(self, run):
         run.side_effect = [None, subprocess.CalledProcessError(1, 'export')]

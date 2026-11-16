@@ -77,7 +77,10 @@ def main():
               '--assetripper', str(ripper), '--output', str(out / 'export'), *runner]
     preflight = list(export)
     preflight[preflight.index('--output') + 1] = str(out)
-    subprocess.run([*preflight, '--check'], check=True)
+    try:
+        subprocess.run([*preflight, '--check'], check=True)
+    except subprocess.CalledProcessError as error:
+        p.error(f'Steam export preflight failed (status {error.returncode}); see the error above')
     if a.check:
         print('Initial inputs checked; Unity export and build were not verified.', flush=True)
         return
