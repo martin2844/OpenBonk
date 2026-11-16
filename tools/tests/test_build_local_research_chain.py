@@ -124,6 +124,10 @@ class ResearchChainTests(unittest.TestCase):
             steps = dict(module.commands(a))
             self.assertIn('--etc2-quality-library', steps['partial RGBA plan'])
             self.assertIn('--etc2-quality-library', steps['bind Android partial RGBA plan'])
+            a.partial_etc2_small = True
+            steps = dict(module.commands(a))
+            self.assertIn('--include-small-etc2', steps['partial RGBA plan'])
+            self.assertNotIn('--include-small-etc2', steps['bind Android partial RGBA plan'])
 
     def test_missing_optional_inputs_are_generated_before_use(self):
         with tempfile.TemporaryDirectory() as temp:

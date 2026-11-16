@@ -143,6 +143,11 @@ def etc2_alpha_alias(target, payload, candidates, encoder):
     return (item, output) if matched * 2 >= nonzero else None
 
 
+def eligible_etc2_payload(payload, include_small=False):
+    minimum_size, minimum_nonzero = (4096, 1024) if include_small else (65536, 30000)
+    return len(payload) >= minimum_size and len(payload) - payload.count(0) >= minimum_nonzero
+
+
 def generate(args):
     import UnityPy
     source = args.steam_data.resolve(strict=True); obb = args.obb.resolve(strict=True)
@@ -176,7 +181,7 @@ def generate(args):
                 if item is None: continue
                 group_name, source_id, src = item
                 if int(src.m_TextureFormat) not in (1, 3, 4, 10, 12, 25): continue
-                if target_format != 4 and (len(payload) < 65536 or sum(x != 0 for x in payload) < 30000): continue
+                if target_format != 4 and not eligible_etc2_payload(payload, getattr(args, 'include_small_etc2', False)): continue
                 if output is None:
                     try: output = converted(src, target.m_Width, target.m_Height, target.m_MipCount, target_format, encoder)
                     except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): continue
@@ -270,9 +275,13 @@ def export_android(args):
 def main():
     p = argparse.ArgumentParser(description=__doc__); sub = p.add_subparsers(dest='action', required=True)
     g = sub.add_parser('generate'); g.add_argument('--steam-data', type=Path, required=True); g.add_argument('--obb', type=Path, required=True); g.add_argument('--output', type=Path, required=True)
+    g.add_argument('--include-small-etc2', action='store_true', help='also attempt partial matching for smaller ETC2 textures (experimental)')
     r = sub.add_parser('restore'); r.add_argument('--steam-data', type=Path, required=True); r.add_argument('--template', type=Path, required=True); r.add_argument('--plan', type=Path, required=True); r.add_argument('--output', type=Path, required=True)
     e = sub.add_parser('export-android'); e.add_argument('--steam-data', type=Path, required=True); e.add_argument('--template', type=Path, required=True); e.add_argument('--plan', type=Path, required=True); e.add_argument('--output', type=Path, required=True)
     for parser in (g, r, e): parser.add_argument('--etc2-quality-library', type=Path, help='experimentally match exact ETC2 bytes with a local quality encoder')
-    a = p.parse_args(); {'generate': generate, 'restore': restore, 'export-android': export_android}[a.action](a)
+    a = p.parse_args()
+    if a.action == 'generate' and a.include_small_etc2 and not a.etc2_quality_library:
+        p.error('--include-small-etc2 requires --etc2-quality-library')
+    {'generate': generate, 'restore': restore, 'export-android': export_android}[a.action](a)
 
 if __name__ == '__main__': main()

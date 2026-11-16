@@ -120,7 +120,8 @@ def commands(a):
     partial = getattr(a, 'partial_rgba', False)
     if partial:
         etc2 = ['--etc2-quality-library', hostlib] if getattr(a, 'partial_etc2', False) else []
-        py('partial RGBA plan', 'experimental-partial-rgba-plan.py', 'generate', '--steam-data', steam, '--obb', plans / 'objects/template.obb', '--output', plans / 'partial-rgba', *etc2)
+        small = ['--include-small-etc2'] if getattr(a, 'partial_etc2_small', False) else []
+        py('partial RGBA plan', 'experimental-partial-rgba-plan.py', 'generate', '--steam-data', steam, '--obb', plans / 'objects/template.obb', '--output', plans / 'partial-rgba', *etc2, *small)
         py('bind Android partial RGBA plan', 'experimental-partial-rgba-plan.py', 'export-android', '--steam-data', steam, '--template', plans / 'partial-rgba/template.obb', '--plan', plans / 'partial-rgba/plan.json', '--output', plans / 'partial-rgba/android-plan.json', *etc2)
     classes = ['SteamPlannedMeshes.java', 'SteamPlannedTextures.java', 'SteamPackedAudio.java', 'SteamGeneratedAudio.java',
                'SteamPlannedObjectsCheck.java', 'SteamPlannedAnimationsCheck.java', 'SteamPlannedCubemapsCheck.java',
@@ -181,6 +182,7 @@ def main():
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
+    p.add_argument('--partial-etc2-small', action='store_true', help='also attempt smaller ETC2 textures; requires --partial-etc2')
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally reconstruct selected fonts and the default skybox from a relocated sharedassets0')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
     p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
@@ -191,6 +193,7 @@ def main():
     if a.shadow_fallback and not a.quality_textures: p.error('--shadow-fallback requires --quality-textures')
     if a.emoji_fallback and not a.quality_textures: p.error('--emoji-fallback requires --quality-textures')
     if a.partial_etc2 and (not a.partial_rgba or not a.quality_textures): p.error('--partial-etc2 requires --partial-rgba and --quality-textures')
+    if a.partial_etc2_small and not a.partial_etc2: p.error('--partial-etc2-small requires --partial-etc2')
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')
     a.output = output.parent.resolve() / output.name

@@ -11,6 +11,13 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_small_etc2_is_opt_in_and_still_requires_substantial_data(self):
+        self.assertFalse(module.eligible_etc2_payload(b'A' * 4096))
+        self.assertTrue(module.eligible_etc2_payload(b'A' * 4096, True))
+        self.assertFalse(module.eligible_etc2_payload(b'A' * 1023 + bytes(3073), True))
+        self.assertFalse(module.eligible_etc2_payload(b'A' * 4095, True))
+        self.assertTrue(module.eligible_etc2_payload(b'A' * 65536))
+
     def test_renamed_etc2_alpha_requires_unique_source_and_matching_bytes(self):
         target = SimpleNamespace(m_Name='light_0', m_TextureFormat=47, m_ImageCount=1,
                                  m_MipCount=1, m_ColorSpace=0, m_Width=256, m_Height=256)
