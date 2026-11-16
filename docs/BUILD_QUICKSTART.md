@@ -53,6 +53,9 @@ build_args=(
   --output "$OPENBONK_OUTPUT"
   --include-rewired --quality-textures --font-fallback
   --resource-fallback --shadow-fallback --partial-rgba --shared0-fonts
+  --normal-fallback --animation-curve-fallback --nodraw-fallback
+  --atlas-fallback --lightmap-fallback --emission-fallback --fox-fallback
+  --emoji-fallback --partial-etc2 --partial-etc2-small
   --gradle-online
 )
 
@@ -63,7 +66,7 @@ build_args=(
 .venv/bin/python tools/build-steam-research-launcher.py "${build_args[@]}"
 ```
 
-To experiment with reconstructing additional exact texture fragments from the Steam ZIP, add `--partial-etc2` to `build_args`. It requires the `--partial-rgba` and `--quality-textures` options above and can increase preparation time. Its restoration stages have been checked on desktop and a Retroid for both Steam platforms, but a complete interactive launcher import using this exact build configuration has not been validated. The APK still contains assets and must remain private.
+The example enables the same conversion options used by the independently tested `276b8d0` build below. These experimental options reconstruct additional data from the Steam ZIP and can increase preparation time. Current code may produce different output from that earlier build, and the APK still contains assets and must remain private.
 
 On systems that require `steam-run` for native binaries, add `--runner steam-run` to `build_args` and run Python in a compatible environment (for example, prefix both Python commands with `steam-run` if its conversion modules need libraries provided by that environment). One NixOS host also needed `libxml2.so.2` exposed to Unity through a local runner wrapper and a higher open-file limit (`ulimit -n 65536`); these are host-specific, not guarantees. The conversion options are experimental and can make first import take several minutes.
 
@@ -73,7 +76,7 @@ The initial check creates and removes a temporary file in the output's parent to
 
 For controlled update experiments, `--version-code 2 --version-name 0.1.1-beta` overrides the Android version metadata in each launcher produced by the build. Omit both flags to keep the Unity export's defaults. Android also requires the same application ID and signing certificate as the installed app for an in-place update. These flags do not sign the APK with a release key or establish equivalence with the published beta; keep test packages separate and export your profile before changing installations.
 
-The local dual-platform project used to assemble the published 0.1.1 APK also enabled `--normal-fallback --animation-curve-fallback --nodraw-fallback --atlas-fallback --lightmap-fallback --emission-fallback --fox-fallback --emoji-fallback --partial-etc2 --partial-etc2-small`, in addition to the options in the example above. Those switches reconstruct additional data from Steam and are experimental. Subsequent changes to the research tools, generated inputs, package identity and signing can change the output, so these options are not a byte-for-byte reproduction recipe. The release was assembled from existing local intermediate projects and was not independently rebuilt from a clean checkout.
+The local dual-platform project used to assemble the published 0.1.1 APK enabled the conversion options in the example above. Subsequent changes to the research tools, generated inputs, package identity and signing can change the output, so these options are not a byte-for-byte reproduction recipe. The release was assembled from existing local intermediate projects and was not independently rebuilt from a clean checkout.
 
 A later local clone at `276b8d0` completed a new dual-platform build without interruption with those switches, `--version-code 2` and `--version-name 0.1.1-beta`, using installed Unity, AssetRipper, dependency caches and local Steam data. The Windows input was extracted from an existing ZIP, not obtained directly on a Windows PC. Both platform chains produced the same final OBB SHA-256, and an independent checker used the plans inside the combined APK to restore that OBB exactly from each generated ZIP. On a Retroid Pocket 5, an isolated installation of that APK imported each ZIP in separate tests and produced the expected OBB. Both tests reached short Forest runs with Fox and enemy defeats; the Windows-data run reached level one, selected an upgrade and resumed. The temporary APK and copied ZIPs were removed. This is not a complete gameplay test, a clean second computer or a byte-for-byte rebuild of the published APK. An inline texture audit still found game-derived payload bytes, so the generated APK remains local.
 
