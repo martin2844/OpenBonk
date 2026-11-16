@@ -29,7 +29,7 @@ To check the included Python tools before a long build, run:
 .venv/bin/python -m unittest discover -s tools/tests
 ```
 
-The suite uses temporary fixtures and does not build the APK or check gameplay. On the tested NixOS host it required `steam-run` before the Python command so that native libraries could load. With that wrapper, 336 tests passed at commit `29bd61d`; this is not a substitute for the build and device checks below.
+The suite uses temporary fixtures and does not build the APK or check gameplay. On the tested NixOS host it required `steam-run` before the Python command so that native libraries could load. A new Python 3.13 virtual environment installed these pinned requirements without the pip cache, passed all 336 tests and passed the build's initial check at commit `f875627`. The host still used existing Unity, Android tools and other local inputs; this is not a substitute for the build and device checks below.
 
 In Bash, replace the example paths below. `OPENBONK_OUTPUT` must be a new path outside the checkout and game installations. The optional Windows directory must contain `Megabonk_Data`; omit the `--windows-game` line for a Linux-only research APK.
 
