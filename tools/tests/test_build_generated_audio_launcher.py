@@ -165,6 +165,12 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         payload['records'][0]['blend'] = 'gA=='
         plan.write_text(json.dumps(payload))
         with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        payload['records'][0].update(blend='BQ==', blend_unit=1)
+        plan.write_text(json.dumps(payload)); MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        payload['records'][0]['blend_unit'] = True
+        plan.write_text(json.dumps(payload))
+        with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        del payload['records'][0]['blend_unit']
         del payload['records'][0]['blend']
         payload['records'][0].update(target_format=4, quality=False)
         plan.write_text(json.dumps(payload))

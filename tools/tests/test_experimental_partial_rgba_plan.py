@@ -22,6 +22,13 @@ class PartialRgbaPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError): module.blend_blocks(quality, fast, b'\x80')
         with self.assertRaises(ValueError): module.blend_blocks(quality, fast, b'')
         with self.assertRaises(ValueError): module.select_blocks(original, quality, b'bad')
+        output, choices = module.select_blocks(b'ABC', b'AXC', b'XBX', 1)
+        self.assertEqual((output, choices), (b'ABC', b'\x02'))
+        self.assertEqual(module.blend_blocks(b'AXC', b'XBX', choices, 1), b'ABC')
+        with self.assertRaises(ValueError): module.blend_blocks(b'ABC', b'ABC', b'\x80', 1)
+        with self.assertRaises(ValueError): module.select_blocks(b'A', b'A', b'A', True)
+        with self.assertRaises(ValueError): module.converted_plan_texture(None, {'target_format': 47, 'quality': True, 'blend': None}, None)
+        with self.assertRaises(ValueError): module.converted_plan_texture(None, {'target_format': 47, 'quality': True, 'blend_unit': 1}, None)
 
     def test_fast_mode_is_selected_only_for_more_equal_nonzero_bytes(self):
         self.assertEqual(module.select_encoding(b'AB\0', b'Ax\0', b'ABx'), (b'ABx', False))

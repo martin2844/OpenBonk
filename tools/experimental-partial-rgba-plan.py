@@ -45,40 +45,43 @@ def select_encoding(original, quality, fast):
     return (fast, False) if equal_nonzero(original, fast) > equal_nonzero(original, quality) else (quality, True)
 
 
-def blend_blocks(quality, fast, choices):
+def blend_blocks(quality, fast, choices, unit=16):
     if len(quality) != len(fast): raise ValueError('texture sizes differ')
-    blocks = (len(quality) + 15) // 16
+    if type(unit) is not int or unit not in (1, 16): raise ValueError('invalid blend unit')
+    blocks = (len(quality) + unit - 1) // unit
     if len(choices) != (blocks + 7) // 8 or (blocks % 8 and choices[-1] >> (blocks % 8)):
         raise ValueError('invalid encoder choices')
     output = bytearray(quality)
     for i in range(blocks):
         if choices[i // 8] & (1 << (i % 8)):
-            start = i * 16; output[start:start + 16] = fast[start:start + 16]
+            start = i * unit; output[start:start + unit] = fast[start:start + unit]
     return bytes(output)
 
 
-def select_blocks(original, quality, fast):
+def select_blocks(original, quality, fast, unit=16):
     if len(original) != len(quality) or len(original) != len(fast): raise ValueError('texture sizes differ')
-    blocks = (len(original) + 15) // 16
+    if type(unit) is not int or unit not in (1, 16): raise ValueError('invalid blend unit')
+    blocks = (len(original) + unit - 1) // unit
     choices = bytearray((blocks + 7) // 8)
     for i in range(blocks):
-        start = i * 16; end = start + 16
+        start = i * unit; end = start + unit
         if equal_nonzero(original[start:end], fast[start:end]) > equal_nonzero(original[start:end], quality[start:end]):
             choices[i // 8] |= 1 << (i % 8)
-    return blend_blocks(quality, fast, choices), bytes(choices)
+    return blend_blocks(quality, fast, choices, unit), bytes(choices)
 
 
 def converted_plan_texture(source, item, encoder):
     target = item.get('target_format', 4)
     quality = quality_mode(item)
-    mask = item.get('blend')
-    if mask is None:
+    if 'blend' not in item:
+        if 'blend_unit' in item: raise ValueError('blend unit without choices')
         return converted(source, item['width'], item['height'], item['mips'], target, encoder, not quality and target in (45, 47))
+    mask = item['blend']
     if not quality or target not in (45, 47) or not isinstance(mask, str): raise ValueError('invalid blended texture mode')
     choices = base64.b64decode(mask, validate=True)
     high = converted(source, item['width'], item['height'], item['mips'], target, encoder)
     fast = converted(source, item['width'], item['height'], item['mips'], target, encoder, True)
-    return blend_blocks(high, fast, choices)
+    return blend_blocks(high, fast, choices, item.get('blend_unit', 16))
 
 
 def converted(source, width, height, mips, target_format=4, encoder=None, fast=False):
@@ -292,7 +295,8 @@ def generate(args):
                         quality_output = output
                         output, quality = select_encoding(payload, quality_output, fast_output)
                         if getattr(args, 'blend_etc2', False):
-                            blended, choices = select_blocks(payload, quality_output, fast_output)
+                            unit = 1 if getattr(args, 'byte_etc2', False) else 16
+                            blended, choices = select_blocks(payload, quality_output, fast_output, unit)
                             if equal_nonzero(payload, blended) > equal_nonzero(payload, output):
                                 output = blended; quality = True; blend = base64.b64encode(choices).decode('ascii')
                     except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): pass
@@ -303,7 +307,9 @@ def generate(args):
                                  'width': target.m_Width, 'height': target.m_Height, 'mips': target.m_MipCount,
                                  'source_format': int(src.m_TextureFormat), 'target_format': target_format, 'quality': quality, 'source_sha256': sha(source_data),
                                  'converted_sha256': sha(output)}
-                if blend is not None: texture['blend'] = blend
+                if blend is not None:
+                    texture['blend'] = blend
+                    if getattr(args, 'byte_etc2', False): texture['blend_unit'] = 1
                 textures.append(texture)
                 decoded[ident] = output; rows.extend(fragments)
         if not rows: raise ValueError('no matching RGBA bytes')
@@ -381,6 +387,7 @@ def export_android(args):
                         'target_format': target_format, 'quality': quality,
                         'target_size': len(output), 'target_sha256': sha(output), 'fragments': fragments}
         if 'blend' in item: record['blend'] = item['blend']
+        if 'blend_unit' in item: record['blend_unit'] = item['blend_unit']
         records.append(record)
     if not records or len(grouped) != len(records): raise ValueError('invalid fragment mapping')
     result = {'schema': 1, 'kind': 'experimental-partial-rgba-texture-offsets', 'template_sha256': plan['template_sha256'], 'sources': used, 'records': records}
@@ -394,6 +401,7 @@ def main():
     g.add_argument('--include-small-etc2', action='store_true', help='also attempt partial matching for smaller ETC2 textures (experimental)')
     g.add_argument('--fast-etc2', action='store_true', help='experimentally select the fast ETC2 encoder when it recovers more exact bytes')
     g.add_argument('--blend-etc2', action='store_true', help='experimentally choose an encoder per 16-byte output block; requires --fast-etc2')
+    g.add_argument('--byte-etc2', action='store_true', help='experimentally choose an encoder per output byte; requires --blend-etc2')
     r = sub.add_parser('restore'); r.add_argument('--steam-data', type=Path, required=True); r.add_argument('--template', type=Path, required=True); r.add_argument('--plan', type=Path, required=True); r.add_argument('--output', type=Path, required=True)
     e = sub.add_parser('export-android'); e.add_argument('--steam-data', type=Path, required=True); e.add_argument('--template', type=Path, required=True); e.add_argument('--plan', type=Path, required=True); e.add_argument('--output', type=Path, required=True)
     for parser in (g, r, e): parser.add_argument('--etc2-quality-library', type=Path, help='experimentally match exact ETC2 bytes with a local quality encoder')
@@ -404,6 +412,8 @@ def main():
         p.error('--fast-etc2 requires --etc2-quality-library')
     if a.action == 'generate' and a.blend_etc2 and not a.fast_etc2:
         p.error('--blend-etc2 requires --fast-etc2')
+    if a.action == 'generate' and a.byte_etc2 and not a.blend_etc2:
+        p.error('--byte-etc2 requires --blend-etc2')
     {'generate': generate, 'restore': restore, 'export-android': export_android}[a.action](a)
 
 if __name__ == '__main__': main()

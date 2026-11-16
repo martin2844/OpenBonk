@@ -14,7 +14,7 @@ public final class SteamPlannedTextures {
     private static final String PREFIX = "assets/bin/Data/";
     private static final class Texture {
         String source, inputHash, outputHash, decodedHash; long inputOffset, convertedOffset;
-        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat; boolean normal, quality; byte[] blend;
+        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat, blendUnit = 16; boolean normal, quality; byte[] blend;
     }
     private static final class Fragment {
         Texture texture; String entry, maskedHash, originalHash; byte[] mask; int targetOffset, convertedOffset, size;
@@ -119,11 +119,16 @@ public final class SteamPlannedTextures {
                 if (partial && (t.normal || (t.targetFormat == 4 && t.quality))) throw new IOException("invalid partial texture metadata");
                 if (row.has("blend")) {
                     if (!partial || !t.quality || !(row.get("blend") instanceof String)) throw new IOException("invalid blended texture metadata");
+                    if (row.has("blend_unit")) {
+                        if (!(row.get("blend_unit") instanceof Integer)) throw new IOException("invalid blend unit");
+                        t.blendUnit = row.getInt("blend_unit");
+                        if (t.blendUnit != 1 && t.blendUnit != 16) throw new IOException("invalid blend unit");
+                    }
                     try { t.blend = Base64.getDecoder().decode(row.getString("blend")); }
                     catch (IllegalArgumentException e) { throw new IOException("invalid blended texture choices", e); }
-                    int blocks = (t.outputSize + 15) / 16;
+                    int blocks = (t.outputSize + t.blendUnit - 1) / t.blendUnit;
                     if (t.blend.length != (blocks + 7) / 8 || ((blocks & 7) != 0 && ((t.blend[t.blend.length - 1] & 255) >>> (blocks & 7)) != 0)) throw new IOException("invalid blended texture choices");
-                }
+                } else if (row.has("blend_unit")) throw new IOException("blend unit without choices");
                 t.convertedOffset = total; total += t.outputSize; if (total > MAX_TOTAL) throw new IOException("texture limit exceeded");
                 JSONArray fs = row.getJSONArray("fragments"); int position = 0;
                 if (fs.length() == 0 || fs.length() > 128) throw new IOException("invalid fragment count");
@@ -212,7 +217,7 @@ public final class SteamPlannedTextures {
                             catch (UnsatisfiedLinkError e) { throw new IOException("texture converter unavailable", e); }
                             if (fast == null || fast.length != wanted) throw new IOException("fast texture conversion failed");
                             for (int i = 0; i < wanted; i++) {
-                                int block = (outputPos + i) / 16;
+                                int block = (outputPos + i) / t.blendUnit;
                                 if ((t.blend[block / 8] & (1 << (block & 7))) != 0) mip[i] = fast[i];
                             }
                         }

@@ -32,6 +32,19 @@ covered by that audit. This does not prove a clean end-to-end build, Windows ZIP
 import through the combined APK, complete gameplay parity or suitability for
 distribution. The APK and local inputs remain private.
 
+The experimental `--partial-etc2-byte` option requires `--partial-etc2-blend`
+and selects between the two encoders for each output byte. In a private study
+using the same prior runtime and local inputs, this recovered another 8,984
+exact nonzero texture bytes compared with block selection. Linux and Windows
+plans each restored all 1,072 archive entries on a Retroid Pocket 5; an
+independent check of a combined APK restored its expected OBB from both ZIPs.
+The Retroid imported the Linux ZIP through that APK, produced the expected OBB
+hash, reached level one in a short Forest run, selected an upgrade and resumed.
+The Linux inline texture audit found 155,523 nonzero payload bytes and did not
+cover other data types. This reused prior build intermediates; it does not prove
+a fresh end-to-end build, Windows ZIP import through that APK, complete gameplay
+parity or suitability for distribution. The APK and inputs remain private.
+
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
 failed because its validation rejected fast ETC2 records. After updating the

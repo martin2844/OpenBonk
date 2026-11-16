@@ -148,6 +148,9 @@ class ResearchChainTests(unittest.TestCase):
             a.partial_etc2_blend = True
             steps = dict(module.commands(a))
             self.assertIn('--blend-etc2', steps['partial RGBA plan'])
+            a.partial_etc2_byte = True
+            steps = dict(module.commands(a))
+            self.assertIn('--byte-etc2', steps['partial RGBA plan'])
             a.transparent_atlas_scrub = True
             steps = dict(module.commands(a))
             self.assertEqual(steps['individual audio plan'][steps['individual audio plan'].index('--obb') + 1],
