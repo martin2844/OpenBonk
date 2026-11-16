@@ -11,6 +11,15 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_fast_mode_is_selected_only_for_more_equal_nonzero_bytes(self):
+        self.assertEqual(module.select_encoding(b'AB\0', b'Ax\0', b'ABx'), (b'ABx', False))
+        self.assertEqual(module.select_encoding(b'AB\0', b'Ax\0', b'xB\0'), (b'Ax\0', True))
+        with self.assertRaises(ValueError): module.select_encoding(b'AB', b'AB', b'A')
+        self.assertTrue(module.quality_mode({'target_format': 45}))
+        self.assertFalse(module.quality_mode({'target_format': 45, 'quality': False}))
+        with self.assertRaises(ValueError): module.quality_mode({'target_format': 4, 'quality': True})
+        with self.assertRaises(ValueError): module.quality_mode({'target_format': 47, 'quality': 'false'})
+
     def test_small_etc2_is_opt_in_and_still_requires_substantial_data(self):
         self.assertFalse(module.eligible_etc2_payload(b'A' * 4096))
         self.assertTrue(module.eligible_etc2_payload(b'A' * 4096, True))

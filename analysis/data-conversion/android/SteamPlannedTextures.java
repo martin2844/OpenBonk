@@ -116,7 +116,7 @@ public final class SteamPlannedTextures {
                     !(t.normal ? (!cubemaps && t.sourceFormat == 12 && t.targetFormat == 34) : (t.targetFormat == 4 || t.targetFormat == 45 || t.targetFormat == 47))) throw new IOException("invalid texture metadata");
                 if (cubemaps && (!t.source.equals("sharedassets1.assets.resS") || t.inputSize > 4 * 1024 * 1024 || t.outputSize != 6 * 131072)) throw new IOException("invalid cubemap metadata");
                 if (t.quality && (cubemaps || t.normal || (t.targetFormat != 47 && t.targetFormat != 45) || t.width > 2048 || t.height > 2048)) throw new IOException("invalid quality texture metadata");
-                if (partial && (t.normal || (t.targetFormat == 4 ? t.quality : !t.quality))) throw new IOException("invalid partial texture metadata");
+                if (partial && (t.normal || (t.targetFormat == 4 && t.quality))) throw new IOException("invalid partial texture metadata");
                 t.convertedOffset = total; total += t.outputSize; if (total > MAX_TOTAL) throw new IOException("texture limit exceeded");
                 JSONArray fs = row.getJSONArray("fragments"); int position = 0;
                 if (fs.length() == 0 || fs.length() > 128) throw new IOException("invalid fragment count");

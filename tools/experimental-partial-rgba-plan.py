@@ -29,7 +29,23 @@ ENTRY = re.compile(re.escape(objects.PREFIX) + r'(?:[0-9a-f]{32}|sharedassets[01
 def sha(data): return hashlib.sha256(data).hexdigest()
 
 
-def converted(source, width, height, mips, target_format=4, encoder=None):
+def quality_mode(item):
+    value = item.get('quality', item.get('target_format', 4) in (45, 47))
+    if type(value) is not bool or (item.get('target_format', 4) == 4 and value):
+        raise ValueError('invalid partial texture quality mode')
+    return value
+
+
+def equal_nonzero(original, output):
+    if len(original) != len(output): raise ValueError('texture sizes differ')
+    return sum(a != 0 and a == b for a, b in zip(original, output))
+
+
+def select_encoding(original, quality, fast):
+    return (fast, False) if equal_nonzero(original, fast) > equal_nonzero(original, quality) else (quality, True)
+
+
+def converted(source, width, height, mips, target_format=4, encoder=None, fast=False):
     from UnityPy.export import Texture2DConverter as cv
     chunks = []
     for w, h, data in study.mip_slices(bytes(source.get_image_data()), int(source.m_TextureFormat), width, height, mips):
@@ -37,6 +53,10 @@ def converted(source, width, height, mips, target_format=4, encoder=None):
             image = cv.parse_image_data(data, w, h, source.m_TextureFormat, source.object_reader.version, source.object_reader.platform)
             raw, fmt = cv.image_to_texture2d(image, 4, 13, None)
             if int(fmt) != 4 or len(raw) != w * h * 4: raise ValueError('invalid RGBA conversion')
+        elif target_format in (45, 47) and fast:
+            image = cv.parse_image_data(data, w, h, source.m_TextureFormat, source.object_reader.version, source.object_reader.platform)
+            raw, fmt = cv.image_to_texture2d(image, target_format, 13, None)
+            if int(fmt) != target_format or len(raw) != study.mip_size(target_format, w, h): raise ValueError('invalid fast ETC2 conversion')
         elif target_format in (45, 47) and encoder is not None:
             raw = encoder.encode(data, w, h, int(source.m_TextureFormat))
             if target_format == 45:
@@ -229,12 +249,18 @@ def generate(args):
                 if output is None:
                     try: output = converted(src, target.m_Width, target.m_Height, target.m_MipCount, target_format, encoder)
                     except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): continue
+                quality = target_format in (45, 47)
+                if quality and getattr(args, 'fast_etc2', False):
+                    try:
+                        fast_output = converted(src, target.m_Width, target.m_Height, target.m_MipCount, target_format, encoder, True)
+                        output, quality = select_encoding(payload, output, fast_output)
+                    except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): pass
                 ident = len(textures); fragments = fragment_rows(parts, obj.byte_start + pos, payload, output, ident)
                 if not fragments: continue
                 source_data = bytes(src.get_image_data())
                 textures.append({'id': ident, 'source_group': group_name, 'source_id': source_id,
                                  'width': target.m_Width, 'height': target.m_Height, 'mips': target.m_MipCount,
-                                 'source_format': int(src.m_TextureFormat), 'target_format': target_format, 'source_sha256': sha(source_data),
+                                 'source_format': int(src.m_TextureFormat), 'target_format': target_format, 'quality': quality, 'source_sha256': sha(source_data),
                                  'converted_sha256': sha(output)})
                 decoded[ident] = output; rows.extend(fragments)
         if not rows: raise ValueError('no matching RGBA bytes')
@@ -260,7 +286,7 @@ def restore(args):
         if type(key) is not int or key in decoded or row['source_group'] not in (*study.GROUPS, *(['sharedassets0', 'sharedassets4', 'resources'] if encoder else [])): raise ValueError('invalid texture identity')
         tex = by_id[(row['source_group'], row['source_id'])]
         if (tex.m_Width, tex.m_Height, tex.m_MipCount, int(tex.m_TextureFormat), sha(bytes(tex.get_image_data()))) != (row['width'], row['height'], row['mips'], row['source_format'], row['source_sha256']): raise ValueError('Steam texture differs')
-        output = converted(tex, row['width'], row['height'], row['mips'], row.get('target_format', 4), encoder)
+        output = converted(tex, row['width'], row['height'], row['mips'], row.get('target_format', 4), encoder, not quality_mode(row) and row.get('target_format', 4) in (45, 47))
         if sha(output) != row['converted_sha256']: raise ValueError('converted texture differs')
         decoded[key] = output
     grouped = defaultdict(list)
@@ -302,13 +328,14 @@ def export_android(args):
             f.seek(offset)
             if f.read(size) != data: raise ValueError('Steam stream differs')
         target_format = item.get('target_format', 4)
-        output = converted(tex, item['width'], item['height'], item['mips'], target_format, encoder)
+        quality = quality_mode(item)
+        output = converted(tex, item['width'], item['height'], item['mips'], target_format, encoder, not quality and target_format in (45, 47))
         if sha(output) != item['converted_sha256']: raise ValueError('converted texture differs')
         used[name] = masker.file_digest(path)
         fragments = [{k: value for k, value in row.items() if k != 'texture_id'} for row in grouped[i]]
         records.append({'id': i, 'source': name, 'source_offset': offset, 'source_size': size, 'source_sha256': sha(data),
                         'width': item['width'], 'height': item['height'], 'mips': item['mips'], 'source_format': item['source_format'],
-                        'target_format': target_format, 'quality': target_format in (45, 47),
+                        'target_format': target_format, 'quality': quality,
                         'target_size': len(output), 'target_sha256': sha(output), 'fragments': fragments})
     if not records or len(grouped) != len(records): raise ValueError('invalid fragment mapping')
     result = {'schema': 1, 'kind': 'experimental-partial-rgba-texture-offsets', 'template_sha256': plan['template_sha256'], 'sources': used, 'records': records}
@@ -320,12 +347,15 @@ def main():
     p = argparse.ArgumentParser(description=__doc__); sub = p.add_subparsers(dest='action', required=True)
     g = sub.add_parser('generate'); g.add_argument('--steam-data', type=Path, required=True); g.add_argument('--obb', type=Path, required=True); g.add_argument('--output', type=Path, required=True)
     g.add_argument('--include-small-etc2', action='store_true', help='also attempt partial matching for smaller ETC2 textures (experimental)')
+    g.add_argument('--fast-etc2', action='store_true', help='experimentally select the fast ETC2 encoder when it recovers more exact bytes')
     r = sub.add_parser('restore'); r.add_argument('--steam-data', type=Path, required=True); r.add_argument('--template', type=Path, required=True); r.add_argument('--plan', type=Path, required=True); r.add_argument('--output', type=Path, required=True)
     e = sub.add_parser('export-android'); e.add_argument('--steam-data', type=Path, required=True); e.add_argument('--template', type=Path, required=True); e.add_argument('--plan', type=Path, required=True); e.add_argument('--output', type=Path, required=True)
     for parser in (g, r, e): parser.add_argument('--etc2-quality-library', type=Path, help='experimentally match exact ETC2 bytes with a local quality encoder')
     a = p.parse_args()
     if a.action == 'generate' and a.include_small_etc2 and not a.etc2_quality_library:
         p.error('--include-small-etc2 requires --etc2-quality-library')
+    if a.action == 'generate' and a.fast_etc2 and not a.etc2_quality_library:
+        p.error('--fast-etc2 requires --etc2-quality-library')
     {'generate': generate, 'restore': restore, 'export-android': export_android}[a.action](a)
 
 if __name__ == '__main__': main()
