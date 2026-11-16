@@ -45,6 +45,25 @@ def check_conversion_imports():
             raise ValueError(f'cannot load conversion module {name}: {error}') from error
 
 
+def check_offline_apk(aapt2, apk, application_id, runner=None):
+    """Reject a final APK that accidentally requests Android network access."""
+    command = ([runner] if runner else []) + [str(aapt2), 'dump', 'permissions', str(apk)]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=True)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise ValueError('could not inspect final APK permissions') from error
+    lines = result.stdout.splitlines()
+    if f'package: {application_id}' not in lines:
+        raise ValueError('final APK package does not match the requested application ID')
+    for line in lines:
+        if line.startswith('uses-permission:'):
+            match = re.match(r"^uses-permission: name='([^']+)'(?:\s|$)", line)
+            if not match:
+                raise ValueError('could not parse final APK permission')
+            if match.group(1) == 'android.permission.INTERNET':
+                raise ValueError('final APK unexpectedly requests Internet permission')
+
+
 def commands(a):
     out = a.output; prepared = out / 'steam/build'; workspace = prepared / 'workspace'; plugins = prepared / 'managed-plugins'
     wrapped = ['--runner', a.runner] if a.runner else []
@@ -222,7 +241,12 @@ def main():
             status = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT).returncode
             if status: raise SystemExit(f'Stage failed: {label} (status {status}); local outputs and log retained at {a.output}')
     result = 'dual-launcher' if a.windows_game else 'research/launcher'
-    print('Private research APK created:', a.output / result / 'gradle/launcher/build/outputs/apk/release/launcher-release.apk', flush=True)
+    apk = a.output / result / 'gradle/launcher/build/outputs/apk/release/launcher-release.apk'
+    try:
+        check_offline_apk(aapt2, apk, a.application_id, a.runner)
+    except ValueError as error:
+        raise SystemExit(f'{error}; local outputs and log retained at {a.output}') from error
+    print('Private research APK created:', apk, flush=True)
     print('The APK, ZIP and intermediate files contain game data and must not be distributed.', flush=True)
 
 
