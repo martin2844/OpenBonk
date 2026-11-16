@@ -35,7 +35,7 @@ class SteamResearchBuildTests(unittest.TestCase):
                 z.writestr('org/json/' + name + '.class', b'fixture')
         android = self.unity.parent / 'Data/PlaybackEngines/AndroidPlayer'
         for name in ('OpenJDK/bin/java', 'OpenJDK/bin/javac', 'SDK/build-tools/34.0.0/aapt2'):
-            path = android / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(b'fixture')
+            path = android / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(b'fixture'); path.chmod(0o755)
         compiler = android / 'NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++'
         compiler.parent.mkdir(parents=True); compiler.write_bytes(b'fixture'); compiler.chmod(0o755)
         self.out = self.root / 'output'
@@ -97,7 +97,18 @@ class SteamResearchBuildTests(unittest.TestCase):
             with self.assertRaises(SystemExit): self.invoke('--check')
             run.assert_not_called()
             self.assertFalse(self.out.exists())
-            path.write_bytes(b'fixture')
+            path.write_bytes(b'fixture'); path.chmod(0o755)
+
+    @patch.object(module.subprocess, 'run')
+    def test_nonexecutable_android_tools_fail_before_export(self, run):
+        android = self.unity.parent / 'Data/PlaybackEngines/AndroidPlayer'
+        for name in ('OpenJDK/bin/java', 'OpenJDK/bin/javac', 'SDK/build-tools/34.0.0/aapt2'):
+            path = android / name
+            path.chmod(0o644)
+            with self.subTest(tool=name), self.assertRaises(SystemExit): self.invoke('--check')
+            run.assert_not_called()
+            self.assertFalse(self.out.exists())
+            path.chmod(0o755)
 
     @patch.object(module.subprocess, 'run')
     def test_missing_ndk_cxx_fails_before_export(self, run):

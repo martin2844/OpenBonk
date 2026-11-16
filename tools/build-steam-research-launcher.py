@@ -204,10 +204,12 @@ def main():
         p.error('JSON JAR must contain readable org.json classes; see the build quickstart')
     android = a.unity.parent / 'Data/PlaybackEngines/AndroidPlayer'
     for name in ('java', 'javac'):
-        if not (android / 'OpenJDK/bin' / name).is_file(): p.error('Unity Android JDK missing ' + name)
+        tool = android / 'OpenJDK/bin' / name
+        if not tool.is_file() or not os.access(tool, os.X_OK):
+            p.error('Unity Android JDK requires executable ' + name)
     aapt2 = android / 'SDK/build-tools/34.0.0/aapt2'
-    if not aapt2.is_file() or any(c.isspace() for c in str(aapt2)):
-        p.error('Unity Android build-tools 34.0.0 aapt2 is required at a path without spaces')
+    if not aapt2.is_file() or not os.access(aapt2, os.X_OK) or any(c.isspace() for c in str(aapt2)):
+        p.error('Unity Android build-tools 34.0.0 executable aapt2 is required at a path without spaces')
     if a.android_library is None:
         compiler = android / 'NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++'
         if not compiler.is_file() or not os.access(compiler, os.X_OK):
