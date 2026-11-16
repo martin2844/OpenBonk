@@ -23,11 +23,14 @@ TOOLS = ROOT / 'tools'
 JAVA = ROOT / 'analysis/data-conversion/android'
 FIXTURES = ROOT / 'tools/texture-native-comparison/com/openbonk/dataprep'
 STEAM_INPUTS = TOOLS / 'launcher-steam-inputs.json'
+MAX_STEAM_ZIP_BYTES = 1024 * 1024 * 1024
 
 
 def validate_steam_inputs(steam_data, steam_zip=None, platform='linux'):
     """Check the selected platform's data and optional ZIP before conversion."""
     if platform not in ('linux', 'windows'): raise ValueError('invalid Steam platform')
+    if steam_zip is not None and not 0 < steam_zip.stat().st_size <= MAX_STEAM_ZIP_BYTES:
+        raise ValueError('Steam ZIP exceeds the launcher size limit or is empty')
     inventory = json.loads(STEAM_INPUTS.read_text(encoding='utf-8'))['platforms'][platform]
     folder = 'StandaloneLinux64' if platform == 'linux' else 'StandaloneWindows64'
     if not (steam_data / 'StreamingAssets/aa' / folder).is_dir():

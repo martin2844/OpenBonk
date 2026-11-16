@@ -45,6 +45,9 @@ class ResearchChainTests(unittest.TestCase):
                     z.writestr('Megabonk_Data/StreamingAssets/aa/StandaloneLinux64/table.bundle', b'locale')
             with patch.object(module, 'STEAM_INPUTS', manifest):
                 write_zip(b'shared'); module.validate_steam_inputs(data, archive)
+                with patch.object(module, 'MAX_STEAM_ZIP_BYTES', archive.stat().st_size - 1):
+                    with self.assertRaisesRegex(ValueError, 'launcher size limit'):
+                        module.validate_steam_inputs(data, archive)
                 write_zip(b'broken')
                 with self.assertRaisesRegex(ValueError, 'differs'): module.validate_steam_inputs(data, archive)
                 bundle.rename(data / 'StreamingAssets/aa/StandaloneWindows64')
