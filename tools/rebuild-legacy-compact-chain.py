@@ -38,7 +38,7 @@ def main():
     parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
     parser.add_argument('--include-layout-plan', action='store_true', help='also generate the shared1 layout plan (requires localization base)')
     parser.add_argument('--include-material-mesh-plans', action='store_true', help='also generate and verify the shared1 material/audio and mesh plans')
-    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify the shared1 texture plans and subsequent shader pack')
+    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify shared1 texture, shader and animation/terrain plans')
     parser.add_argument('--java-home', type=Path, help='JDK directory for material and mesh plan checks')
     parser.add_argument('--java-runner', default='none', help='wrapper for Java tools, or none')
     parser.add_argument('--host-texture-library', type=Path, help='local host JNI texture conversion library')
@@ -170,7 +170,7 @@ def main():
             def java_run(*command): subprocess.run([*prefix, *(str(x) for x in command)], check=True)
             java_names = ['SteamExactTextures', 'SteamShared1Layout', 'SteamShared1LayoutCheck',
                           'SteamShared1MaterialAudio', 'SteamShared1MaterialAudioCheck', 'SteamShared1Meshes', 'SteamShared1MeshesCheck']
-            if args.include_texture_plans: java_names += ['SteamConvertedTextures', 'SteamShared1ExactTextures', 'SteamShared1ExactTexturesCheck', 'SteamShared1Shaders', 'SteamShared1ShadersCheck']
+            if args.include_texture_plans: java_names += ['SteamConvertedTextures', 'SteamShared1ExactTextures', 'SteamShared1ExactTexturesCheck', 'SteamShared1Shaders', 'SteamShared1ShadersCheck', 'SteamShared1AnimationTerrain', 'SteamShared1AnimationTerrainCheck']
             java_run(java/'bin/javac', '-d', classes, *(java_source/(name+'.java') for name in java_names))
             def check_java(name, *arguments): java_run(java/'bin/java', '-cp', classes, 'com.openbonk.dataprep.'+name, *arguments)
             layout_asset = tmp/'layout.assets'
@@ -288,13 +288,27 @@ def main():
                                        (shader_pack, '96b0ea3bc74303b5b4455b1a99e4d875b4d9611af03368b1e39bf79138f3ce7b')):
                     with path.open('rb') as f:
                         if hashlib.file_digest(f, 'sha256').hexdigest() != expected: raise ValueError('shared1 shader output differs: '+path.name)
+                shader_assets = []
                 for i, asset in enumerate(mesh_assets):
                     result = tmp/f'shaders-{i}.assets'
                     check_java('SteamShared1ShadersCheck', asset, shader_pack, shader_plan, result, 'pass')
                     with result.open('rb') as f:
                         if hashlib.file_digest(f, 'sha256').hexdigest() != '575780f50d87cb9183d398161dabcdb5566c87f3d4f5bb22922716a550862715': raise ValueError('shared1 shader asset differs')
+                    shader_assets.append(result)
                 named_shader_plan = tmp/'shared1-shaders.bin'
                 shutil.copyfile(shader_plan, named_shader_plan); texture_plans.append(named_shader_plan)
+                animation_plan = tmp/'shared1-animation.bin'
+                run('analysis/data-conversion/generate-android-shared1-animation-terrain-plan.py',
+                    '--base', shader_assets[0], '--target-asset', target, '--linux-zip', zips[0], '--windows-zip', zips[1],
+                    '--manifest', shared_inputs/'share-source-experiment/shared1-terrain-animation-template/objects-manifest.json', '--output', animation_plan)
+                with animation_plan.open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != '7da8e6a43ca0d9a3a1738c79ce707b3072d1b3d3ca721e51f34b6b827b1ff4da': raise ValueError('animation terrain plan differs')
+                for i, steam_zip in enumerate(zips):
+                    result = tmp/f'animation-{i}.assets'
+                    check_java('SteamShared1AnimationTerrainCheck', shader_assets[i], steam_zip, animation_plan, result, 'pass')
+                    with result.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != 'e0b079e987a1928b2207ae9fcb4e4bae29220928cd42c90188a2d2f63db70646': raise ValueError('animation terrain asset differs')
+                texture_plans.append(animation_plan)
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:

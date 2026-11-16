@@ -25,6 +25,7 @@ class TextureStageTests(unittest.TestCase):
                   ('generate-android-shared1-rgba-converted-plan.py', ()),
                   ('generate-android-shared1-normal-plan.py', ()),
                   ('generate-android-shared1-normal-plan.py', ('water',)),
+                  ('generate-android-shared1-animation-terrain-plan.py', ()),
                   *(( 'generate-android-shared1-etc-plan.py', (mode,) if mode else ())
                     for mode in ('', 'rgba', 'alias', 'matched', 'alpha', 'large', 'renamed', 'last')))
         with tempfile.TemporaryDirectory() as directory:
