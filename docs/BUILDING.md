@@ -48,6 +48,8 @@ This builds the Lua bridge with Unity's Android NDK, then runs the export and lo
 
 A further clean-clone run at `1d97064` generated the Lua bridge, exported Steam data and completed all 17 stages with `--include-rewired`, producing an embedded-data ARM64 APK. All 261 selected compiled textures matched their local PNGs in alpha and visible RGB at the base mip. On an Android 15 x86-64 emulator with ARM64 translation, the APK opened its launcher, entered Forest with Fox and touch controls, defeated enemies, reached level 1 and applied an upgrade. The character then died. This short run does not establish full gameplay, physical-device behavior or equivalence with the published beta; the generated APK contains game data and remains private.
 
+A clean local clone at `1371be2` also completed the current 21-stage embedded build with `--include-rewired`, generating its Lua bridge and exporting the installed Linux Steam game using locally installed Unity, Android tools, AssetRipper and build dependencies. On a Retroid Pocket 5, the isolated APK launched, entered Forest with touch controls, opened and closed the bottom-center layout editor, and the run resumed. This short test does not cover the entire game, direct Steam ZIP import, other devices or distribution. The resulting APK embeds game assets and remains private.
+
 For an experimental local, data-embedded APK, `tools/build-local-unity-apk.py` runs the preparation stages described below in sequence from an AssetRipper 2.0.0 `ExportedProject` and a locally built Lua bridge:
 
 ```sh
