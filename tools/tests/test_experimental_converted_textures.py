@@ -9,6 +9,18 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_bounded_texture_gate_checks_every_channel_and_alpha(self):
+        from PIL import Image
+        original = Image.new('RGBA', (10, 10), (20, 20, 20, 255))
+        close = original.copy(); close.putpixel((0, 0), (68, 20, 20, 255))
+        self.assertTrue(module.acceptable_bounded_mip(original, close, 0))
+        close.putpixel((0, 0), (69, 20, 20, 255))
+        self.assertFalse(module.acceptable_bounded_mip(original, close, 0))
+        self.assertTrue(module.acceptable_bounded_mip(original, close, 1))
+        close = original.copy(); close.putpixel((0, 0), (20, 20, 20, 246))
+        self.assertFalse(module.acceptable_bounded_mip(original, close, 1))
+        self.assertFalse(module.acceptable_bounded_mip(original, close, -1))
+
     def test_fox_quality_gate_bounds_mean_and_maximum(self):
         from PIL import Image
         original = Image.new('RGB', (10, 10), (10, 10, 10))

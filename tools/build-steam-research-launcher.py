@@ -101,6 +101,7 @@ def commands(a):
     if getattr(a, 'lightmap_fallback', False): chain += ['--lightmap-fallback']
     if getattr(a, 'emission_fallback', False): chain += ['--emission-fallback']
     if getattr(a, 'fox_fallback', False): chain += ['--fox-fallback']
+    if getattr(a, 'bounded_fallback', False): chain += ['--bounded-fallback']
     if getattr(a, 'shadow_fallback', False): chain += ['--shadow-fallback']
     if getattr(a, 'emoji_fallback', False): chain += ['--emoji-fallback']
     if getattr(a, 'partial_rgba', False): chain += ['--partial-rgba']
@@ -139,6 +140,7 @@ def commands(a):
         if getattr(a, 'lightmap_fallback', False): windows_chain += ['--lightmap-fallback']
         if getattr(a, 'emission_fallback', False): windows_chain += ['--emission-fallback']
         if getattr(a, 'fox_fallback', False): windows_chain += ['--fox-fallback']
+        if getattr(a, 'bounded_fallback', False): windows_chain += ['--bounded-fallback']
         if getattr(a, 'shadow_fallback', False): windows_chain += ['--shadow-fallback']
         if getattr(a, 'emoji_fallback', False): windows_chain += ['--emoji-fallback']
         if getattr(a, 'partial_rgba', False): windows_chain += ['--partial-rgba']
@@ -181,6 +183,7 @@ def main():
     p.add_argument('--lightmap-fallback', action='store_true', help='reconstruct six alpha lightmaps; requires --quality-textures')
     p.add_argument('--emission-fallback', action='store_true', help='experimentally reconstruct two emission textures')
     p.add_argument('--fox-fallback', action='store_true', help='reconstruct Fox texture; requires --shared0-fonts and --quality-textures')
+    p.add_argument('--bounded-fallback', action='store_true', help='try bounded same-name texture conversions; requires --quality-textures')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally reconstruct a uniquely matching shadow; requires --quality-textures')
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
@@ -196,6 +199,7 @@ def main():
     if a.atlas_fallback and a.transparent_atlas_scrub: p.error('--atlas-fallback and --transparent-atlas-scrub cannot be combined')
     if a.lightmap_fallback and not a.quality_textures: p.error('--lightmap-fallback requires --quality-textures')
     if a.fox_fallback and (not a.shared0_fonts or not a.quality_textures): p.error('--fox-fallback requires --shared0-fonts and --quality-textures')
+    if a.bounded_fallback and not a.quality_textures: p.error('--bounded-fallback requires --quality-textures')
     if a.shadow_fallback and not a.quality_textures: p.error('--shadow-fallback requires --quality-textures')
     if a.emoji_fallback and not a.quality_textures: p.error('--emoji-fallback requires --quality-textures')
     if a.partial_etc2 and (not a.partial_rgba or not a.quality_textures): p.error('--partial-etc2 requires --partial-rgba and --quality-textures')

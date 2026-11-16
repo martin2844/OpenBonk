@@ -155,6 +155,21 @@ def acceptable_fox_mip(original, converted):
     return max(ImageStat.Stat(diff).mean) <= 23 and max(high for _, high in diff.getextrema()) <= 205
 
 
+def acceptable_bounded_mip(original, converted, level):
+    """Conservative visible-pixel gate for a same-name unique Steam source."""
+    from PIL import Image, ImageChops, ImageStat
+    a, b = original.convert('RGBA'), converted.convert('RGBA')
+    if a.size != b.size or a.width < 1 or a.height < 1 or level < 0: return False
+    alpha = ImageChops.difference(a.getchannel('A'), b.getchannel('A'))
+    if ImageStat.Stat(alpha).mean[0] > 1 or alpha.getextrema()[1] > 8: return False
+    for shade in (0, 255):
+        bg = Image.new('RGBA', a.size, (shade, shade, shade, 255))
+        diff = ImageChops.difference(Image.alpha_composite(bg, a).convert('RGB'), Image.alpha_composite(bg, b).convert('RGB'))
+        if (max(ImageStat.Stat(diff).mean) > (2 if level == 0 else 10) or
+                max(high for _, high in diff.getextrema()) > (48 if level == 0 else 64)): return False
+    return True
+
+
 def select_emission_source(target, candidates, texture=lambda item: item):
     """Choose a unique source with an exactly matching decoded top mip."""
     try:
@@ -328,9 +343,10 @@ def run(args):
     emoji_fallback = getattr(args, 'emoji_fallback', False)
     lightmap_fallback = getattr(args, 'lightmap_fallback', False)
     fox_fallback = getattr(args, 'fox_fallback', False)
+    bounded_fallback = getattr(args, 'bounded_fallback', False)
     shared0_sdf = getattr(args, 'shared0_sdf', False)
     if fox_fallback and not shared0_sdf: raise ValueError('Fox fallback requires sharedassets0 support')
-    if (font_fallback or resource_fallback or shadow_fallback or emoji_fallback or lightmap_fallback or fox_fallback) and quality is None: raise ValueError('selected fallback requires the quality encoder')
+    if (font_fallback or resource_fallback or shadow_fallback or emoji_fallback or lightmap_fallback or fox_fallback or bounded_fallback) and quality is None: raise ValueError('selected fallback requires the quality encoder')
     output = args.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): raise ValueError('output must be a new directory')
     output = output.parent.resolve() / output.name
@@ -517,8 +533,24 @@ def run(args):
                         continue
                     # A high level-zero error indicates a questionable match or
                     # conversion; keep the existing texture for local review.
+                    bounded_selected = False
                     accepted = (True if forest_candidate or atlas_candidate or lightmap_candidate or emission_candidate or shared0_fox_candidate else acceptable_emoji_image(original_image, converted_image) if emoji_candidate else acceptable_nodraw_image(original_image, converted_image) if resource and source_name == 'GridBox_NoDraw' else acceptable_sdf_image(original_image, converted_image) if font or shared0_sdf_candidate else
                                 acceptable_quality_image(original_image, converted_image) if high_quality else acceptable_texture_error(mean))
+                    if (not accepted and bounded_fallback and group in GROUPS and source_name == target.m_Name and
+                            not (normal or direct_normal or collision or forest_candidate or shadow_candidate or atlas_candidate or lightmap_candidate or emission_candidate) and
+                            int(target.m_TextureFormat) in (45, 47) and target.m_ImageCount == 1):
+                        try:
+                            candidate = encode_mips(True)
+                            for level, (w, h, prior) in enumerate(target_mips):
+                                original = converter.parse_image_data(prior, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                converted = converter.parse_image_data(candidate[level], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
+                                if not acceptable_bounded_mip(original, converted, level): raise ResourceQualityError('bounded mip differs')
+                            chunks, high_quality, accepted, bounded_selected = candidate, True, True, True
+                            new = b''.join(chunks)
+                            converted_image = converter.parse_image_data(chunks[0], target_mips[0][0], target_mips[0][1], target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
+                            mean = ImageStat.Stat(ImageChops.difference(original_image, converted_image)).mean
+                        except (ResourceQualityError, ValueError, NotImplementedError, TypeError, IndexError, RuntimeError):
+                            accepted = False
                     if not accepted:
                         if group not in GROUPS: quality_excluded.add(PREFIX + group)
                         outcomes['high_error'] += 1; continue
@@ -531,6 +563,7 @@ def run(args):
                     if font: rows[-1].update(font=True, source_name=source_name)
                     if shared0_sdf_candidate: rows[-1].update(shared0_sdf=True)
                     if shared0_fox_candidate: rows[-1].update(shared0_fox=True)
+                    if bounded_selected: rows[-1].update(bounded_fallback=True)
                     if resource: rows[-1].update(resource=True, source_name=source_name)
                     if lightmap_candidate: rows[-1].update(lightmap_alias=True, source_name=source_name)
                     if emission_candidate: rows[-1].update(emission_source=True, source_name=source_name, source_sha256=hashlib.sha256(src_data).hexdigest())
@@ -600,6 +633,7 @@ def main():
     p.add_argument('--lightmap-fallback', action='store_true', help='experimentally reconstruct six alpha lightmaps; requires --quality-library')
     p.add_argument('--emission-fallback', action='store_true', help='experimentally reconstruct uniquely matched emission textures')
     p.add_argument('--fox-fallback', action='store_true', help='experimentally reconstruct Fox texture; requires --shared0-sdf and --quality-library')
+    p.add_argument('--bounded-fallback', action='store_true', help='try uniquely matched same-name textures under bounded mip errors; requires --quality-library')
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases with bounded sparse pixel differences')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally choose a unique matching DropShadow with strict quality checks')
     run(p.parse_args())

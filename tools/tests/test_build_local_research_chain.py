@@ -170,6 +170,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn('--emission-fallback', dict(module.commands(a))['converted textures'])
             a.fox_fallback = True
             self.assertIn('--fox-fallback', dict(module.commands(a))['converted textures'])
+            a.bounded_fallback = True
+            self.assertIn('--bounded-fallback', dict(module.commands(a))['converted textures'])
             a.shadow_fallback = True
             self.assertIn('--shadow-fallback', dict(module.commands(a))['converted textures'])
             a.emoji_fallback = True
