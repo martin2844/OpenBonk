@@ -25,14 +25,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--steam-data', required=True, type=Path)
     parser.add_argument('--android-obb', required=True, type=Path)
-    parser.add_argument('--shared1-terrain-asset', required=True, type=Path)
-    parser.add_argument('--shared1-mesh-input', required=True, type=Path, help='pinned texture-template directory')
+    terrain_group = parser.add_mutually_exclusive_group(required=True)
+    terrain_group.add_argument('--shared1-terrain-asset', type=Path)
+    terrain_group.add_argument('--shared1-terrain-source', type=Path, help='pinned earlier staged directory')
+    mesh_group = parser.add_mutually_exclusive_group(required=True)
+    mesh_group.add_argument('--shared1-mesh-input', type=Path, help='pinned texture-template directory')
+    mesh_group.add_argument('--shared1-source-dir', type=Path, help='pinned pre-template asset directory; regenerate the texture template')
     parser.add_argument('--output', required=True, type=Path, help='new private directory')
     args = parser.parse_args()
     steam, obb = args.steam_data.resolve(strict=True), args.android_obb.resolve(strict=True)
-    terrain, mesh = args.shared1_terrain_asset.resolve(strict=True), args.shared1_mesh_input.resolve(strict=True)
+    terrain = (args.shared1_terrain_asset or args.shared1_terrain_source).resolve(strict=True)
+    mesh = (args.shared1_mesh_input or args.shared1_source_dir).resolve(strict=True)
     output = args.output.expanduser().absolute()
-    if not steam.is_dir() or not obb.is_file() or not terrain.is_file() or not mesh.is_dir() or output.exists() or output.is_symlink() or not output.parent.is_dir():
+    if not steam.is_dir() or not obb.is_file() or not (terrain.is_dir() if args.shared1_terrain_source else terrain.is_file()) or not mesh.is_dir() or output.exists() or output.is_symlink() or not output.parent.is_dir():
         parser.error('inputs must exist and output must be new')
     output = output.parent.resolve()/output.name
     if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (steam, obb, terrain, mesh, ROOT)):
@@ -47,6 +52,21 @@ def main():
             if hashlib.sha256((target/manifest).read_bytes()).hexdigest() != expected:
                 raise ValueError('generated plan differs: '+folder)
             current = target/'sharedassets2.assets'
+        if args.shared1_source_dir:
+            direct, rgba, etc, bc, combined = (tmp/name for name in ('direct', 'rgba', 'etc', 'bc', 'combined'))
+            helper.run('analysis/data-conversion/direct-texture-prototype.py', 'template', steam, mesh, direct)
+            helper.run('analysis/data-conversion/rgba-texture-prototype.py', 'template', steam, mesh, rgba)
+            helper.run('analysis/data-conversion/etc-mip-texture-prototype.py', 'template', steam, mesh,
+                       direct/'manifest.json', rgba/'manifest.json', etc)
+            helper.run('analysis/data-conversion/bc-to-etc-texture-prototype.py', 'template', steam, mesh,
+                       direct/'manifest.json', rgba/'manifest.json', etc/'manifest.json', bc)
+            helper.run('analysis/data-conversion/combined-texture-bc-prototype.py', 'template', steam, mesh,
+                       direct/'manifest.json', rgba/'manifest.json', etc/'manifest.json', bc/'manifest.json', combined)
+            mesh = combined
+        if args.shared1_terrain_source:
+            matched = tmp/'terrain-source'
+            helper.run('analysis/data-conversion/matched-textures-staged-prototype.py', 'template', steam, terrain, matched)
+            terrain = matched/'sharedassets1.assets'
         terrain_output, mesh_output = tmp/'shared1-terrain-animation-template', tmp/'full-cubemaps-stripped'
         helper.run('analysis/data-conversion/shared1-terrain-animation-prototype.py', 'template', steam, terrain, terrain_output)
         helper.run('analysis/data-conversion/cross-scene-mesh-bc-prototype.py', 'template', steam, mesh, mesh_output)
