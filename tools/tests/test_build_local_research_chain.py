@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -13,6 +14,23 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_generated_zip_preflight_rejects_unpinned_input(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); data = root / 'data'
+            (data / 'StreamingAssets/aa/StandaloneLinux64').mkdir(parents=True)
+            inventory = {}
+            for index in range(39):
+                name = f'file-{index}'
+                (data / name).write_bytes(b'known')
+                inventory[name] = {'size': 5, 'sha256': hashlib.sha256(b'known').hexdigest()}
+            manifest = root / 'inputs.json'
+            manifest.write_text(json.dumps({'platforms': {'linux': inventory}}))
+            with patch.object(module, 'STEAM_INPUTS', manifest):
+                module.validate_steam_inputs(data)
+                (data / 'file-1').write_bytes(b'other')
+                with self.assertRaisesRegex(ValueError, 'unsupported or damaged Steam input'):
+                    module.validate_steam_inputs(data)
+
     def test_shared0_option_enables_both_font_stages(self):
         with tempfile.TemporaryDirectory() as temp:
             args = self.args(Path(temp)); args.shared0_fonts = True

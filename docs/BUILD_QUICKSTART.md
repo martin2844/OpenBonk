@@ -12,6 +12,8 @@ This guide is for developers on Linux x86-64. It builds OpenBonk from this check
 
 The build creates its Lua bridge, host and Android texture converters, Crunch decoder, Steam ZIPs, Unity workspace and launcher from local inputs. It also uses Unity and Gradle dependencies; `--gradle-online` permits Gradle to download missing dependencies during launcher packaging. Unity's earlier build stages have their own dependency requirements. Game data, generated projects and APKs stay local.
 
+When the build creates a Steam ZIP, its initial check verifies the required game files against the pinned inventory before starting the export. A supplied ZIP is checked against the corresponding local game files instead; this does not establish compatibility with every game version.
+
 ## Build
 
 Clone the repository and create the pinned conversion environment:

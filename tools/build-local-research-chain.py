@@ -37,7 +37,9 @@ def validate_steam_inputs(steam_data, steam_zip=None, platform='linux'):
         raise ValueError('research chain requires ' + platform + ' Steam data for the selected platform')
     if not isinstance(inventory, dict) or not inventory: raise ValueError('invalid Steam input inventory')
     expected = {}; total = 0
-    for name in inventory:
+    if steam_zip is None and len(inventory) != 39:
+        raise ValueError('invalid Steam input inventory')
+    for name, pinned in inventory.items():
         parts = name.split('/')
         if any(not part or part in ('.', '..') or '\\' in part or ':' in part for part in parts): raise ValueError('invalid input inventory path')
         path = steam_data.joinpath(*parts)
@@ -46,6 +48,8 @@ def validate_steam_inputs(steam_data, steam_zip=None, platform='linux'):
         if size <= 0 or total > 1024 * 1024 * 1024: raise ValueError('Steam inputs exceed size limit')
         with path.open('rb') as stream:
             expected[name] = (size, hashlib.file_digest(stream, 'sha256').hexdigest())
+        if steam_zip is None and (not isinstance(pinned, dict) or expected[name] != (pinned.get('size'), pinned.get('sha256'))):
+            raise ValueError('unsupported or damaged Steam input for ' + platform + ': ' + name)
     if steam_zip is None: return
     with zipfile.ZipFile(steam_zip) as archive:
         infos = archive.infolist(); names = [i.filename for i in infos]
