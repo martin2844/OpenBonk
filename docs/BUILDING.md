@@ -18,6 +18,23 @@ on both the host and that Retroid. These are partial-stage checks, not complete 
 gameplay tests. The template still contains game-derived data; inputs and
 fixtures must remain private.
 
+A local clone at `2b80f2e` built the Unity runtime and generated a Linux
+research chain with `--partial-etc2-fast`. The launcher packaging step then
+failed because its validation rejected fast ETC2 records. After updating the
+clone to `f711175`, the packaging step was resumed using the previously
+generated intermediates; the Windows chain and dual launcher were subsequently
+built with the fix. The Windows chain reused a locally prepared Steam ZIP. An
+independent check of the dual APK's packaged plans restored the same final OBB
+from both ZIPs. On a Retroid Pocket 5, the Linux-only APK imported its Linux ZIP,
+produced the expected OBB hash and entered a brief Forest run. The dual APK
+then imported the Windows ZIP, produced the same expected hash and entered a
+brief Forest run with Fox; both runs showed enemy defeats. The temporary test
+package and copied ZIPs were removed. Source and local binary workspace checks
+passed; these do not prove provenance or complete gameplay parity. The dual
+template audit measured 184,905 nonzero inline texture bytes for each platform;
+it does not cover all data types. This resumed build, using existing local tools
+and caches, is not an uninterrupted clean build or a distributable APK.
+
 This checkout exposes the current reconstruction and tools for inspection and development. **A clean checkout is not yet sufficient to rebuild the published APK.** The original local build depended on an exported Unity project, original game assets, third-party plugins, generated plans and binary intermediates that are not all included here. Some editor and research diagnostics still contain `/home/your-user` placeholders where local paths were removed; configure them for your environment before using them. Do not interpret a missing local input or an untested build as a working release pipeline.
 
 For a concise procedure to build a private research APK from a checkout and local Steam data, start with the [build quickstart](BUILD_QUICKSTART.md).
