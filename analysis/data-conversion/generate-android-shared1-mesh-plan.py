@@ -1,21 +1,29 @@
 #!/usr/bin/env python3
 """Map shared1 mesh vertex/index ranges back to the two Steam depots."""
-import hashlib,json,struct,zipfile
+import argparse,hashlib,json,struct,zipfile
 from pathlib import Path
 import UnityPy
 ROOT=Path(__file__).resolve().parents[2];B=ROOT/'build/android';BASE=B/'shared1-material-audio-plan/linux.assets';TARGET=B/'launcher-steam-picker-integrated/main.1.com.megabonk.nativeport.splittest.obb'
 ZIPS=(B/'linux-steam-regression.zip',B/'windows-steam-full-input.zip');NAMES=('sharedassets1.assets','sharedassets1.assets.resS','level1','level1.resS');MANIFEST=B/'share-source-experiment/full-bc-template/mesh-manifest.json';OUT=B/'shared1-mesh-android-plan/plan.bin'
 def sha(b):return hashlib.sha256(b).digest()
 def main():
- if OUT.exists():raise ValueError('output exists')
- base=BASE.read_bytes()
+ parser=argparse.ArgumentParser(description=__doc__)
+ parser.add_argument('--base',type=Path,default=BASE,help='local masked sharedassets1 input')
+ parser.add_argument('--target-obb',type=Path,default=TARGET,help='local target Android OBB')
+ parser.add_argument('--linux-zip',type=Path,default=ZIPS[0],help='local Linux Steam ZIP')
+ parser.add_argument('--windows-zip',type=Path,default=ZIPS[1],help='local Windows Steam ZIP')
+ parser.add_argument('--manifest',type=Path,default=MANIFEST,help='local mesh manifest')
+ parser.add_argument('--output',type=Path,default=OUT,help='new private plan file')
+ args=parser.parse_args()
+ if args.output.exists() or args.output.is_symlink():raise ValueError('output exists')
+ base=args.base.read_bytes()
  if sha(base).hex()!='fa2ef744b54d702abf75835b03a161da3db635c7facfd03cde3dece61f5d3288':raise ValueError('invalid base')
- with zipfile.ZipFile(TARGET) as z:target=b''.join(z.read(f'assets/bin/Data/sharedassets1.assets.split{i}') for i in range(117))
+ with zipfile.ZipFile(args.target_obb) as z:target=b''.join(z.read(f'assets/bin/Data/sharedassets1.assets.split{i}') for i in range(117))
  objects={o.path_id:o for o in UnityPy.load(target).objects};files=[];sources=[]
- for path in ZIPS:
+ for path in (args.linux_zip,args.windows_zip):
   with zipfile.ZipFile(path) as z:files.append([z.read('Megabonk_Data/'+n) for n in NAMES])
   sources.append({n:{o.path_id:o for o in UnityPy.load(files[-1][NAMES.index(n)]).objects} for n in ('sharedassets1.assets','level1')})
- recs=json.loads(MANIFEST.read_text())['meshes']
+ recs=json.loads(args.manifest.read_text())['meshes']
  if len(recs)!=420 or len({r['target_id'] for r in recs})!=420:raise ValueError('invalid inventory')
  work=bytearray(base);ranges=[]
  for rec in recs:
@@ -42,7 +50,7 @@ def main():
  for platform in files:
   for f in platform:out.extend(struct.pack('>Q',len(f))+sha(f))
  for dst,size,refs,h in ranges:out.extend(struct.pack('>IIIQIQ',dst,size,refs[0][0],refs[0][1],refs[1][0],refs[1][1])+h)
- OUT.parent.mkdir(parents=True,exist_ok=True)
- with OUT.open('xb') as f:f.write(out)
+ args.output.parent.mkdir(parents=True,exist_ok=True)
+ with args.output.open('xb') as f:f.write(out)
  print('plan',sha(out).hex(),'partial',sha(work).hex(),'meshes',len(recs),'ranges',len(ranges),'bytes',sum(r[1] for r in ranges))
 if __name__=='__main__':main()
