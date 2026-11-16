@@ -17,12 +17,13 @@ def sha(p):
  return h.hexdigest()
 def require(p,h):
  if not p.is_file() or sha(p)!=h:raise ValueError('incompatible input '+str(p))
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('pc_data',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path);p.add_argument('--inventory',type=Path);a=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('pc_data',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path);p.add_argument('--inventory',type=Path);p.add_argument('--old-split-obb',action='store_true',help='use the pinned old split OBB for template generation');a=p.parse_args()
+if a.old_split_obb and a.action!='template':p.error('--old-split-obb requires template')
 if a.output.exists() or not a.output.parent.is_dir():p.error('output must not exist and parent must exist')
 for n,h in PINS.items():require(a.pc_data/n,h)
 envs={n:UnityPy.load(str(a.pc_data/n)) for n in PINS};sources={n:{o.path_id:o for o in env.objects} for n,env in envs.items()}
 if a.action=='template':
- require(a.input,OBB)
+ require(a.input,'baf787dff6b987ca68c34f9351dd7866d8c269865069d43e8a7435ace555895d' if a.old_split_obb else OBB)
  if not a.inventory:p.error('template requires --inventory')
  require(a.inventory,INVENTORY);inventory=json.loads(a.inventory.read_text());plans={r['scene']:r['rows'] for r in inventory['scenes']}
  if inventory['errors'] or set(plans)!=set(PINS):raise ValueError('invalid inventory')
