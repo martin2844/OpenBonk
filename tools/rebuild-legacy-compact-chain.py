@@ -157,6 +157,7 @@ def main():
                 if hashlib.file_digest(f, 'sha256').hexdigest() != '0142daaaf1e07c3a9aa90dac01382f8fba6cce74983f669376b01fce1fff6ed0':
                     raise ValueError('shared1 layout plan differs')
         material_plan = mesh_plan = None
+        mesh_extra_plans = []
         if args.include_material_mesh_plans:
             java_source = ROOT/'analysis/data-conversion/android'; classes = tmp/'java-classes'; classes.mkdir()
             prefix = [] if args.java_runner == 'none' else [args.java_runner]
@@ -183,15 +184,36 @@ def main():
             mesh_plan = tmp/'shared1-mesh-plan.bin'
             run('analysis/data-conversion/generate-android-shared1-mesh-plan.py', '--base', material_assets[0], '--target-asset', target,
                 '--linux-zip', zips[0], '--windows-zip', zips[1], '--manifest', shared_inputs/'share-source-experiment/full-cubemaps-stripped/mesh-manifest.json', '--output', mesh_plan)
+            mesh_assets = []
             for i, steam_zip in enumerate(zips):
                 result = tmp/f'mesh-{i}.assets'
                 check_java('SteamShared1MeshesCheck', material_assets[i], steam_zip, mesh_plan, result, 'pass')
                 with result.open('rb') as f:
                     if hashlib.file_digest(f, 'sha256').hexdigest() != '26df1db6a89a775557ddc9d29ac6bddb10f7f47f7370bd6064dce08cec0b1119': raise ValueError('mesh output differs')
+                mesh_assets.append(result)
             for path, expected in ((material_plan, 'fc96c214a73e702069425abe9bc75f5bdd825d9f7c73164c33c685527faafa3f'),
                                    (mesh_plan, '7ac1084c785c3a015821b3a155aa9e4f39bee48b3a10911e91c05b5df304d0c5')):
                 with path.open('rb') as f:
                     if hashlib.file_digest(f, 'sha256').hexdigest() != expected: raise ValueError('shared1 plan differs: '+path.name)
+            for stage, plan_sha, asset_sha in (
+                ('metadata', 'f61b4d6fdf91bcf99a3b786f5b89470f04944433be4a455c1895f4199a763068', '76991a41618218070f29fe7f3dc273d6bc78dd777d690d9636ce55de70a28464'),
+                ('flags', 'ff751ce7421ef240f6a5a3909646942f735e7c642a0243e995e89e36c711ed8d', '83e78c94e692808d7d39ae57d5abe0bdd8aaea7be6b64baad7a3c27263ca7624'),
+                ('stream', 'fa485e91f9bd394392c7e7ec0aeefa341b924c3a7cb6e74e4180c4b15d442400', 'e609d9c11f63ce8b42a582780dd23848bae7d06efc5936ac5d3db4d81a9b106f'),
+            ):
+                plan = tmp/f'shared1-mesh-{stage}-plan.bin'
+                run('analysis/data-conversion/generate-android-shared1-mesh-'+stage+'-plan.py', '--base', mesh_assets[0],
+                    '--target-asset', target, '--linux-zip', zips[0], '--windows-zip', zips[1],
+                    '--manifest', shared_inputs/'share-source-experiment/full-cubemaps-stripped/mesh-manifest.json', '--output', plan)
+                with plan.open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != plan_sha: raise ValueError('mesh '+stage+' plan differs')
+                next_assets = []
+                for i, steam_zip in enumerate(zips):
+                    result = tmp/f'mesh-{stage}-{i}.assets'
+                    check_java('SteamShared1MeshesCheck', mesh_assets[i], steam_zip, plan, result, 'pass')
+                    with result.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != asset_sha: raise ValueError('mesh '+stage+' output differs')
+                    next_assets.append(result)
+                mesh_assets = next_assets; mesh_extra_plans.append(plan)
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:
@@ -208,7 +230,7 @@ def main():
             if layout_plan is not None:
                 with layout_plan.open('rb') as src, (out/'shared1-layout-plan.bin').open('xb') as dest:
                     shutil.copyfileobj(src, dest)
-            for plan in (material_plan, mesh_plan):
+            for plan in (material_plan, mesh_plan, *mesh_extra_plans):
                 if plan is not None:
                     with plan.open('rb') as src, (out/plan.name).open('xb') as dest: shutil.copyfileobj(src, dest)
         except BaseException:
