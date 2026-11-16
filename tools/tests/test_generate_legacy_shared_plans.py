@@ -9,6 +9,13 @@ SCRIPT = Path(__file__).resolve().parents[1]/'generate-legacy-shared-plans.py'
 
 
 class SharedPlansTest(unittest.TestCase):
+    def test_cubemap_source_requires_decoder(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--steam-data', 'steam', '--android-obb', 'base.obb',
+                                 '--shared1-before-cubemaps', 'source', '--shared1-source-from-obb', '--output', 'out'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('must be supplied together', result.stderr)
+
     def test_rejects_output_inside_steam_input(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

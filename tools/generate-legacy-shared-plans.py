@@ -28,20 +28,25 @@ def main():
     terrain_group = parser.add_mutually_exclusive_group(required=True)
     terrain_group.add_argument('--shared1-terrain-asset', type=Path)
     terrain_group.add_argument('--shared1-terrain-source', type=Path, help='pinned earlier staged directory')
+    terrain_group.add_argument('--shared1-before-cubemaps', type=Path, help='pinned stage before cubemap template generation')
+    parser.add_argument('--crunch-decoder', type=Path, help='local six-face Unity Crunch decoder, required before cubemaps')
     mesh_group = parser.add_mutually_exclusive_group(required=True)
     mesh_group.add_argument('--shared1-mesh-input', type=Path, help='pinned texture-template directory')
     mesh_group.add_argument('--shared1-source-dir', type=Path, help='pinned pre-template asset directory; regenerate the texture template')
     mesh_group.add_argument('--shared1-source-from-obb', action='store_true', help='rebuild the pre-template asset from the old OBB and Steam audio')
     parser.add_argument('--output', required=True, type=Path, help='new private directory')
     args = parser.parse_args()
+    if bool(args.shared1_before_cubemaps) != bool(args.crunch_decoder):
+        parser.error('--shared1-before-cubemaps and --crunch-decoder must be supplied together')
     steam, obb = args.steam_data.resolve(strict=True), args.android_obb.resolve(strict=True)
-    terrain = (args.shared1_terrain_asset or args.shared1_terrain_source).resolve(strict=True)
+    terrain = (args.shared1_terrain_asset or args.shared1_terrain_source or args.shared1_before_cubemaps).resolve(strict=True)
+    decoder = args.crunch_decoder.resolve(strict=True) if args.crunch_decoder else None
     mesh = (args.shared1_mesh_input or args.shared1_source_dir).resolve(strict=True) if not args.shared1_source_from_obb else None
     output = args.output.expanduser().absolute()
-    if not steam.is_dir() or not obb.is_file() or not (terrain.is_dir() if args.shared1_terrain_source else terrain.is_file()) or (mesh is not None and not mesh.is_dir()) or output.exists() or output.is_symlink() or not output.parent.is_dir():
+    if not steam.is_dir() or not obb.is_file() or not (terrain.is_dir() if not args.shared1_terrain_asset else terrain.is_file()) or (decoder is not None and not decoder.is_file()) or (mesh is not None and not mesh.is_dir()) or output.exists() or output.is_symlink() or not output.parent.is_dir():
         parser.error('inputs must exist and output must be new')
     output = output.parent.resolve()/output.name
-    if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (steam, obb, terrain, ROOT, *([mesh] if mesh else []))):
+    if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (steam, obb, terrain, ROOT, *([mesh] if mesh else []), *([decoder] if decoder else []))):
         parser.error('output must be separate from checkout and inputs')
     with tempfile.TemporaryDirectory(prefix='.openbonk-shared2-plans-', dir=output.parent) as directory:
         tmp = Path(directory)
@@ -69,7 +74,11 @@ def main():
             helper.run('analysis/data-conversion/combined-texture-bc-prototype.py', 'template', steam, mesh,
                        direct/'manifest.json', rgba/'manifest.json', etc/'manifest.json', bc/'manifest.json', combined)
             mesh = combined
-        if args.shared1_terrain_source:
+        if args.shared1_before_cubemaps:
+            cubemaps = tmp/'terrain-cubemaps'
+            helper.run('analysis/data-conversion/all-cubemaps-staged-prototype.py', 'template', steam, terrain, decoder, cubemaps)
+            terrain = cubemaps
+        if args.shared1_terrain_source or args.shared1_before_cubemaps:
             matched = tmp/'terrain-source'
             helper.run('analysis/data-conversion/matched-textures-staged-prototype.py', 'template', steam, terrain, matched)
             terrain = matched/'sharedassets1.assets'
