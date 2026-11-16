@@ -33,6 +33,7 @@ def main():
     for name in ('steam-data', 'old-apk', 'old-obb', 'new-apk', 'new-obb', 'crunch-decoder', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--shader-bundles', type=Path, help='also rebuild the subsequent pinned scene and shader base using this local shader cache')
+    parser.add_argument('--windows-data', type=Path, help='also reconstruct the localization base from a pinned Windows Megabonk_Data directory (requires --shader-bundles)')
     converted_group = parser.add_mutually_exclusive_group(required=True)
     converted_group.add_argument('--converted-obb', type=Path, help='pinned historical converted OBB')
     converted_group.add_argument('--converted-assets', type=Path, help='directory of three independently rebuilt shared assets')
@@ -43,6 +44,7 @@ def main():
     converted_path = args.converted_obb or args.converted_assets
     converted_input = converted_path.expanduser().resolve(strict=True) if converted_path else None
     shaders = args.shader_bundles.expanduser().resolve(strict=True) if args.shader_bundles else None
+    windows = args.windows_data.expanduser().resolve(strict=True) if args.windows_data else None
     out = args.output.expanduser().absolute()
     if not inputs['steam_data'].is_dir() or not all(inputs[n].is_file() for n in (*PINS, 'crunch_decoder')):
         parser.error('Steam data must be a directory and other inputs must be files')
@@ -50,11 +52,20 @@ def main():
         parser.error('output must be a new directory in an existing parent')
     out = out.parent.resolve() / out.name
     if shaders is not None and not shaders.is_dir(): parser.error('shader bundles must be a directory')
-    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *inputs.values())):
+    if windows is not None and (not windows.is_dir() or shaders is None): parser.error('--windows-data requires a directory and --shader-bundles')
+    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *([windows] if windows else []), *inputs.values())):
         parser.error('output must be separate from checkout and inputs')
     if shaders is not None:
         spec = importlib.util.spec_from_file_location('shader_pins', ROOT/'tools/pinned-shader-bundles.py')
         mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod); mod.verify(shaders)
+    if windows is not None:
+        import json
+        spec = importlib.util.spec_from_file_location('locale_inventory', ROOT/'tools/generate-windows-localization-inventory.py')
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+        inventory = json.loads((ROOT/'tools/launcher-steam-inputs.json').read_text())['platforms']
+        document = mod.build_inventory(inventory, inputs['steam_data'], windows, mod.normalizer.PATCH_SHA)
+        if hashlib.sha256((json.dumps(document, indent=2)+'\n').encode()).hexdigest() != mod.normalizer.MANIFEST_SHA:
+            parser.error('localization inventory differs')
     for name, expected in PINS.items():
         with inputs[name].open('rb') as f:
             actual = hashlib.file_digest(f, 'sha256').hexdigest()
@@ -108,6 +119,11 @@ def main():
                 with (final/name).open('rb') as f:
                     if hashlib.file_digest(f, 'sha256').hexdigest() != expected:
                         raise ValueError('shader result differs: '+name)
+        if windows is not None:
+            locale = tmp/'localization-base'
+            run('tools/rebuild-legacy-localization-base.py', '--base', final, '--linux-data', steam,
+                '--windows-data', windows, '--output', locale)
+            final = locale
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:
@@ -121,7 +137,7 @@ def main():
         except BaseException:
             shutil.rmtree(out)
             raise
-    print('Rebuilt the pinned '+('shader' if shaders else 'compact')+' base. Keep it private; this is not an APK build.')
+    print('Rebuilt the pinned '+('localization' if windows else 'shader' if shaders else 'compact')+' base. Keep it private; this is not an APK build.')
 
 
 if __name__ == '__main__':
