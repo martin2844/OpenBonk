@@ -60,14 +60,18 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('input', type=Path, help='directory with first.obb, second.obb, second.apk')
     p.add_argument('output', type=Path, help='new diagnostic output directory')
+    p.add_argument('--android-player', type=Path, default=Path(os.environ.get('OPENBONK_UNITY_EDITOR', str(Path.home() / 'Unity/Hub/Editor/2023.2.22f1/Editor'))) / 'Data/PlaybackEngines/AndroidPlayer', help='Unity AndroidPlayer directory')
+    p.add_argument('--build-tools', type=Path, help='Android SDK build-tools directory (default: 34.0.0 in AndroidPlayer)')
+    p.add_argument('--java-home', type=Path, help='JDK directory (default: OpenJDK in AndroidPlayer)')
+    p.add_argument('--debug-keystore', type=Path, default=Path.home() / '.android/debug.keystore', help='Android debug keystore (standard androiddebugkey credentials)')
+    p.add_argument('--runner', default=os.environ.get('OPENBONK_TOOL_RUNNER', 'steam-run' if shutil.which('steam-run') else 'none'), help='executable wrapper for SDK tools, or none')
     a = p.parse_args(); out = a.output.absolute()
     if out.exists() or out.is_symlink() or not out.parent.is_dir(): p.error('output must be a new directory')
     first, second, apk = (a.input / n for n in ('first.obb', 'second.obb', 'second.apk'))
-    unity = Path.home() / 'Unity/Hub/Editor/2023.2.22f1/Editor/Data/PlaybackEngines/AndroidPlayer'
-    build_tools = unity / 'SDK/build-tools/34.0.0'; java = unity / 'OpenJDK'; key = Path.home() / '.android/debug.keystore'
+    unity = a.android_player.expanduser(); build_tools = (a.build_tools or unity / 'SDK/build-tools/34.0.0').expanduser(); java = (a.java_home or unity / 'OpenJDK').expanduser(); key = a.debug_keystore.expanduser()
     for path in (first, second, apk, build_tools/'zipalign', build_tools/'apksigner', java/'bin/java', key):
         if not path.is_file(): p.error('missing prerequisite: ' + str(path))
-    if not shutil.which('steam-run'): p.error('steam-run missing')
+    if a.runner != 'none' and not shutil.which(a.runner): p.error('runner not found: ' + a.runner)
     old_hash = sha(first).encode('ascii')
     env = os.environ.copy(); env['JAVA_HOME'] = str(java); env['PATH'] = str(java/'bin') + os.pathsep + env.get('PATH', '')
     with tempfile.TemporaryDirectory(prefix='.openbonk-repair-', dir=out.parent) as tmp:
@@ -102,7 +106,7 @@ def main():
                     if jar_signature(info.filename): continue
                     data = bytes(updated) if info.filename == 'classes.dex' else az.read(info)
                     dest.writestr(copy.copy(info), data)
-        def run(args): subprocess.run(['steam-run', *map(str, args)], env=env, check=True)
+        def run(args): subprocess.run(([] if a.runner == 'none' else [a.runner]) + list(map(str, args)), env=env, check=True)
         run([build_tools/'zipalign', '-p', '4', unsigned, aligned])
         run([build_tools/'apksigner', 'sign', '--ks', key, '--ks-key-alias', 'androiddebugkey', '--ks-pass', 'pass:android', '--key-pass', 'pass:android', '--out', signed, aligned])
         run([build_tools/'zipalign', '-c', '4', signed]); run([build_tools/'apksigner', 'verify', '--verbose', signed])
