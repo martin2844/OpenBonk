@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Derive the resized blank texture layout of the private shared1 base."""
-import hashlib,struct,zipfile
+import argparse,hashlib,struct,zipfile
 from pathlib import Path
 import UnityPy
 ROOT=Path(__file__).resolve().parents[2];B=ROOT/'build/android'
@@ -11,8 +11,13 @@ def asset(path):
   names=sorted((n for n in z.namelist() if n.startswith('assets/bin/Data/sharedassets1.assets.split')),key=lambda n:int(n.rsplit('split',1)[1]))
   return b''.join(z.read(n) for n in names)
 def main():
- if OUT.exists():raise ValueError('output exists')
- original=asset(BASE);target=asset(TARGET);env=UnityPy.load(original);a={o.path_id:o for o in env.objects};b={o.path_id:o for o in UnityPy.load(target).objects}
+ parser=argparse.ArgumentParser(description=__doc__)
+ parser.add_argument('--base-obb',type=Path,default=BASE,help='local masked Android base OBB')
+ parser.add_argument('--target-obb',type=Path,default=TARGET,help='local target Android OBB')
+ parser.add_argument('--output',type=Path,default=OUT,help='new private plan file')
+ args=parser.parse_args()
+ if args.output.exists() or args.output.is_symlink():raise ValueError('output exists')
+ original=asset(args.base_obb);target=asset(args.target_obb);env=UnityPy.load(original);a={o.path_id:o for o in env.objects};b={o.path_id:o for o in UnityPy.load(target).objects}
  if len(original)!=112604540 or len(target)!=122379840 or len(a)!=6368 or a.keys()!=b.keys() or env.file.header.data_offset!=194384 or env.file.header.endian!='<':raise ValueError('unexpected asset structure')
  records=[]
  for k,o in sorted(a.items()):
@@ -26,7 +31,7 @@ def main():
  if len(result)!=len(target) or result[:194384]!=target[:194384] or any(new[k].byte_start!=b[k].byte_start or new[k].byte_size!=b[k].byte_size for k in b):raise ValueError('generated layout differs')
  plan=bytearray(b'OBS1L001'+struct.pack('>III',len(original),len(result),len(records))+sha(original)+sha(result))
  for row in records:plan.extend(struct.pack('>qII',*row))
- OUT.parent.mkdir(parents=True,exist_ok=True)
- with OUT.open('xb') as f:f.write(plan)
+ args.output.parent.mkdir(parents=True,exist_ok=True)
+ with args.output.open('xb') as f:f.write(plan)
  print('plan',sha(plan).hex(),'base',sha(original).hex(),'skeleton',sha(result).hex(),'resized',len(records))
 if __name__=='__main__':main()
