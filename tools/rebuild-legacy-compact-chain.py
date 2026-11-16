@@ -38,7 +38,7 @@ def main():
     parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
     parser.add_argument('--include-layout-plan', action='store_true', help='also generate the shared1 layout plan (requires localization base)')
     parser.add_argument('--include-material-mesh-plans', action='store_true', help='also generate and verify the shared1 material/audio and mesh plans')
-    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify shared1 texture, shader, animation/terrain and cubemap plans')
+    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify the remaining shared1 resource plans')
     parser.add_argument('--java-home', type=Path, help='JDK directory for material and mesh plan checks')
     parser.add_argument('--java-runner', default='none', help='wrapper for Java tools, or none')
     parser.add_argument('--host-texture-library', type=Path, help='local host JNI texture conversion library')
@@ -170,7 +170,7 @@ def main():
             def java_run(*command): subprocess.run([*prefix, *(str(x) for x in command)], check=True)
             java_names = ['SteamExactTextures', 'SteamShared1Layout', 'SteamShared1LayoutCheck',
                           'SteamShared1MaterialAudio', 'SteamShared1MaterialAudioCheck', 'SteamShared1Meshes', 'SteamShared1MeshesCheck']
-            if args.include_texture_plans: java_names += ['SteamConvertedTextures', 'SteamShared1ExactTextures', 'SteamShared1ExactTexturesCheck', 'SteamShared1Shaders', 'SteamShared1ShadersCheck', 'SteamShared1AnimationTerrain', 'SteamShared1AnimationTerrainCheck', 'SteamCubemapResources', 'SteamCubemapResourcesCheck']
+            if args.include_texture_plans: java_names += ['SteamConvertedTextures', 'SteamShared1ExactTextures', 'SteamShared1ExactTexturesCheck', 'SteamShared1Shaders', 'SteamShared1ShadersCheck', 'SteamShared1AnimationTerrain', 'SteamShared1AnimationTerrainCheck', 'SteamCubemapResources', 'SteamCubemapResourcesCheck', 'SteamShared1OutlineMeshes', 'SteamShared1OutlineMeshesCheck', 'SteamShared1FinalObjects', 'SteamShared1FinalObjectsCheck']
             java_run(java/'bin/javac', '-d', classes, *(java_source/(name+'.java') for name in java_names))
             def check_java(name, *arguments): java_run(java/'bin/java', '-cp', classes, 'com.openbonk.dataprep.'+name, *arguments)
             layout_asset = tmp/'layout.assets'
@@ -317,12 +317,38 @@ def main():
                     '--decoder', decoder, '--output', cubemap_plan)
                 with cubemap_plan.open('rb') as f:
                     if hashlib.file_digest(f, 'sha256').hexdigest() != 'e7fd277acda57efac892a1921d85ae35fd947d1d8a10f648923636f4a4ed62be': raise ValueError('cubemap plan differs')
+                cubemap_assets = []
                 for i, steam_zip in enumerate(zips):
                     result = tmp/f'cubemap-{i}.assets'
                     check_java('SteamCubemapResourcesCheck', texture_library, animation_assets[i], steam_zip, cubemap_plan, result, 'pass')
                     with result.open('rb') as f:
                         if hashlib.file_digest(f, 'sha256').hexdigest() != 'fde2b6fe5f08ba2cdcd4edb120a29e4b7c2cf2f5ea5537d8c5dfda947481cf0c': raise ValueError('cubemap asset differs')
+                    cubemap_assets.append(result)
                 texture_plans.append(cubemap_plan)
+                outline_plan = tmp/'shared1-outline.bin'
+                run('analysis/data-conversion/generate-android-shared1-outline-plan.py', '--base', cubemap_assets[0],
+                    '--target-asset', target, '--linux-zip', zips[0], '--windows-zip', zips[1], '--output', outline_plan)
+                with outline_plan.open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != '4b6814d25440663f1d57700806db6781df8061d2f97aaacb1dc66ead4838cb08': raise ValueError('outline plan differs')
+                outline_assets = []
+                for i, steam_zip in enumerate(zips):
+                    result = tmp/f'outline-{i}.assets'
+                    check_java('SteamShared1OutlineMeshesCheck', cubemap_assets[i], steam_zip, outline_plan, result, 'pass')
+                    with result.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != '1d55906e02aa2d2f1123082b80e408cf4e3c596fad86632b691f50f6074dd8ce': raise ValueError('outline asset differs')
+                    outline_assets.append(result)
+                texture_plans.append(outline_plan)
+                final_plan = tmp/'shared1-final.bin'
+                run('analysis/data-conversion/generate-android-shared1-final-objects-plan.py', '--base', outline_assets[0],
+                    '--target-asset', target, '--audio-plan', audio_plan, '--linux-zip', zips[0], '--windows-zip', zips[1], '--output', final_plan)
+                with final_plan.open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != 'ff164a12cce569fa3f54ad427e7068ce6257fa863cefbbbee9ee8a05776fec9b': raise ValueError('final shared1 plan differs')
+                for i, steam_zip in enumerate(zips):
+                    result = tmp/f'final-{i}.assets'
+                    check_java('SteamShared1FinalObjectsCheck', outline_assets[i], steam_zip, final_plan, result, 'pass')
+                    with result.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != 'fc3172d095c9a900af40d7a4a9edd4529743c1556ad0c267fb8bb675f0eb1e84': raise ValueError('final shared1 asset differs')
+                texture_plans.append(final_plan)
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:

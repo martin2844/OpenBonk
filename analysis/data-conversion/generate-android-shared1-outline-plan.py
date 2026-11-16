@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Derive two outline meshes from Steam vertex data and computed normals."""
-import collections,hashlib,math,struct,zipfile
+import argparse,collections,hashlib,math,struct,zipfile
 from pathlib import Path
 import UnityPy
 ROOT=Path(__file__).resolve().parents[2];B=ROOT/'build/android';BASE=B/'shared1-cubemap-plan/linux.assets';TARGET=B/'launcher-steam-picker-integrated/main.1.com.megabonk.nativeport.splittest.obb';ZIPS=(B/'linux-steam-regression.zip',B/'windows-steam-full-input.zip');OUT=B/'shared1-outline-plan/plan.bin'
@@ -24,12 +24,18 @@ def generate(raw,count):
  for i in range(count):out[i*44:i*44+32]=raw[i*32:i*32+32];struct.pack_into('<3f',out,i*44+32,*smooth[i])
  return bytes(out)
 def main():
- if OUT.exists():raise ValueError('output exists')
- base=BASE.read_bytes()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--base',type=Path,default=BASE);p.add_argument('--linux-zip',type=Path,default=ZIPS[0]);p.add_argument('--windows-zip',type=Path,default=ZIPS[1]);p.add_argument('--output',type=Path,default=OUT)
+ targets=p.add_mutually_exclusive_group();targets.add_argument('--target-asset',type=Path);targets.add_argument('--target-obb',type=Path);args=p.parse_args();output=args.output
+ if output.exists() or output.is_symlink():raise ValueError('output exists')
+ base=args.base.read_bytes()
  if sha(base).hex()!='fde2b6fe5f08ba2cdcd4edb120a29e4b7c2cf2f5ea5537d8c5dfda947481cf0c':raise ValueError('invalid base')
- with zipfile.ZipFile(TARGET) as z:target=b''.join(z.read(f'assets/bin/Data/sharedassets1.assets.split{i}') for i in range(117))
+ if args.target_asset:
+  target=args.target_asset.read_bytes()
+  if sha(target).hex()!='b6b1d5fd2d261c1163608dfcdf354eca87afbec514840b963a9b5c50ce7fd33e':raise ValueError('reconstructed target asset differs')
+ else:
+  with zipfile.ZipFile(args.target_obb or TARGET) as z:target=b''.join(z.read(f'assets/bin/Data/sharedassets1.assets.split{i}') for i in range(117))
  objects={o.path_id:o for o in UnityPy.load(target).objects};files=[];sources=[]
- for path in ZIPS:
+ for path in (args.linux_zip,args.windows_zip):
   with zipfile.ZipFile(path) as z:files.append(z.read('Megabonk_Data/sharedassets1.assets'))
   sources.append({o.path_id:o for o in UnityPy.load(files[-1]).objects})
  work=bytearray(base);rows=[]
@@ -53,7 +59,7 @@ def main():
   for patch in patches:
    out.extend(struct.pack('>I',len(patch)))
    for pos,value in patch:out.extend(struct.pack('>IB',pos,value))
- OUT.parent.mkdir(parents=True,exist_ok=True)
- with OUT.open('xb') as f:f.write(out)
+ output.parent.mkdir(parents=True,exist_ok=True)
+ with output.open('xb') as f:f.write(out)
  print('plan',sha(out).hex(),'partial',sha(work).hex(),'outline meshes',len(rows))
 if __name__=='__main__':main()
