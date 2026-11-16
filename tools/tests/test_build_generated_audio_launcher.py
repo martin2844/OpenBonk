@@ -173,7 +173,7 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, bytes(4))
         with zipfile.ZipFile(intermediate, 'w') as z: z.writestr(entry, b'data')
         row = {'id': 0, 'target_size': 4, 'target_sha256': hashlib.sha256(b'data').hexdigest(),
-               'quality': True, 'target_format': 45, 'width': 1, 'height': 1,
+               'quality': True, 'target_format': 4, 'width': 1, 'height': 1,
                'fragments': [{'entry': entry, 'target_offset': 0, 'size': 4, 'converted_offset': 0}]}
         plan.write_text(json.dumps({'schema': 1, 'kind': 'experimental-converted-steam-texture-offsets',
                                     'template_sha256': MODULE.digest(template), 'records': [row]}))

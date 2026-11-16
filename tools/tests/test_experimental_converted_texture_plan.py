@@ -62,6 +62,22 @@ class ConvertedTexturePlanTests(unittest.TestCase):
                        {'target_format': 45}, {'quality': False}, {'normal': True}, {'font': True},
                        {'alias_group': 'sharedassets1'}):
             self.assertFalse(module.valid_resource_record(dict(row, **change)))
+        default = dict(row, name='GridBox_Default', source_name='GridBox_Default', source_format=10, target_format=45)
+        self.assertTrue(module.valid_resource_record(default))
+        self.assertFalse(module.valid_resource_record(dict(default, source_format=12)))
+        self.assertFalse(module.valid_resource_record(dict(default, target_format=47)))
+
+    def test_quality_etc2_rgb_keeps_color_block_and_checks_size(self):
+        class Encoder:
+            def encode(self, data, width, height, source_format):
+                return b'ALPHA123COLOR456'
+        row = {'source_format': 4, 'target_format': 45, 'width': 4, 'height': 4, 'mips': 1,
+               'quality': True, 'target_size': 8, 'target_sha256': module.sha(b'COLOR456')}
+        self.assertEqual(module.convert_texture(bytes(64), row, Encoder()), b'COLOR456')
+        class ShortEncoder:
+            def encode(self, *args): return b'bad'
+        with self.assertRaisesRegex(ValueError, 'quality block size'):
+            module.convert_texture(bytes(64), row, ShortEncoder())
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)

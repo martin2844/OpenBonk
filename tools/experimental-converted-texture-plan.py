@@ -28,7 +28,8 @@ def sha(data): return hashlib.sha256(data).hexdigest()
 
 def valid_resource_record(row):
     return (row.get('name') in study.RESOURCE_TEXTURES and row.get('source_name') == row['name'] and
-            row.get('source_format') == 12 and row.get('target_format') == 47 and row.get('quality') is True and
+            ((row['name'] in ('GridBox_Collider', 'GridBox_Trigger') and row.get('source_format') == 12 and row.get('target_format') == 47) or
+             (row['name'] == 'GridBox_Default' and row.get('source_format') == 10 and row.get('target_format') == 45)) and row.get('quality') is True and
             row.get('normal') is False and row.get('direct_normal') is False and
             not any(k in row for k in ('font', 'alias_group', 'alias_target_id')))
 
@@ -115,7 +116,10 @@ def convert_texture(payload, row, quality=None):
     chunks = []
     for w, h, data in source_mips:
         if row.get('quality', False):
-            encoded, fmt = quality.encode(data, w, h, row['source_format']), 47
+            encoded, fmt = quality.encode(data, w, h, row['source_format']), row['target_format']
+            if fmt == 45:
+                if len(encoded) != 2 * study.mip_size(45, w, h): raise ValueError('quality block size differs')
+                encoded = b''.join(encoded[i + 8:i + 16] for i in range(0, len(encoded), 16))
         else:
             image = converter.parse_image_data(data, w, h, row['source_format'], (2023, 2, 22, 0), 19)
             if row.get('normal', False): image = study.normal_image(image)
@@ -236,7 +240,7 @@ def generate(args):
                            'target_size': len(target), 'target_sha256': sha(target),
                            'fragments': fragments(parts, obj.byte_start + target_pos, len(target))}
                     # Verify the record is actually reproducible before blanking it.
-                    if type(row['quality']) is not bool or (row['quality'] and (row['normal'] or row['target_format'] != 47)):
+                    if type(row['quality']) is not bool or (row['quality'] and (row['normal'] or row['target_format'] not in (45, 47))):
                         raise ValueError('invalid quality texture metadata')
                     if type(row['direct_normal']) is not bool or (row['direct_normal'] and (row['normal'] or row['quality'] or row['target_format'] != 45 or row['source_format'] not in (3, 4, 10, 25))):
                         raise ValueError('invalid direct normal metadata')
@@ -283,7 +287,7 @@ def restore(args, convert=convert_texture):
                     type(row.get('quality', False)) is not bool or
                     type(row.get('direct_normal', False)) is not bool or
                     (row.get('direct_normal', False) and (row.get('normal', False) or row.get('quality', False) or row['target_format'] != 45 or row['source_format'] not in (3, 4, 10, 25))) or
-                    (row.get('quality', False) and (row.get('normal', False) or row['target_format'] != 47 or row['width'] > 2048 or row['height'] > 2048)) or
+                    (row.get('quality', False) and (row.get('normal', False) or row['target_format'] not in (45, 47) or row['width'] > 2048 or row['height'] > 2048)) or
                     (row.get('normal', False) and (row['source_format'], row['target_format']) != (12, 34)) or
                     (not row.get('normal', False) and row['target_format'] not in (4, 45, 47))):
                 raise ValueError('invalid texture conversion metadata')

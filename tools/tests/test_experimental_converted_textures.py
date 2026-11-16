@@ -57,6 +57,16 @@ class TextureConversionTests(unittest.TestCase):
         changed = original.copy(); changed.putpixel((0, 0), (100, 100, 100, 0))
         self.assertFalse(module.acceptable_quality_image(original, changed))
 
+    def test_resource_tolerance_is_explicit_and_keeps_pixel_limit(self):
+        from PIL import Image
+        original = Image.new('RGBA', (5, 1), (100, 100, 100, 255))
+        changed = Image.new('RGBA', (5, 1), (101, 100, 100, 255))
+        changed.putpixel((0, 0), (102, 100, 100, 255))
+        self.assertFalse(module.acceptable_quality_image(original, changed))
+        self.assertTrue(module.acceptable_quality_image(original, changed, 1.2))
+        changed.putpixel((0, 0), (133, 100, 100, 255))
+        self.assertFalse(module.acceptable_quality_image(original, changed, 100))
+
     def test_texture_error_gate_rejects_large_or_invalid_errors(self):
         self.assertTrue(module.acceptable_texture_error([0.0, 2.0, 10.0, 0.0]))
         for error in ([0, 0, 10.01, 0], [0, 0, float('nan'), 0], [0, 0, -1, 0], [0, 0, 0]):

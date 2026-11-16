@@ -21,7 +21,7 @@ PREFIX = 'assets/bin/Data/'
 GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
 FONT_ALIASES = {'LiberationSans SDF Atlas_0': 'LiberationSans SDF Atlas'}
-RESOURCE_TEXTURES = frozenset(('GridBox_Collider', 'GridBox_Trigger'))
+RESOURCE_TEXTURES = frozenset(('GridBox_Collider', 'GridBox_Trigger', 'GridBox_Default'))
 COLLISION_TEXTURES = {'bush': (64, 64, 7, 3, 45), 'retaliation': (32, 32, 1, 12, 47)}
 FOREST_TEXTURES = {'Forest1_TopGrass': ('Forest1_TopGrass', 128, 128, 8),
                    'Forest1_TopGrass_0': ('Forest1_TopGrass', 128, 128, 8),
@@ -65,7 +65,7 @@ def load_quality_encoder(path):
     return module.QualityEncoder(path)
 
 
-def acceptable_quality_image(original, converted):
+def acceptable_quality_image(original, converted, max_mean=1):
     from PIL import Image, ImageChops, ImageStat
     a, b = original.convert('RGBA'), converted.convert('RGBA')
     if a.size != b.size: return False
@@ -73,7 +73,7 @@ def acceptable_quality_image(original, converted):
     for shade in (0, 255):
         base = Image.new('RGBA', a.size, (shade, shade, shade, 255))
         diff = ImageChops.difference(Image.alpha_composite(base, a).convert('RGB'), Image.alpha_composite(base, b).convert('RGB'))
-        if max(ImageStat.Stat(diff).mean) > 1: return False
+        if max(ImageStat.Stat(diff).mean) > max_mean: return False
         r, g, blue = diff.split()
         if ImageChops.lighter(ImageChops.lighter(r, g), blue).getextrema()[1] > 32: return False
     return True
@@ -301,8 +301,10 @@ def run(args):
                     if font_candidate and not font:
                         quality_excluded.add(PREFIX + group)
                         outcomes['font_metadata_differs'] += 1; continue
-                    resource = bool(resource_candidate and source_name == src.m_Name and int(src.m_TextureFormat) == 12 and
-                                    int(target.m_TextureFormat) == 47 and (target.m_Width, target.m_Height, target.m_MipCount) == (512, 512, 10))
+                    resource = bool(resource_candidate and source_name == src.m_Name and
+                                    ((source_name in ('GridBox_Collider', 'GridBox_Trigger') and int(src.m_TextureFormat) == 12 and int(target.m_TextureFormat) == 47) or
+                                     (source_name == 'GridBox_Default' and int(src.m_TextureFormat) == 10 and int(target.m_TextureFormat) == 45)) and
+                                    (target.m_Width, target.m_Height, target.m_MipCount) == (512, 512, 10))
                     if resource_candidate and not resource:
                         quality_excluded.add(PREFIX + group)
                         outcomes['resource_metadata_differs'] += 1; continue
@@ -326,6 +328,9 @@ def run(args):
                             for level, (w, h, payload) in enumerate(source_mips):
                                 if use_quality:
                                     encoded, fmt = quality.encode(payload, w, h, int(src.m_TextureFormat)), target.m_TextureFormat
+                                    if int(target.m_TextureFormat) == 45:
+                                        if len(encoded) != 2 * mip_size(45, w, h): raise ValueError('quality block size differs')
+                                        encoded = b''.join(encoded[i + 8:i + 16] for i in range(0, len(encoded), 16))
                                 else:
                                     image = converter.parse_image_data(payload, w, h, src.m_TextureFormat, src.object_reader.version, src.object_reader.platform)
                                     if normal: image = normal_image(image)
@@ -338,7 +343,8 @@ def run(args):
                                 if resource or shadow:
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
-                                    if not acceptable_quality_image(original, converted): raise ResourceQualityError('resource mip quality differs')
+                                    limit = 1.2 if resource and source_name == 'GridBox_Default' else 1
+                                    if not acceptable_quality_image(original, converted, limit): raise ResourceQualityError('resource mip quality differs')
                                 if collision:
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')

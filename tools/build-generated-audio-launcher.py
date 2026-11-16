@@ -118,7 +118,7 @@ def verify_textures(template, plan_path, intermediate, cubemaps=False):
         if row.get('id') != i or type(size) is not int or not 0 < size <= 64 * 1024 * 1024:
             raise ValueError('invalid texture record')
         quality = row.get('quality', False)
-        if type(quality) is not bool or (quality and (cubemaps or row.get('normal', False) or row.get('target_format') != 47 or
+        if type(quality) is not bool or (quality and (cubemaps or row.get('normal', False) or row.get('target_format') not in (45, 47) or
                                                        type(row.get('width')) is not int or type(row.get('height')) is not int or
                                                        not 1 <= row['width'] <= 2048 or not 1 <= row['height'] <= 2048)):
             raise ValueError('invalid quality texture metadata')
