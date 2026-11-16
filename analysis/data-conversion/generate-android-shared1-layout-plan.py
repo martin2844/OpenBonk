@@ -13,11 +13,18 @@ def asset(path):
 def main():
  parser=argparse.ArgumentParser(description=__doc__)
  parser.add_argument('--base-obb',type=Path,default=BASE,help='local masked Android base OBB')
- parser.add_argument('--target-obb',type=Path,default=TARGET,help='local target Android OBB')
+ target=parser.add_mutually_exclusive_group()
+ target.add_argument('--target-obb',type=Path,help='local target Android OBB (default: historical target)')
+ target.add_argument('--target-asset',type=Path,help='pinned reconstructed sharedassets1 asset')
  parser.add_argument('--output',type=Path,default=OUT,help='new private plan file')
  args=parser.parse_args()
  if args.output.exists() or args.output.is_symlink():raise ValueError('output exists')
- original=asset(args.base_obb);target=asset(args.target_obb);env=UnityPy.load(original);a={o.path_id:o for o in env.objects};b={o.path_id:o for o in UnityPy.load(target).objects}
+ original=asset(args.base_obb)
+ if args.target_asset:
+  target=args.target_asset.read_bytes()
+  if sha(target).hex()!='b6b1d5fd2d261c1163608dfcdf354eca87afbec514840b963a9b5c50ce7fd33e':raise ValueError('reconstructed target asset differs')
+ else:target=asset(args.target_obb or TARGET)
+ env=UnityPy.load(original);a={o.path_id:o for o in env.objects};b={o.path_id:o for o in UnityPy.load(target).objects}
  if len(original)!=112604540 or len(target)!=122379840 or len(a)!=6368 or a.keys()!=b.keys() or env.file.header.data_offset!=194384 or env.file.header.endian!='<':raise ValueError('unexpected asset structure')
  records=[]
  for k,o in sorted(a.items()):

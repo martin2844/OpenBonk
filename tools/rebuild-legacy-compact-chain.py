@@ -36,11 +36,13 @@ def main():
     parser.add_argument('--windows-data', type=Path, help='also reconstruct the localization base from a pinned Windows Megabonk_Data directory (requires --shader-bundles)')
     parser.add_argument('--linux-zip', type=Path, help='also generate the shared audio plan using this pinned Linux Steam ZIP')
     parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
+    parser.add_argument('--include-layout-plan', action='store_true', help='also generate the shared1 layout plan (requires localization base)')
     converted_group = parser.add_mutually_exclusive_group(required=True)
     converted_group.add_argument('--converted-obb', type=Path, help='pinned historical converted OBB')
     converted_group.add_argument('--converted-assets', type=Path, help='directory of three independently rebuilt shared assets')
     converted_group.add_argument('--rebuild-converted-assets', action='store_true', help='regenerate the shared assets and their templates from the old APK/OBB and Steam')
     args = parser.parse_args()
+    if args.include_layout_plan and not args.windows_data: parser.error('--include-layout-plan requires --windows-data')
     if bool(args.linux_zip) != bool(args.windows_zip): parser.error('--linux-zip and --windows-zip must be provided together')
     if args.linux_zip and args.converted_obb: parser.error('audio plan generation requires --converted-assets or --rebuild-converted-assets')
     names = ('steam_data', *PINS, 'crunch_decoder')
@@ -109,7 +111,7 @@ def main():
         shared, hashed_plans, hashed, compact = (tmp/n for n in ('shared', 'hashed-plans', 'hashed', 'compact'))
         run('tools/generate-legacy-scene-manifests.py', '--steam-data', steam, '--old-apk', old_apk, '--old-obb', old_obb, '--output', scene_plans)
         run('tools/rebuild-legacy-scene-base.py', '--steam-data', steam, '--apk', new_apk, '--obb', new_obb, '--manifest-root', scene_plans, '--output', scene)
-        run('tools/generate-legacy-transplant-reports.py', '--old-apk', old_apk, '--old-obb', old_obb, '--new-apk', new_apk, '--new-obb', new_obb, '--converted-obb', converted, '--output', shared_inputs)
+        run('tools/generate-legacy-transplant-reports.py', '--old-apk', old_apk, '--old-obb', old_obb, '--new-apk', new_apk, '--new-obb', new_obb, '--converted-obb', converted, '--output', shared_inputs, *(['--include-private-shared1'] if args.include_layout_plan else []))
         generated_plans = tmp/'generated-plans'
         run('tools/generate-legacy-shared-plans.py', '--steam-data', steam, '--android-obb', old_obb, '--shared1-terrain-from-obb', '--shared1-source-from-obb', '--crunch-decoder', decoder, '--output', generated_plans)
         shutil.move(generated_plans/'share-source-experiment', shared_inputs/'share-source-experiment')
@@ -138,6 +140,14 @@ def main():
             run('tools/rebuild-legacy-localization-base.py', '--base', final, '--linux-data', steam,
                 '--windows-data', windows, '--output', locale)
             final = locale
+        layout_plan = None
+        if args.include_layout_plan:
+            layout_plan = tmp/'shared1-layout-plan.bin'
+            run('analysis/data-conversion/generate-android-shared1-layout-plan.py', '--base-obb', final/'base.obb',
+                '--target-asset', shared_inputs/'reconstructed-sharedassets1.assets', '--output', layout_plan)
+            with layout_plan.open('rb') as f:
+                if hashlib.file_digest(f, 'sha256').hexdigest() != '0142daaaf1e07c3a9aa90dac01382f8fba6cce74983f669376b01fce1fff6ed0':
+                    raise ValueError('shared1 layout plan differs')
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:
@@ -150,6 +160,9 @@ def main():
                 else: raise ValueError('unexpected output type')
             if audio_plan is not None:
                 with audio_plan.open('rb') as src, (out/'shared-audio-plan.bin').open('xb') as dest:
+                    shutil.copyfileobj(src, dest)
+            if layout_plan is not None:
+                with layout_plan.open('rb') as src, (out/'shared1-layout-plan.bin').open('xb') as dest:
                     shutil.copyfileobj(src, dest)
         except BaseException:
             shutil.rmtree(out)

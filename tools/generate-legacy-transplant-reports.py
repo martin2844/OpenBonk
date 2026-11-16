@@ -53,6 +53,7 @@ def main():
     for name in ('old-apk', 'old-obb', 'converted-obb', 'new-apk', 'new-obb'):
         parser.add_argument('--'+name, required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--include-private-shared1', action='store_true', help='retain the reconstructed shared1 target asset')
     args = parser.parse_args()
     archives = [getattr(args, name).resolve(strict=True) for name in ('old_apk', 'old_obb', 'converted_obb', 'new_apk', 'new_obb')]
     output = args.output.expanduser().absolute()
@@ -80,10 +81,16 @@ def main():
                 report.write_text(json.dumps(doc, indent=2)+'\n')
             if hashlib.sha256(report.read_bytes()).hexdigest() != expected:
                 raise ValueError('generated transplant report differs: '+name)
+            if i == 1 and args.include_private_shared1:
+                with asset.open('rb') as stream:
+                    if hashlib.file_digest(stream, 'sha256').hexdigest() != 'b6b1d5fd2d261c1163608dfcdf354eca87afbec514840b963a9b5c50ce7fd33e':
+                        raise ValueError('reconstructed shared1 differs')
         output.mkdir(mode=0o700)
         try:
             for name, _ in REPORTS:
                 shutil.copyfile(tmp/name, output/name)
+            if args.include_private_shared1:
+                shutil.copyfile(tmp/'output-1.assets', output/'reconstructed-sharedassets1.assets')
         except BaseException:
             shutil.rmtree(output)
             raise
