@@ -11,7 +11,7 @@
 
 ## Preparar los archivos de OpenBonk
 
-En el PC, descarga `OpenBonk-beta.zip` desde la [versión beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) y descomprímelo en una carpeta. Dentro están `OpenBonk.apk`, una guía y la carpeta `tools`. Deja `tools` completa si necesitas usar el asistente de ZIP. La APK es el instalador; todavía falta crear por separado el ZIP privado de tu copia de Steam.
+En el PC, descarga `OpenBonk-beta.zip` desde la [versión beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) y descomprímelo en una carpeta. Dentro están `OpenBonk.apk`, una guía y la carpeta `tools`. Deja `tools` completa si necesitas usar el asistente de ZIP. La APK es el instalador; todavía falta crear por separado el ZIP privado de tu copia de Steam.
 
 ## Preparar el ZIP del juego
 
@@ -45,14 +45,14 @@ Copia el ZIP reducido que creó el asistente a Descargas en Android y selección
 
 1. Abre `OpenBonk.apk` desde la aplicación de archivos de Android; si se muestran detalles del archivo, busca **Abrir con → Instalador de paquetes**. Si el sistema pide permiso para instalar desde esa aplicación, revisa el aviso y sigue las instrucciones de Android. Puedes volver a desactivar el permiso después de instalar.
 2. Abre OpenBonk. En el launcher elige **Controller** o **Touch** según el control que quieras usar.
-3. Toca **Import Steam game**, busca el ZIP en Descargas y selecciónalo. El botón **Import prepared Android data** es para un paquete Android previamente preparado, no para el ZIP de Steam. Espera a que aparezca **Data ready**; mantén la app abierta durante la preparación. El texto cambia al pasar de una etapa a otra, pero no muestra un porcentaje.
+3. Toca **Megabonk game files ZIP**, busca el ZIP en Descargas y selecciónalo. El botón **Import prepared Android data** es para un paquete Android previamente preparado, no para el ZIP de Steam. Espera a que aparezca **Data ready**; mantén la app abierta durante la preparación. El texto cambia al pasar de una etapa a otra, pero no muestra un porcentaje.
 4. Toca **Play**. La primera vez se importan textos y texturas antes de llegar al menú.
 
 El perfil de Steam es opcional. Para importarlo, cierra el juego en el PC y conserva un respaldo. Busca la carpeta de la cuenta dentro de `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` en Linux o, en Windows, prueba `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\` (ruta todavía no verificada en Windows). Comprime juntos `progression.json` y `stats.json` de la misma cuenta, cópialos como ZIP al Android y elige **Import profile ZIP**. Al iniciar el juego se reemplaza el progreso de la cuenta Android actual; conserva el respaldo original. La importación es puntual y no sincroniza PC y Android. El ZIP del perfil es privado: no lo envíes con un reporte.
 
-Para respaldar el progreso de Android, cierra completamente el juego, abre el launcher y elige **Export progress**. Selecciona el perfil y guarda el ZIP en un lugar privado. Puedes volver a aplicarlo con **Import profile ZIP**; contiene progreso y estadísticas, pero no los controles ni los mods. La exportación se probó en iPlay con un perfil de prueba; no reemplaza el respaldo original de Steam.
+Para respaldar el progreso de Android, cierra completamente el juego, abre el launcher y elige **Export profile**. Selecciona el perfil y guarda el ZIP en un lugar privado. Puedes volver a aplicarlo con **Import profile ZIP**; contiene progreso y estadísticas, pero no los controles ni los mods. La exportación se probó en iPlay con un perfil de prueba; no reemplaza el respaldo original de Steam.
 
-**Copias de seguridad de Android:** esta versión no desactiva Auto Backup. Según la configuración de tu dispositivo, Android puede incluir datos de la aplicación, como partidas o un perfil pendiente de importar, en la copia de seguridad de tu cuenta y en transferencias entre dispositivos. La APK de la beta publicada no solicita el permiso de Internet, pero eso no impide que el sistema gestione sus propias copias. Una futura versión con actualizaciones y catálogo de mods solicitará acceso a Internet. Si no quieres usar ese respaldo, revisa la configuración de copias de seguridad de Android. Al desinstalar la aplicación se pueden borrar sus datos locales: conserva una copia de tu progreso antes de hacerlo. [Cómo funciona Auto Backup](https://developer.android.com/identity/data/autobackup).
+**Copias de seguridad de Android:** esta versión no desactiva Auto Backup. Según la configuración de tu dispositivo, Android puede incluir datos de la aplicación, como partidas o un perfil pendiente de importar, en la copia de seguridad de tu cuenta y en transferencias entre dispositivos. El launcher usa Internet para las actualizaciones y el catálogo de mods. Si no quieres usar ese respaldo, revisa la configuración de copias de seguridad de Android. Al desinstalar la aplicación se pueden borrar sus datos locales: conserva una copia de tu progreso antes de hacerlo. [Cómo funciona Auto Backup](https://developer.android.com/identity/data/autobackup).
 
 ## Si algo falla
 

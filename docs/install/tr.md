@@ -13,7 +13,7 @@
 
 ## Beta paketini edinin
 
-`OpenBonk-beta.zip`'yi [beta sürümünden](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) indirin ve bilgisayarınıza çıkarın. `OpenBonk.apk`, bir kurulum kılavuzu ve bir `tools` klasörü içerir. ZIP yardımcısına ihtiyacınız varsa `tools` klasörünün tamamını saklayın. APK yükleyicidir; kendi Steam kopyanızdan ayrı olarak özel bir ZIP oluşturmalısınız.
+`OpenBonk-beta.zip`'yi [beta sürümünden](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) indirin ve bilgisayarınıza çıkarın. `OpenBonk.apk`, bir kurulum kılavuzu ve bir `tools` klasörü içerir. ZIP yardımcısına ihtiyacınız varsa `tools` klasörünün tamamını saklayın. APK yükleyicidir; kendi Steam kopyanızdan ayrı olarak özel bir ZIP oluşturmalısınız.
 
 ## Oyun verileri ZIP'ini oluşturun
 
@@ -47,16 +47,16 @@ Yardımcının ZIP'ini Android'deki İndirilenler'e kopyalayın ve tam ZIP yerin
 
 1. Android'in dosya yöneticisinde `OpenBonk.apk`'yi açın. Dosya ayrıntılarını görüyorsanız **Birlikte aç → Paket yükleyici** seçeneğini arayın. Android söz konusu uygulamadan yükleme yapmak için izin isterse istemi okuyun ve talimatları izleyin. Daha sonra bu izni kapatabilirsiniz.
 2. OpenBonk'u açın. Başlatıcıda **Controller** veya **Touch**'yi seçin.
-3. **Import Steam game**'yi seçin, İndirilenler'de ZIP'i bulun ve seçin. **Import prepared Android data**, Steam ZIP için değil, önceden hazırlanmış bir Android paketi içindir. Uygulamayı açık tutun ve **Data ready**'yi bekleyin. Mesaj aşamalar arasında değişir ancak yüzde gösterilmez.
+3. **Megabonk game files ZIP**'yi seçin, İndirilenler'de ZIP'i bulun ve seçin. **Import prepared Android data**, Steam ZIP için değil, önceden hazırlanmış bir Android paketi içindir. Uygulamayı açık tutun ve **Data ready**'yi bekleyin. Mesaj aşamalar arasında değişir ancak yüzde gösterilmez.
 4. **Play**'yi seçin. İlk başlatmada, oyun menüsü görünmeden önce metin ve dokular içe aktarılır.
 
 ## İlerlemeyi içe aktarın ve yedekleyin
 
 Steam profilinin içe aktarılması isteğe bağlıdır. Öncelikle oyunu bilgisayarınızdan kapatın ve yedeğini alın. Linux'ta `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` adresindeki hesap klasörünü bulun veya Windows'ta `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\`'yi deneyin (Windows yolu doğrulanmadı). ZIP `progression.json` ve `stats.json`'yi aynı hesaptan birlikte kullanın, ZIP'i Android'e kopyalayın ve **Import profile ZIP**'yi seçin. Oyunun başlatılması mevcut Android hesabının ilerlemesinin yerini alır, bu nedenle orijinal yedeğinizi saklayın. Bu, PC'den Android'e senkronizasyon değil, tek seferlik bir içe aktarma işlemidir. Profil ZIP'i özeldir; bunu bir rapora eklemeyin.
 
-Android ilerlemesini yedeklemek için oyunu tamamen kapatın, başlatıcıyı açın ve **Export progress**'yi seçin. Bir profil seçin ve ZIP'i özel bir yere kaydedin. **Import profile ZIP** kullanarak geri yükleyebilirsiniz. ZIP, ilerleme ve istatistikleri içerir, ancak kontrolleri veya modları içermez. Dışa aktarma, bir test profiliyle iPlay'de test edildi; Orijinal Steam yedeğini de saklayın.
+Android ilerlemesini yedeklemek için oyunu tamamen kapatın, başlatıcıyı açın ve **Export profile**'yi seçin. Bir profil seçin ve ZIP'i özel bir yere kaydedin. **Import profile ZIP** kullanarak geri yükleyebilirsiniz. ZIP, ilerleme ve istatistikleri içerir, ancak kontrolleri veya modları içermez. Dışa aktarma, bir test profiliyle iPlay'de test edildi; Orijinal Steam yedeğini de saklayın.
 
-**Android yedeklemeleri:** bu sürüm Otomatik Yedekleme'yi devre dışı bırakmaz. Cihaz ayarlarına bağlı olarak Android, hesap yedeklemelerine ve cihaz aktarımlarına kaydetmeler veya beklemedeki profillerin içe aktarılması gibi uygulama verilerini dahil edebilir. APK İnternet izni istemez ancak Android kendi yedeklemelerini yönetebilir. Bunu istemiyorsanız Android'in yedekleme ayarlarını inceleyin. Uygulamanın kaldırılması yerel verileri silebilir; Öncelikle ilerlemeyi yedekleyin. [Android Otomatik Yedekleme](https://developer.android.com/identity/data/autobackup).
+**Android yedeklemeleri:** bu sürüm Otomatik Yedekleme'yi devre dışı bırakmaz. Cihaz ayarlarına bağlı olarak Android, hesap yedeklemelerine ve cihaz aktarımlarına kaydetmeler veya beklemedeki profillerin içe aktarılması gibi uygulama verilerini dahil edebilir. Başlatıcı, güncellemeler ve mod kataloğu için internet kullanır. Bunu istemiyorsanız Android'in yedekleme ayarlarını inceleyin. Uygulamanın kaldırılması yerel verileri silebilir; Öncelikle ilerlemeyi yedekleyin. [Android Otomatik Yedekleme](https://developer.android.com/identity/data/autobackup).
 
 ## Sorun giderme
 

@@ -13,7 +13,7 @@
 
 ## Obtenez le package bêta
 
-Téléchargez `OpenBonk-beta.zip` à partir de la [version bêta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) et extrayez-le sur votre ordinateur. Il contient `OpenBonk.apk`, un guide d'installation et un dossier `tools`. Conservez l'intégralité du dossier `tools` si vous avez besoin de l'assistant ZIP. L'APK est le programme d'installation ; vous devez créer séparément un ZIP privé à partir de votre propre copie Steam.
+Téléchargez `OpenBonk-beta.zip` à partir de la [version bêta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) et extrayez-le sur votre ordinateur. Il contient `OpenBonk.apk`, un guide d'installation et un dossier `tools`. Conservez l'intégralité du dossier `tools` si vous avez besoin de l'assistant ZIP. L'APK est le programme d'installation ; vous devez créer séparément un ZIP privé à partir de votre propre copie Steam.
 
 ## Créez le ZIP des données du jeu
 
@@ -47,16 +47,16 @@ Copiez le ZIP de l'assistant dans Téléchargements sur Android et sélectionnez
 
 1. Ouvrez `OpenBonk.apk` dans le gestionnaire de fichiers d'Android. Si vous voyez les détails du fichier, recherchez **Ouvrir avec → Programme d'installation du package**. Si Android demande l'autorisation d'installer à partir de cette application, lisez l'invite et suivez ses instructions. Vous pouvez désactiver cette autorisation par la suite.
 2. Ouvrez OpenBonk. Dans le lanceur, choisissez **Controller** ou **Touch**.
-3. Sélectionnez **Import Steam game**, recherchez le ZIP dans Téléchargements et sélectionnez-le. **Import prepared Android data** est destiné à un bundle Android préalablement préparé, et non au Steam ZIP. Gardez l'application ouverte et attendez **Data ready**. Le message change entre les étapes, mais aucun pourcentage n'est affiché.
+3. Sélectionnez **Megabonk game files ZIP**, recherchez le ZIP dans Téléchargements et sélectionnez-le. **Import prepared Android data** est destiné à un bundle Android préalablement préparé, et non au Steam ZIP. Gardez l'application ouverte et attendez **Data ready**. Le message change entre les étapes, mais aucun pourcentage n'est affiché.
 4. Sélectionnez **Play**. Au premier lancement, le texte et les textures sont importés avant que le menu du jeu n'apparaisse.
 
 ## Importer et sauvegarder la progression
 
 L'importation d'un profil Steam est facultative. Fermez d’abord le jeu sur votre ordinateur et conservez une sauvegarde. Recherchez le dossier du compte dans `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` sous Linux ou essayez `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\` sous Windows (le chemin Windows n'a pas été vérifié). ZIP `progression.json` et `stats.json` du même compte ensemble, copiez le ZIP sur Android et choisissez **Import profile ZIP**. Le démarrage du jeu remplace la progression du compte Android actuel, alors conservez votre sauvegarde d'origine. Il s'agit d'une importation unique et non d'une synchronisation PC vers Android. Le profil ZIP est privé ; ne le joignez pas à un rapport.
 
-Pour sauvegarder la progression d'Android, fermez complètement le jeu, ouvrez le lanceur et sélectionnez **Export progress**. Choisissez un profil et enregistrez le ZIP dans un endroit privé. Vous pouvez le restaurer en utilisant **Import profile ZIP**. Le ZIP contient des progrès et des statistiques, mais pas de contrôles ou de mods. L'export a été testé sur un iPlay avec un profil de test ; conservez également la sauvegarde Steam originale.
+Pour sauvegarder la progression d'Android, fermez complètement le jeu, ouvrez le lanceur et sélectionnez **Export profile**. Choisissez un profil et enregistrez le ZIP dans un endroit privé. Vous pouvez le restaurer en utilisant **Import profile ZIP**. Le ZIP contient des progrès et des statistiques, mais pas de contrôles ou de mods. L'export a été testé sur un iPlay avec un profil de test ; conservez également la sauvegarde Steam originale.
 
-**Sauvegardes Android :** cette version ne désactive pas la sauvegarde automatique. En fonction des paramètres de l'appareil, Android peut inclure des données d'application, telles que des sauvegardes ou une importation de profil en attente, dans les sauvegardes de compte et les transferts d'appareils. L'APK ne demande pas d'autorisation Internet, mais Android peut gérer ses propres sauvegardes. Vérifiez les paramètres de sauvegarde d'Android si vous ne le souhaitez pas. La désinstallation de l'application peut supprimer les données locales ; sauvegardez d’abord la progression. [Sauvegarde automatique Android](https://developer.android.com/identity/data/autobackup).
+**Sauvegardes Android :** cette version ne désactive pas la sauvegarde automatique. En fonction des paramètres de l'appareil, Android peut inclure des données d'application, telles que des sauvegardes ou une importation de profil en attente, dans les sauvegardes de compte et les transferts d'appareils. Le lanceur utilise Internet pour les mises à jour et le catalogue de mods. Vérifiez les paramètres de sauvegarde d'Android si vous ne le souhaitez pas. La désinstallation de l'application peut supprimer les données locales ; sauvegardez d’abord la progression. [Sauvegarde automatique Android](https://developer.android.com/identity/data/autobackup).
 
 ## Dépannage
 

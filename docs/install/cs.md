@@ -13,7 +13,7 @@
 
 ## Získejte beta balíček
 
-Stáhněte si `OpenBonk-beta.zip` z [beta verze](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) a rozbalte jej do počítače. Obsahuje `OpenBonk.apk`, instalační příručku a složku `tools`. Pokud potřebujete pomocníka ZIP, ponechte si celou složku `tools`. APK je instalační program; musíte samostatně vytvořit soukromý ZIP z vaší vlastní kopie Steam.
+Stáhněte si `OpenBonk-beta.zip` z [beta verze](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) a rozbalte jej do počítače. Obsahuje `OpenBonk.apk`, instalační příručku a složku `tools`. Pokud potřebujete pomocníka ZIP, ponechte si celou složku `tools`. APK je instalační program; musíte samostatně vytvořit soukromý ZIP z vaší vlastní kopie Steam.
 
 ## Vytvořte ZIP s daty hry
 
@@ -47,16 +47,16 @@ Zkopírujte soubor ZIP pomocníka do složky Stahování v systému Android a vy
 
 1. Otevřete `OpenBonk.apk` ve správci souborů Android. Pokud vidíte podrobnosti o souboru, vyhledejte **Otevřít pomocí → Instalační program balíčku**. Pokud Android požádá o povolení k instalaci z této aplikace, přečtěte si výzvu a postupujte podle jejích pokynů. Toto oprávnění můžete později vypnout.
 2. Otevřete OpenBonk. Ve spouštěči vyberte **Controller** nebo **Touch**.
-3. Vyberte **Import Steam game**, vyhledejte ZIP v části Stahování a vyberte jej. **Import prepared Android data** je pro dříve připravený balíček Android, nikoli pro Steam ZIP. Nechte aplikaci otevřenou a počkejte na **Data ready**. Zpráva se mezi jednotlivými fázemi mění, ale nezobrazuje se žádné procento.
+3. Vyberte **Megabonk game files ZIP**, vyhledejte ZIP v části Stahování a vyberte jej. **Import prepared Android data** je pro dříve připravený balíček Android, nikoli pro Steam ZIP. Nechte aplikaci otevřenou a počkejte na **Data ready**. Zpráva se mezi jednotlivými fázemi mění, ale nezobrazuje se žádné procento.
 4. Vyberte **Play**. Při prvním spuštění se text a textury importují, než se objeví herní menu.
 
 ## Importujte a zálohujte průběh
 
 Import profilu Steam je volitelný. Nejprve zavřete hru na počítači a ponechte si zálohu. Najděte složku účtu na adrese `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` v systému Linux nebo vyzkoušejte `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\` v systému Windows (cesta systému Windows nebyla ověřena). ZIP `progression.json` a `stats.json` ze stejného účtu společně, zkopírujte ZIP do Androidu a vyberte **Import profile ZIP**. Spuštění hry nahradí postup aktuálního účtu Android, proto si ponechte původní zálohu. Jedná se o jednorázový import, nikoli o synchronizaci mezi PC a Androidem. ZIP profilu je soukromý; nepřipojujte jej ke zprávě.
 
-Chcete-li zálohovat postup Androidu, úplně zavřete hru, otevřete spouštěč a vyberte **Export progress**. Vyberte profil a uložte ZIP někam do soukromí. Můžete jej obnovit pomocí **Import profile ZIP**. ZIP obsahuje pokrok a statistiky, ale ne ovládací prvky nebo mody. Export byl testován na iPlay s testovacím profilem; ponechte si také původní zálohu Steam.
+Chcete-li zálohovat postup Androidu, úplně zavřete hru, otevřete spouštěč a vyberte **Export profile**. Vyberte profil a uložte ZIP někam do soukromí. Můžete jej obnovit pomocí **Import profile ZIP**. ZIP obsahuje pokrok a statistiky, ale ne ovládací prvky nebo mody. Export byl testován na iPlay s testovacím profilem; ponechte si také původní zálohu Steam.
 
-**Zálohy Android:** tato verze nezakazuje automatické zálohování. V závislosti na nastavení zařízení může Android do zálohování účtů a přenosů zařízení zahrnout data aplikací, jako jsou uložení nebo nevyřízený import profilu. Soubor APK nepožaduje povolení k internetu, ale Android může spravovat své vlastní zálohy. Pokud si to nepřejete, zkontrolujte nastavení zálohování systému Android. Odinstalováním aplikace můžete odstranit místní data; nejprve zálohovat pokrok. [Automatické zálohování Android](https://developer.android.com/identity/data/autobackup).
+**Zálohy Android:** tato verze nezakazuje automatické zálohování. V závislosti na nastavení zařízení může Android do zálohování účtů a přenosů zařízení zahrnout data aplikací, jako jsou uložení nebo nevyřízený import profilu. Launcher používá internet pro aktualizace a katalog modů. Pokud si to nepřejete, zkontrolujte nastavení zálohování systému Android. Odinstalováním aplikace můžete odstranit místní data; nejprve zálohovat pokrok. [Automatické zálohování Android](https://developer.android.com/identity/data/autobackup).
 
 ## Odstraňování problémů
 

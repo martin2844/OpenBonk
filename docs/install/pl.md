@@ -13,7 +13,7 @@
 
 ## Zdobądź pakiet beta
 
-Pobierz `OpenBonk-beta.zip` z [wersji beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) i rozpakuj go na swoim komputerze. Zawiera `OpenBonk.apk`, instrukcję instalacji i folder `tools`. Zachowaj cały folder `tools`, jeśli potrzebujesz pomocnika ZIP. APK jest instalatorem; musisz osobno utworzyć prywatny plik ZIP z własnej kopii Steam.
+Pobierz `OpenBonk-beta.zip` z [wersji beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) i rozpakuj go na swoim komputerze. Zawiera `OpenBonk.apk`, instrukcję instalacji i folder `tools`. Zachowaj cały folder `tools`, jeśli potrzebujesz pomocnika ZIP. APK jest instalatorem; musisz osobno utworzyć prywatny plik ZIP z własnej kopii Steam.
 
 ## Utwórz plik ZIP z danymi gry
 
@@ -47,16 +47,16 @@ Skopiuj plik ZIP pomocnika do Pobrane na Androida i wybierz go zamiast pełnego 
 
 1. Otwórz `OpenBonk.apk` w menedżerze plików Androida. Jeśli widzisz szczegóły pliku, poszukaj **Otwórz za pomocą → Instalator pakietu**. Jeśli system Android poprosi o pozwolenie na instalację z tej aplikacji, przeczytaj monit i postępuj zgodnie z zawartymi w nim instrukcjami. Możesz później wyłączyć to uprawnienie.
 2. Otwórz OpenBonka. W launcherze wybierz **Controller** lub **Touch**.
-3. Wybierz **Import Steam game**, znajdź plik ZIP w sekcji Pobrane i wybierz go. **Import prepared Android data** dotyczy wcześniej przygotowanego pakietu Androida, a nie Steam ZIP. Pozostaw aplikację otwartą i poczekaj na **Data ready**. Komunikat zmienia się pomiędzy etapami, ale nie jest wyświetlana wartość procentowa.
+3. Wybierz **Megabonk game files ZIP**, znajdź plik ZIP w sekcji Pobrane i wybierz go. **Import prepared Android data** dotyczy wcześniej przygotowanego pakietu Androida, a nie Steam ZIP. Pozostaw aplikację otwartą i poczekaj na **Data ready**. Komunikat zmienia się pomiędzy etapami, ale nie jest wyświetlana wartość procentowa.
 4. Wybierz **Play**. Przy pierwszym uruchomieniu tekst i tekstury są importowane, zanim pojawi się menu gry.
 
 ## Importuj i twórz kopie zapasowe postępu
 
 Importowanie profilu Steam jest opcjonalne. Najpierw zamknij grę na swoim komputerze i zachowaj kopię zapasową. Znajdź folder konta pod adresem `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` w systemie Linux lub wypróbuj `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\` w systemie Windows (ścieżka systemu Windows nie została zweryfikowana). ZIP `progression.json` i `stats.json` z tego samego konta razem, skopiuj ZIP do Androida i wybierz **Import profile ZIP**. Uruchomienie gry zastępuje postęp bieżącego konta Android, dlatego zachowaj oryginalną kopię zapasową. Jest to jednorazowy import, a nie synchronizacja między komputerem a systemem Android. Profil ZIP jest prywatny; nie dołączaj go do raportu.
 
-Aby wykonać kopię zapasową postępu Androida, zamknij całkowicie grę, otwórz program uruchamiający i wybierz **Export progress**. Wybierz profil i zapisz plik ZIP w prywatnym miejscu. Możesz go przywrócić za pomocą **Import profile ZIP**. ZIP zawiera postęp i statystyki, ale nie zawiera elementów sterujących ani modów. Eksport został przetestowany na iPlay z profilem testowym; zachowaj także oryginalną kopię zapasową Steam.
+Aby wykonać kopię zapasową postępu Androida, zamknij całkowicie grę, otwórz program uruchamiający i wybierz **Export profile**. Wybierz profil i zapisz plik ZIP w prywatnym miejscu. Możesz go przywrócić za pomocą **Import profile ZIP**. ZIP zawiera postęp i statystyki, ale nie zawiera elementów sterujących ani modów. Eksport został przetestowany na iPlay z profilem testowym; zachowaj także oryginalną kopię zapasową Steam.
 
-**Kopie zapasowe Androida:** ta wersja nie wyłącza Automatycznej kopii zapasowej. W zależności od ustawień urządzenia Android może uwzględniać dane aplikacji, takie jak zapisane dane lub oczekujący import profilu, w kopiach zapasowych kont i transferach urządzeń. Plik APK nie żąda pozwolenia na Internet, ale Android może zarządzać własnymi kopiami zapasowymi. Przejrzyj ustawienia kopii zapasowych Androida, jeśli tego nie chcesz. Odinstalowanie aplikacji może spowodować usunięcie danych lokalnych; najpierw wykonaj kopię zapasową postępu. [Automatyczna kopia zapasowa Androida](https://developer.android.com/identity/data/autobackup).
+**Kopie zapasowe Androida:** ta wersja nie wyłącza Automatycznej kopii zapasowej. W zależności od ustawień urządzenia Android może uwzględniać dane aplikacji, takie jak zapisane dane lub oczekujący import profilu, w kopiach zapasowych kont i transferach urządzeń. Launcher korzysta z Internetu w celu aktualizacji i dostępu do katalogu modów. Przejrzyj ustawienia kopii zapasowych Androida, jeśli tego nie chcesz. Odinstalowanie aplikacji może spowodować usunięcie danych lokalnych; najpierw wykonaj kopię zapasową postępu. [Automatyczna kopia zapasowa Androida](https://developer.android.com/identity/data/autobackup).
 
 ## Rozwiązywanie problemów
 

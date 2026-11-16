@@ -13,7 +13,7 @@
 
 ## 取得測試版包
 
-從 [測試版](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) 下載 `OpenBonk-beta.zip` 並將其解壓縮到您的電腦上。它包含 `OpenBonk.apk`、安裝指南和 `tools` 資料夾。如果您需要 ZIP 幫助程序，請保留整個 `tools` 資料夾。 APK是安裝程式；您必須從您自己的 Steam 副本中單獨建立一個私人 ZIP。
+從 [測試版](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) 下載 `OpenBonk-beta.zip` 並將其解壓縮到您的電腦上。它包含 `OpenBonk.apk`、安裝指南和 `tools` 資料夾。如果您需要 ZIP 幫助程序，請保留整個 `tools` 資料夾。 APK是安裝程式；您必須從您自己的 Steam 副本中單獨建立一個私人 ZIP。
 
 ## 創建遊戲資料 ZIP
 
@@ -47,16 +47,16 @@ py -3 .\tools\create-launcher-steam-zip.py "C:\ruta\a\Megabonk\Megabonk_Data" "$
 
 1. 在 Android 的檔案管理器中開啟 `OpenBonk.apk`。如果您看到文件詳細信息，請尋找 **開啟方式 → 軟體包安裝程式**。如果 Android 請求從該應用程式安裝的權限，請閱讀提示並按照其說明進行操作。您可以稍後關閉該權限。
 2. 打開 OpenBonk。在啟動器中選擇 **Controller** 或 **Touch**。
-3. 選擇**Import Steam game**，在下載中找到ZIP並選擇它。 **Import prepared Android data** 適用於先前準備好的 Android 套裝包，而不是 Steam ZIP。保持應用程式開啟並等待 **Data ready**。訊息在階段之間發生變化，但不顯示百分比。
+3. 選擇**Megabonk game files ZIP**，在下載中找到ZIP並選擇它。 **Import prepared Android data** 適用於先前準備好的 Android 套裝包，而不是 Steam ZIP。保持應用程式開啟並等待 **Data ready**。訊息在階段之間發生變化，但不顯示百分比。
 4. 選擇 **Play**。首次啟動時，文字和紋理會在遊戲選單出現之前導入。
 
 ## 導入並備份進度
 
 導入 Steam 設定檔是可選的。首先關閉電腦上的遊戲並保留備份。在 Linux 上找到位於 `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` 的帳戶資料夾，或在 Windows 上嘗試 `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\`（Windows 路徑尚未驗證）。來自同一帳戶的 `progression.json` 和 `stats.json` 的 ZIP 一起，將 ZIP 複製到 Android 並選擇 **Import profile ZIP**。開始遊戲會替換目前 Android 帳戶的進度，因此請保留原始備份。這是一次性導入，而不是 PC 到 Android 同步。設定檔 ZIP 是私有的；不要將其附加到報告中。
 
-若要備份 Android 進度，請完全關閉遊戲，開啟啟動器並選擇 **Export progress**。選擇一個設定檔並將 ZIP 保存在私人位置。您可以使用 **Import profile ZIP** 恢復它。 ZIP 包含進度和統計數據，但不包含控製或模組。匯出已在 iPlay 上使用測試設定檔進行了測試；也保留原始的 Steam 備份。
+若要備份 Android 進度，請完全關閉遊戲，開啟啟動器並選擇 **Export profile**。選擇一個設定檔並將 ZIP 保存在私人位置。您可以使用 **Import profile ZIP** 恢復它。 ZIP 包含進度和統計數據，但不包含控製或模組。匯出已在 iPlay 上使用測試設定檔進行了測試；也保留原始的 Steam 備份。
 
-**Android 備份：** 此版本不會停用自動備份。根據裝置設置，Android 可能會在帳戶備份和裝置傳輸中包含應用程式數據，例如儲存或待處理的設定檔匯入。 APK 不會要求網路權限，但 Android 可以管理自己的備份。如果您不希望這樣做，請檢查 Android 的備份設定。卸載應用程式可以刪除本機資料；首先備份進度。 [Android 自動備份](https://developer.android.com/identity/data/autobackup)。
+**Android 備份：** 此版本不會停用自動備份。根據裝置設置，Android 可能會在帳戶備份和裝置傳輸中包含應用程式數據，例如儲存或待處理的設定檔匯入。 啟動器使用網路取得更新與模組目錄。如果您不希望這樣做，請檢查 Android 的備份設定。卸載應用程式可以刪除本機資料；首先備份進度。 [Android 自動備份](https://developer.android.com/identity/data/autobackup)。
 
 ## 故障排除
 

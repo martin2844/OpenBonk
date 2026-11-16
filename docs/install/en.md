@@ -11,7 +11,7 @@
 
 ## Get the beta package
 
-Download `OpenBonk-beta.zip` from the [beta release](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) and extract it on your computer. It contains `OpenBonk.apk`, an installation guide and a `tools` folder. Keep the whole `tools` folder if you need the ZIP helper. The APK is the installer; you must separately create a private ZIP from your own Steam copy.
+Download `OpenBonk-beta.zip` from the [beta release](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) and extract it on your computer. It contains `OpenBonk.apk`, an installation guide and a `tools` folder. Keep the whole `tools` folder if you need the ZIP helper. The APK is the installer; you must separately create a private ZIP from your own Steam copy.
 
 ## Create the game-data ZIP
 
@@ -45,16 +45,16 @@ Copy the helper's ZIP to Downloads on Android and select it instead of the full 
 
 1. Open `OpenBonk.apk` in Android's file manager. If you see file details, look for **Open with → Package installer**. If Android asks for permission to install from that app, read the prompt and follow its instructions. You can turn that permission off afterward.
 2. Open OpenBonk. In the launcher choose **Controller** or **Touch**.
-3. Select **Import Steam game**, find the ZIP in Downloads and select it. **Import prepared Android data** is for a previously prepared Android bundle, not the Steam ZIP. Keep the app open and wait for **Data ready**. The message changes between stages, but no percentage is shown.
+3. Select **Megabonk game files ZIP**, find the ZIP in Downloads and select it. **Import prepared Android data** is for a previously prepared Android bundle, not the Steam ZIP. Keep the app open and wait for **Data ready**. The message changes between stages, but no percentage is shown.
 4. Select **Play**. On the first launch, text and textures are imported before the game menu appears.
 
 ## Import and back up progress
 
 Importing a Steam profile is optional. First close the game on your computer and keep a backup. Find the account folder at `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` on Linux or try `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\` on Windows (the Windows path has not been verified). ZIP `progression.json` and `stats.json` from the same account together, copy the ZIP to Android and choose **Import profile ZIP**. Starting the game replaces the current Android account's progress, so keep your original backup. This is a one-time import, not PC-to-Android synchronization. The profile ZIP is private; do not attach it to a report.
 
-To back up Android progress, close the game completely, open the launcher and select **Export progress**. Choose a profile and save the ZIP somewhere private. You can restore it using **Import profile ZIP**. The ZIP contains progress and statistics, but not controls or mods. Export was tested on an iPlay with a test profile; keep the original Steam backup as well.
+To back up Android progress, close the game completely, open the launcher and select **Export profile**. Choose a profile and save the ZIP somewhere private. You can restore it using **Import profile ZIP**. The ZIP contains progress and statistics, but not controls or mods. Export was tested on an iPlay with a test profile; keep the original Steam backup as well.
 
-**Android backups:** this version does not disable Auto Backup. Depending on device settings, Android may include app data, such as saves or a pending profile import, in account backups and device transfers. The currently published beta APK does not request Internet permission, but Android can manage its own backups. A future release with update and mod-catalog features will request Internet access. Review Android's backup settings if you do not want this. Uninstalling the app can delete local data; back up progress first. [Android Auto Backup](https://developer.android.com/identity/data/autobackup).
+**Android backups:** this version does not disable Auto Backup. Depending on device settings, Android may include app data, such as saves or a pending profile import, in account backups and device transfers. The launcher uses Internet access for updates and the mod catalog. Review Android's backup settings if you do not want this. Uninstalling the app can delete local data; back up progress first. [Android Auto Backup](https://developer.android.com/identity/data/autobackup).
 
 ## Troubleshooting
 

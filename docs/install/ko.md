@@ -13,7 +13,7 @@
 
 ## 베타 패키지 받기
 
-[베타 릴리스](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta)에서 `OpenBonk-beta.zip`를 다운로드하고 컴퓨터에 추출하세요. 여기에는 `OpenBonk.apk`, 설치 가이드 및 `tools` 폴더가 포함되어 있습니다. ZIP 도우미가 필요한 경우 전체 `tools` 폴더를 유지하세요. APK는 설치 프로그램입니다. 자신의 Steam 사본에서 별도로 비공개 ZIP을 생성해야 합니다.
+[베타 릴리스](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta)에서 `OpenBonk-beta.zip`를 다운로드하고 컴퓨터에 추출하세요. 여기에는 `OpenBonk.apk`, 설치 가이드 및 `tools` 폴더가 포함되어 있습니다. ZIP 도우미가 필요한 경우 전체 `tools` 폴더를 유지하세요. APK는 설치 프로그램입니다. 자신의 Steam 사본에서 별도로 비공개 ZIP을 생성해야 합니다.
 
 ## 게임 데이터 ZIP 만들기
 
@@ -47,16 +47,16 @@ py -3 .\tools\create-launcher-steam-zip.py "C:\ruta\a\Megabonk\Megabonk_Data" "$
 
 1. Android 파일 관리자에서 `OpenBonk.apk`를 엽니다. 파일 세부정보가 표시되면 **다음으로 열기 → 패키지 설치 프로그램**을 찾아보세요. Android에서 해당 앱 설치 권한을 요청하는 경우 메시지를 읽고 지침을 따르세요. 나중에 해당 권한을 끌 수 있습니다.
 2. OpenBonk를 엽니다. 런처에서 **Controller** 또는 **Touch**를 선택합니다.
-3. **Import Steam game**를 선택하고 다운로드에서 ZIP을 찾아 선택하세요. **Import prepared Android data**는 Steam ZIP이 아닌 이전에 준비된 Android 번들용입니다. 앱을 열어두고 **Data ready**를 기다립니다. 메시지는 단계마다 변경되지만 백분율은 표시되지 않습니다.
+3. **Megabonk game files ZIP**를 선택하고 다운로드에서 ZIP을 찾아 선택하세요. **Import prepared Android data**는 Steam ZIP이 아닌 이전에 준비된 Android 번들용입니다. 앱을 열어두고 **Data ready**를 기다립니다. 메시지는 단계마다 변경되지만 백분율은 표시되지 않습니다.
 4. **Play**를 선택합니다. 처음 실행하면 게임 메뉴가 나타나기 전에 텍스트와 텍스처를 가져옵니다.
 
 ## 가져오기 및 백업 진행 상황
 
 Steam 프로필 가져오기는 선택 사항입니다. 먼저 컴퓨터에서 게임을 닫고 백업을 보관하세요. Linux에서는 `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/`에서 계정 폴더를 찾거나 Windows에서는 `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\`를 사용해 보세요(Windows 경로는 확인되지 않았습니다). 동일한 계정에서 ZIP `progression.json` 및 `stats.json`를 함께 사용하려면 ZIP을 Android에 복사하고 **Import profile ZIP**를 선택하세요. 게임을 시작하면 현재 Android 계정의 진행 상황이 대체되므로 원본 백업을 보관하세요. 이는 PC에서 Android로의 동기화가 아닌 일회성 가져오기입니다. 프로필 ZIP은 비공개입니다. 보고서에 첨부하지 마세요.
 
-Android 진행 상황을 백업하려면 게임을 완전히 닫고 런처를 열고 **Export progress**를 선택하세요. 프로필을 선택하고 ZIP 파일을 비공개로 저장하세요. **Import profile ZIP**를 사용하여 복원할 수 있습니다. ZIP에는 진행 상황과 통계가 포함되어 있지만 컨트롤이나 모드는 포함되어 있지 않습니다. 내보내기는 테스트 프로필을 사용하여 iPlay에서 테스트되었습니다. 원본 Steam 백업도 유지하세요.
+Android 진행 상황을 백업하려면 게임을 완전히 닫고 런처를 열고 **Export profile**를 선택하세요. 프로필을 선택하고 ZIP 파일을 비공개로 저장하세요. **Import profile ZIP**를 사용하여 복원할 수 있습니다. ZIP에는 진행 상황과 통계가 포함되어 있지만 컨트롤이나 모드는 포함되어 있지 않습니다. 내보내기는 테스트 프로필을 사용하여 iPlay에서 테스트되었습니다. 원본 Steam 백업도 유지하세요.
 
-**Android 백업:** 이 버전은 자동 백업을 비활성화하지 않습니다. 기기 설정에 따라 Android는 계정 백업 및 기기 전송에 저장 또는 보류 중인 프로필 가져오기와 같은 앱 데이터를 포함할 수 있습니다. APK는 인터넷 권한을 요청하지 않지만 Android는 자체 백업을 관리할 수 있습니다. 이를 원하지 않으면 Android의 백업 설정을 검토하세요. 앱을 제거하면 로컬 데이터가 삭제될 수 있습니다. 먼저 진행 상황을 백업하세요. [안드로이드 자동 백업](https://developer.android.com/identity/data/autobackup).
+**Android 백업:** 이 버전은 자동 백업을 비활성화하지 않습니다. 기기 설정에 따라 Android는 계정 백업 및 기기 전송에 저장 또는 보류 중인 프로필 가져오기와 같은 앱 데이터를 포함할 수 있습니다. 런처는 업데이트와 모드 카탈로그에 인터넷을 사용합니다. 이를 원하지 않으면 Android의 백업 설정을 검토하세요. 앱을 제거하면 로컬 데이터가 삭제될 수 있습니다. 먼저 진행 상황을 백업하세요. [안드로이드 자동 백업](https://developer.android.com/identity/data/autobackup).
 
 ## 문제 해결
 

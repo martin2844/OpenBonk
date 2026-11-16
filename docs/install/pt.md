@@ -13,7 +13,7 @@
 
 ## Obtenha o pacote beta
 
-Baixe `OpenBonk-beta.zip` da [versão beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) e extraia-o em seu computador. Ele contém `OpenBonk.apk`, um guia de instalação e uma pasta `tools`. Mantenha toda a pasta `tools` se precisar do auxiliar ZIP. O APK é o instalador; você deve criar separadamente um ZIP privado de sua própria cópia do Steam.
+Baixe `OpenBonk-beta.zip` da [versão beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) e extraia-o em seu computador. Ele contém `OpenBonk.apk`, um guia de instalação e uma pasta `tools`. Mantenha toda a pasta `tools` se precisar do auxiliar ZIP. O APK é o instalador; você deve criar separadamente um ZIP privado de sua própria cópia do Steam.
 
 ## Crie o ZIP dos dados do jogo
 
@@ -47,16 +47,16 @@ Copie o ZIP do auxiliar para Downloads no Android e selecione-o em vez do ZIP co
 
 1. Abra `OpenBonk.apk` no gerenciador de arquivos do Android. Se você vir detalhes do arquivo, procure **Abrir com → Instalador de pacote**. Se o Android solicitar permissão para instalar esse aplicativo, leia a solicitação e siga as instruções. Você pode desativar essa permissão posteriormente.
 2. Abra o OpenBonk. No inicializador, escolha **Controller** ou **Touch**.
-3. Selecione **Import Steam game**, encontre o ZIP em Downloads e selecione-o. **Import prepared Android data** é para um pacote Android previamente preparado, não para o Steam ZIP. Mantenha o aplicativo aberto e aguarde **Data ready**. A mensagem muda entre os estágios, mas nenhuma porcentagem é mostrada.
+3. Selecione **Megabonk game files ZIP**, encontre o ZIP em Downloads e selecione-o. **Import prepared Android data** é para um pacote Android previamente preparado, não para o Steam ZIP. Mantenha o aplicativo aberto e aguarde **Data ready**. A mensagem muda entre os estágios, mas nenhuma porcentagem é mostrada.
 4. Selecione **Play**. Na primeira inicialização, textos e texturas são importados antes que o menu do jogo apareça.
 
 ## Importe e faça backup do progresso
 
 A importação de um perfil Steam é opcional. Primeiro feche o jogo no seu computador e mantenha um backup. Encontre a pasta da conta em `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` no Linux ou tente `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\` no Windows (o caminho do Windows não foi verificado). ZIP `progression.json` e `stats.json` da mesma conta juntos, copie o ZIP para Android e escolha **Import profile ZIP**. Iniciar o jogo substitui o progresso da conta Android atual, portanto, mantenha seu backup original. Esta é uma importação única, não uma sincronização de PC para Android. O perfil ZIP é privado; não o anexe a um relatório.
 
-Para fazer backup do progresso do Android, feche o jogo completamente, abra o inicializador e selecione **Export progress**. Escolha um perfil e salve o ZIP em algum lugar privado. Você pode restaurá-lo usando **Import profile ZIP**. O ZIP contém progresso e estatísticas, mas não controles ou mods. A exportação foi testada em um iPlay com perfil de teste; mantenha o backup original do Steam também.
+Para fazer backup do progresso do Android, feche o jogo completamente, abra o inicializador e selecione **Export profile**. Escolha um perfil e salve o ZIP em algum lugar privado. Você pode restaurá-lo usando **Import profile ZIP**. O ZIP contém progresso e estatísticas, mas não controles ou mods. A exportação foi testada em um iPlay com perfil de teste; mantenha o backup original do Steam também.
 
-**Backups do Android:** esta versão não desativa o Backup automático. Dependendo das configurações do dispositivo, o Android pode incluir dados de aplicativos, como salvamentos ou importação de perfil pendente, em backups de contas e transferências de dispositivos. O APK não solicita permissão de Internet, mas o Android pode gerenciar seus próprios backups. Revise as configurações de backup do Android se não desejar isso. A desinstalação do aplicativo pode excluir dados locais; faça backup do progresso primeiro. [Backup automático do Android](https://developer.android.com/identity/data/autobackup).
+**Backups do Android:** esta versão não desativa o Backup automático. Dependendo das configurações do dispositivo, o Android pode incluir dados de aplicativos, como salvamentos ou importação de perfil pendente, em backups de contas e transferências de dispositivos. O launcher usa a Internet para atualizações e o catálogo de mods. Revise as configurações de backup do Android se não desejar isso. A desinstalação do aplicativo pode excluir dados locais; faça backup do progresso primeiro. [Backup automático do Android](https://developer.android.com/identity/data/autobackup).
 
 ## Solução de problemas
 

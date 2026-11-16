@@ -13,7 +13,7 @@
 
 ## Holen Sie sich das Beta-Paket
 
-Laden Sie `OpenBonk-beta.zip` von der [Betaversion](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) herunter und extrahieren Sie es auf Ihrem Computer. Es enthält `OpenBonk.apk`, eine Installationsanleitung und einen `tools`-Ordner. Behalten Sie den gesamten Ordner `tools`, wenn Sie den ZIP-Helfer benötigen. Das APK ist das Installationsprogramm; Sie müssen separat eine private ZIP-Datei aus Ihrer eigenen Steam-Kopie erstellen.
+Laden Sie `OpenBonk-beta.zip` von der [Betaversion](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) herunter und extrahieren Sie es auf Ihrem Computer. Es enthält `OpenBonk.apk`, eine Installationsanleitung und einen `tools`-Ordner. Behalten Sie den gesamten Ordner `tools`, wenn Sie den ZIP-Helfer benötigen. Das APK ist das Installationsprogramm; Sie müssen separat eine private ZIP-Datei aus Ihrer eigenen Steam-Kopie erstellen.
 
 ## Erstellen Sie die ZIP-Datei mit den Spieldaten
 
@@ -47,16 +47,16 @@ Kopieren Sie die ZIP-Datei des Helfers in „Downloads“ auf Android und wähle
 
 1. Öffnen Sie `OpenBonk.apk` im Dateimanager von Android. Wenn Sie Dateidetails sehen, suchen Sie nach **Öffnen mit → Paketinstallationsprogramm**. Wenn Android um Erlaubnis zur Installation dieser App bittet, lesen Sie die Aufforderung und befolgen Sie die Anweisungen. Sie können diese Berechtigung später deaktivieren.
 2. Öffnen Sie OpenBonk. Wählen Sie im Launcher **Controller** oder **Touch**.
-3. Wählen Sie **Import Steam game**, suchen Sie die ZIP-Datei unter „Downloads“ und wählen Sie sie aus. **Import prepared Android data** ist für ein zuvor vorbereitetes Android-Bundle, nicht für die Steam-ZIP-Datei. Lassen Sie die App geöffnet und warten Sie auf **Data ready**. Die Meldung ändert sich zwischen den Phasen, es wird jedoch kein Prozentsatz angezeigt.
+3. Wählen Sie **Megabonk game files ZIP**, suchen Sie die ZIP-Datei unter „Downloads“ und wählen Sie sie aus. **Import prepared Android data** ist für ein zuvor vorbereitetes Android-Bundle, nicht für die Steam-ZIP-Datei. Lassen Sie die App geöffnet und warten Sie auf **Data ready**. Die Meldung ändert sich zwischen den Phasen, es wird jedoch kein Prozentsatz angezeigt.
 4. Wählen Sie **Play**. Beim ersten Start werden Text und Texturen importiert, bevor das Spielmenü erscheint.
 
 ## Importieren und sichern Sie den Fortschritt
 
 Das Importieren eines Steam-Profils ist optional. Schließen Sie zunächst das Spiel auf Ihrem Computer und erstellen Sie ein Backup. Suchen Sie den Kontoordner unter `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` unter Linux oder versuchen Sie es mit `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\` unter Windows (der Windows-Pfad wurde nicht überprüft). Zippen Sie `progression.json` und `stats.json` zusammen aus demselben Konto, kopieren Sie die ZIP-Datei auf Android und wählen Sie **Import profile ZIP**. Durch das Starten des Spiels wird der Fortschritt des aktuellen Android-Kontos ersetzt. Behalten Sie daher Ihr ursprüngliches Backup. Dies ist ein einmaliger Import, keine PC-zu-Android-Synchronisierung. Die Profil-ZIP ist privat; Hängen Sie es nicht an einen Bericht an.
 
-Um den Android-Fortschritt zu sichern, schließen Sie das Spiel vollständig, öffnen Sie den Launcher und wählen Sie **Export progress**. Wählen Sie ein Profil und speichern Sie die ZIP-Datei an einem privaten Ort. Sie können es mit **Import profile ZIP** wiederherstellen. Die ZIP-Datei enthält Fortschritte und Statistiken, jedoch keine Steuerelemente oder Mods. Der Export wurde auf einem iPlay mit einem Testprofil getestet; Behalten Sie auch das Original-Steam-Backup.
+Um den Android-Fortschritt zu sichern, schließen Sie das Spiel vollständig, öffnen Sie den Launcher und wählen Sie **Export profile**. Wählen Sie ein Profil und speichern Sie die ZIP-Datei an einem privaten Ort. Sie können es mit **Import profile ZIP** wiederherstellen. Die ZIP-Datei enthält Fortschritte und Statistiken, jedoch keine Steuerelemente oder Mods. Der Export wurde auf einem iPlay mit einem Testprofil getestet; Behalten Sie auch das Original-Steam-Backup.
 
-**Android-Backups:** Diese Version deaktiviert die automatische Sicherung nicht. Abhängig von den Geräteeinstellungen kann Android App-Daten wie Speicherungen oder einen ausstehenden Profilimport in Kontosicherungen und Geräteübertragungen einbeziehen. Das APK fordert keine Internetberechtigung an, aber Android kann seine eigenen Backups verwalten. Überprüfen Sie die Backup-Einstellungen von Android, wenn Sie dies nicht möchten. Durch die Deinstallation der App können lokale Daten gelöscht werden. Sichern Sie zunächst den Fortschritt. [Android Auto Backup](https://developer.android.com/identity/data/autobackup).
+**Android-Backups:** Diese Version deaktiviert die automatische Sicherung nicht. Abhängig von den Geräteeinstellungen kann Android App-Daten wie Speicherungen oder einen ausstehenden Profilimport in Kontosicherungen und Geräteübertragungen einbeziehen. Der Launcher nutzt das Internet für Updates und den Mod-Katalog. Überprüfen Sie die Backup-Einstellungen von Android, wenn Sie dies nicht möchten. Durch die Deinstallation der App können lokale Daten gelöscht werden. Sichern Sie zunächst den Fortschritt. [Android Auto Backup](https://developer.android.com/identity/data/autobackup).
 
 ## Fehlerbehebung
 

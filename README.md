@@ -1,7 +1,7 @@
 # OpenBonk
 
-[![Release](https://img.shields.io/github/v/release/martin2844/OpenBonk?include_prereleases&label=release&color=ff9f0a)](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta)
-[![Status: beta](https://img.shields.io/badge/status-beta-8b5cf6)](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta)
+[![Release](https://img.shields.io/github/v/release/martin2844/OpenBonk?include_prereleases&label=release&color=ff9f0a)](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta)
+[![Status: beta](https://img.shields.io/badge/status-beta-8b5cf6)](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84?logo=android&logoColor=white)](#start-playing)
 [![Lua mods: experimental](https://img.shields.io/badge/Lua%20mods-experimental-5468ff?logo=lua&logoColor=white)](docs/MODDING.md)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/martin2844)
@@ -10,7 +10,7 @@
 
 OpenBonk is an unofficial community project in beta. Bring your own compatible Steam copy of Megabonk: the launcher prepares its data on your Android device.
 
-[Download the beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) · [Installation guides](#installation-guides) · [Install with an AI agent](#install-with-an-ai-agent) · [Lua modding](docs/MODDING.md) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues) · [Support](#support-the-project)
+[Download the beta](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) · [Installation guides](#installation-guides) · [Install with an AI agent](#install-with-an-ai-agent) · [Lua modding](docs/MODDING.md) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues) · [Support](#support-the-project)
 
 ## Support the project
 
@@ -20,9 +20,9 @@ If you enjoy OpenBonk and would like to support its development, you can [buy Ma
 
 ## Start playing
 
-1. Download `OpenBonk-beta.zip` from the [beta release](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.0-beta) and extract it on your computer.
+1. Download `OpenBonk-beta.zip` from the [beta release](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.1-beta) and extract it on your computer.
 2. Create a ZIP containing the `Megabonk_Data` folder from your own compatible Steam installation. The ZIP must be no larger than **1 GiB**; the guide explains how to create a smaller ZIP if necessary.
-3. Copy `OpenBonk.apk` and your private game-data ZIP to Android. Install and open the APK, choose **Import Steam game**, and wait for **Data ready**.
+3. Copy `OpenBonk.apk` and your private game-data ZIP to Android. Install and open the APK, choose **Megabonk game files ZIP**, and wait for **Data ready**.
 4. Choose **Touch** or **Controller**, then press **Play**. The first launch also imports text and textures.
 
 OpenBonk requires **64-bit Android 8 or later**. It has been tested on a Retroid Pocket 5 and an iPlay 70 mini Pro. Device compatibility is still being established, and installation from a physical Windows PC and through the Android system installer have not been verified end to end. Back up existing progress before replacing or uninstalling an app.
@@ -81,7 +81,7 @@ anything. If a step fails, explain what happened and help me troubleshoot.
 
 ## Touch controls
 
-The upcoming release adds a layout editor with individual visibility and opacity, grid snapping, saved profiles and optional auto-run. See the [touch controls guide](docs/TOUCH_CONTROLS.md); the current public beta does not yet include these options.
+The beta includes an in-game layout editor with individual visibility and opacity, grid snapping, saved profiles and optional auto-run. Tap **Edit** at the bottom of the game screen to open it, then tap **Done** to return to play. See the [touch controls guide](docs/TOUCH_CONTROLS.md).
 
 ## Mods
 
@@ -103,6 +103,6 @@ The checkout cannot yet reproduce the published APK on its own: parts of the Uni
 
 ## Privacy and attribution
 
-Keep your Steam game-data ZIP, profile, signing keys and account information private. The launcher requests Internet access to check the OpenBonk update manifest and mod catalog on GitHub, and downloads only what you choose to install. It checks for updates periodically; Android asks for confirmation before installing an APK. Steam game data and profiles are not uploaded. Android system backup may include app data depending on device settings. A Feedback button opens GitHub Issues in your browser; it does not send a report automatically. These features are being prepared for a future release; the existing beta does not include them.
+Keep your Steam game-data ZIP, profile, signing keys and account information private. The launcher requests Internet access to check the OpenBonk update manifest and mod catalog on GitHub, and downloads only what you choose to install. It checks for updates periodically; Android asks for confirmation before installing an APK. Steam game data and profiles are not uploaded. Android system backup may include app data depending on device settings. A Feedback button opens GitHub Issues in your browser; it does not send a report automatically.
 
 OpenBonk is not affiliated with or endorsed by Megabonk or its developer. Game-derived code, shaders, assets and third-party components have differing provenance; distribution rights and a complete license inventory have not yet been established. Pokémon and Pikachu belong to their respective rights holders. See the [Pikachu notes](mods/pikachu/README.md) for model attribution and provenance.
