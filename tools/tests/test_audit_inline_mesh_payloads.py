@@ -49,6 +49,21 @@ class MeshAuditTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'layout differs'):
                 audit.audit(Archive(b''), Archive(b''))
 
+    def test_compressed_mesh_payload_is_measured(self):
+        part = SimpleNamespace(filename='mesh', file_size=8)
+        groups = {'asset': [part]}
+        body = b'aa\x03\x04\x05\x06bb'
+        compressed = SimpleNamespace(m_Vertices=SimpleNamespace(m_Data=b'\x03\x04\x05\x06'))
+        mesh = SimpleNamespace(m_Name='compressed', m_VertexData=SimpleNamespace(m_DataSize=b''),
+                               m_IndexBuffer=b'', m_StreamData=None, m_CompressedMesh=compressed)
+        obj = SimpleNamespace(type=SimpleNamespace(name='Mesh'), path_id=1, byte_start=0,
+                              read=lambda: mesh, get_raw_data=lambda: body)
+        with patch.object(audit.texture_audit.objects, 'asset_groups', return_value=groups), \
+             patch.object(audit.UnityPy, 'load', return_value=SimpleNamespace(objects=[obj])):
+            result = audit.audit(Archive(body), Archive(b'aa\x00\x04\x00\x06bb'))
+        self.assertEqual(result['buffers'][0]['kind'], 'compressed/m_Vertices')
+        self.assertEqual(result['retained_nonzero_bytes'], 2)
+
 
 if __name__ == '__main__':
     unittest.main()

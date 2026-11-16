@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Audit inline mesh vertex/index ranges in a private launcher template.
+"""Audit inline mesh buffer ranges in a private launcher template.
 
 The report measures retained nonzero payload bytes, not ownership. It does not
-cover streamed meshes, compressed mesh fields, other assets or skipped records.
+cover streamed meshes, other asset types or skipped records.
 Keep all inputs and the output report local.
 """
 import argparse
@@ -46,7 +46,16 @@ def audit(reference, template):
                 stream = mesh.m_StreamData
                 if not vertices and stream and stream.path and stream.size:
                     skipped.append({'group': name, 'path_id': obj.path_id, 'reason': 'streamed vertex data'})
-                for kind, payload in (('vertices', vertices), ('indices', indices)):
+                payloads = [('vertices', vertices), ('indices', indices)]
+                compressed = getattr(mesh, 'm_CompressedMesh', None)
+                if compressed:
+                    for field in ('m_Vertices', 'm_UV', 'm_Normals', 'm_Tangents', 'm_Weights',
+                                  'm_NormalSigns', 'm_TangentSigns', 'm_FloatColors', 'm_BoneIndices',
+                                  'm_Triangles', 'm_BindPoses', 'm_Colors'):
+                        packed = getattr(compressed, field, None)
+                        if packed is not None:
+                            payloads.append(('compressed/' + field, bytes(getattr(packed, 'm_Data', None) or b'')))
+                for kind, payload in payloads:
                     if not payload:
                         continue
                     try:
@@ -59,7 +68,7 @@ def audit(reference, template):
                 skipped.append({'group': name, 'path_id': obj.path_id, 'reason': str(e)})
     return {'inline_buffer_count': len(rows), 'retained_nonzero_bytes': sum(r['retained_nonzero_bytes'] for r in rows),
             'buffers': rows, 'skipped': skipped,
-            'limitations': 'Inline vertex and index buffers only; zero bytes do not prove removal or establish ownership.'}
+            'limitations': 'Inline vertex, index and selected compressed buffers only; zero bytes do not prove removal or establish ownership.'}
 
 
 def main():
