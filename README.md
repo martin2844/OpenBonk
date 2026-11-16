@@ -44,7 +44,7 @@ Choose a guide for detailed instructions on Steam data, installation, progress b
 
 ## Install with an AI agent
 
-Have a coding agent on your computer? Connect your Android device by USB and paste the prompt below into your agent. USB debugging is optional: with authorized ADB access the agent can do more directly; without it, the agent can help transfer files and guide you through Android's installer. What it can automate depends on your computer, device and agent permissions.
+Have a coding agent on your computer? Connect your Android device by USB and paste the prompt below into your agent. USB debugging is optional: the agent can guide you through enabling it, or help you install using file transfer without it. What it can automate depends on your computer, device and agent permissions.
 
 ```text
 Help me install and launch OpenBonk on my Android device. Work through the
@@ -62,10 +62,15 @@ authorized USB debugging, use it where appropriate to transfer the APK and
 ZIP and install or launch the app. If authorization is pending, explain the
 on-device prompt. Do not assume debugging is enabled or try to bypass it.
 
-If debugging is off or unavailable, use USB file transfer (MTP) if accessible
-and walk me through unlocking the device, selecting File transfer, copying the
-files if necessary, installing the APK and approving Android's prompts. If
-USB transfer is unavailable, suggest a local transfer method and guide me.
+If debugging is off, offer me a choice: guide me through enabling Developer
+options and USB debugging on my Android device and authorizing this computer,
+or continue without debugging. Explain that the settings can vary by device.
+If ADB is missing, help me install Android platform tools if I choose that route.
+
+Without debugging, use USB file transfer (MTP) if accessible and walk me through
+unlocking the device, selecting File transfer, copying the files if necessary,
+installing the APK and approving Android's prompts. If USB transfer is
+unavailable, suggest a local transfer method and guide me.
 
 Help me choose touch or controller, import the Steam ZIP in the launcher, wait
 for Data ready and start the game. Ask me to perform any step that requires
