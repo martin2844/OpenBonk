@@ -22,6 +22,32 @@ PINS = {
     'new_obb': 'ca12a7ec37c7e647d487a310d4924a5ba1f4e4d2cb3d30c8da2a7091d552d961',
 }
 
+# Historical working names differ from the names consumed by the launcher.
+LAUNCHER_PLAN_NAMES = {
+    'shared-audio-plan.bin': 'shared-audio1.bin',
+    'shared1-layout-plan.bin': 'shared1-layout.bin',
+    'shared1-material-plan.bin': 'shared1-material.bin',
+    'shared1-mesh-plan.bin': 'shared1-mesh.bin',
+    **{f'shared1-mesh-{stage}-plan.bin': f'shared1-mesh-{stage}.bin'
+       for stage in ('metadata', 'flags', 'stream')},
+    **{f'shared1-texture-{stage}-plan.bin': f'shared1-{name}.bin'
+       for stage, name in (('direct', 'exact'), ('rgba', 'rgba'), ('converted', 'converted'),
+                           ('etc', 'etc'), ('bc-rgba', 'bc-rgba'), ('alias', 'alias'),
+                           ('matched', 'matched'), ('alpha', 'alpha'), ('large', 'large'),
+                           ('renamed', 'renamed'), ('last', 'last'))},
+    'shared1-normal-plan.bin': 'shared1-normal.bin',
+}
+
+
+def copy_launcher_aliases(directory):
+    """Add launcher-compatible names without replacing any existing output."""
+    for source, destination in LAUNCHER_PLAN_NAMES.items():
+        path = directory/source
+        if path.exists() or path.is_symlink():
+            if path.is_symlink() or not path.is_file(): raise ValueError('invalid plan output: '+source)
+            with path.open('rb') as src, (directory/destination).open('xb') as dest:
+                shutil.copyfileobj(src, dest)
+
 
 def run(script, *arguments):
     print('+', script, flush=True)
@@ -370,6 +396,7 @@ def main():
                     with plan.open('rb') as src, (out/plan.name).open('xb') as dest: shutil.copyfileobj(src, dest)
             if shader_pack is not None:
                 with shader_pack.open('rb') as src, (out/'shared1-shader-pack.zip').open('xb') as dest: shutil.copyfileobj(src, dest)
+            copy_launcher_aliases(out)
         except BaseException:
             shutil.rmtree(out)
             raise

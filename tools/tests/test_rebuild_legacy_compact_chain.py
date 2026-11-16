@@ -1,4 +1,5 @@
 import subprocess
+import importlib.util
 import sys
 import tempfile
 import unittest
@@ -8,6 +9,23 @@ SCRIPT = Path(__file__).resolve().parents[1] / 'rebuild-legacy-compact-chain.py'
 
 
 class CompactChainTests(unittest.TestCase):
+    def test_launcher_aliases_are_exact_and_do_not_replace_files(self):
+        spec = importlib.util.spec_from_file_location('compact_chain', SCRIPT)
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        package_spec = importlib.util.spec_from_file_location('conversion_package', SCRIPT.parent/'package-conversion-plans.py')
+        package = importlib.util.module_from_spec(package_spec); package_spec.loader.exec_module(package)
+        shared_names = {name for name in package.EXPECTED_NAMES if name.startswith('shared1-') and name.endswith('.bin')}
+        already_named = {f'shared1-{stage}.bin' for stage in ('shaders', 'animation', 'cubemap', 'outline', 'final')}
+        self.assertEqual(shared_names, {name for name in module.LAUNCHER_PLAN_NAMES.values() if name.startswith('shared1-')} | already_named)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for index, name in enumerate(module.LAUNCHER_PLAN_NAMES):
+                (root/name).write_bytes(str(index).encode())
+            module.copy_launcher_aliases(root)
+            for source, destination in module.LAUNCHER_PLAN_NAMES.items():
+                self.assertEqual((root/source).read_bytes(), (root/destination).read_bytes())
+            with self.assertRaises(FileExistsError): module.copy_launcher_aliases(root)
+
     def test_texture_plans_require_mesh_plans_and_library(self):
         result = subprocess.run([sys.executable, str(SCRIPT), '--steam-data', 'steam', '--old-apk', 'old.apk',
                                  '--old-obb', 'old.obb', '--new-apk', 'new.apk', '--new-obb', 'new.obb',
