@@ -13,8 +13,8 @@ NAME='localization-assets-shared_assets_all.bundle'
 MANIFEST_SHA='035de511eae73fde3c913869f38203294ce2177db672fbb3eac59ae34e372722'
 
 def sha(b):return hashlib.sha256(b).hexdigest()
-def source(steam):
- m=load('normalizer',ROOT/'tools/normalize-windows-localization.py');raw=m.MANIFEST.read_bytes()
+def source(steam,manifest=None):
+ m=load('normalizer',ROOT/'tools/normalize-windows-localization.py');raw=(manifest if manifest is not None else m.MANIFEST).read_bytes()
  if sha(raw)!=m.MANIFEST_SHA:raise ValueError('Windows locale inventory differs')
  row=next(r for r in json.loads(raw)['bundles'] if r['name']==NAME)
  return locale.read_source(steam,NAME,row)
@@ -28,11 +28,11 @@ def tables(env):
  return groups
 
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('steam',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path);a=p.parse_args();out=a.output.absolute();src=a.steam.resolve();inp=a.input.resolve()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('steam',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path);p.add_argument('--source-manifest',type=Path,help='local pinned Windows localization inventory');a=p.parse_args();out=a.output.absolute();src=a.steam.resolve();inp=a.input.resolve()
  if not src.is_dir() or not out.parent.is_dir() or out.exists() or out.is_symlink():p.error('input must exist and output must be new')
  for q in (src,inp):
   if out.resolve().is_relative_to(q) or q.is_relative_to(out.resolve()):p.error('output must be separate')
- groups=tables(source(src))
+ groups=tables(source(src,a.source_manifest))
  if a.action=='template':
   if not inp.is_file() or locale.file_sha(inp)!=BASE_SHA:raise ValueError('incompatible base')
   with zipfile.ZipFile(inp) as z:bundle=z.read(locale.ANDROID+NAME)

@@ -28,9 +28,9 @@ def file_sha(path):
  with path.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
 
 
-def source_rows():
+def source_rows(manifest=None):
  spec=importlib.util.spec_from_file_location('locale_normalizer',ROOT/'tools/normalize-windows-localization.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
- raw=m.MANIFEST.read_bytes()
+ raw=(manifest if manifest is not None else m.MANIFEST).read_bytes()
  if sha(raw)!=m.MANIFEST_SHA:raise ValueError('localization inventory mismatch')
  rows=json.loads(raw)['bundles']
  return {r['name']:r for r in rows if r['name'].startswith('localization-string-tables-')}
@@ -69,11 +69,11 @@ def read_source(source,name,row):
 
 
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('steam',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path);a=p.parse_args();out=a.output.absolute();source=a.steam.resolve();inp=a.input.resolve()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('steam',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path);p.add_argument('--source-manifest',type=Path,help='local pinned Windows localization inventory');a=p.parse_args();out=a.output.absolute();source=a.steam.resolve();inp=a.input.resolve()
  if not source.is_dir() or not out.parent.is_dir() or out.exists() or out.is_symlink():p.error('source and parent must exist; output must be new')
  for path in (source,inp):
   if out.resolve().is_relative_to(path) or path.is_relative_to(out.resolve()):p.error('output must be separate from inputs')
- rows=source_rows();records=[];result={}
+ rows=source_rows(a.source_manifest);records=[];result={}
  if a.action=='template':
   if not inp.is_file() or file_sha(inp)!=BASE_SHA:raise ValueError('incompatible base OBB')
   with zipfile.ZipFile(inp) as z:
