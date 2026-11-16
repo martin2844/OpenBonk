@@ -51,7 +51,7 @@ class PartialRgbaPlanTests(unittest.TestCase):
             self.assertIsNone(module.rgba_alias(target, payload, [good]))
 
     def test_supported_entries_match_android_restorer(self):
-        for name in ('assets/bin/Data/' + 'a' * 32, 'assets/bin/Data/sharedassets1.assets.split0',
+        for name in ('assets/bin/Data/' + 'a' * 32, 'assets/bin/Data/sharedassets0.assets.split0', 'assets/bin/Data/sharedassets1.assets.split0',
                      'assets/bin/Data/sharedassets2.assets.split17', 'assets/bin/Data/sharedassets4.assets.split0'):
             self.assertIsNotNone(module.ENTRY.fullmatch(name))
         for name in ('assets/bin/Data/sharedassets1.assets', 'assets/bin/Data/level1.split0',
@@ -60,10 +60,11 @@ class PartialRgbaPlanTests(unittest.TestCase):
 
     def test_shared4_candidates_do_not_change_other_groups(self):
         target = SimpleNamespace(m_Width=128, m_Height=128)
-        other = ('sharedassets1', 1, object()); fourth = ('sharedassets4', 2, object())
-        index = {('same', 128, 128): [other, fourth]}
+        other = ('sharedassets1', 1, object()); fourth = ('sharedassets4', 2, object()); zero = ('sharedassets0', 3, object())
+        index = {('same', 128, 128): [other, fourth, zero]}
         self.assertEqual(module.candidate_sources(index, target, 'sharedassets1.assets', 'same'), [other])
         self.assertEqual(module.candidate_sources(index, target, 'sharedassets4.assets', 'same'), [fourth])
+        self.assertEqual(module.candidate_sources(index, target, 'sharedassets0.assets', 'same'), [zero])
         self.assertEqual(module.candidate_sources(index, target, 'a' * 32, 'same'), [other])
 
     def test_small_renamed_rgba_requires_exact_bytes(self):

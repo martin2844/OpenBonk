@@ -23,7 +23,7 @@ def load(name, file):
 study = load('partial_texture_study', 'experimental-converted-textures.py')
 objects = load('partial_texture_objects', 'experimental-exact-object-plan.py')
 masker = load('partial_texture_masker', 'experimental-animation-mask.py')
-ENTRY = re.compile(re.escape(objects.PREFIX) + r'(?:[0-9a-f]{32}|sharedassets[124]\.assets\.split(?:0|[1-9]\d*))\Z')
+ENTRY = re.compile(re.escape(objects.PREFIX) + r'(?:[0-9a-f]{32}|sharedassets[0124]\.assets\.split(?:0|[1-9]\d*))\Z')
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
@@ -91,7 +91,7 @@ def apply(raw, rows, decoded, restore=False):
 def sources(folder, include_resources=False):
     import UnityPy
     index = defaultdict(list); by_id = {}
-    for group in (*study.GROUPS, *(['sharedassets4', 'resources'] if include_resources else [])):
+    for group in (*study.GROUPS, *(['sharedassets0', 'sharedassets4', 'resources'] if include_resources else [])):
         file = folder / (group + '.assets')
         if file.is_symlink() or not file.is_file(): raise ValueError('missing regular Steam asset file')
         for obj in UnityPy.load(str(file)).objects:
@@ -180,7 +180,10 @@ def partial_etc2_source(target, payload, candidates, encoder):
 
 def candidate_sources(index, target, group, name):
     items = index[(name, target.m_Width, target.m_Height)]
-    return [item for item in items if (item[0] == 'sharedassets4') == (group == 'sharedassets4.assets')]
+    isolated = ('sharedassets0', 'sharedassets4')
+    if group in tuple(name + '.assets' for name in isolated):
+        return [item for item in items if item[0] + '.assets' == group]
+    return [item for item in items if item[0] not in isolated]
 
 
 def generate(args):
@@ -202,6 +205,7 @@ def generate(args):
                 if obj.type.name != 'Texture2D': continue
                 try: target = obj.read()
                 except (ValueError, TypeError, IndexError): continue
+                if group == 'sharedassets0.assets' and target.m_Name != 'Emission_2': continue
                 target_format = int(target.m_TextureFormat)
                 if target_format != 4 and (encoder is None or target_format not in (45, 47)): continue
                 body = obj.get_raw_data(); payload = bytes(target.image_data); pos = body.find(payload)
@@ -214,7 +218,8 @@ def generate(args):
                              etc2_alpha_alias(target, payload, candidates, encoder))
                     if alias: item, output = alias
                 if item is None and target_format in (45, 47) and getattr(args, 'include_small_etc2', False):
-                    source_name = target.m_Name[:-2] if target.m_Name.endswith('_0') else target.m_Name
+                    source_name = ('Emission' if group == 'sharedassets0.assets' and target.m_Name == 'Emission_2'
+                                   else target.m_Name[:-2] if target.m_Name.endswith('_0') else target.m_Name)
                     partial = partial_etc2_source(target, payload, candidate_sources(index, target, group, source_name), encoder)
                     if partial: item, output = partial
                 if item is None: continue
@@ -252,7 +257,7 @@ def restore(args):
     _, by_id = sources(source, bool(encoder)); decoded = {}
     for row in plan['textures']:
         key = row['id']
-        if type(key) is not int or key in decoded or row['source_group'] not in (*study.GROUPS, *(['sharedassets4', 'resources'] if encoder else [])): raise ValueError('invalid texture identity')
+        if type(key) is not int or key in decoded or row['source_group'] not in (*study.GROUPS, *(['sharedassets0', 'sharedassets4', 'resources'] if encoder else [])): raise ValueError('invalid texture identity')
         tex = by_id[(row['source_group'], row['source_id'])]
         if (tex.m_Width, tex.m_Height, tex.m_MipCount, int(tex.m_TextureFormat), sha(bytes(tex.get_image_data()))) != (row['width'], row['height'], row['mips'], row['source_format'], row['source_sha256']): raise ValueError('Steam texture differs')
         output = converted(tex, row['width'], row['height'], row['mips'], row.get('target_format', 4), encoder)
@@ -286,7 +291,7 @@ def export_android(args):
     _, by_id = sources(source, bool(encoder)); records = []; used = {}; grouped = defaultdict(list)
     for fragment in plan['records']: grouped[fragment['texture_id']].append(fragment)
     for i, item in enumerate(plan['textures']):
-        if item['id'] != i or item['source_group'] not in (*study.GROUPS, *(['sharedassets4', 'resources'] if encoder else [])) or i not in grouped: raise ValueError('invalid texture identity')
+        if item['id'] != i or item['source_group'] not in (*study.GROUPS, *(['sharedassets0', 'sharedassets4', 'resources'] if encoder else [])) or i not in grouped: raise ValueError('invalid texture identity')
         tex = by_id[(item['source_group'], item['source_id'])]; data = bytes(tex.get_image_data()); stream = tex.m_StreamData
         if (tex.m_Width, tex.m_Height, tex.m_MipCount, int(tex.m_TextureFormat), sha(data)) != (item['width'], item['height'], item['mips'], item['source_format'], item['source_sha256']): raise ValueError('Steam texture differs')
         name, offset, size = stream.path, stream.offset, stream.size
