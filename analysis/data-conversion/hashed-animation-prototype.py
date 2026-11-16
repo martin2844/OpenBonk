@@ -18,14 +18,15 @@ def sha(p):
  return h.hexdigest()
 def require(p,h):
  if not p.is_file() or sha(p)!=h:raise ValueError(f'incompatible input {p}')
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('pc_data',type=Path);p.add_argument('input',type=Path,help='base OBB for template; template directory for restore');p.add_argument('output_dir',type=Path);p.add_argument('--hybrid-manifest',type=Path,help='local experimental mixed animation manifest');p.add_argument('--windows-source',action='store_true',help='use pinned Windows inputs for restore');a=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('pc_data',type=Path);p.add_argument('input',type=Path,help='base OBB for template; template directory for restore');p.add_argument('output_dir',type=Path);p.add_argument('--hybrid-manifest',type=Path,help='local experimental mixed animation manifest');p.add_argument('--windows-source',action='store_true',help='use pinned Windows inputs for restore');p.add_argument('--expanded-shared-obb',action='store_true',help='accept the pinned equivalent expanded shared OBB for template generation');a=p.parse_args()
 if a.windows_source and a.action!='restore':p.error('--windows-source requires restore')
+if a.expanded_shared_obb and a.action!='template':p.error('--expanded-shared-obb requires template')
 if a.hybrid_manifest and a.action!='restore':p.error('--hybrid-manifest requires restore')
 if a.output_dir.exists() or not a.output_dir.parent.is_dir():p.error('output must not exist and parent must exist')
 require(a.pc_data/'sharedassets1.assets',WINDOWS_PINS['sharedassets1.assets'] if a.windows_source else PC)
 pc=UnityPy.load(str(a.pc_data/'sharedassets1.assets'));sources={o.path_id:o for o in pc.objects};index=collections.defaultdict(list)
 if a.action=='template':
- require(a.input,OBB)
+ require(a.input,'ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3' if a.expanded_shared_obb else OBB)
  for o in pc.objects:
   if o.type.name=='AnimationClip':
    d=o.read();raw=o.get_raw_data();index[(d.m_Name,len(raw))].append((o.path_id,raw))
