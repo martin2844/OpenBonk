@@ -10,9 +10,11 @@ from pathlib import Path
 from PIL import ImageChops,ImageStat
 import UnityPy
 from UnityPy.export import Texture2DConverter as C
+if len(sys.argv) not in (4,5):raise SystemExit('usage: investigate-unmatched-hashed-textures.py PC_DATA OBB OUTPUT [COMPARISON]')
 pc=Path(sys.argv[1]);obb=Path(sys.argv[2]);out=Path(sys.argv[3])
 if out.exists():raise SystemExit('output already exists')
-records=json.loads(Path('build/android/share-source-experiment/hashed-texture-comparison.json').read_text())['results'];matched={r['file'] for r in records};targets=[]
+comparison=Path(sys.argv[4]) if len(sys.argv)==5 else Path('build/android/share-source-experiment/hashed-texture-comparison.json')
+records=json.loads(comparison.read_text())['results'];matched={r['file'] for r in records};targets=[]
 with zipfile.ZipFile(obb) as z:
  for n in z.namelist():
   if not re.fullmatch(r'assets/bin/Data/[0-9a-f]{32}',n) or Path(n).name in matched:continue

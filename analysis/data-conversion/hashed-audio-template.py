@@ -18,13 +18,14 @@ def sha(path):
  return h.hexdigest()
 def require(path,expected):
  if not path.is_file() or sha(path)!=expected:raise ValueError('incompatible input '+str(path))
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('pc_data',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path);p.add_argument('--inventory',type=Path);p.add_argument('--windows-source',action='store_true',help='use pinned Windows inputs for restore');a=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('pc_data',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path);p.add_argument('--inventory',type=Path);p.add_argument('--windows-source',action='store_true',help='use pinned Windows inputs for restore');p.add_argument('--expanded-shared-obb',action='store_true',help='use the pinned expanded shared OBB for template generation');a=p.parse_args()
 if a.windows_source and a.action!='restore':p.error('--windows-source requires restore')
+if a.expanded_shared_obb and a.action!='template':p.error('--expanded-shared-obb requires template')
 if a.output.exists() or not a.output.parent.is_dir():p.error('output must not exist and parent must exist')
 for n,h in PINS.items():require(a.pc_data/n,WINDOWS_PINS[n] if a.windows_source else h)
 pc=UnityPy.load(str(a.pc_data/'sharedassets1.assets'));sources={o.path_id:o for o in pc.objects}
 if a.action=='template':
- require(a.input,OBB)
+ require(a.input,'ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3' if a.expanded_shared_obb else OBB)
  if not a.inventory:p.error('template requires --inventory')
  require(a.inventory,INVENTORY);records=json.loads(a.inventory.read_text())['results']
 else:
