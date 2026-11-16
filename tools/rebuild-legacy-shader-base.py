@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Rebuild nine consecutive private legacy shader-scrubbing stages.
 
-This consumes a pinned earlier base and locally compiled shader bundles. It
-does not build the complete beta APK, and its output contains private data.
+This consumes a pinned earlier base and locally compiled shader bundles. With
+Steam data, it can also build the preceding additional-materials stage. It does
+not build the complete beta APK, and its output contains private data.
 """
 import argparse
 import importlib.util
@@ -44,16 +45,21 @@ def run(script, *args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--base', required=True, type=Path, help='pinned additional-material-scrubbed base')
+    parser.add_argument('--base', required=True, type=Path, help='pinned additional-material-scrubbed base, or shared1-material-scrubbed base with --steam-data')
     parser.add_argument('--shader-bundles', required=True, type=Path, help='pinned local shader cache')
+    parser.add_argument('--steam-data', type=Path, help='Linux Megabonk_Data, to generate the preceding material templates')
+    parser.add_argument('--include-shared1-material', action='store_true', help='also reconstruct the earlier shared1 material stage')
     parser.add_argument('--output', required=True, type=Path, help='new private base directory')
     args = parser.parse_args()
+    if args.include_shared1_material and args.steam_data is None:
+        parser.error('--include-shared1-material requires --steam-data')
     base, shaders = args.base.resolve(strict=True), args.shader_bundles.resolve(strict=True)
+    steam = args.steam_data.resolve(strict=True) if args.steam_data else None
     output = args.output.expanduser().absolute()
-    if not base.is_dir() or not shaders.is_dir() or output.exists() or output.is_symlink() or not output.parent.is_dir():
+    if not base.is_dir() or not shaders.is_dir() or (steam is not None and not steam.is_dir()) or output.exists() or output.is_symlink() or not output.parent.is_dir():
         parser.error('inputs must exist and output must be new')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(path) or path.is_relative_to(output) for path in (base, shaders, ROOT)):
+    if any(output.is_relative_to(path) or path.is_relative_to(output) for path in (base, shaders, ROOT, *([steam] if steam else []))):
         parser.error('output must be separate from the checkout and inputs')
     spec = importlib.util.spec_from_file_location('shader_pins', ROOT / 'tools/pinned-shader-bundles.py')
     pins = importlib.util.module_from_spec(spec)
@@ -62,6 +68,24 @@ def main():
     with tempfile.TemporaryDirectory(prefix='.openbonk-legacy-shaders-', dir=output.parent) as tmp:
         tmp = Path(tmp)
         current = base
+        if args.include_shared1_material:
+            source, template, next_base = tmp/'shared1-material.assets', tmp/'shared1-material-template', tmp/'shared1-material-base'
+            extract(current/'base.obb', source, 'assets/bin/Data/sharedassets1.assets.split', True)
+            run('analysis/data-conversion/shared1-material-values-template.py', 'template', steam, source, template,
+                '--asset', 'sharedassets1.assets')
+            run('analysis/port-inventory/scrub-shared1-material-base.py', current, template, next_base)
+            current = next_base
+        if steam:
+            for i in (0, 2, 4):
+                archive = current / ('base.apk' if i == 0 else 'base.obb')
+                source = tmp / f'material-{i}.assets'
+                template = tmp / f'additional-material-template-{i}'
+                extract(archive, source, f'assets/bin/Data/sharedassets{i}.assets.split', True)
+                run('analysis/data-conversion/shared1-material-values-template.py', 'template', steam, source, template,
+                    '--asset', f'sharedassets{i}.assets')
+            next_base = tmp / 'additional-material-base'
+            run('analysis/port-inventory/additional-material-base.py', 'template', current, next_base, '--templates-root', tmp)
+            current = next_base
         for name, template_script, scrub_script in (
             ('compute', 'shared1-compute-shaders-template.py', 'scrub-shared1-compute-base.py'),
             ('render', 'shared1-render-shaders-template.py', 'scrub-shared1-render-base.py'),
