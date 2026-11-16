@@ -266,6 +266,20 @@ def main():
                             if hashlib.file_digest(f, 'sha256').hexdigest() != asset_sha: raise ValueError('texture '+stage+' output differs')
                         next_assets.append(result)
                     mesh_assets = next_assets; texture_plans.append(plan)
+                normal_plan = tmp/'shared1-normal-plan.bin'
+                run('analysis/data-conversion/generate-android-shared1-normal-plan.py',
+                    '--base', mesh_assets[0], '--target-asset', target,
+                    '--linux-zip', zips[0], '--windows-zip', zips[1], '--output', normal_plan)
+                with normal_plan.open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != 'f1771fae6e453c86ea277fb507fc66417114e9bb153addf450a3587ec51e6e52': raise ValueError('normal plan differs')
+                next_assets = []
+                for i, steam_zip in enumerate(zips):
+                    result = tmp/f'normal-{i}.assets'
+                    check_java('SteamShared1ExactTexturesCheck', texture_library, mesh_assets[i], steam_zip, normal_plan, result, 'pass')
+                    with result.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != 'ae07560ac689959eb102e9dab569e0247b39d0ee7845e97d78639279ebedee03': raise ValueError('normal output differs')
+                    next_assets.append(result)
+                mesh_assets = next_assets; texture_plans.append(normal_plan)
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:
