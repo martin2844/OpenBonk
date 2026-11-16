@@ -88,6 +88,13 @@ def valid_shared0_sdf_record(row):
             not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'forest_source', 'source_name', 'alias_group', 'alias_target_id')))
 
 
+def valid_shared0_fox_record(row):
+    return (row.get('shared0_fox') is True and row.get('group') == 'sharedassets0' and row.get('name') == 'Fox_Default' and
+            row.get('source_format') == 4 and row.get('target_format') == 45 and row.get('bytes') == 43704 and
+            row.get('normal') is False and row.get('quality') is True and row.get('direct_normal') is False and
+            not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'forest_source', 'shared0_sdf', 'source_name', 'alias_group', 'alias_target_id')))
+
+
 def file_hash(path):
     with path.open('rb') as stream: return hashlib.file_digest(stream, 'sha256').hexdigest()
 
@@ -161,8 +168,8 @@ def generate(args):
     chosen = {g: {} for g in study.GROUPS}
     for row in candidates:
         group, key = row['group'], row['target_id']
-        if ('shared0_sdf' in row or group == 'sharedassets0') and not valid_shared0_sdf_record(row):
-            raise ValueError('invalid sharedassets0 font mapping')
+        if ('shared0_sdf' in row or 'shared0_fox' in row or group == 'sharedassets0') and not (valid_shared0_sdf_record(row) or valid_shared0_fox_record(row)):
+            raise ValueError('invalid sharedassets0 texture mapping')
         if 'shadow' in row and not valid_shadow_record(row):
             raise ValueError('invalid shadow texture mapping')
         if 'collision_alias' in row and not valid_collision_record(row): raise ValueError('invalid collision texture mapping')
@@ -217,7 +224,7 @@ def generate(args):
                     if key not in objects: raise ValueError('missing target texture')
                     obj = objects[key]; tex = obj.read()
                     source_name = 'DropShadow' if prior.get('shadow') is True else prior.get('source_name', tex.m_Name)
-                    found = (shared0_index if prior.get('shared0_sdf') is True else resources_index if prior.get('font') is True or prior.get('resource') is True else index)[(source_name, tex.m_Width, tex.m_Height)]
+                    found = (shared0_index if prior.get('shared0_sdf') is True or prior.get('shared0_fox') is True else resources_index if prior.get('font') is True or prior.get('resource') is True else index)[(source_name, tex.m_Width, tex.m_Height)]
                     chosen_source = (next((item for item in found if item[0] == 'sharedassets1' and sha(bytes(item[2].get_image_data())) == prior['source_sha256']), None)
                                      if prior.get('forest_source') is True or prior.get('emission_source') is True else
                                      study.select_shadow_source(tex, found, texture=lambda item: item[2]) if prior.get('shadow') is True
@@ -226,6 +233,8 @@ def generate(args):
                     src_group, src_obj, src = chosen_source
                     if prior.get('shared0_sdf') is True and (src_group != 'sharedassets0' or not study.shared0_sdf_target(tex) or src.m_Name != tex.m_Name):
                         raise ValueError('sharedassets0 font metadata differs')
+                    if prior.get('shared0_fox') is True and (src_group != 'sharedassets0' or src.m_Name != tex.m_Name or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (256, 256, 9)):
+                        raise ValueError('sharedassets0 Fox metadata differs')
                     if prior.get('forest_source') is True:
                         spec = study.FOREST_TEXTURES[prior['name']]
                         if (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount, tex.m_ImageCount) != (*spec[1:], 1)

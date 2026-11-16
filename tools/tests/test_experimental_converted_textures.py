@@ -9,6 +9,16 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_fox_quality_gate_bounds_mean_and_maximum(self):
+        from PIL import Image
+        original = Image.new('RGB', (10, 10), (10, 10, 10))
+        changed = Image.new('RGB', (10, 10), (30, 10, 10))
+        self.assertTrue(module.acceptable_fox_mip(original, changed))
+        changed = Image.new('RGB', (10, 10), (34, 10, 10))
+        self.assertFalse(module.acceptable_fox_mip(original, changed))
+        changed = original.copy(); changed.putpixel((0, 0), (216, 10, 10))
+        self.assertFalse(module.acceptable_fox_mip(original, changed))
+
     def test_only_known_case_collisions_map_to_steam_names(self):
         self.assertEqual(module.collision_source('bush__openbonk_8cd6c6a0'), 'bush')
         self.assertEqual(module.collision_source('retaliation__openbonk_56e12a7d'), 'retaliation')

@@ -12,6 +12,14 @@ spec.loader.exec_module(module)
 
 
 class ConvertedTexturePlanTests(unittest.TestCase):
+    def test_shared0_fox_record_is_strictly_scoped(self):
+        row = {'shared0_fox': True, 'group': 'sharedassets0', 'name': 'Fox_Default', 'source_format': 4,
+               'target_format': 45, 'bytes': 43704, 'normal': False, 'quality': True, 'direct_normal': False}
+        self.assertTrue(module.valid_shared0_fox_record(row))
+        for change in ({'name': 'other'}, {'group': 'sharedassets1'}, {'quality': False},
+                       {'bytes': 1}, {'source_format': 10}, {'shared0_sdf': True}):
+            self.assertFalse(module.valid_shared0_fox_record(dict(row, **change)))
+
     def test_emission_record_requires_supported_target_and_source_hash(self):
         row = {'emission_source': True, 'group': 'sharedassets1', 'name': 'Emission_0', 'source_name': 'Emission',
                'source_sha256': 'ab' * 32, 'source_format': 10, 'target_format': 4, 'bytes': 87380,
