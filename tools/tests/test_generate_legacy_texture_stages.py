@@ -9,6 +9,16 @@ ROOT = Path(__file__).resolve().parents[2]/'analysis/data-conversion'
 
 
 class TextureStageTests(unittest.TestCase):
+    def test_shader_output_directory_is_not_overwritten(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)/'output'; output.mkdir()
+            sentinel = output/'keep'; sentinel.write_text('existing data')
+            result = subprocess.run([sys.executable, str(ROOT/'generate-android-shared1-shader-pack.py'),
+                                     '--output', str(output)], capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('output exists', result.stderr)
+            self.assertEqual(sentinel.read_text(), 'existing data')
+
     def test_invalid_base_is_rejected_without_output(self):
         stages = (('generate-android-shared1-exact-textures-plan.py', ()),
                   ('generate-android-shared1-exact-textures-plan.py', ('rgba',)),

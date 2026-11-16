@@ -38,7 +38,7 @@ def main():
     parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
     parser.add_argument('--include-layout-plan', action='store_true', help='also generate the shared1 layout plan (requires localization base)')
     parser.add_argument('--include-material-mesh-plans', action='store_true', help='also generate and verify the shared1 material/audio and mesh plans')
-    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify the shared1 texture plans')
+    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify the shared1 texture plans and subsequent shader pack')
     parser.add_argument('--java-home', type=Path, help='JDK directory for material and mesh plan checks')
     parser.add_argument('--java-runner', default='none', help='wrapper for Java tools, or none')
     parser.add_argument('--host-texture-library', type=Path, help='local host JNI texture conversion library')
@@ -163,14 +163,14 @@ def main():
                 if hashlib.file_digest(f, 'sha256').hexdigest() != '0142daaaf1e07c3a9aa90dac01382f8fba6cce74983f669376b01fce1fff6ed0':
                     raise ValueError('shared1 layout plan differs')
         material_plan = mesh_plan = None
-        mesh_extra_plans = []; texture_plans = []
+        mesh_extra_plans = []; texture_plans = []; shader_pack = None
         if args.include_material_mesh_plans:
             java_source = ROOT/'analysis/data-conversion/android'; classes = tmp/'java-classes'; classes.mkdir()
             prefix = [] if args.java_runner == 'none' else [args.java_runner]
             def java_run(*command): subprocess.run([*prefix, *(str(x) for x in command)], check=True)
             java_names = ['SteamExactTextures', 'SteamShared1Layout', 'SteamShared1LayoutCheck',
                           'SteamShared1MaterialAudio', 'SteamShared1MaterialAudioCheck', 'SteamShared1Meshes', 'SteamShared1MeshesCheck']
-            if args.include_texture_plans: java_names += ['SteamConvertedTextures', 'SteamShared1ExactTextures', 'SteamShared1ExactTexturesCheck']
+            if args.include_texture_plans: java_names += ['SteamConvertedTextures', 'SteamShared1ExactTextures', 'SteamShared1ExactTexturesCheck', 'SteamShared1Shaders', 'SteamShared1ShadersCheck']
             java_run(java/'bin/javac', '-d', classes, *(java_source/(name+'.java') for name in java_names))
             def check_java(name, *arguments): java_run(java/'bin/java', '-cp', classes, 'com.openbonk.dataprep.'+name, *arguments)
             layout_asset = tmp/'layout.assets'
@@ -280,6 +280,21 @@ def main():
                         if hashlib.file_digest(f, 'sha256').hexdigest() != 'ae07560ac689959eb102e9dab569e0247b39d0ee7845e97d78639279ebedee03': raise ValueError('normal output differs')
                     next_assets.append(result)
                 mesh_assets = next_assets; texture_plans.append(normal_plan)
+                shader_dir = tmp/'shared1-shader-output'
+                run('analysis/data-conversion/generate-android-shared1-shader-pack.py', '--base', mesh_assets[0],
+                    '--target-asset', target, '--shader-bundles', shaders, '--manifest-dir', final, '--output', shader_dir)
+                shader_plan = shader_dir/'plan.bin'; shader_pack = shader_dir/'shader-pack.zip'
+                for path, expected in ((shader_plan, '673f1003a80d65b951c96dcb09fa6401fe72d9c6c2f9cffb55658a6da34bd9d1'),
+                                       (shader_pack, '96b0ea3bc74303b5b4455b1a99e4d875b4d9611af03368b1e39bf79138f3ce7b')):
+                    with path.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != expected: raise ValueError('shared1 shader output differs: '+path.name)
+                for i, asset in enumerate(mesh_assets):
+                    result = tmp/f'shaders-{i}.assets'
+                    check_java('SteamShared1ShadersCheck', asset, shader_pack, shader_plan, result, 'pass')
+                    with result.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != '575780f50d87cb9183d398161dabcdb5566c87f3d4f5bb22922716a550862715': raise ValueError('shared1 shader asset differs')
+                named_shader_plan = tmp/'shared1-shaders.bin'
+                shutil.copyfile(shader_plan, named_shader_plan); texture_plans.append(named_shader_plan)
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:
@@ -299,6 +314,8 @@ def main():
             for plan in (material_plan, mesh_plan, *mesh_extra_plans, *texture_plans):
                 if plan is not None:
                     with plan.open('rb') as src, (out/plan.name).open('xb') as dest: shutil.copyfileobj(src, dest)
+            if shader_pack is not None:
+                with shader_pack.open('rb') as src, (out/'shared1-shader-pack.zip').open('xb') as dest: shutil.copyfileobj(src, dest)
         except BaseException:
             shutil.rmtree(out)
             raise
