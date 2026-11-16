@@ -123,6 +123,15 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         safe.anchorMax = new Vector2(area.xMax / Screen.width, area.yMax / Screen.height);
         safe.offsetMin = safe.offsetMax = Vector2.zero;
 
+        // The first sibling receives only touches that did not start on a
+        // control. Keeping ownership for the whole gesture prevents a drag
+        // from a joystick or button from also rotating the camera.
+        var lookArea = new GameObject("Free look area", typeof(RectTransform), typeof(Image), typeof(AndroidTouchFreeLook));
+        var lookRect = (RectTransform)lookArea.transform;
+        lookRect.SetParent(safe, false); lookRect.anchorMin = Vector2.zero; lookRect.anchorMax = Vector2.one;
+        lookRect.offsetMin = lookRect.offsetMax = Vector2.zero;
+        lookArea.GetComponent<Image>().color = Color.clear;
+
         CreateStick(safe, "Move", new Vector2(190, 175), false);
         CreateStick(safe, "Look", new Vector2(-390, 175), true);
         buttons = new[] {
@@ -195,6 +204,34 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         }
         texture.SetPixels32(colors); texture.Apply(false, true);
         return Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(.5f, .5f));
+    }
+}
+
+internal sealed class AndroidTouchFreeLook : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
+{
+    private static int pointer = int.MinValue;
+
+    public void OnPointerDown(PointerEventData e)
+    {
+        if (!AndroidTouchLayoutEditor.Editing && pointer == int.MinValue) pointer = e.pointerId;
+    }
+    public void OnPointerUp(PointerEventData e) { if (e.pointerId == pointer) pointer = int.MinValue; }
+    private void OnDisable() { pointer = int.MinValue; }
+
+    internal static Vector2 Delta()
+    {
+        if (pointer == int.MinValue || AndroidTouchLayoutEditor.Editing) return Vector2.zero;
+        for (int i = 0; i < Input.touchCount; i++)
+        {
+            Touch touch = Input.GetTouch(i);
+            if (touch.fingerId != pointer) continue;
+            if (touch.phase != TouchPhase.Moved) return Vector2.zero;
+            // Normalize against screen height so a swipe feels similar at
+            // different resolutions, and apply the existing mouse sensitivity.
+            return touch.deltaPosition * (1080f / Mathf.Max(1, Screen.height)) * .04f;
+        }
+        pointer = int.MinValue;
+        return Vector2.zero;
     }
 }
 
@@ -296,6 +333,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private int profileSlot = 1;
     private bool pausedForEditing;
     internal bool SnapToGrid => PlayerPrefs.GetInt(Prefix + "grid", 0) != 0;
+    internal bool IsSelected(AndroidTouchLayoutTarget target) => selected == target;
     private bool Spanish => (LocalizationSettings.SelectedLocale?.Identifier.Code ?? "en").StartsWith("es", StringComparison.OrdinalIgnoreCase);
 
     internal void Initialize(RectTransform area, AndroidTouchButton[] actionButtons)
@@ -372,6 +410,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     internal void Select(AndroidTouchLayoutTarget target)
     {
         selected = target;
+        foreach (var item in targets) item.UpdateAppearance();
         if (swapFrom != null && target.Button != null && target.Button != swapFrom && IsRemappable(target.Button.action))
         {
             string action = swapFrom.action; swapFrom.action = target.Button.action; target.Button.action = action;
@@ -403,7 +442,8 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         if (PlayerPrefs.GetInt(SlotKey + "exists", 0) == 0) { selectedLabel.text = Spanish ? "Perfil vacío" : "Empty profile"; return; }
         foreach (var target in targets) target.CopyFromProfile(SlotKey);
         PlayerPrefs.SetInt(Prefix + "grid", PlayerPrefs.GetInt(SlotKey + "grid", 0)); PlayerPrefs.SetInt(Prefix + "autorun", PlayerPrefs.GetInt(SlotKey + "autorun", 0));
-        foreach (var button in buttons) button.RefreshLabel(); selected = null; swapFrom = null; PlayerPrefs.Save(); Refresh();
+        foreach (var button in buttons) button.RefreshLabel(); selected = null; swapFrom = null;
+        foreach (var target in targets) target.UpdateAppearance(); PlayerPrefs.Save(); Refresh();
     }
     private void ResetLayout()
     {
@@ -450,6 +490,7 @@ internal sealed class AndroidTouchLayoutTarget : MonoBehaviour, IPointerDownHand
     internal bool Visible => PlayerPrefs.GetInt(prefix + "visible", 1) != 0;
     internal float Opacity => Mathf.Clamp(PlayerPrefs.GetFloat(prefix + "opacity", 1), .1f, 1f);
     private CanvasGroup canvasGroup;
+    private UnityEngine.UI.Outline selectionOutline;
     private AndroidTouchLayoutEditor editor;
     private RectTransform safe, rect;
     private string prefix;
@@ -460,7 +501,11 @@ internal sealed class AndroidTouchLayoutTarget : MonoBehaviour, IPointerDownHand
     {
         editor = owner; safe = area; rect = (RectTransform)transform; Id = id; Button = button; prefix = key + id + ".";
         originalPosition = rect.anchoredPosition; originalAnchor = rect.anchorMin;
-        canvasGroup = rect.gameObject.AddComponent<CanvasGroup>(); LoadSettings();
+        canvasGroup = rect.gameObject.AddComponent<CanvasGroup>();
+        selectionOutline = rect.gameObject.AddComponent<UnityEngine.UI.Outline>();
+        selectionOutline.effectColor = new Color(.83f, .96f, .37f, 1f);
+        selectionOutline.effectDistance = new Vector2(5, -5);
+        LoadSettings();
     }
     private void LoadSettings()
     {
@@ -480,6 +525,7 @@ internal sealed class AndroidTouchLayoutTarget : MonoBehaviour, IPointerDownHand
         if (canvasGroup == null) return;
         canvasGroup.alpha = Visible ? Opacity : (AndroidTouchLayoutEditor.Editing ? .25f : 0f);
         canvasGroup.blocksRaycasts = Visible || AndroidTouchLayoutEditor.Editing;
+        if (selectionOutline != null) selectionOutline.enabled = AndroidTouchLayoutEditor.Editing && editor.IsSelected(this);
     }
     internal void SetVisible(bool value) { PlayerPrefs.SetInt(prefix + "visible", value ? 1 : 0); UpdateAppearance(); }
     internal void SetOpacity(float value) { PlayerPrefs.SetFloat(prefix + "opacity", Mathf.Clamp(value, .1f, 1f)); UpdateAppearance(); }

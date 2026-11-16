@@ -159,6 +159,9 @@ public class PlayerInput : MonoBehaviour
 		Vector2 mouse = FilterTouchMouse(new Vector2(mouseX, mouseY), Input.touchCount > 0);
 		mouseX = mouse.x;
 		mouseY = mouse.y;
+		Vector2 touchLook = AndroidTouchFreeLook.Delta();
+		mouseX += touchLook.x;
+		mouseY += touchLook.y;
 #endif
 		float lookX = MyInputManager.GetAxis(MyInputManager.LookHorizontal);
 		float lookY = MyInputManager.GetAxis(MyInputManager.LookVertical);
