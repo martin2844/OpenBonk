@@ -14,7 +14,7 @@ public final class SteamPlannedTextures {
     private static final String PREFIX = "assets/bin/Data/";
     private static final class Texture {
         String source, inputHash, outputHash, decodedHash; long inputOffset, convertedOffset;
-        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat; boolean normal, quality;
+        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat; boolean normal, quality; byte[] blend;
     }
     private static final class Fragment {
         Texture texture; String entry, maskedHash, originalHash; byte[] mask; int targetOffset, convertedOffset, size;
@@ -117,6 +117,13 @@ public final class SteamPlannedTextures {
                 if (cubemaps && (!t.source.equals("sharedassets1.assets.resS") || t.inputSize > 4 * 1024 * 1024 || t.outputSize != 6 * 131072)) throw new IOException("invalid cubemap metadata");
                 if (t.quality && (cubemaps || t.normal || (t.targetFormat != 47 && t.targetFormat != 45) || t.width > 2048 || t.height > 2048)) throw new IOException("invalid quality texture metadata");
                 if (partial && (t.normal || (t.targetFormat == 4 && t.quality))) throw new IOException("invalid partial texture metadata");
+                if (row.has("blend")) {
+                    if (!partial || !t.quality || !(row.get("blend") instanceof String)) throw new IOException("invalid blended texture metadata");
+                    try { t.blend = Base64.getDecoder().decode(row.getString("blend")); }
+                    catch (IllegalArgumentException e) { throw new IOException("invalid blended texture choices", e); }
+                    int blocks = (t.outputSize + 15) / 16;
+                    if (t.blend.length != (blocks + 7) / 8 || ((blocks & 7) != 0 && ((t.blend[t.blend.length - 1] & 255) >>> (blocks & 7)) != 0)) throw new IOException("invalid blended texture choices");
+                }
                 t.convertedOffset = total; total += t.outputSize; if (total > MAX_TOTAL) throw new IOException("texture limit exceeded");
                 JSONArray fs = row.getJSONArray("fragments"); int position = 0;
                 if (fs.length() == 0 || fs.length() > 128) throw new IOException("invalid fragment count");
@@ -198,6 +205,16 @@ public final class SteamPlannedTextures {
                             byte[] rgb = new byte[wanted];
                             for (int i = 0; i < rgb.length; i += 8) System.arraycopy(mip, i * 2 + 8, rgb, i, 8);
                             mip = rgb;
+                        }
+                        if (mip != null && t.blend != null) {
+                            byte[] fast;
+                            try { fast = SteamConvertedTextures.convertMip(Arrays.copyOfRange(input, inputPos, inputPos + n), w, h, sourceFormat, t.targetFormat); }
+                            catch (UnsatisfiedLinkError e) { throw new IOException("texture converter unavailable", e); }
+                            if (fast == null || fast.length != wanted) throw new IOException("fast texture conversion failed");
+                            for (int i = 0; i < wanted; i++) {
+                                int block = (outputPos + i) / 16;
+                                if ((t.blend[block / 8] & (1 << (block & 7))) != 0) mip[i] = fast[i];
+                            }
                         }
                         if (mip == null || mip.length != wanted) throw new IOException("texture conversion failed");
                         out.write(mip); hash.update(mip); inputPos += n; outputPos += wanted;

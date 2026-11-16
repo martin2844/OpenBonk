@@ -160,6 +160,12 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         payload['records'][0].update(target_format=4, quality=True)
         plan.write_text(json.dumps(payload))
         with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        payload['records'][0].update(target_format=47, quality=True, blend='AQ==')
+        plan.write_text(json.dumps(payload)); MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        payload['records'][0]['blend'] = 'gA=='
+        plan.write_text(json.dumps(payload))
+        with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        del payload['records'][0]['blend']
         payload['records'][0].update(target_format=4, quality=False)
         plan.write_text(json.dumps(payload))
         with zipfile.ZipFile(result, 'w') as z: z.writestr(entry, b'xAXCy')

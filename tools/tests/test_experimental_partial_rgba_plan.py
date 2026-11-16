@@ -11,6 +11,18 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_block_blend_chooses_best_encoder_and_validates_mask(self):
+        original = b'A' * 16 + b'B' * 16 + b'C' * 3
+        quality = b'A' * 16 + b'X' * 16 + b'C' * 3
+        fast = b'X' * 16 + b'B' * 16 + b'X' * 3
+        output, choices = module.select_blocks(original, quality, fast)
+        self.assertEqual(output, original)
+        self.assertEqual(choices, b'\x02')
+        self.assertEqual(module.blend_blocks(quality, fast, choices), original)
+        with self.assertRaises(ValueError): module.blend_blocks(quality, fast, b'\x80')
+        with self.assertRaises(ValueError): module.blend_blocks(quality, fast, b'')
+        with self.assertRaises(ValueError): module.select_blocks(original, quality, b'bad')
+
     def test_fast_mode_is_selected_only_for_more_equal_nonzero_bytes(self):
         self.assertEqual(module.select_encoding(b'AB\0', b'Ax\0', b'ABx'), (b'ABx', False))
         self.assertEqual(module.select_encoding(b'AB\0', b'Ax\0', b'xB\0'), (b'Ax\0', True))

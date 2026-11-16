@@ -314,7 +314,7 @@ class SteamResearchBuildTests(unittest.TestCase):
     def test_partial_rgba_reaches_both_platforms_and_dual_packager(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
-        self.invoke('--windows-game', str(windows), '--partial-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-fast', '--transparent-atlas-scrub', '--quality-textures')
+        self.invoke('--windows-game', str(windows), '--partial-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-fast', '--partial-etc2-blend', '--transparent-atlas-scrub', '--quality-textures')
         self.assertIn('--partial-rgba', run.call_args_list[-3].args[0])
         self.assertIn('--partial-rgba', run.call_args_list[-2].args[0])
         self.assertIn('--partial-etc2', run.call_args_list[-3].args[0])
@@ -323,6 +323,8 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertIn('--partial-etc2-small', run.call_args_list[-2].args[0])
         self.assertIn('--partial-etc2-fast', run.call_args_list[-3].args[0])
         self.assertIn('--partial-etc2-fast', run.call_args_list[-2].args[0])
+        self.assertIn('--partial-etc2-blend', run.call_args_list[-3].args[0])
+        self.assertIn('--partial-etc2-blend', run.call_args_list[-2].args[0])
         self.assertIn('--transparent-atlas-scrub', run.call_args_list[-3].args[0])
         self.assertIn('--transparent-atlas-scrub', run.call_args_list[-2].args[0])
         self.assertIn('--partial-rgba-plan', run.call_args_list[-1].args[0])
@@ -347,6 +349,7 @@ class SteamResearchBuildTests(unittest.TestCase):
         with self.assertRaises(SystemExit): self.invoke('--quality-textures', '--partial-etc2')
         with self.assertRaises(SystemExit): self.invoke('--partial-etc2-small')
         with self.assertRaises(SystemExit): self.invoke('--partial-etc2-fast')
+        with self.assertRaises(SystemExit): self.invoke('--partial-etc2-blend')
         run.assert_not_called()
 
 

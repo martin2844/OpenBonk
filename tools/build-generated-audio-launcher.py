@@ -211,6 +211,13 @@ def verify_animations(template, plan_path, intermediate, partial_rgba=False):
                     not ((fmt == 4 and not quality) or fmt in (45, 47)) or
                     not isinstance(row.get('fragments'), list) or not row['fragments']):
                 raise ValueError('invalid partial texture record')
+            if 'blend' in row:
+                size = row.get('target_size')
+                if not quality or fmt not in (45, 47) or type(size) is not int or size <= 0 or size > 64 * 1024 * 1024 or not isinstance(row['blend'], str):
+                    raise ValueError('invalid blended texture record')
+                choices = base64.b64decode(row['blend'], validate=True); blocks = (size + 15) // 16
+                if len(choices) != (blocks + 7) // 8 or (blocks % 8 and choices[-1] >> (blocks % 8)):
+                    raise ValueError('invalid blended texture choices')
             for fragment in row['fragments']:
                 offset, size, total = fragment.get('converted_offset'), fragment.get('size'), row.get('target_size')
                 if any(type(x) is not int for x in (offset, size, total)) or offset < 0 or size <= 0 or offset + size > total: raise ValueError('invalid partial texture range')

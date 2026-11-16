@@ -18,6 +18,20 @@ on both the host and that Retroid. These are partial-stage checks, not complete 
 gameplay tests. The template still contains game-derived data; inputs and
 fixtures must remain private.
 
+The additional experimental `--partial-etc2-blend` option requires
+`--partial-etc2-fast` and chooses the exact matching encoder separately for
+each 16-byte output block. A private study using the prior local runtime
+recovered 20,398 additional nonzero texture bytes compared with fast selection
+per texture. Both Linux and Windows plans restored all 1,072 archive entries
+exactly on a Retroid Pocket 5. A combined APK assembled from those plans and
+previously generated intermediates passed an independent check with both ZIPs.
+The same Retroid imported the Linux ZIP, produced the expected OBB hash and
+entered a short Forest run with Fox and enemy defeats. Its inline texture audit
+found 164,507 nonzero bytes in the measured template; other data types were not
+covered by that audit. This does not prove a clean end-to-end build, Windows ZIP
+import through the combined APK, complete gameplay parity or suitability for
+distribution. The APK and local inputs remain private.
+
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
 failed because its validation rejected fast ETC2 records. After updating the
