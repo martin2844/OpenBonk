@@ -10,7 +10,7 @@ SCRIPT = Path(__file__).resolve().parents[1]/'generate-legacy-shared-plans.py'
 
 class SharedPlansTest(unittest.TestCase):
     def test_cubemap_source_requires_decoder(self):
-        for option in ('--shared1-before-cubemaps', '--shared1-before-normal'):
+        for option in ('--shared1-before-cubemaps', '--shared1-before-normal', '--shared1-before-exact', '--shared1-before-alpha8'):
             with self.subTest(option=option):
                 result = subprocess.run([sys.executable, str(SCRIPT), '--steam-data', 'steam', '--android-obb', 'base.obb',
                                          option, 'source', '--shared1-source-from-obb', '--output', 'out'],

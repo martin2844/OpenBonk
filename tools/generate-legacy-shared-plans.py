@@ -30,6 +30,8 @@ def main():
     terrain_group.add_argument('--shared1-terrain-source', type=Path, help='pinned earlier staged directory')
     terrain_group.add_argument('--shared1-before-cubemaps', type=Path, help='pinned stage before cubemap template generation')
     terrain_group.add_argument('--shared1-before-normal', type=Path, help='pinned stage before normal and large texture templates')
+    terrain_group.add_argument('--shared1-before-exact', type=Path, help='pinned stage before exact renamed texture templates')
+    terrain_group.add_argument('--shared1-before-alpha8', type=Path, help='pinned stage before alpha texture templates')
     parser.add_argument('--crunch-decoder', type=Path, help='local six-face Unity Crunch decoder, required before cubemaps')
     mesh_group = parser.add_mutually_exclusive_group(required=True)
     mesh_group.add_argument('--shared1-mesh-input', type=Path, help='pinned texture-template directory')
@@ -37,10 +39,10 @@ def main():
     mesh_group.add_argument('--shared1-source-from-obb', action='store_true', help='rebuild the pre-template asset from the old OBB and Steam audio')
     parser.add_argument('--output', required=True, type=Path, help='new private directory')
     args = parser.parse_args()
-    if bool(args.shared1_before_cubemaps or args.shared1_before_normal) != bool(args.crunch_decoder):
-        parser.error('a before-cubemaps or before-normal source and --crunch-decoder must be supplied together')
+    if bool(args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8) != bool(args.crunch_decoder):
+        parser.error('an earlier terrain source and --crunch-decoder must be supplied together')
     steam, obb = args.steam_data.resolve(strict=True), args.android_obb.resolve(strict=True)
-    terrain = (args.shared1_terrain_asset or args.shared1_terrain_source or args.shared1_before_cubemaps or args.shared1_before_normal).resolve(strict=True)
+    terrain = (args.shared1_terrain_asset or args.shared1_terrain_source or args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8).resolve(strict=True)
     decoder = args.crunch_decoder.resolve(strict=True) if args.crunch_decoder else None
     mesh = (args.shared1_mesh_input or args.shared1_source_dir).resolve(strict=True) if not args.shared1_source_from_obb else None
     output = args.output.expanduser().absolute()
@@ -75,16 +77,24 @@ def main():
             helper.run('analysis/data-conversion/combined-texture-bc-prototype.py', 'template', steam, mesh,
                        direct/'manifest.json', rgba/'manifest.json', etc/'manifest.json', bc/'manifest.json', combined)
             mesh = combined
-        if args.shared1_before_normal:
+        if args.shared1_before_alpha8:
+            alpha = tmp/'terrain-alpha8'
+            helper.run('analysis/data-conversion/alpha8-staged-prototype.py', 'template', steam, terrain, alpha)
+            terrain = alpha
+        if args.shared1_before_exact or args.shared1_before_alpha8:
+            exact = tmp/'terrain-exact'
+            helper.run('analysis/data-conversion/exact-renamed-textures-prototype.py', 'strip', steam, terrain, exact)
+            terrain = exact
+        if args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8:
             normal, large = tmp/'terrain-normal', tmp/'terrain-large'
             helper.run('analysis/data-conversion/normal-map-staged-prototype.py', 'template', steam, terrain, normal)
             helper.run('analysis/data-conversion/large-textures-staged-prototype.py', 'template', steam, normal, large)
             terrain = large
-        if args.shared1_before_cubemaps or args.shared1_before_normal:
+        if args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8:
             cubemaps = tmp/'terrain-cubemaps'
             helper.run('analysis/data-conversion/all-cubemaps-staged-prototype.py', 'template', steam, terrain, decoder, cubemaps)
             terrain = cubemaps
-        if args.shared1_terrain_source or args.shared1_before_cubemaps or args.shared1_before_normal:
+        if args.shared1_terrain_source or args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8:
             matched = tmp/'terrain-source'
             helper.run('analysis/data-conversion/matched-textures-staged-prototype.py', 'template', steam, terrain, matched)
             terrain = matched/'sharedassets1.assets'
