@@ -93,6 +93,7 @@ def commands(a):
              '--output', out / 'research', *wrapped]
     if a.quality_textures: chain += ['--quality-textures']
     if a.normal_fallback: chain += ['--normal-fallback']
+    if getattr(a, 'animation_curve_fallback', False): chain += ['--animation-curve-fallback']
     if a.font_fallback: chain += ['--font-fallback']
     if a.resource_fallback: chain += ['--resource-fallback']
     if getattr(a, 'shadow_fallback', False): chain += ['--shadow-fallback']
@@ -123,6 +124,7 @@ def commands(a):
         if a.windows_steam_zip: windows_chain += ['--steam-zip', a.windows_steam_zip]
         if a.quality_textures: windows_chain += ['--quality-textures']
         if a.normal_fallback: windows_chain += ['--normal-fallback']
+        if getattr(a, 'animation_curve_fallback', False): windows_chain += ['--animation-curve-fallback']
         if a.font_fallback: windows_chain += ['--font-fallback']
         if a.resource_fallback: windows_chain += ['--resource-fallback']
         if getattr(a, 'shadow_fallback', False): windows_chain += ['--shadow-fallback']
@@ -157,6 +159,7 @@ def main():
     p.add_argument('--include-rewired', action='store_true', help='experimentally include local Rewired plugins in both Unity builds')
     p.add_argument('--quality-textures', action='store_true', help='experimentally use higher-quality ETC2 for selected textures')
     p.add_argument('--normal-fallback', action='store_true', help='experimentally recover RGB normal maps that pass every mip direction check')
+    p.add_argument('--animation-curve-fallback', action='store_true', help='experimentally substitute tightly bounded Steam animation curves')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally reconstruct a uniquely matching shadow; requires --quality-textures')

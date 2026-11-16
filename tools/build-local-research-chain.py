@@ -106,7 +106,11 @@ def commands(a):
     py('packed Steam audio', 'experimental-packed-steam-audio.py', '--steam-data', steam, '--obb', out / 'individual-audio.obb', '--output', out / 'packed-audio.obb')
     py('converted textures', 'experimental-converted-textures.py', '--steam-data', steam, '--obb', out / 'packed-audio.obb', '--output', out / 'texture-study', *(['--quality-library', hostlib] if quality else []), *(['--normal-fallback'] if normal_fallback else []), *(['--font-fallback'] if getattr(a, 'font_fallback', False) else []), *(['--resource-fallback'] if getattr(a, 'resource_fallback', False) else []), *(['--shadow-fallback'] if getattr(a, 'shadow_fallback', False) else []), *(['--emoji-fallback'] if getattr(a, 'emoji_fallback', False) else []), *(['--shared0-sdf'] if getattr(a, 'shared0_fonts', False) else []))
     py('converted cubemaps', 'experimental-converted-cubemaps.py', '--steam-data', steam, '--obb', out / 'texture-study/converted.obb', '--decoder', decoder, '--output', out / 'cubemap-study', *wrapped)
-    toolplan('individual audio plan', 'experimental-steam-audio-plan.py', out / 'cubemap-study/converted.obb', plans / 'audio')
+    converted = out / 'cubemap-study/converted.obb'
+    if getattr(a, 'animation_curve_fallback', False):
+        py('compatible Steam animation curves', 'experimental-steam-animation-curves.py', '--steam-data', steam, '--obb', converted, '--output', out / 'animation-curve-study')
+        converted = out / 'animation-curve-study/converted.obb'
+    toolplan('individual audio plan', 'experimental-steam-audio-plan.py', converted, plans / 'audio')
     toolplan('packed audio plan', 'experimental-packed-audio-plan.py', plans / 'audio/template.obb', plans / 'packed')
     toolplan('texture plan', 'experimental-converted-texture-plan.py', plans / 'packed/template.obb', plans / 'texture', '--manifest', out / 'texture-study/report.json', *(['--quality-library', hostlib] if quality else []))
     toolplan('mesh plan', 'experimental-mesh-buffer-plan.py', plans / 'texture/template.obb', plans / 'mesh')
@@ -141,7 +145,7 @@ def commands(a):
     rebind('bind packed audio plan', plans / 'packed/plan.json', plans / 'packed/template.obb', texture, results / 'packed-plan.json')
     java('restore and verify packed audio', 'SteamPackedAudioCheck', texture, steamzip, results / 'packed-plan.json', packed, plans / 'audio/template.obb', 'pass')
     rebind('bind audio plan', plans / 'audio/plan.json', plans / 'audio/template.obb', packed, results / 'audio-plan.json')
-    java('restore and verify individual audio', 'SteamGeneratedAudioCheck', packed, steamzip, results / 'audio-plan.json', final, out / 'cubemap-study/converted.obb', 'pass')
+    java('restore and verify individual audio', 'SteamGeneratedAudioCheck', packed, steamzip, results / 'audio-plan.json', final, converted, 'pass')
     py('verify video resource', 'check-obb-video.py', '--obb', final,
        '--clip', a.unity_project / 'Assets/VideoClip/Buffering3.webm')
     build = ['--gradle-project', a.gradle_project, '--unity-project', a.unity_project, '--runtime-apk', a.runtime_apk,
@@ -170,6 +174,7 @@ def main():
     p.add_argument('--platform', choices=('linux', 'windows'), default='linux', help='Steam data platform (Windows support is experimental)')
     p.add_argument('--quality-textures', action='store_true', help='experimentally use the high-quality ETC2 encoder for selected textures')
     p.add_argument('--normal-fallback', action='store_true', help='experimentally recover RGB normal maps that pass every mip direction check')
+    p.add_argument('--animation-curve-fallback', action='store_true', help='experimentally substitute tightly bounded Steam animation curves')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally select a unique shadow texture; requires --quality-textures')

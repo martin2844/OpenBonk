@@ -23,6 +23,15 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.invoke('--windows-game', str(windows), '--gradle-online')
         for call in run.call_args_list[-3:]: self.assertIn('--gradle-online', call.args[0])
 
+    @patch.object(module.subprocess, 'run')
+    def test_animation_curve_option_reaches_both_platforms(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--animation-curve-fallback')
+        chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
+        self.assertEqual(len(chains), 2)
+        for command in chains: self.assertIn('--animation-curve-fallback', command)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup); self.root = Path(self.temp.name)
         self.game = self.root / 'game'; (self.game / 'Megabonk_Data').mkdir(parents=True)

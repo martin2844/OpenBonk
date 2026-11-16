@@ -47,6 +47,19 @@ class ResearchChainTests(unittest.TestCase):
             args.gradle_online = True
             self.assertIn('--gradle-online', module.commands(args)[-1][1])
 
+    def test_optional_animation_curves_feed_audio_plan_and_final_check(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp))
+            self.assertNotIn('compatible Steam animation curves', dict(module.commands(args)))
+            args.animation_curve_fallback = True
+            steps = module.commands(args); labels = [name for name, _ in steps]
+            self.assertLess(labels.index('converted cubemaps'), labels.index('compatible Steam animation curves'))
+            self.assertLess(labels.index('compatible Steam animation curves'), labels.index('individual audio plan'))
+            commands = dict(steps)
+            expected = str(args.output / 'animation-curve-study/converted.obb')
+            self.assertIn(expected, commands['individual audio plan'])
+            self.assertIn(expected, commands['restore and verify individual audio'])
+
     def test_preflight_checks_zip_against_local_linux_data(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); data = root / 'data'; bundle = data / 'StreamingAssets/aa/StandaloneLinux64'
