@@ -17,6 +17,7 @@ import UnityPy
 ROOT=Path(__file__).resolve().parents[2]
 SCENES=('level1','level2','level4')
 OBB_SHA='ca916fd870e4546c70a66428591272ef155987140495c1a0dd446a332b578cc2'
+ALTERNATE_OBB_SHA='ca12a7ec37c7e647d487a310d4924a5ba1f4e4d2cb3d30c8da2a7091d552d961'
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
@@ -48,7 +49,7 @@ def main():
     p.add_argument('steam_data',type=Path);p.add_argument('obb',type=Path);p.add_argument('output',type=Path);a=p.parse_args()
     if a.output.exists() or a.output.is_symlink() or not a.output.parent.is_dir():p.error('output must be new')
     with a.obb.open('rb') as f:
-        if hashlib.file_digest(f,'sha256').hexdigest()!=OBB_SHA:raise ValueError('incompatible OBB')
+        if hashlib.file_digest(f,'sha256').hexdigest() not in (OBB_SHA,ALTERNATE_OBB_SHA):raise ValueError('incompatible OBB')
     pins=json.loads((ROOT/'tools/steam-linux-diagnostic-inputs.json').read_text())
     results=[]
     with zipfile.ZipFile(a.obb) as z:

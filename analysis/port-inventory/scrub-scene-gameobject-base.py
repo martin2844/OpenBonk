@@ -33,8 +33,9 @@ def main():
         src=src.resolve()
         if out.resolve().is_relative_to(src) or src.is_relative_to(out.resolve()):p.error('output must be separate from inputs')
     for path,expected in ((a.base/'base.apk',BASE_APK),(a.base/'base.obb',BASE_OBB),(a.template/'manifest.json',MANIFEST),
-                          (a.original_obb,'ca916fd870e4546c70a66428591272ef155987140495c1a0dd446a332b578cc2')):
+                          ):
         if not path.is_file() or repair.sha(path)!=expected:raise ValueError('incompatible input: '+str(path))
+    if not a.original_obb.is_file() or repair.sha(a.original_obb) not in ('ca916fd870e4546c70a66428591272ef155987140495c1a0dd446a332b578cc2','ca12a7ec37c7e647d487a310d4924a5ba1f4e4d2cb3d30c8da2a7091d552d961'):raise ValueError('incompatible source OBB')
     manifest=json.loads((a.template/'manifest.json').read_text()); metrics={};replacements={}
     with tempfile.TemporaryDirectory(prefix='.openbonk-transform-base-',dir=out.parent) as tmp:
         tmp=Path(tmp);new_apk=tmp/'base.apk';new_obb=tmp/'base.obb'

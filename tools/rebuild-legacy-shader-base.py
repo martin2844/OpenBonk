@@ -49,7 +49,7 @@ def main():
     parser.add_argument('--shader-bundles', required=True, type=Path, help='pinned local shader cache')
     parser.add_argument('--steam-data', type=Path, help='Linux Megabonk_Data, to generate the preceding material templates')
     parser.add_argument('--include-shared1-material', action='store_true', help='also reconstruct the earlier shared1 material stage')
-    parser.add_argument('--scene-source-obb', type=Path, help='pinned original Android OBB, to reconstruct the earlier scene GameObject stage')
+    parser.add_argument('--scene-source-obb', type=Path, help='one of the two pinned Android OBBs with matching scene and preload inputs')
     parser.add_argument('--include-scene-transforms', action='store_true', help='also reconstruct the preceding scene transform stage')
     parser.add_argument('--include-splash', action='store_true', help='also reconstruct the preceding Unity splash stage')
     preload_group = parser.add_mutually_exclusive_group()

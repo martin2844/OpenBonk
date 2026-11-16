@@ -17,6 +17,7 @@ import UnityPy
 ROOT = Path(__file__).resolve().parents[2]
 SCENES = ('level1', 'level2', 'level4')
 OBB_SHA = 'ca916fd870e4546c70a66428591272ef155987140495c1a0dd446a332b578cc2'
+ALTERNATE_OBB_SHA = 'ca12a7ec37c7e647d487a310d4924a5ba1f4e4d2cb3d30c8da2a7091d552d961'
 ORIGINAL = {'level1':'164012e485062f572bba37de85aafe42a494810202d80e13d4f72dbf20ce24dc', 'level2':'bbee6f3c886a795f0029626ed62ccc6d569fca3ce9ee821876619d3009a55dea', 'level4':'665e167cbcc2fd9c43c46e1d2c84f83c6ca9e0ad6c9756f439e10b90d5758972'}
 COUNTS = {'level1':2126, 'level2':3364, 'level4':1810}
 PARTIAL_BLANK = {'level1':'4ef79f82763aeacdae8a974b1c7271b5dc326135239b24cf52a1a58ba615ed49','level2':'3f16cc994c2de27827b8ff48b1d99854af42235bf5445d7012204c7510dd705d','level4':'a77f4803f3eea8f7e627884448f0c2a0f5c51d606ab664e96575f006f6323e43'}
@@ -52,7 +53,7 @@ def main():
         windows=importlib.util.module_from_spec(spec);spec.loader.exec_module(windows)
     archive=None; previous=None
     if a.action=='template':
-        if sha(a.input.read_bytes())!=OBB_SHA: raise ValueError('incompatible OBB')
+        if sha(a.input.read_bytes()) not in (OBB_SHA, ALTERNATE_OBB_SHA): raise ValueError('incompatible OBB')
         archive=zipfile.ZipFile(a.input)
         if len(archive.namelist())!=len(set(archive.namelist())): raise ValueError('duplicate entries')
     else:

@@ -17,8 +17,10 @@ import UnityPy
 
 PRELOAD = 'fb3896524cca9e8b137eb5d4c7c6f17eaca57d02185b8f1a31fcf83ab0fd99a0'
 OBB_PRELOAD = '6185cfca7d60e4518d0f6d37753367230a8d15f899cdb674348aba04c5722f2f'
+ALTERNATE_PRELOAD = 'fd49162dc6d36ec83cf52f45338a2c871c061664987ae7d207512c2ab3c57aa0'
 TARGETS_SHA = 'e5d4a56c6ef45d1b456615273b8b8bfe682440ac98101a031fa441619c4e071a'
 OBB = 'ca916fd870e4546c70a66428591272ef155987140495c1a0dd446a332b578cc2'
+ALTERNATE_OBB = 'ca12a7ec37c7e647d487a310d4924a5ba1f4e4d2cb3d30c8da2a7091d552d961'
 STEAM = {'sharedassets1.assets': 'd9c955e43af9151f4d9d4e3ae9328ff2582bde7a1c9aa4580ddb2ba95ad66b35',
          'sharedassets2.assets': 'e4c4298e57fe5aaa76836132e6821b297199c60b2106fa12a0db4ef17a67f5da'}
 WINDOWS = {'sharedassets1.assets': '64c5156116e20fe645acc133bfae7ab1fdd3a7bbc99f915559efc0640be0349a',
@@ -83,7 +85,11 @@ def main():
         path = src.resolve()
         if out == path or out.is_relative_to(path) or path.is_relative_to(out):
             p.error('output must be separate from inputs')
-    targets = preload_targets(read_pinned(a.preload, OBB_PRELOAD if a.obb_preload else PRELOAD))
+    preload_data = a.preload.read_bytes()
+    allowed_preloads = (OBB_PRELOAD, ALTERNATE_PRELOAD) if a.obb_preload else (PRELOAD,)
+    if digest(preload_data) not in allowed_preloads:
+        raise ValueError('incompatible preload input')
+    targets = preload_targets(preload_data)
     if a.obb_preload:
         # The legacy manifest identifies the canonical preload asset. Keep its
         # pinned identifier only after proving this alternate asset has exactly
@@ -102,7 +108,9 @@ def main():
                 source_ids[(name, obj.path_id)] = (obj.type.name, raw[12:])
     original_manifest = None
     if a.action == 'template':
-        read_pinned(a.input, OBB)
+        with a.input.open('rb') as stream:
+            if hashlib.file_digest(stream, 'sha256').hexdigest() not in (OBB, ALTERNATE_OBB):
+                raise ValueError('incompatible OBB')
         archive = zipfile.ZipFile(a.input)
         if len(archive.namelist()) != len(set(archive.namelist())):
             raise ValueError('duplicate OBB entry')

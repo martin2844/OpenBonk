@@ -53,7 +53,7 @@ def main():
     original_manifest=None;archive=None
     if a.action=='template':
         with a.input.open('rb') as f:
-            if hashlib.file_digest(f,'sha256').hexdigest()!=audit.OBB_SHA:raise ValueError('incompatible OBB')
+            if hashlib.file_digest(f,'sha256').hexdigest() not in (audit.OBB_SHA,audit.ALTERNATE_OBB_SHA):raise ValueError('incompatible OBB')
         archive=zipfile.ZipFile(a.input)
         if len(archive.namelist())!=len(set(archive.namelist())):raise ValueError('duplicate OBB entries')
     else:
