@@ -28,6 +28,18 @@ class ExtractTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn('--include-scene-transforms requires', result.stderr)
 
+    def test_splash_stage_requires_scene_transform_stage(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--base', 'base', '--shader-bundles', 'shaders',
+                                 '--output', 'output', '--include-splash'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--include-splash requires', result.stderr)
+
+    def test_preload_stage_requires_splash_stage(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--base', 'base', '--shader-bundles', 'shaders',
+                                 '--output', 'output', '--preload-asset', 'asset'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--preload-asset requires', result.stderr)
+
     def test_orders_split_assets_numerically(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -51,6 +51,8 @@ def main():
     parser.add_argument('--include-shared1-material', action='store_true', help='also reconstruct the earlier shared1 material stage')
     parser.add_argument('--scene-source-obb', type=Path, help='pinned original Android OBB, to reconstruct the earlier scene GameObject stage')
     parser.add_argument('--include-scene-transforms', action='store_true', help='also reconstruct the preceding scene transform stage')
+    parser.add_argument('--include-splash', action='store_true', help='also reconstruct the preceding Unity splash stage')
+    parser.add_argument('--preload-asset', type=Path, help='pinned sharedassets4.assets with preload references, to include the preceding preload stage')
     parser.add_argument('--output', required=True, type=Path, help='new private base directory')
     args = parser.parse_args()
     if args.include_shared1_material and args.steam_data is None:
@@ -59,14 +61,19 @@ def main():
         parser.error('--scene-source-obb requires --steam-data and --include-shared1-material')
     if args.include_scene_transforms and not args.scene_source_obb:
         parser.error('--include-scene-transforms requires --scene-source-obb')
+    if args.include_splash and not args.include_scene_transforms:
+        parser.error('--include-splash requires --include-scene-transforms')
+    if args.preload_asset and not args.include_splash:
+        parser.error('--preload-asset requires --include-splash')
     base, shaders = args.base.resolve(strict=True), args.shader_bundles.resolve(strict=True)
     steam = args.steam_data.resolve(strict=True) if args.steam_data else None
     scene_obb = args.scene_source_obb.resolve(strict=True) if args.scene_source_obb else None
+    preload = args.preload_asset.resolve(strict=True) if args.preload_asset else None
     output = args.output.expanduser().absolute()
-    if not base.is_dir() or not shaders.is_dir() or (steam is not None and not steam.is_dir()) or (scene_obb is not None and not scene_obb.is_file()) or output.exists() or output.is_symlink() or not output.parent.is_dir():
+    if not base.is_dir() or not shaders.is_dir() or (steam is not None and not steam.is_dir()) or (scene_obb is not None and not scene_obb.is_file()) or (preload is not None and not preload.is_file()) or output.exists() or output.is_symlink() or not output.parent.is_dir():
         parser.error('inputs must exist and output must be new')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(path) or path.is_relative_to(output) for path in (base, shaders, ROOT, *([steam] if steam else []), *([scene_obb] if scene_obb else []))):
+    if any(output.is_relative_to(path) or path.is_relative_to(output) for path in (base, shaders, ROOT, *([steam] if steam else []), *([scene_obb] if scene_obb else []), *([preload] if preload else []))):
         parser.error('output must be separate from the checkout and inputs')
     spec = importlib.util.spec_from_file_location('shader_pins', ROOT / 'tools/pinned-shader-bundles.py')
     pins = importlib.util.module_from_spec(spec)
@@ -75,6 +82,18 @@ def main():
     with tempfile.TemporaryDirectory(prefix='.openbonk-legacy-shaders-', dir=output.parent) as tmp:
         tmp = Path(tmp)
         current = base
+        if preload:
+            template, next_base = tmp/'preload-template', tmp/'preload-base'
+            run('analysis/data-conversion/preload-particle-bodies-prototype.py', 'template', steam, preload, scene_obb, template,
+                '--include-gameobjects', '--include-extra-components')
+            run('analysis/port-inventory/scrub-preload-particle-base.py', current, template, next_base,
+                '--include-gameobjects', '--include-extra-components')
+            current = next_base
+        if args.include_splash:
+            template, next_base = tmp/'splash-template', tmp/'splash-base'
+            run('analysis/data-conversion/current-splash-template.py', 'template', current/'base.apk', template)
+            run('analysis/port-inventory/scrub-current-splash-base.py', current, template, next_base)
+            current = next_base
         if args.include_scene_transforms:
             template, next_base = tmp/'scene-transform-template', tmp/'scene-transform-base'
             run('analysis/data-conversion/scene-transform-values-template.py', 'template', steam, scene_obb, template)
