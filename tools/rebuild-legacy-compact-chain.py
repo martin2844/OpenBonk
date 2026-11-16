@@ -6,6 +6,7 @@ data, intermediate files and output contain private game-derived material.
 """
 import argparse
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 import shutil
@@ -19,7 +20,6 @@ PINS = {
     'old_obb': 'baf787dff6b987ca68c34f9351dd7866d8c269865069d43e8a7435ace555895d',
     'new_apk': 'b3255411ab3e3f00001daa22c3ecd48e7f1db3c31f290bdd545237c65c45bb38',
     'new_obb': 'ca12a7ec37c7e647d487a310d4924a5ba1f4e4d2cb3d30c8da2a7091d552d961',
-    'converted_obb': 'bad3e899a7d75e7be6828261e04604f6d82c128296b0da125f4b48d0be0cdeb9',
 }
 
 
@@ -30,27 +30,44 @@ def run(script, *arguments):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('steam-data', 'old-apk', 'old-obb', 'new-apk', 'new-obb', 'converted-obb', 'crunch-decoder', 'output'):
+    for name in ('steam-data', 'old-apk', 'old-obb', 'new-apk', 'new-obb', 'crunch-decoder', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
+    converted_group = parser.add_mutually_exclusive_group(required=True)
+    converted_group.add_argument('--converted-obb', type=Path, help='pinned historical converted OBB')
+    converted_group.add_argument('--converted-assets', type=Path, help='directory of three independently rebuilt shared assets')
     args = parser.parse_args()
     names = ('steam_data', *PINS, 'crunch_decoder')
     inputs = {name: getattr(args, name).expanduser().resolve(strict=True) for name in names}
+    converted_input = (args.converted_obb or args.converted_assets).expanduser().resolve(strict=True)
     out = args.output.expanduser().absolute()
     if not inputs['steam_data'].is_dir() or not all(inputs[n].is_file() for n in (*PINS, 'crunch_decoder')):
         parser.error('Steam data must be a directory and other inputs must be files')
     if out.exists() or out.is_symlink() or not out.parent.is_dir():
         parser.error('output must be a new directory in an existing parent')
     out = out.parent.resolve() / out.name
-    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *inputs.values())):
+    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, converted_input, *inputs.values())):
         parser.error('output must be separate from checkout and inputs')
     for name, expected in PINS.items():
         with inputs[name].open('rb') as f:
             actual = hashlib.file_digest(f, 'sha256').hexdigest()
         if actual != expected:
             parser.error('pinned input differs: ' + name.replace('_', '-'))
+    if args.converted_obb:
+        if not converted_input.is_file(): parser.error('converted OBB must be a file')
+        with converted_input.open('rb') as f:
+            if hashlib.file_digest(f, 'sha256').hexdigest() != 'bad3e899a7d75e7be6828261e04604f6d82c128296b0da125f4b48d0be0cdeb9':
+                parser.error('pinned input differs: converted-obb')
+    elif not converted_input.is_dir():
+        parser.error('converted assets must be a directory')
     with tempfile.TemporaryDirectory(prefix='.openbonk-compact-chain-', dir=out.parent) as d:
         tmp = Path(d)
-        steam, old_apk, old_obb, new_apk, new_obb, converted, decoder = (inputs[n] for n in names)
+        steam, old_apk, old_obb, new_apk, new_obb, decoder = (inputs[n] for n in names)
+        converted = converted_input
+        if args.converted_assets:
+            spec = importlib.util.spec_from_file_location('converted_assets', ROOT/'tools/legacy-converted-assets.py')
+            mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+            converted = tmp/'converted-assets.zip'
+            mod.make_archive(converted_input, converted)
         scene_plans, scene, shared_inputs = tmp/'scene-plans', tmp/'scene', tmp/'shared-inputs'
         shared, hashed_plans, hashed, compact = (tmp/n for n in ('shared', 'hashed-plans', 'hashed', 'compact'))
         run('tools/generate-legacy-scene-manifests.py', '--steam-data', steam, '--old-apk', old_apk, '--old-obb', old_obb, '--output', scene_plans)

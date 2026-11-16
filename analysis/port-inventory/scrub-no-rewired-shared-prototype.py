@@ -23,6 +23,7 @@ CONVERTED_OBB='bad3e899a7d75e7be6828261e04604f6d82c128296b0da125f4b48d0be0cdeb9'
 EXTRA_PLANS={'mesh1':('full-cubemaps-stripped/mesh-manifest.json','bf97a55467b07f123143ad1c9e787f935441f077d5ec3a291e9f42c9b1677bf3','meshes',420),'terrain':('shared1-terrain-animation-template/objects-manifest.json','9641811a775b44f61ab6b2148ceb384ea6fa2155acd99a5d8fc44449402a1259','objects',13),'mesh2':('shared2-mesh-template/mesh-manifest.json','831fee2261236f0ec9db20798e5b8f4c05bfb2baa786e26d9ed65b5acfb26b61','meshes',251),'texture2':('shared2-matched72-template/textures-manifest.json','9df05620261b30b27f3b64ed050ba3dfdd2fe087087b2c1993974e005048386e','textures',72),'atlas2':('shared2-atlases-template/atlases-manifest.json','cad14caa26c75e5dce4efc66f05be00517ac0281f25314f8709ed878dc7f3080','textures',2)}
 spec=importlib.util.spec_from_file_location('pinned',ROOT/'analysis/data-conversion/apply-pinned-converted-objects.py');pinned=importlib.util.module_from_spec(spec);spec.loader.exec_module(pinned)
 spec2=importlib.util.spec_from_file_location('repair',Path(__file__).with_name('repair-split-guid-probe.py'));repair=importlib.util.module_from_spec(spec2);spec2.loader.exec_module(repair)
+spec3=importlib.util.spec_from_file_location('converted_assets',ROOT/'tools/legacy-converted-assets.py');converted_assets=importlib.util.module_from_spec(spec3);spec3.loader.exec_module(converted_assets)
 
 
 def digest(b):return hashlib.sha256(b).hexdigest()
@@ -39,7 +40,9 @@ def main():
                  *(a.inputs_root/'share-source-experiment'/row[0] for row in EXTRA_PLANS.values())):
         path=path.resolve()
         if out.is_relative_to(path) or path.is_relative_to(out):p.error('output must be separate from inputs')
-    apk=a.base/'base.apk';obb=a.base/'base.obb';require(apk,INPUT_APK);require(obb,INPUT_OBB);require(a.converted_obb,CONVERTED_OBB)
+    apk=a.base/'base.apk';obb=a.base/'base.obb';require(apk,INPUT_APK);require(obb,INPUT_OBB)
+    if not a.converted_obb.is_file():raise ValueError('missing converted input')
+    if repair.sha(a.converted_obb)!=CONVERTED_OBB:converted_assets.validate_archive(a.converted_obb)
     plans={}
     if a.include_identical_rebuilt:
         for key,(path,h,field,count) in EXTRA_PLANS.items():
