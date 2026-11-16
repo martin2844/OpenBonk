@@ -15,7 +15,8 @@ ENTRY = 'assets/bin/Data/Managed/Metadata/global-metadata.dat'
 MAX_METADATA = 256 * 1024 * 1024
 
 
-def method_identities(data):
+def metadata_types(data):
+    """Return metadata strings and image-qualified type identities by index."""
     if len(data) < 256 or struct.unpack_from('<II', data, 0) != (0xFAB11BAF, 29):
         raise ValueError('expected Unity 2023.2 IL2CPP metadata version 29')
 
@@ -46,14 +47,27 @@ def method_identities(data):
             if owner[index] is not None: raise ValueError('overlapping image type ranges')
             owner[index] = image_name
     if any(name is None for name in owner): raise ValueError('unassigned metadata type')
+    return strings, [(owner[index], string(namespace), string(type_name))
+                     for index, (type_name, namespace) in enumerate(types)]
 
-    method_offset, method_size = table(48, 32)
+
+def method_identities(data):
+    strings, types = metadata_types(data)
+
+    def string(index):
+        if index >= len(strings): raise ValueError('invalid metadata string index')
+        end = strings.find(b'\0', index)
+        if end < 0: raise ValueError('unterminated metadata string')
+        return strings[index:end]
+
+    method_offset, method_size = struct.unpack_from('<II', data, 48)
+    if method_offset < 256 or not method_size or method_offset + method_size > len(data) or method_size % 32:
+        raise ValueError('invalid method table')
     identities = []
     for pos in range(method_offset, method_offset + method_size, 32):
         name, declaring, _, _, _, token, flags, iflags, slot, count = struct.unpack_from('<IiiiiIHHHH', data, pos)
         if declaring < 0 or declaring >= len(types): raise ValueError('invalid declaring type')
-        type_name, namespace = types[declaring]
-        identities.append((owner[declaring], string(namespace), string(type_name), string(name), token, flags, iflags, slot, count))
+        identities.append((*types[declaring], string(name), token, flags, iflags, slot, count))
     return identities
 
 
