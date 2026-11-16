@@ -26,41 +26,14 @@ final class LauncherOnlineUi {
             .setMessage(LauncherImportError.describe(e, es)).setPositiveButton("OK", null).show(); });
     }
     static void browse(SplitDataLauncher a, boolean es) {
+        a.showCatalogLoading();
         new Thread(() -> {
             try {
                 JSONArray entries = LauncherOnline.metadata(LauncherOnline.CATALOG).getJSONArray("mods");
                 if (entries.length() > 500) throw new IOException("catalog too large");
-                a.runOnUiThread(() -> { if (alive(a)) catalog(a, es, entries); });
-            } catch (Exception e) { error(a, es, e); }
+                a.runOnUiThread(() -> { if (alive(a)) a.showCatalog(entries); });
+            } catch (Exception e) { a.runOnUiThread(() -> { if (alive(a)) a.showCatalogError(LauncherImportError.describe(e, es)); }); }
         }, "openbonk-mod-catalog").start();
-    }
-    private static void catalog(SplitDataLauncher a, boolean es, JSONArray entries) {
-        LinearLayout panel = new LinearLayout(a); panel.setOrientation(LinearLayout.VERTICAL);
-        EditText search = new EditText(a); search.setSingleLine(true); search.setHint(es ? "Buscar mods" : "Search mods"); panel.addView(search);
-        ListView list = new ListView(a); panel.addView(list, new LinearLayout.LayoutParams(-1, (int)(230 * a.getResources().getDisplayMetrics().density)));
-        ArrayList<JSONObject> visible = new ArrayList<>();
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(a, android.R.layout.simple_list_item_1); list.setAdapter(adapter);
-        Runnable filter = () -> {
-            String query = search.getText().toString().toLowerCase(Locale.ROOT); visible.clear(); adapter.clear();
-            for (int i = 0; i < entries.length(); i++) {
-                JSONObject item = entries.optJSONObject(i); if (item == null) continue;
-                String name = item.optString("name"), description = item.optString("description");
-                if ((name + " " + description).toLowerCase(Locale.ROOT).contains(query)) { visible.add(item); adapter.add(name + "  ·  " + item.optString("version")); }
-            }
-        };
-        search.addTextChangedListener(new TextWatcher() {
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-            public void onTextChanged(CharSequence s, int start, int before, int count) { filter.run(); }
-            public void afterTextChanged(Editable e) { }
-        });
-        filter.run(); AlertDialog dialog = new AlertDialog.Builder(a).setTitle(es ? "Catálogo de mods" : "Mod catalog").setView(panel).setNegativeButton(es ? "Cerrar" : "Close", null).create();
-        list.setOnItemClickListener((parent, view, position, id) -> {
-            JSONObject item = visible.get(position);
-            new AlertDialog.Builder(a).setTitle(item.optString("name"))
-                .setMessage(item.optString("description") + "\n\n" + (es ? "El mod se importará desactivado." : "The mod will be imported disabled."))
-                .setNegativeButton(es ? "Cancelar" : "Cancel", null).setPositiveButton(es ? "Importar" : "Import", (d, w) -> { dialog.dismiss(); a.importOnlineMod(item); }).show();
-        });
-        dialog.show();
     }
     static void checkUpdate(SplitDataLauncher a, boolean es) { checkUpdate(a, es, false); }
     static void checkUpdate(SplitDataLauncher a, boolean es, boolean automatic) {

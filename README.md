@@ -79,6 +79,10 @@ back up progress before any replacement or uninstall, and ask before removing
 anything. If a step fails, explain what happened and help me troubleshoot.
 ```
 
+## Touch controls
+
+The upcoming release adds a layout editor with individual visibility and opacity, grid snapping, saved profiles and optional auto-run. See the [touch controls guide](docs/TOUCH_CONTROLS.md); the current public beta does not yet include these options.
+
 ## Mods
 
 Import mod ZIPs from the launcher with **Import mod**, then enable them under **Manage mods**. New imports and updates start disabled. The [Lua modding guide](docs/MODDING.md) covers the package format and a first mod; [`mods/`](mods/) contains examples, including the experimental [Pikachu mod](mods/pikachu/README.md).

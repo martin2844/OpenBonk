@@ -1,0 +1,12 @@
+# Touch controls in the upcoming release
+
+These controls are being prepared for a future release and are not included in the current public beta. Choose **Touch** in the launcher's **Controls** tab to configure individual controls and profiles before a run. Changes made there apply when the touch overlay starts; after a run the launcher reads back changes made in the game. You can also start a run and tap **Edit** to open the layout editor. The edit button stays available when other controls are hidden.
+
+- Drag a control to reposition it. Select one and use **-** or **+** to resize it; use **Swap** and tap another action button to exchange their actions.
+- Select a control and use **Show** to hide or show it, or **Opacity -** and **Opacity +** to adjust its transparency. **All** hides all action buttons, or shows them again if any are hidden. The movement and camera sticks can be hidden individually.
+- **Grid** toggles snapping while dragging. The current grid setting appears below the toolbar.
+- **Slot** cycles through three profiles. **Save** stores the current layout in the selected slot; **Load** restores that slot. Profiles include positions, size, actions, visibility, opacity, grid and auto-run settings.
+- **Auto run** enables an optional movement lock. Drag the movement stick beyond its upper edge and release to keep moving forward; tap the movement stick to cancel. Auto-run also stops if the overlay is interrupted or editing begins.
+- **Reset** restores the default layout and turns grid snapping and auto-run off. It does not erase saved profiles. **Done** closes the editor and saves the current layout.
+
+Controller input remains available according to the selected control mode and the game's settings. Settings are stored locally on the Android device.
