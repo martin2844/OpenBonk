@@ -9,6 +9,17 @@ SCRIPT = Path(__file__).resolve().parents[1] / 'rebuild-legacy-compact-chain.py'
 
 
 class CompactChainTests(unittest.TestCase):
+    def test_shader_rebuild_requires_project_and_editor(self):
+        base = [sys.executable, str(SCRIPT), '--steam-data', 'steam', '--old-apk', 'old.apk',
+                '--old-obb', 'old.obb', '--new-apk', 'new.apk', '--new-obb', 'new.obb',
+                '--crunch-decoder', 'decoder', '--rebuild-converted-assets', '--output', 'output']
+        result = subprocess.run(base + ['--rebuild-shader-bundles'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--rebuild-shader-bundles requires --shader-project and --shader-unity', result.stderr)
+        result = subprocess.run(base + ['--shader-project', 'project'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('require --rebuild-shader-bundles', result.stderr)
+
     def test_package_shader_bundles_require_cache(self):
         result = subprocess.run([sys.executable, str(SCRIPT), '--steam-data', 'steam', '--old-apk', 'old.apk',
                                  '--old-obb', 'old.obb', '--new-apk', 'new.apk', '--new-obb', 'new.obb',

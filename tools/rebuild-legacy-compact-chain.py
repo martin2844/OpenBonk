@@ -58,9 +58,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('steam-data', 'old-apk', 'old-obb', 'new-apk', 'new-obb', 'crunch-decoder', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
-    parser.add_argument('--shader-bundles', type=Path, help='also rebuild the subsequent pinned scene and shader base using this local shader cache')
+    shader_source = parser.add_mutually_exclusive_group()
+    shader_source.add_argument('--shader-bundles', type=Path, help='also rebuild the subsequent pinned scene and shader base using this local shader cache')
+    shader_source.add_argument('--rebuild-shader-bundles', action='store_true', help='regenerate the shader cache from a prepared local Unity workspace')
+    parser.add_argument('--shader-project', type=Path, help='prepared Unity workspace for --rebuild-shader-bundles')
+    parser.add_argument('--shader-unity', type=Path, help='Unity editor for --rebuild-shader-bundles')
+    parser.add_argument('--shader-runner', help='optional Unity executable wrapper for --rebuild-shader-bundles')
     parser.add_argument('--package-shader-bundles', type=Path, help='use 13 independently rebuilt post-processing bundles instead of those cache entries')
-    parser.add_argument('--windows-data', type=Path, help='also reconstruct the localization base from a pinned Windows Megabonk_Data directory (requires --shader-bundles)')
+    parser.add_argument('--windows-data', type=Path, help='also reconstruct the localization base using Windows data and a supplied or rebuilt shader cache')
     parser.add_argument('--linux-zip', type=Path, help='also generate the shared audio plan using this pinned Linux Steam ZIP')
     parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
     parser.add_argument('--include-layout-plan', action='store_true', help='also generate the shared1 layout plan (requires localization base)')
@@ -74,6 +79,10 @@ def main():
     converted_group.add_argument('--converted-assets', type=Path, help='directory of three independently rebuilt shared assets')
     converted_group.add_argument('--rebuild-converted-assets', action='store_true', help='regenerate the shared assets and their templates from the old APK/OBB and Steam')
     args = parser.parse_args()
+    if args.rebuild_shader_bundles and not (args.shader_project and args.shader_unity):
+        parser.error('--rebuild-shader-bundles requires --shader-project and --shader-unity')
+    if not args.rebuild_shader_bundles and (args.shader_project or args.shader_unity or args.shader_runner):
+        parser.error('--shader-project, --shader-unity and --shader-runner require --rebuild-shader-bundles')
     if args.package_shader_bundles and not args.shader_bundles: parser.error('--package-shader-bundles requires --shader-bundles')
     if args.include_layout_plan and not args.windows_data: parser.error('--include-layout-plan requires --windows-data')
     if args.include_material_mesh_plans and not (args.include_layout_plan and args.linux_zip and args.windows_zip and args.java_home):
@@ -88,6 +97,8 @@ def main():
     converted_input = converted_path.expanduser().resolve(strict=True) if converted_path else None
     shaders = args.shader_bundles.expanduser().resolve(strict=True) if args.shader_bundles else None
     package_shaders = args.package_shader_bundles.expanduser().resolve(strict=True) if args.package_shader_bundles else None
+    shader_project = args.shader_project.expanduser().resolve(strict=True) if args.shader_project else None
+    shader_unity = args.shader_unity.expanduser().resolve(strict=True) if args.shader_unity else None
     windows = args.windows_data.expanduser().resolve(strict=True) if args.windows_data else None
     zips = tuple(x.expanduser().resolve(strict=True) for x in (args.linux_zip, args.windows_zip)) if args.linux_zip else ()
     java = args.java_home.expanduser().resolve(strict=True) if args.java_home else None
@@ -100,12 +111,12 @@ def main():
     out = out.parent.resolve() / out.name
     if shaders is not None and not shaders.is_dir(): parser.error('shader bundles must be a directory')
     if package_shaders is not None and not package_shaders.is_dir(): parser.error('package shader bundles must be a directory')
-    if windows is not None and (not windows.is_dir() or shaders is None): parser.error('--windows-data requires a directory and --shader-bundles')
+    if windows is not None and (not windows.is_dir() or (shaders is None and not args.rebuild_shader_bundles)): parser.error('--windows-data requires a directory and --shader-bundles or --rebuild-shader-bundles')
     if zips and not all(x.is_file() for x in zips): parser.error('Steam ZIPs must be files')
     if java is not None and (not (java/'bin/java').is_file() or not (java/'bin/javac').is_file()): parser.error('Java home must contain java and javac')
     if texture_library is not None and not texture_library.is_file(): parser.error('host texture library must be a file')
     if args.java_runner != 'none' and not shutil.which(args.java_runner): parser.error('Java runner not found')
-    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *([package_shaders] if package_shaders else []), *([windows] if windows else []), *([java] if java else []), *([texture_library] if texture_library else []), *zips, *inputs.values())):
+    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *([package_shaders] if package_shaders else []), *([shader_project] if shader_project else []), *([shader_unity] if shader_unity else []), *([windows] if windows else []), *([java] if java else []), *([texture_library] if texture_library else []), *zips, *inputs.values())):
         parser.error('output must be separate from checkout and inputs')
     shader_pins = None
     if shaders is not None:
@@ -131,8 +142,13 @@ def main():
                 parser.error('pinned input differs: converted-obb')
     elif args.converted_assets and not converted_input.is_dir():
         parser.error('converted assets must be a directory')
+    shader_args = ('--project', shader_project, '--unity', shader_unity, *(['--runner', args.shader_runner] if args.shader_runner else [])) if args.rebuild_shader_bundles else ()
+    if shader_args: run('tools/build-workspace-shader-cache.py', *shader_args, '--output', out, '--check')
     with tempfile.TemporaryDirectory(prefix='.openbonk-compact-chain-', dir=out.parent) as d:
         tmp = Path(d)
+        if shader_args:
+            shaders = tmp/'shader-bundles'
+            run('tools/build-workspace-shader-cache.py', *shader_args, '--output', shaders)
         if package_shaders is not None:
             combined_shaders = tmp/'shader-bundles'
             shader_pins.stage(shaders, combined_shaders, package_shaders)
