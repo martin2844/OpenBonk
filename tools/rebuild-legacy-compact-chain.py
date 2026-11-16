@@ -37,12 +37,17 @@ def main():
     parser.add_argument('--linux-zip', type=Path, help='also generate the shared audio plan using this pinned Linux Steam ZIP')
     parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
     parser.add_argument('--include-layout-plan', action='store_true', help='also generate the shared1 layout plan (requires localization base)')
+    parser.add_argument('--include-material-mesh-plans', action='store_true', help='also generate and verify the shared1 material/audio and mesh plans')
+    parser.add_argument('--java-home', type=Path, help='JDK directory for material and mesh plan checks')
+    parser.add_argument('--java-runner', default='none', help='wrapper for Java tools, or none')
     converted_group = parser.add_mutually_exclusive_group(required=True)
     converted_group.add_argument('--converted-obb', type=Path, help='pinned historical converted OBB')
     converted_group.add_argument('--converted-assets', type=Path, help='directory of three independently rebuilt shared assets')
     converted_group.add_argument('--rebuild-converted-assets', action='store_true', help='regenerate the shared assets and their templates from the old APK/OBB and Steam')
     args = parser.parse_args()
     if args.include_layout_plan and not args.windows_data: parser.error('--include-layout-plan requires --windows-data')
+    if args.include_material_mesh_plans and not (args.include_layout_plan and args.linux_zip and args.windows_zip and args.java_home):
+        parser.error('--include-material-mesh-plans requires --include-layout-plan, both Steam ZIPs and --java-home')
     if bool(args.linux_zip) != bool(args.windows_zip): parser.error('--linux-zip and --windows-zip must be provided together')
     if args.linux_zip and args.converted_obb: parser.error('audio plan generation requires --converted-assets or --rebuild-converted-assets')
     names = ('steam_data', *PINS, 'crunch_decoder')
@@ -52,6 +57,7 @@ def main():
     shaders = args.shader_bundles.expanduser().resolve(strict=True) if args.shader_bundles else None
     windows = args.windows_data.expanduser().resolve(strict=True) if args.windows_data else None
     zips = tuple(x.expanduser().resolve(strict=True) for x in (args.linux_zip, args.windows_zip)) if args.linux_zip else ()
+    java = args.java_home.expanduser().resolve(strict=True) if args.java_home else None
     out = args.output.expanduser().absolute()
     if not inputs['steam_data'].is_dir() or not all(inputs[n].is_file() for n in (*PINS, 'crunch_decoder')):
         parser.error('Steam data must be a directory and other inputs must be files')
@@ -61,7 +67,9 @@ def main():
     if shaders is not None and not shaders.is_dir(): parser.error('shader bundles must be a directory')
     if windows is not None and (not windows.is_dir() or shaders is None): parser.error('--windows-data requires a directory and --shader-bundles')
     if zips and not all(x.is_file() for x in zips): parser.error('Steam ZIPs must be files')
-    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *([windows] if windows else []), *zips, *inputs.values())):
+    if java is not None and (not (java/'bin/java').is_file() or not (java/'bin/javac').is_file()): parser.error('Java home must contain java and javac')
+    if args.java_runner != 'none' and not shutil.which(args.java_runner): parser.error('Java runner not found')
+    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *([windows] if windows else []), *([java] if java else []), *zips, *inputs.values())):
         parser.error('output must be separate from checkout and inputs')
     if shaders is not None:
         spec = importlib.util.spec_from_file_location('shader_pins', ROOT/'tools/pinned-shader-bundles.py')
@@ -148,6 +156,42 @@ def main():
             with layout_plan.open('rb') as f:
                 if hashlib.file_digest(f, 'sha256').hexdigest() != '0142daaaf1e07c3a9aa90dac01382f8fba6cce74983f669376b01fce1fff6ed0':
                     raise ValueError('shared1 layout plan differs')
+        material_plan = mesh_plan = None
+        if args.include_material_mesh_plans:
+            java_source = ROOT/'analysis/data-conversion/android'; classes = tmp/'java-classes'; classes.mkdir()
+            prefix = [] if args.java_runner == 'none' else [args.java_runner]
+            def java_run(*command): subprocess.run([*prefix, *(str(x) for x in command)], check=True)
+            java_run(java/'bin/javac', '-d', classes, *(java_source/(name+'.java') for name in
+                     ('SteamExactTextures', 'SteamShared1Layout', 'SteamShared1LayoutCheck',
+                      'SteamShared1MaterialAudio', 'SteamShared1MaterialAudioCheck', 'SteamShared1Meshes', 'SteamShared1MeshesCheck')))
+            def check_java(name, *arguments): java_run(java/'bin/java', '-cp', classes, 'com.openbonk.dataprep.'+name, *arguments)
+            layout_asset = tmp/'layout.assets'
+            check_java('SteamShared1LayoutCheck', final/'base.obb', layout_plan, layout_asset, 'pass')
+            target = shared_inputs/'reconstructed-sharedassets1.assets'
+            material_plan = tmp/'shared1-material-plan.bin'
+            run('analysis/data-conversion/generate-android-shared1-material-audio-plan.py', '--base', layout_asset,
+                '--target-asset', target, '--linux-zip', zips[0], '--windows-zip', zips[1], '--manifest', final/'material-manifest.json',
+                '--audio-plan', audio_plan, '--output', material_plan)
+            material_assets = []
+            for i, steam_zip in enumerate(zips):
+                result = tmp/f'material-{i}.assets'
+                check_java('SteamShared1MaterialAudioCheck', layout_asset, steam_zip, material_plan, result, 'pass')
+                material_assets.append(result)
+            for file in material_assets:
+                with file.open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != 'fa2ef744b54d702abf75835b03a161da3db635c7facfd03cde3dece61f5d3288': raise ValueError('material output differs')
+            mesh_plan = tmp/'shared1-mesh-plan.bin'
+            run('analysis/data-conversion/generate-android-shared1-mesh-plan.py', '--base', material_assets[0], '--target-asset', target,
+                '--linux-zip', zips[0], '--windows-zip', zips[1], '--manifest', shared_inputs/'share-source-experiment/full-cubemaps-stripped/mesh-manifest.json', '--output', mesh_plan)
+            for i, steam_zip in enumerate(zips):
+                result = tmp/f'mesh-{i}.assets'
+                check_java('SteamShared1MeshesCheck', material_assets[i], steam_zip, mesh_plan, result, 'pass')
+                with result.open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != '26df1db6a89a775557ddc9d29ac6bddb10f7f47f7370bd6064dce08cec0b1119': raise ValueError('mesh output differs')
+            for path, expected in ((material_plan, 'fc96c214a73e702069425abe9bc75f5bdd825d9f7c73164c33c685527faafa3f'),
+                                   (mesh_plan, '7ac1084c785c3a015821b3a155aa9e4f39bee48b3a10911e91c05b5df304d0c5')):
+                with path.open('rb') as f:
+                    if hashlib.file_digest(f, 'sha256').hexdigest() != expected: raise ValueError('shared1 plan differs: '+path.name)
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:
@@ -164,6 +208,9 @@ def main():
             if layout_plan is not None:
                 with layout_plan.open('rb') as src, (out/'shared1-layout-plan.bin').open('xb') as dest:
                     shutil.copyfileobj(src, dest)
+            for plan in (material_plan, mesh_plan):
+                if plan is not None:
+                    with plan.open('rb') as src, (out/plan.name).open('xb') as dest: shutil.copyfileobj(src, dest)
         except BaseException:
             shutil.rmtree(out)
             raise

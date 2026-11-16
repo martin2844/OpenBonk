@@ -9,7 +9,9 @@ def sha(b):return hashlib.sha256(b).digest()
 def main():
  parser=argparse.ArgumentParser(description=__doc__)
  parser.add_argument('--base',type=Path,default=BASE,help='local masked sharedassets1 input')
- parser.add_argument('--target-obb',type=Path,default=TARGET,help='local target Android OBB')
+ target_group=parser.add_mutually_exclusive_group()
+ target_group.add_argument('--target-obb',type=Path,help='local target Android OBB (default: historical target)')
+ target_group.add_argument('--target-asset',type=Path,help='pinned reconstructed sharedassets1 asset')
  parser.add_argument('--linux-zip',type=Path,default=ZIPS[0],help='local Linux Steam ZIP')
  parser.add_argument('--windows-zip',type=Path,default=ZIPS[1],help='local Windows Steam ZIP')
  parser.add_argument('--manifest',type=Path,default=MANIFEST,help='local mesh manifest')
@@ -18,7 +20,11 @@ def main():
  if args.output.exists() or args.output.is_symlink():raise ValueError('output exists')
  base=args.base.read_bytes()
  if sha(base).hex()!='fa2ef744b54d702abf75835b03a161da3db635c7facfd03cde3dece61f5d3288':raise ValueError('invalid base')
- with zipfile.ZipFile(args.target_obb) as z:target=b''.join(z.read(f'assets/bin/Data/sharedassets1.assets.split{i}') for i in range(117))
+ if args.target_asset:
+  target=args.target_asset.read_bytes()
+  if sha(target).hex()!='b6b1d5fd2d261c1163608dfcdf354eca87afbec514840b963a9b5c50ce7fd33e':raise ValueError('reconstructed target asset differs')
+ else:
+  with zipfile.ZipFile(args.target_obb or TARGET) as z:target=b''.join(z.read(f'assets/bin/Data/sharedassets1.assets.split{i}') for i in range(117))
  objects={o.path_id:o for o in UnityPy.load(target).objects};files=[];sources=[]
  for path in (args.linux_zip,args.windows_zip):
   with zipfile.ZipFile(path) as z:files.append([z.read('Megabonk_Data/'+n) for n in NAMES])
