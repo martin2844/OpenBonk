@@ -11,16 +11,17 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 def metadata(order=('Move', 'Jump')):
-    data = bytearray(600); strings = b'\0Game.dll\0Game\0Fox\0Move\0Jump\0'
+    data = bytearray(600); strings = b'\0Game.dll\0Game\0Fox\0Move\0Jump\0value\0'
     struct.pack_into('<II', data, 0, 0xFAB11BAF, 29)
-    for header, offset, size in ((24, 256, len(strings)), (48, 448, 64), (160, 320, 88), (168, 408, 40)):
+    for header, offset, size in ((24, 256, len(strings)), (48, 448, 64), (88, 512, 12), (160, 320, 88), (168, 408, 40)):
         struct.pack_into('<II', data, header, offset, size)
     data[256:256 + len(strings)] = strings
     struct.pack_into('<II', data, 320, strings.index(b'Fox'), strings.index(b'Game\0'))
     struct.pack_into('<IIII', data, 408, strings.index(b'Game.dll'), 0, 0, 1)
     for i, name in enumerate(order):
         token = {'Move': 1, 'Jump': 2}[name]
-        struct.pack_into('<IiiiiIHHHH', data, 448 + 32 * i, strings.index(name.encode()), 0, 0, 0, -1, token, 1, 2, 3, 0)
+        struct.pack_into('<IiiiiIHHHH', data, 448 + 32 * i, strings.index(name.encode()), 0, 2, 0, -1, token, 1, 2, 3, int(name == 'Move'))
+    struct.pack_into('<IIi', data, 512, strings.index(b'value'), 3, 7)
     return bytes(data)
 
 
@@ -32,6 +33,12 @@ class CompareMethodIdentityTests(unittest.TestCase):
         self.assertCountEqual(first, reordered)
         changed = bytearray(metadata()); struct.pack_into('<I', changed, 448 + 20, 99)
         self.assertNotEqual(first, module.method_identities(changed))
+        first_signature = module.method_signatures(metadata())
+        self.assertCountEqual(first_signature, module.method_signatures(metadata(('Jump', 'Move'))))
+        changed = bytearray(metadata()); struct.pack_into('<i', changed, 448 + 8, 99)
+        self.assertNotEqual(first_signature, module.method_signatures(changed))
+        changed = bytearray(metadata()); struct.pack_into('<i', changed, 512 + 8, 99)
+        self.assertNotEqual(first_signature, module.method_signatures(changed))
 
     def test_invalid_metadata_ranges_are_rejected(self):
         with self.assertRaises(ValueError): module.method_identities(b'bad')
@@ -41,6 +48,8 @@ class CompareMethodIdentityTests(unittest.TestCase):
         with self.assertRaises(ValueError): module.method_identities(bad)
         bad = bytearray(metadata()); struct.pack_into('<i', bad, 448 + 4, -1)
         with self.assertRaises(ValueError): module.method_identities(bad)
+        bad = bytearray(metadata()); struct.pack_into('<i', bad, 448 + 12, 2)
+        with self.assertRaises(ValueError): module.method_signatures(bad)
 
     def test_duplicate_metadata_entries_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

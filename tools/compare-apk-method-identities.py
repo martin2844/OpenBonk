@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Compare selected Unity 2023.2 IL2CPP metadata method identities in two APKs.
+"""Compare selected Unity 2023.2 IL2CPP metadata method records in two APKs.
 
-This ignores return and parameter types, generic context, method bodies, data,
-attributes and runtime behavior. Matching identities do not prove equivalence.
+This compares raw return, parameter and generic indices without resolving their
+meaning. It does not prove type, method body or runtime equivalence.
 """
 import argparse
 from collections import Counter
@@ -57,12 +57,37 @@ def method_identities(data):
     return identities
 
 
+def method_signatures(data):
+    """Pair normalized identities with raw type indices and parameter records."""
+    identities = method_identities(data)
+    string_offset, string_size = struct.unpack_from('<II', data, 24)
+    method_offset, _ = struct.unpack_from('<II', data, 48)
+    parameter_offset, parameter_size = struct.unpack_from('<II', data, 88)
+    if parameter_size % 12 or (parameter_size and (parameter_offset < 256 or parameter_offset + parameter_size > len(data))):
+        raise ValueError('invalid parameter table')
+    strings = data[string_offset:string_offset + string_size]
+    result = []
+    for ordinal, identity in enumerate(identities):
+        _, _, return_type, start, generic, _, _, _, _, count = struct.unpack_from('<IiiiiIHHHH', data, method_offset + ordinal * 32)
+        if count and (start < 0 or start + count > parameter_size // 12):
+            raise ValueError('invalid method parameter range')
+        parameters = []
+        for index in range(start, start + count):
+            name, token, type_index = struct.unpack_from('<IIi', data, parameter_offset + index * 12)
+            if name >= len(strings): raise ValueError('invalid parameter name index')
+            end = strings.find(b'\0', name)
+            if end < 0: raise ValueError('unterminated parameter name')
+            parameters.append((strings[name:end], token, type_index))
+        result.append((identity, return_type, generic, tuple(parameters)))
+    return result
+
+
 def apk_methods(path):
     with zipfile.ZipFile(path) as archive:
         entries = [entry for entry in archive.infolist() if entry.filename == ENTRY]
         if len(entries) != 1 or not 0 < entries[0].file_size <= MAX_METADATA:
             raise ValueError('missing, duplicate or oversized metadata')
-        return method_identities(archive.read(entries[0]))
+        return method_signatures(archive.read(entries[0]))
 
 
 def main():
@@ -78,8 +103,8 @@ def main():
               'different_ordinals': sum(x != y for x, y in zip(first, second)) + abs(len(first) - len(second)),
               'unmatched_first': sum((a - b).values()), 'unmatched_second': sum((b - a).values())}
     print(json.dumps(report, indent=2))
-    if a != b: parser.exit(1, 'Selected method identities differ.\n')
-    print('Selected method identities match; types, method bodies and behavior remain unverified.')
+    if a != b: parser.exit(1, 'Selected method records differ.\n')
+    print('Selected method records and raw type indices match; resolved types, method bodies and behavior remain unverified.')
 
 
 if __name__ == '__main__': main()

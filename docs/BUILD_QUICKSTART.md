@@ -81,7 +81,7 @@ For that build, the source checker found no changed, missing or unexpected C#, J
 
 To compare ARM64 executable-section bytes and virtual addresses in two APKs, run `python3 tools/compare-apk-executable-sections.py /path/to/first.apk /path/to/second.apk`. Matching sections do not prove that ELF data, relocations, game metadata, assets or behavior match. The tool is intended for unextended little-endian ELF64 files and exits nonzero if sections differ or an input is invalid.
 
-To compare selected method identities in Unity 2023.2 version-29 IL2CPP metadata, run `python3 tools/compare-apk-method-identities.py /path/to/first.apk /path/to/second.apk`. It compares names, owners, token, flags, slot and parameter count as a multiset, but does not resolve method return or parameter types, generic context, attributes, pointers or behavior.
+To compare selected method records in Unity 2023.2 version-29 IL2CPP metadata, run `python3 tools/compare-apk-method-identities.py /path/to/first.apk /path/to/second.apk`. It compares names, owners, tokens, flags, slot, parameter names and raw type and generic-container indices as a multiset. It does not resolve those indices to their runtime meanings or compare attributes, pointers or behavior.
 
 For dual-platform builds, the initial check warns if the output filesystem has less than 35 GiB free. This is an estimate, not a reservation or a guarantee: available space can change and dependencies or intermediate files may require more. The warning does not stop the build.
 
