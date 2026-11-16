@@ -69,6 +69,22 @@ class PartialRgbaPlanTests(unittest.TestCase):
             self.assertIsNone(module.rgba_alias(target, payload, [item]))
             self.assertIsNone(module.rgba_alias(target, bytes(16), [item]))
 
+    def test_partial_etc2_selects_clear_match_and_rejects_ambiguity(self):
+        target = SimpleNamespace(m_TextureFormat=45, m_ImageCount=1, m_MipCount=1,
+                                 m_ColorSpace=0, m_Width=64, m_Height=64)
+        def source(ident): return SimpleNamespace(ident=ident, m_TextureFormat=4,
+                                                   m_ImageCount=1, m_MipCount=1, m_ColorSpace=0)
+        first, second = ('sharedassets1', 1, source(1)), ('sharedassets1', 2, source(2))
+        payload = b'A' * 4096
+        outputs = {1: b'A' * 2048 + b'B' * 2048, 2: b'A' * 256 + b'C' * 3840}
+        with patch.object(module, 'converted', side_effect=lambda s, *args: outputs[s.ident]):
+            self.assertEqual(module.partial_etc2_source(target, payload, [first, second], object())[0], first)
+            outputs[2] = b'A' * 1100 + b'C' * 2996
+            self.assertIsNone(module.partial_etc2_source(target, payload, [first, second], object()))
+            outputs[1] = outputs[2] = b'A' * 1000 + b'B' * 3096
+            self.assertIsNone(module.partial_etc2_source(target, payload, [first, second], object()))
+            self.assertIsNone(module.partial_etc2_source(target, payload, [first], None))
+
     def test_etc2_rgb_uses_color_blocks_and_rejects_bad_lengths(self):
         source = SimpleNamespace(m_TextureFormat=10, get_image_data=lambda: b'compressed')
         encoder = SimpleNamespace(encode=lambda data, w, h, fmt: b'A' * 8 + b'B' * 8 + b'C' * 8 + b'D' * 8)

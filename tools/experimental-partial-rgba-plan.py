@@ -148,6 +148,36 @@ def eligible_etc2_payload(payload, include_small=False):
     return len(payload) >= minimum_size and len(payload) - payload.count(0) >= minimum_nonzero
 
 
+def partial_etc2_source(target, payload, candidates, encoder):
+    """Choose a clearly matching source; restoration copies only equal bytes."""
+    if encoder is None or int(target.m_TextureFormat) not in (45, 47) or target.m_ImageCount != 1:
+        return None
+    nonzero = len(payload) - payload.count(0)
+    if not eligible_etc2_payload(payload, True): return None
+    matches = []
+    for item in candidates:
+        src = item[2]
+        if (int(src.m_TextureFormat) not in (1, 3, 4, 10, 12, 25) or
+                (src.m_MipCount, src.m_ImageCount, src.m_ColorSpace) !=
+                (target.m_MipCount, target.m_ImageCount, target.m_ColorSpace)):
+            continue
+        try:
+            output = converted(src, target.m_Width, target.m_Height, target.m_MipCount,
+                               int(target.m_TextureFormat), encoder)
+        except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError):
+            continue
+        if len(output) != len(payload): continue
+        score = sum(a != 0 and a == b for a, b in zip(payload, output))
+        if score: matches.append((score, item, output))
+    if not matches: return None
+    matches.sort(key=lambda match: match[0], reverse=True)
+    best, item, output = matches[0]
+    if best < 1024 or best * 4 < nonzero: return None
+    # Identical outputs are interchangeable; dissimilar close contenders are not.
+    if any(other * 2 >= best and data != output for other, _, data in matches[1:]): return None
+    return item, output
+
+
 def generate(args):
     import UnityPy
     source = args.steam_data.resolve(strict=True); obb = args.obb.resolve(strict=True)
@@ -178,6 +208,10 @@ def generate(args):
                     alias = (rgba_alias(target, payload, candidates) if target_format == 4 else
                              etc2_alpha_alias(target, payload, candidates, encoder))
                     if alias: item, output = alias
+                if item is None and target_format in (45, 47) and getattr(args, 'include_small_etc2', False):
+                    source_name = target.m_Name[:-2] if target.m_Name.endswith('_0') else target.m_Name
+                    partial = partial_etc2_source(target, payload, index[(source_name, target.m_Width, target.m_Height)], encoder)
+                    if partial: item, output = partial
                 if item is None: continue
                 group_name, source_id, src = item
                 if int(src.m_TextureFormat) not in (1, 3, 4, 10, 12, 25): continue
