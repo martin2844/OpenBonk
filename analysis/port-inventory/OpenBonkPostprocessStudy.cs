@@ -4,6 +4,8 @@ using UnityEngine;
 public static class OpenBonkPostprocessStudy {
  public static void Build() {
 PlayerSettings.colorSpace = ColorSpace.Linear;
+if (Environment.GetEnvironmentVariable("OPENBONK_POSTPROCESS_VULKAN_PRETRANSFORM") == "1")
+    PlayerSettings.vulkanEnablePreTransform = true;
         string[] renderPaths = {
             "Packages/com.unity.postprocessing/PostProcessing/Shaders/Builtins/CopyStdFromTexArray.shader",
             "Packages/com.unity.postprocessing/PostProcessing/Shaders/Builtins/GrainBaker.shader",

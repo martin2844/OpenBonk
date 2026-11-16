@@ -59,6 +59,19 @@ Path(sys.argv[sys.argv.index('-logFile') + 1]).write_text('Unity Editor version:
         self.assertEqual((self.output / 'project/ProjectSettings/GraphicsSettings.asset').read_text(), 'graphics fixture')
         self.assertEqual(source.read_text(), 'graphics fixture')
 
+    def test_vulkan_pretransform_flag_reaches_isolated_editor(self):
+        source = self.editor.read_text()
+        source = source.replace("p = Path(sys.argv[sys.argv.index('-projectPath') + 1])", "assert os.environ.get('OPENBONK_POSTPROCESS_VULKAN_PRETRANSFORM') == '1'\np = Path(sys.argv[sys.argv.index('-projectPath') + 1])")
+        self.editor.write_text(source)
+        result = self.run_tool('--vulkan-pretransform')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_pinned_verification_rejects_wrong_bundle_and_requires_vulkan(self):
+        self.assertNotEqual(self.run_tool('--verify-pinned', '--check').returncode, 0)
+        result = self.run_tool('--verify-pinned', '--vulkan-pretransform')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('differs from the pinned build', result.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()

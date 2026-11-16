@@ -5,6 +5,7 @@ This research build does not make any APK distributable. Unity and the package
 have their own terms; inspect the supplied package and applicable licenses.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'analysis/port-inventory/OpenBonkPostprocessStudy.cs'
+PINNED_BUNDLE_SHA256 = '7cbb023315a2ad6722bf11e23cc0139b0208dea1d81f3202ad7ebcbc0851eb80'
 
 
 def main():
@@ -21,9 +23,13 @@ def main():
     parser.add_argument('--package', required=True, type=Path, help='local com.unity.postprocessing 3.4.0 package')
     parser.add_argument('--output', required=True, type=Path, help='new directory for the isolated project and output')
     parser.add_argument('--graphics-settings', type=Path, help='optional local Unity GraphicsSettings.asset to study project-dependent shader variants')
+    parser.add_argument('--vulkan-pretransform', action='store_true', help='enable Vulkan pretransform while compiling the isolated shader bundle')
+    parser.add_argument('--verify-pinned', action='store_true', help='require the historical post-processing bundle hash (requires --vulkan-pretransform)')
     parser.add_argument('--runner', help='optional executable used to launch Unity')
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
+    if args.verify_pinned and not args.vulkan_pretransform:
+        parser.error('--verify-pinned requires --vulkan-pretransform')
     unity = args.unity.expanduser().resolve(strict=True)
     package = args.package.expanduser().resolve(strict=True)
     graphics = None
@@ -77,6 +83,8 @@ def main():
     shutil.copyfile(SOURCE, editor / 'OpenBonkPostprocessStudy.cs')
     env = os.environ.copy()
     env['OPENBONK_POSTPROCESS_OUTPUT'] = str(bundles)
+    if args.vulkan_pretransform: env['OPENBONK_POSTPROCESS_VULKAN_PRETRANSFORM'] = '1'
+    else: env.pop('OPENBONK_POSTPROCESS_VULKAN_PRETRANSFORM', None)
     log = output / 'unity.log'
     cmd = ([runner] if runner else []) + [str(unity), '-batchmode', '-nographics', '-quit',
            '-projectPath', str(project), '-executeMethod', 'OpenBonkPostprocessStudy.Build', '-logFile', str(log)]
@@ -90,6 +98,11 @@ def main():
     result = bundles / 'postprocess-study'
     if not result.is_file() or not result.stat().st_size:
         raise SystemExit(f'Unity did not produce the shader bundle; inspect {log}')
+    if args.verify_pinned:
+        with result.open('rb') as stream:
+            if hashlib.file_digest(stream, 'sha256').hexdigest() != PINNED_BUNDLE_SHA256:
+                raise SystemExit(f'Generated shader bundle differs from the pinned build; inspect {log}')
+        print('Pinned shader bundle hash verified.', flush=True)
     print('Shader study bundle:', result, flush=True)
     print('Local research only; source provenance and distribution rights remain to be reviewed.', flush=True)
 
