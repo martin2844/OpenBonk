@@ -8,6 +8,14 @@ SCRIPT = Path(__file__).resolve().parents[1] / 'rebuild-legacy-compact-chain.py'
 
 
 class CompactChainTests(unittest.TestCase):
+    def test_texture_plans_require_mesh_plans_and_library(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--steam-data', 'steam', '--old-apk', 'old.apk',
+                                 '--old-obb', 'old.obb', '--new-apk', 'new.apk', '--new-obb', 'new.obb',
+                                 '--crunch-decoder', 'decoder', '--rebuild-converted-assets', '--include-texture-plans',
+                                 '--output', 'output'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--include-texture-plans requires', result.stderr)
+
     def test_material_mesh_plans_require_prerequisites(self):
         result = subprocess.run([sys.executable, str(SCRIPT), '--steam-data', 'steam', '--old-apk', 'old.apk',
                                  '--old-obb', 'old.obb', '--new-apk', 'new.apk', '--new-obb', 'new.obb',

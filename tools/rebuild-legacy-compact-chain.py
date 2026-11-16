@@ -38,8 +38,10 @@ def main():
     parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
     parser.add_argument('--include-layout-plan', action='store_true', help='also generate the shared1 layout plan (requires localization base)')
     parser.add_argument('--include-material-mesh-plans', action='store_true', help='also generate and verify the shared1 material/audio and mesh plans')
+    parser.add_argument('--include-texture-plans', action='store_true', help='also generate and verify the first three shared1 texture plans')
     parser.add_argument('--java-home', type=Path, help='JDK directory for material and mesh plan checks')
     parser.add_argument('--java-runner', default='none', help='wrapper for Java tools, or none')
+    parser.add_argument('--host-texture-library', type=Path, help='local host JNI texture conversion library')
     converted_group = parser.add_mutually_exclusive_group(required=True)
     converted_group.add_argument('--converted-obb', type=Path, help='pinned historical converted OBB')
     converted_group.add_argument('--converted-assets', type=Path, help='directory of three independently rebuilt shared assets')
@@ -48,6 +50,8 @@ def main():
     if args.include_layout_plan and not args.windows_data: parser.error('--include-layout-plan requires --windows-data')
     if args.include_material_mesh_plans and not (args.include_layout_plan and args.linux_zip and args.windows_zip and args.java_home):
         parser.error('--include-material-mesh-plans requires --include-layout-plan, both Steam ZIPs and --java-home')
+    if args.include_texture_plans and not (args.include_material_mesh_plans and args.host_texture_library):
+        parser.error('--include-texture-plans requires --include-material-mesh-plans and --host-texture-library')
     if bool(args.linux_zip) != bool(args.windows_zip): parser.error('--linux-zip and --windows-zip must be provided together')
     if args.linux_zip and args.converted_obb: parser.error('audio plan generation requires --converted-assets or --rebuild-converted-assets')
     names = ('steam_data', *PINS, 'crunch_decoder')
@@ -58,6 +62,7 @@ def main():
     windows = args.windows_data.expanduser().resolve(strict=True) if args.windows_data else None
     zips = tuple(x.expanduser().resolve(strict=True) for x in (args.linux_zip, args.windows_zip)) if args.linux_zip else ()
     java = args.java_home.expanduser().resolve(strict=True) if args.java_home else None
+    texture_library = args.host_texture_library.expanduser().resolve(strict=True) if args.host_texture_library else None
     out = args.output.expanduser().absolute()
     if not inputs['steam_data'].is_dir() or not all(inputs[n].is_file() for n in (*PINS, 'crunch_decoder')):
         parser.error('Steam data must be a directory and other inputs must be files')
@@ -68,8 +73,9 @@ def main():
     if windows is not None and (not windows.is_dir() or shaders is None): parser.error('--windows-data requires a directory and --shader-bundles')
     if zips and not all(x.is_file() for x in zips): parser.error('Steam ZIPs must be files')
     if java is not None and (not (java/'bin/java').is_file() or not (java/'bin/javac').is_file()): parser.error('Java home must contain java and javac')
+    if texture_library is not None and not texture_library.is_file(): parser.error('host texture library must be a file')
     if args.java_runner != 'none' and not shutil.which(args.java_runner): parser.error('Java runner not found')
-    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *([windows] if windows else []), *([java] if java else []), *zips, *inputs.values())):
+    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *([windows] if windows else []), *([java] if java else []), *([texture_library] if texture_library else []), *zips, *inputs.values())):
         parser.error('output must be separate from checkout and inputs')
     if shaders is not None:
         spec = importlib.util.spec_from_file_location('shader_pins', ROOT/'tools/pinned-shader-bundles.py')
@@ -157,14 +163,15 @@ def main():
                 if hashlib.file_digest(f, 'sha256').hexdigest() != '0142daaaf1e07c3a9aa90dac01382f8fba6cce74983f669376b01fce1fff6ed0':
                     raise ValueError('shared1 layout plan differs')
         material_plan = mesh_plan = None
-        mesh_extra_plans = []
+        mesh_extra_plans = []; texture_plans = []
         if args.include_material_mesh_plans:
             java_source = ROOT/'analysis/data-conversion/android'; classes = tmp/'java-classes'; classes.mkdir()
             prefix = [] if args.java_runner == 'none' else [args.java_runner]
             def java_run(*command): subprocess.run([*prefix, *(str(x) for x in command)], check=True)
-            java_run(java/'bin/javac', '-d', classes, *(java_source/(name+'.java') for name in
-                     ('SteamExactTextures', 'SteamShared1Layout', 'SteamShared1LayoutCheck',
-                      'SteamShared1MaterialAudio', 'SteamShared1MaterialAudioCheck', 'SteamShared1Meshes', 'SteamShared1MeshesCheck')))
+            java_names = ['SteamExactTextures', 'SteamShared1Layout', 'SteamShared1LayoutCheck',
+                          'SteamShared1MaterialAudio', 'SteamShared1MaterialAudioCheck', 'SteamShared1Meshes', 'SteamShared1MeshesCheck']
+            if args.include_texture_plans: java_names += ['SteamConvertedTextures', 'SteamShared1ExactTextures', 'SteamShared1ExactTexturesCheck']
+            java_run(java/'bin/javac', '-d', classes, *(java_source/(name+'.java') for name in java_names))
             def check_java(name, *arguments): java_run(java/'bin/java', '-cp', classes, 'com.openbonk.dataprep.'+name, *arguments)
             layout_asset = tmp/'layout.assets'
             check_java('SteamShared1LayoutCheck', final/'base.obb', layout_plan, layout_asset, 'pass')
@@ -214,6 +221,26 @@ def main():
                         if hashlib.file_digest(f, 'sha256').hexdigest() != asset_sha: raise ValueError('mesh '+stage+' output differs')
                     next_assets.append(result)
                 mesh_assets = next_assets; mesh_extra_plans.append(plan)
+            if args.include_texture_plans:
+                stages = (
+                    ('direct', 'generate-android-shared1-exact-textures-plan.py', (), 'direct-texture-template/manifest.json', '2b574ff7aafce67fabc6c30e443c306039003a77db5ed69f2614df3c1a1a344c', 'cde5b19279b3c5ddf3c72b973e96a93e99cb9ec4490b58178a6f47c1ea61564c'),
+                    ('rgba', 'generate-android-shared1-exact-textures-plan.py', ('rgba',), 'rgba-template/manifest.json', '601c6d3a685d0f52c8854b0738b1b2c22897633e47e8c952f5b95775e6237375', '41bbce3f1884566a5ff844be5a0f448fa7032364c6e2dd3cd3286ee6ec201202'),
+                    ('converted', 'generate-android-shared1-rgba-converted-plan.py', (), 'rgba-template/manifest.json', 'fe3716fdbfcf6e29167c05a7dd1e8cdf5eee44e468b3487be79dc576c89339de', '72792c774df00852df4d36bfdaba74c13597e35ea4b8814cc03ec421424408fd'),
+                )
+                for stage, script, mode, manifest, plan_sha, asset_sha in stages:
+                    plan = tmp/f'shared1-texture-{stage}-plan.bin'
+                    run('analysis/data-conversion/'+script, *mode, '--base', mesh_assets[0], '--target-asset', target,
+                        '--linux-zip', zips[0], '--windows-zip', zips[1], '--manifest', shared_inputs/'share-source-experiment'/manifest, '--output', plan)
+                    with plan.open('rb') as f:
+                        if hashlib.file_digest(f, 'sha256').hexdigest() != plan_sha: raise ValueError('texture '+stage+' plan differs')
+                    next_assets = []
+                    for i, steam_zip in enumerate(zips):
+                        result = tmp/f'texture-{stage}-{i}.assets'
+                        check_java('SteamShared1ExactTexturesCheck', texture_library, mesh_assets[i], steam_zip, plan, result, 'pass')
+                        with result.open('rb') as f:
+                            if hashlib.file_digest(f, 'sha256').hexdigest() != asset_sha: raise ValueError('texture '+stage+' output differs')
+                        next_assets.append(result)
+                    mesh_assets = next_assets; texture_plans.append(plan)
         # Reserve the destination exclusively; do not replace user data on a race.
         os.mkdir(out, 0o700)
         try:
@@ -230,7 +257,7 @@ def main():
             if layout_plan is not None:
                 with layout_plan.open('rb') as src, (out/'shared1-layout-plan.bin').open('xb') as dest:
                     shutil.copyfileobj(src, dest)
-            for plan in (material_plan, mesh_plan, *mesh_extra_plans):
+            for plan in (material_plan, mesh_plan, *mesh_extra_plans, *texture_plans):
                 if plan is not None:
                     with plan.open('rb') as src, (out/plan.name).open('xb') as dest: shutil.copyfileobj(src, dest)
         except BaseException:
