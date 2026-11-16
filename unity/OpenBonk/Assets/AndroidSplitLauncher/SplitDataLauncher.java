@@ -180,7 +180,7 @@ public final class SplitDataLauncher extends Activity {
         LinearLayout inputCard = card(); LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(-1, -2); inputParams.topMargin = dp(7); left.addView(inputCard, inputParams);
         inputCard.addView(cardTitle(es ? "CONTROLES" : "CONTROLS")); inputCard.addView(controls);
         TextView controlHint = new TextView(this); controlHint.setTextColor(Color.rgb(225, 205, 235)); controlHint.setTextSize(12);
-        controlHint.setText(es ? "Durante una partida táctil, usá Editar para personalizar los controles." : "During a touch game, use Edit to customize the controls.");
+        controlHint.setText(es ? "Elegí el modo de control para la partida." : "Choose the control mode for your run.");
         inputCard.addView(controlHint);
         touchSettingsPanel = LauncherTouchPanel.create(this, es); inputCard.addView(touchSettingsPanel);
         touchSettingsPanel.setVisibility(touchMode == 1 ? View.VISIBLE : View.GONE);
@@ -205,6 +205,21 @@ public final class SplitDataLauncher extends Activity {
         settingsCard.addView(cardTitle(es ? "Configuración general" : "General settings"));
         TextView settingsHint = new TextView(this); settingsHint.setTextColor(Color.rgb(225, 205, 235)); settingsHint.setTextSize(12);
         settingsHint.setText(es ? "Preferencias generales del launcher." : "General launcher preferences."); settingsCard.addView(settingsHint);
+        TextView resolutionLabel = new TextView(this); resolutionLabel.setTextColor(Color.WHITE); resolutionLabel.setTextSize(13);
+        resolutionLabel.setText(es ? "Resolución del juego" : "Game resolution"); settingsCard.addView(resolutionLabel);
+        RadioGroup resolution = new RadioGroup(this); resolution.setOrientation(RadioGroup.HORIZONTAL);
+        String[] resolutionNames = es ? new String[] { "Juego", "Nativa", "75%", "50%" } : new String[] { "Game", "Native", "75%", "50%" };
+        int[] resolutionValues = {0, 100, 75, 50}; int savedResolution = launcherPrefs.getInt("render_resolution_percent", 0);
+        for (int i = 0; i < resolutionValues.length; i++) {
+            final int value = resolutionValues[i]; RadioButton option = new RadioButton(this); option.setId(View.generateViewId()); option.setText(resolutionNames[i]);
+            option.setTextColor(Color.WHITE); option.setTextSize(12); option.setButtonTintList(ColorStateList.valueOf(Color.rgb(213, 245, 95))); styleControlOption(option);
+            resolution.addView(option, new RadioGroup.LayoutParams(0, -2, 1)); if (value == savedResolution) resolution.check(option.getId());
+            option.setOnClickListener(v -> launcherPrefs.edit().putInt("render_resolution_percent", value).apply());
+        }
+        if (resolution.getCheckedRadioButtonId() == -1) resolution.check(((RadioButton)resolution.getChildAt(0)).getId());
+        settingsCard.addView(resolution);
+        TextView resolutionHint = new TextView(this); resolutionHint.setTextColor(Color.rgb(225, 205, 235)); resolutionHint.setTextSize(12);
+        resolutionHint.setText(es ? "Se aplica al iniciar. Elegí Juego para usar la resolución del menú del juego." : "Applies on launch. Choose Game to use the in-game resolution setting."); settingsCard.addView(resolutionHint);
         android.widget.CheckBox autoUpdates = new android.widget.CheckBox(this); autoUpdates.setTextColor(Color.WHITE);
         autoUpdates.setText(es ? "Buscar actualizaciones automáticamente" : "Check for updates automatically");
         autoUpdates.setChecked(launcherPrefs.getBoolean("auto_update_checks", true));

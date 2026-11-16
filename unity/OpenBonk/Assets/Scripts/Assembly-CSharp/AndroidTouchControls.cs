@@ -20,6 +20,8 @@ internal sealed class AndroidTouchControls : MonoBehaviour
     private bool forceTest;
     private bool appFocused = true;
     private bool appPaused;
+    private bool ownsMouseSimulation;
+    private bool previousMouseSimulation;
     private string locale;
     private AndroidTouchButton[] buttons;
     private AndroidTouchLayoutEditor layoutEditor;
@@ -50,6 +52,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         if (visible != shouldShow)
         {
             visible = shouldShow;
+            SetMouseSimulationForGameplay(visible);
             if (!visible) AndroidTouchInput.ReleaseAll();
             if (overlay != null) overlay.SetActive(visible);
         }
@@ -76,8 +79,15 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         if (!focused) SuspendOverlay();
     }
 
+    private void SetMouseSimulationForGameplay(bool active)
+    {
+        if (active && !ownsMouseSimulation) { previousMouseSimulation = Input.simulateMouseWithTouches; Input.simulateMouseWithTouches = false; ownsMouseSimulation = true; }
+        else if (!active && ownsMouseSimulation) { Input.simulateMouseWithTouches = previousMouseSimulation; ownsMouseSimulation = false; }
+    }
+
     private void SuspendOverlay()
     {
+        SetMouseSimulationForGameplay(false);
         AndroidTouchInput.ReleaseAll();
         // Disabling invokes each control's OnDisable, clearing its pointer ID.
         // Android may never send pointer-up after an interruption.
@@ -87,6 +97,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
 
     private void OnDestroy()
     {
+        SetMouseSimulationForGameplay(false);
         AndroidTouchInput.ReleaseAll();
         if (circle != null) { Destroy(circle.texture); Destroy(circle); }
     }

@@ -35,6 +35,9 @@ final class LauncherTouchSettings {
     }
     boolean profileExists(int slot) { return integer(PREFIX + "profile." + slot + ".exists", 0) != 0; }
     boolean saveProfile(int slot) {
+        // Until Unity has published its current state, an older installation
+        // may have profiles that the launcher cannot see yet.
+        if (!hasSnapshot()) return false;
         String dst = PREFIX + "profile." + slot + ".";
         try {
             for (String id : IDS) {

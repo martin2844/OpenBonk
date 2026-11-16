@@ -17,6 +17,9 @@ public final class TouchSettingsCheck {
     static void require(boolean value, String message) { if (!value) throw new AssertionError(message); }
     public static void main(String[] args) throws Exception {
         Store store = new Store(); Context ctx = new Context() { public SharedPreferences getSharedPreferences(String n, int m) { return store; } };
+        LauncherTouchSettings unsynced = new LauncherTouchSettings(ctx);
+        require(!unsynced.saveProfile(1) && !store.contains("pending"), "unsynced profiles must not overwrite Unity data");
+        store.putString("snapshot", "{}");
         LauncherTouchSettings s = new LauncherTouchSettings(ctx); String p = LauncherTouchSettings.PREFIX;
         require(s.setPosition("Move", .2f, .3f), "position save");
         require(s.set(p + "Move.opacity", .4), "opacity save");

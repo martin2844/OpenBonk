@@ -319,6 +319,7 @@ public class CurrentSettings : MonoBehaviour
 	private void UpdateResolution(int index, int oldValue)
 	{
 #if UNITY_ANDROID && !UNITY_EDITOR
+		if (AndroidPerformanceSettings.OverrideActive) return;
 		var modes = ConfigSettingsUtility.GetMyResolutions();
 		if (index < 0 || index >= modes.Length) return;
 		var mode = modes[index];

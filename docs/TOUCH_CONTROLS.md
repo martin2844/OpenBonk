@@ -1,6 +1,6 @@
 # Touch controls in the upcoming release
 
-These controls are being prepared for a future release and are not included in the current public beta. Choose **Touch** in the launcher's **Controls** tab to configure individual controls and profiles before a run. Changes made there apply when the touch overlay starts; after a run the launcher reads back changes made in the game. You can also start a run and tap **Edit** to open the layout editor. The edit button stays available when other controls are hidden.
+These controls are being prepared for a future release and are not included in the current public beta. Choose **Touch** in the launcher's **Controls** tab to save or load profiles before a run. Start a run and tap **Edit** to position and customize controls visually. Loaded profiles apply when the touch overlay starts; after editing, the launcher reads back changes made in the game. The edit button stays available when other controls are hidden.
 
 - Drag a control to reposition it. Select one and use **-** or **+** to resize it; use **Swap** and tap another action button to exchange their actions.
 - Select a control and use **Show** to hide or show it, or **Opacity -** and **Opacity +** to adjust its transparency. **All** hides all action buttons, or shows them again if any are hidden. The movement and camera sticks can be hidden individually.
@@ -10,3 +10,5 @@ These controls are being prepared for a future release and are not included in t
 - **Reset** restores the default layout and turns grid snapping and auto-run off. It does not erase saved profiles. **Done** closes the editor and saves the current layout.
 
 Controller input remains available according to the selected control mode and the game's settings. Settings are stored locally on the Android device.
+
+For devices that need more performance, the upcoming launcher also offers **Game**, **Native**, **75%** and **50%** rendering resolution under **Settings**. The selected resolution is applied when the game starts, including its menus. **Game** preserves the in-game resolution setting; an explicit launcher resolution takes priority over that setting. Reducing it may improve GPU-limited performance; results vary by device and scene. The game's own graphics settings can be adjusted separately.
