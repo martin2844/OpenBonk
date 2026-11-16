@@ -115,6 +115,15 @@ public final class SplitDataLauncher extends Activity {
             notices.setOnClickListener(v -> showTextureNotices()); styleButton(notices, false);
             header.addView(notices, new LinearLayout.LayoutParams(dp(100), dp(37)));
         }
+        Button feedback = new Button(this); feedback.setText("Feedback");
+        feedback.setOnClickListener(v -> {
+            try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/martin2844/OpenBonk/issues/new/choose"))); }
+            catch (Exception e) { new AlertDialog.Builder(this).setMessage(es ? "No se pudo abrir el navegador." : "Could not open the browser.").setPositiveButton("OK", null).show(); }
+        });
+        styleButton(feedback, false); header.addView(feedback, new LinearLayout.LayoutParams(dp(115), dp(37)));
+        updateButton = new Button(this); updateButton.setText(es ? "Actualizaciones" : "Updates");
+        updateButton.setOnClickListener(v -> LauncherOnlineUi.checkUpdate(this, es)); styleButton(updateButton, false);
+        header.addView(updateButton, new LinearLayout.LayoutParams(dp(150), dp(37)));
         layout.addView(header);
         LinearLayout body = new LinearLayout(this); body.setOrientation(LinearLayout.HORIZONTAL); body.setGravity(Gravity.CENTER_VERTICAL);
         layout.addView(body, new LinearLayout.LayoutParams(-1, 0, 1));
@@ -186,8 +195,6 @@ public final class SplitDataLauncher extends Activity {
         importModButton = new Button(this); importModButton.setText(es ? "＋ Importar mod" : "＋ Import mod"); importModButton.setEnabled(false); importModButton.setOnClickListener(v -> openModPicker()); styleButton(importModButton, true); modCard.addView(importModButton, buttonParams());
         onlineMods = new Button(this); onlineMods.setText(es ? "Buscar mods" : "Browse mods");
         onlineMods.setOnClickListener(v -> LauncherOnlineUi.browse(this, es)); styleButton(onlineMods, false); modCard.addView(onlineMods, buttonParams());
-        updateButton = new Button(this); updateButton.setText(es ? "Buscar actualización" : "Check for updates");
-        updateButton.setOnClickListener(v -> LauncherOnlineUi.checkUpdate(this, es)); styleButton(updateButton, false); modCard.addView(updateButton, buttonParams());
         mods = new Button(this); mods.setText(es ? "Gestionar mods" : "Manage mods");
         mods.setEnabled(false); mods.setOnClickListener(v -> showMods());
         styleButton(mods, false); modCard.addView(mods, buttonParams());
