@@ -46,7 +46,7 @@ build_args=(
   --gradle-online
 )
 
-# Checks initial paths, Unity version/startup, Android tools, JSON JAR contents and Python conversion imports; it does not build or verify an APK.
+# Checks initial paths, Unity startup, required compilers and Android tools, JSON JAR contents and Python conversion imports; it does not build or verify an APK.
 .venv/bin/python tools/build-steam-research-launcher.py "${build_args[@]}" --check
 
 # Runs the export, Unity builds, data conversion checks and launcher packaging.

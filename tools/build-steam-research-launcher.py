@@ -189,6 +189,14 @@ def main():
     aapt2 = android / 'SDK/build-tools/34.0.0/aapt2'
     if not aapt2.is_file() or any(c.isspace() for c in str(aapt2)):
         p.error('Unity Android build-tools 34.0.0 aapt2 is required at a path without spaces')
+    if a.android_library is None:
+        compiler = android / 'NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++'
+        if not compiler.is_file() or not os.access(compiler, os.X_OK):
+            p.error('Unity Android ARM64 NDK C++ compiler is required to build the texture converter')
+    if a.host_library is None and not shutil.which('g++'):
+        p.error('g++ is required to build the host texture converter')
+    if a.decoder is None and not shutil.which(os.environ.get('CXX', 'g++')):
+        p.error('C++ compiler specified by CXX (or g++) is required to build the Crunch decoder')
     try:
         check_conversion_imports()
     except ValueError as error:
