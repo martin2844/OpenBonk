@@ -3,6 +3,9 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
+import sys
 
 
 SCRIPT = Path(__file__).resolve().parents[1]/'pinned-shader-bundles.py'
@@ -44,6 +47,31 @@ class PinnedShaderBundlesTest(unittest.TestCase):
             (package/'compiled').write_bytes(b'bad')
             with self.assertRaises(ValueError): shaders.stage(cache, output, package)
             self.assertFalse(output.exists())
+
+    def test_probe_with_different_wrapper_requires_shader_object_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); (root/'feature-probe').write_bytes(b'new wrapper')
+            original = shaders.PINS
+            self.addCleanup(lambda: setattr(shaders, 'PINS', original))
+            shaders.PINS = {'feature-probe': hashlib.sha256(b'old wrapper').hexdigest()}
+            with patch.object(shaders, 'verify_probe', side_effect=ValueError('shader differs')) as check:
+                with self.assertRaises(ValueError): shaders.verify(root)
+                check.assert_called_once_with(root/'feature-probe', 'feature-probe')
+            with patch.object(shaders, 'verify_probe') as check:
+                shaders.verify(root); check.assert_called_once_with(root/'feature-probe', 'feature-probe')
+
+    def test_probe_validates_every_shader_and_rejects_extras(self):
+        class Shader:
+            type = SimpleNamespace(name='Shader')
+            def __init__(self, name, raw): self.name, self.raw = name, raw
+            def read_typetree(self): return {'m_ParsedForm': {'m_Name': self.name}}
+            def get_raw_data(self): return self.raw
+        objects = [Shader('expected', b'known')]
+        fake = SimpleNamespace(load=lambda _: SimpleNamespace(objects=objects))
+        with patch.dict(sys.modules, {'UnityPy': fake}), patch.dict(shaders.PROBE_SHADER_PINS, {'fixture': {'expected': hashlib.sha256(b'known').hexdigest()}}):
+            shaders.verify_probe('unused', 'fixture')
+            objects.append(Shader('unexpected', b'bad'))
+            with self.assertRaises(ValueError): shaders.verify_probe('unused', 'fixture')
 
 
 if __name__ == '__main__': unittest.main()

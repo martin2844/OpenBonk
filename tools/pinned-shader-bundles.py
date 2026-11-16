@@ -30,6 +30,31 @@ PINS = {
 PACKAGE_NAMES = frozenset(('postprocess-study', 'autoexposure', 'multiscalevorender', 'multiscalevoupsample',
                            'multiscalevodownsample1', 'multiscalevodownsample2', 'lut3dbaker', 'histogram',
                            'texture3dlerp', 'gaussiandownsample', 'exposurehistogram', 'waveform', 'vectorscope'))
+PROBE_SHADER_PINS = {
+    'feature-probe': {
+        'TextMeshPro/Distance Field Overlay': '948cd1df79af85ab1d8ee98d6f8eac2fb3e56bc853f1f576f5e4734bb01b8fe3',
+        'Megabonk/Native Cubemap Skybox': '563fb2120ba4133310b28b1e3f78c357fa90abf5590493a43b6e9eaf9d0f501b',
+    },
+    'builtin-probe': {
+        'Standard': '0aefc185255fe48e294785d13ef2c356f985f5d3c429cee3645a2a24b1942dfd',
+        'Unlit/Texture': '721cbe7559753e1640ef7cfb30c64b86611b478f05393f5f80897e0df8dfa588',
+        'Legacy Shaders/Particles/Alpha Blended': '07fba39c06ec68de954bae7f9676fb5ebb9d412a91ec6645faf999e1a2ea9104',
+    },
+}
+
+
+def verify_probe(file, name):
+    """Temporary material GUIDs can vary; pin every shader object instead."""
+    import UnityPy
+    expected = PROBE_SHADER_PINS[name]
+    actual = {}
+    for obj in UnityPy.load(str(file)).objects:
+        if obj.type.name == 'ComputeShader': raise ValueError('unexpected compute shader in '+name)
+        if obj.type.name != 'Shader': continue
+        shader = obj.read_typetree()['m_ParsedForm']['m_Name']
+        if shader in actual or shader not in expected: raise ValueError('unexpected shader in '+name)
+        actual[shader] = hashlib.sha256(obj.get_raw_data()).hexdigest()
+    if actual != expected: raise ValueError('incompatible shader objects in '+name)
 
 
 def verify(folder, package=None):
@@ -40,8 +65,10 @@ def verify(folder, package=None):
         if file.is_symlink() or not file.is_file() or file.stat().st_size > 8*1024*1024:
             raise ValueError('missing or oversized cached shader: '+str(file))
         with file.open('rb') as stream:
-            if hashlib.file_digest(stream, 'sha256').hexdigest() != expected:
-                raise ValueError('incompatible cached shader: '+str(file))
+            actual = hashlib.file_digest(stream, 'sha256').hexdigest()
+        if actual != expected:
+            if name not in PROBE_SHADER_PINS: raise ValueError('incompatible cached shader: '+str(file))
+            verify_probe(file, name)
 
 
 def stage(folder, destination, package=None):
