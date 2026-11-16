@@ -29,6 +29,9 @@ class AnimationCurveTest(unittest.TestCase):
         self.assertIsNone(study.compatible_frames(left, close))
         self.assertIsNotNone(study.compatible_frames(left, close, limit=study.RELAXED_LIMIT))
         self.assertIsNone(study.compatible_frames(left, far, limit=study.RELAXED_LIMIT))
+        self.assertIsNotNone(study.compatible_frames(left, far, limit=study.EXTENDED_LIMIT))
+        too_far = [(0.0, [(3, (0.0, 0.0, 0.0, 1.002))]), (1.0, [])]
+        self.assertIsNone(study.compatible_frames(left, too_far, limit=study.EXTENDED_LIMIT))
 
     def test_rejects_curve_mapping_and_sentinel_differences(self):
         coeff = (0.0, 0.0, 0.0, 1.0)

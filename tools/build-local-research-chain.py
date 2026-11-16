@@ -108,7 +108,7 @@ def commands(a):
     py('converted cubemaps', 'experimental-converted-cubemaps.py', '--steam-data', steam, '--obb', out / 'texture-study/converted.obb', '--decoder', decoder, '--output', out / 'cubemap-study', *wrapped)
     converted = out / 'cubemap-study/converted.obb'
     if getattr(a, 'animation_curve_fallback', False):
-        py('compatible Steam animation curves', 'experimental-steam-animation-curves.py', '--steam-data', steam, '--obb', converted, '--output', out / 'animation-curve-study', *(['--relaxed'] if getattr(a, 'animation_curve_relaxed', False) else []))
+        py('compatible Steam animation curves', 'experimental-steam-animation-curves.py', '--steam-data', steam, '--obb', converted, '--output', out / 'animation-curve-study', *(['--relaxed'] if getattr(a, 'animation_curve_relaxed', False) else []), *(['--extended'] if getattr(a, 'animation_curve_extended', False) else []))
         converted = out / 'animation-curve-study/converted.obb'
     if getattr(a, 'transparent_atlas_scrub', False):
         py('transparent atlas scrub', 'experimental-transparent-atlas-scrub.py', '--steam-data', steam, '--obb', converted, '--output', out / 'transparent-atlas-study')
@@ -180,6 +180,7 @@ def main():
     p.add_argument('--normal-fallback', action='store_true', help='experimentally recover RGB normal maps that pass every mip direction check')
     p.add_argument('--animation-curve-fallback', action='store_true', help='experimentally substitute tightly bounded Steam animation curves')
     p.add_argument('--animation-curve-relaxed', action='store_true', help='use a 1e-4 curve bound; requires --animation-curve-fallback')
+    p.add_argument('--animation-curve-extended', action='store_true', help='use a 1e-3 curve bound; requires --animation-curve-fallback')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--nodraw-fallback', action='store_true', help='also reconstruct the NoDraw debug grid; requires --resource-fallback')
@@ -200,6 +201,7 @@ def main():
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')
+    if a.animation_curve_extended and (not a.animation_curve_fallback or a.animation_curve_relaxed): p.error('--animation-curve-extended requires --animation-curve-fallback and excludes --animation-curve-relaxed')
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')
     if a.resource_fallback and not a.quality_textures: p.error('--resource-fallback requires --quality-textures')
     if a.nodraw_fallback and not a.resource_fallback: p.error('--nodraw-fallback requires --resource-fallback')

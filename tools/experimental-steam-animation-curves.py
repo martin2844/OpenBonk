@@ -34,6 +34,7 @@ curve = load('animation_curves', ROOT / 'analysis/data-conversion/analyze-shared
 extrema = load('animation_extrema', ROOT / 'analysis/data-conversion/verify-hybrid-animation-extrema.py').extrema
 LIMIT = 1e-6
 RELAXED_LIMIT = 1e-4
+EXTENDED_LIMIT = 1e-3
 
 
 def stream(tree):
@@ -90,7 +91,9 @@ def candidate(target, source, limit=LIMIT):
 
 
 def generate(args):
-    limit = RELAXED_LIMIT if getattr(args, 'relaxed', False) else LIMIT
+    if getattr(args, 'extended', False) and getattr(args, 'relaxed', False):
+        raise ValueError('animation curve bounds cannot be combined')
+    limit = EXTENDED_LIMIT if getattr(args, 'extended', False) else RELAXED_LIMIT if getattr(args, 'relaxed', False) else LIMIT
     source = args.steam_data.resolve(strict=True)
     obb = args.obb.resolve(strict=True)
     output = animation.regular_output(args.output, (source, obb))
@@ -165,7 +168,9 @@ def main():
     p.add_argument('--steam-data', required=True, type=Path)
     p.add_argument('--obb', required=True, type=Path)
     p.add_argument('--output', required=True, type=Path)
-    p.add_argument('--relaxed', action='store_true', help='use an experimental 1e-4 per-segment curve bound')
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument('--relaxed', action='store_true', help='use an experimental 1e-4 per-segment curve bound')
+    mode.add_argument('--extended', action='store_true', help='use an experimental 1e-3 per-segment curve bound')
     generate(p.parse_args())
 
 

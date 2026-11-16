@@ -55,6 +55,8 @@ class ResearchChainTests(unittest.TestCase):
             args.animation_curve_relaxed = True
             steps = module.commands(args); labels = [name for name, _ in steps]
             self.assertIn('--relaxed', dict(steps)['compatible Steam animation curves'])
+            args.animation_curve_relaxed = False; args.animation_curve_extended = True
+            self.assertIn('--extended', dict(module.commands(args))['compatible Steam animation curves'])
             self.assertLess(labels.index('converted cubemaps'), labels.index('compatible Steam animation curves'))
             self.assertLess(labels.index('compatible Steam animation curves'), labels.index('individual audio plan'))
             commands = dict(steps)
