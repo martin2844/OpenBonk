@@ -106,6 +106,7 @@ def main():
     env = os.environ.copy()
     env.update({'OPENBONK_BUILD_ROOT': str(output), 'OPENBONK_NO_REWIRED_CODE': '0' if args.include_rewired else '1',
                 'OPENBONK_NO_REWIRED_PLUGINS': '0' if args.include_rewired else '1', 'OPENBONK_NO_REWIRED_SCENE': '1',
+                'OPENBONK_OFFLINE_BETA': '1',
                 'OPENBONK_ANDROID_TARGET_SDK': '35',
                 'OPENBONK_AAPT2_OVERRIDE': str(aapt2)})
     defines = REWIRED_DEFINES if args.include_rewired else DEFINES
