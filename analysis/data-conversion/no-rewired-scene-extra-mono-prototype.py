@@ -29,12 +29,13 @@ def require(p,h):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('action',choices=('template','restore'));p.add_argument('pc_data',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path)
+    p.add_argument('--inventory',type=Path,default=INVENTORY);p.add_argument('--first-dir',type=Path,default=FIRST)
     a=p.parse_args();out=a.output.resolve();pc=a.pc_data.resolve();source=a.input.resolve()
     if a.output.exists() or a.output.is_symlink() or not a.output.parent.is_dir():p.error('output must be new')
     if out.is_relative_to(pc) or pc.is_relative_to(out) or out.is_relative_to(source) or source.is_relative_to(out):p.error('output must be separate from inputs')
-    require(INVENTORY,INVENTORY_SHA);require(FIRST/'manifest.json',FIRST_MANIFEST_SHA)
+    require(a.inventory,INVENTORY_SHA);require(a.first_dir/'manifest.json',FIRST_MANIFEST_SHA)
     for name,h in base.PC_PINS.items():require(pc/name,h)
-    inv=json.loads(INVENTORY.read_text());first=json.loads((FIRST/'manifest.json').read_text())
+    inv=json.loads(a.inventory.read_text());first=json.loads((a.first_dir/'manifest.json').read_text())
     if inv['errors'] or {r['scene'] for r in inv['scenes']}!=set(EXPECTED):raise ValueError('invalid inventory')
     prior=None if a.action=='template' else json.loads((a.input/'extra-manifest.json').read_text())
     if prior is not None and (prior.get('version')!=1 or set(prior.get('scenes',{}))!=set(EXPECTED)):raise ValueError('invalid extra manifest')
@@ -42,7 +43,7 @@ def main():
     try:
         for row in inv['scenes']:
             scene=row['scene'];first_scene=first['scenes'][scene]
-            require(FIRST/scene,first_scene['template_sha256'])
+            require(a.first_dir/scene,first_scene['template_sha256'])
             source_path=a.input/scene
             require(source_path,first_scene['template_sha256'] if prior is None else prior['scenes'][scene]['template_sha256'])
             raw_file=source_path.read_bytes();targets=base.objs(UnityPy.load(raw_file));sources=base.objs(UnityPy.load(str(pc/scene)));work=bytearray(raw_file)
@@ -74,7 +75,7 @@ def main():
         if prior is None:
             (a.output/'extra-manifest.json').write_text(json.dumps({'version':1,'kind':'local research only, not distributable','scenes':summary},indent=2)+'\n')
         else:
-            shutil.copyfile(FIRST/'manifest.json',a.output/'manifest.json')
+            shutil.copyfile(a.first_dir/'manifest.json',a.output/'manifest.json')
         print(a.action,json.dumps({s:{k:v for k,v in r.items() if k!='records'} for s,r in summary.items()}),flush=True)
     except BaseException:
         shutil.rmtree(a.output);raise

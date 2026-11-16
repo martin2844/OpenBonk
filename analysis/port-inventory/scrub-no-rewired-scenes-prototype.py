@@ -31,10 +31,14 @@ def require(p,h):
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('apk',type=Path);p.add_argument('obb',type=Path);p.add_argument('output',type=Path);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('apk',type=Path);p.add_argument('obb',type=Path);p.add_argument('output',type=Path);p.add_argument('--first-dir',type=Path,default=FIRST);p.add_argument('--extra-dir',type=Path,default=EXTRA);a=p.parse_args()
     if a.output.exists() or a.output.is_symlink() or not a.output.parent.is_dir():p.error('output must be new')
-    require(a.apk,APK_SHA);require(a.obb,OBB_SHA);require(FIRST/'manifest.json',FIRST_SHA);require(EXTRA/'extra-manifest.json',EXTRA_SHA)
-    first=json.loads((FIRST/'manifest.json').read_text())['scenes'];extra=json.loads((EXTRA/'extra-manifest.json').read_text())['scenes']
+    out=a.output.resolve()
+    for source in (a.apk,a.obb,a.first_dir,a.extra_dir):
+        source=source.resolve()
+        if out.is_relative_to(source) or source.is_relative_to(out):p.error('output must be separate from inputs')
+    require(a.apk,APK_SHA);require(a.obb,OBB_SHA);require(a.first_dir/'manifest.json',FIRST_SHA);require(a.extra_dir/'extra-manifest.json',EXTRA_SHA)
+    first=json.loads((a.first_dir/'manifest.json').read_text())['scenes'];extra=json.loads((a.extra_dir/'extra-manifest.json').read_text())['scenes']
     with tempfile.TemporaryDirectory(prefix='.openbonk-scene-base-',dir=a.output.parent) as tmp:
         tmp=Path(tmp);obb=tmp/'base.obb';apk=tmp/'base.apk'; replacements={};metrics={}
         with zipfile.ZipFile(a.apk) as az,zipfile.ZipFile(a.obb) as oz:
@@ -45,7 +49,7 @@ def main():
             for scene in ('level1','level2','level4'):
                 prefix='assets/bin/Data/'+scene+'.split';parts=sorted((x for x in oz.namelist() if x.startswith(prefix)),key=lambda x:int(x[len(prefix):]))
                 if not parts or [int(n[len(prefix):]) for n in parts]!=list(range(len(parts))):raise ValueError('scene fragments missing')
-                original=b''.join(oz.read(x) for x in parts);blank=(EXTRA/scene).read_bytes()
+                original=b''.join(oz.read(x) for x in parts);blank=(a.extra_dir/scene).read_bytes()
                 if digest(original)!=first[scene]['original_sha256'] or digest(blank)!=extra[scene]['template_sha256'] or len(original)!=len(blank):raise ValueError('scene template mismatch')
                 ranges=sorted([(r['offset'],r['size']) for r in first[scene]['records']]+[(r['offset'],r['size']) for r in extra[scene]['records']])
                 if any(size<=0 or off<0 or off+size>len(original) for off,size in ranges) or any(x[0]+x[1]>y[0] for x,y in zip(ranges,ranges[1:])):raise ValueError('invalid or overlapping body ranges')

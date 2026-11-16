@@ -41,6 +41,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('action',choices=('template','restore'));p.add_argument('pc_data',type=Path);p.add_argument('input',type=Path);p.add_argument('output',type=Path)
     p.add_argument('--windows-scenes',action='store_true',help='experimentally restore selected bodies from the pinned Windows scenes')
+    p.add_argument('--manifest-root',type=Path,default=BASE,help='directory containing the three pinned source manifests')
     a=p.parse_args()
     if a.output.exists() or a.output.is_symlink() or not a.output.parent.is_dir():p.error('output must be new')
     out=a.output.resolve();pc=a.pc_data.resolve();source=a.input.resolve()
@@ -49,7 +50,7 @@ def main():
     for scene,h in (WINDOWS_SCENE_PINS if a.windows_scenes else PC_PINS).items():require(a.pc_data/scene,h)
     plans={}
     for kind,(folder,h) in MANIFESTS.items():
-        f=BASE/folder/'manifest.json';require(f,h);m=json.loads(f.read_text());plans[kind]={x['scene']:x['objects'] for x in m['scenes']}
+        f=a.manifest_root/folder/'manifest.json';require(f,h);m=json.loads(f.read_text());plans[kind]={x['scene']:x['objects'] for x in m['scenes']}
         if set(plans[kind])!=set(PC_PINS):raise ValueError('unexpected scene manifest')
     if a.action=='template':
         require(a.input,OBB_SHA);z=zipfile.ZipFile(a.input)
