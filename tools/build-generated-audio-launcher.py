@@ -208,7 +208,7 @@ def verify_animations(template, plan_path, intermediate, partial_rgba=False):
         for i, row in enumerate(rows):
             fmt, quality = row.get('target_format'), row.get('quality', False)
             if (row.get('id') != i or type(quality) is not bool or
-                    not ((fmt == 4 and not quality) or (fmt in (45, 47) and quality)) or
+                    not ((fmt == 4 and not quality) or fmt in (45, 47)) or
                     not isinstance(row.get('fragments'), list) or not row['fragments']):
                 raise ValueError('invalid partial texture record')
             for fragment in row['fragments']:
