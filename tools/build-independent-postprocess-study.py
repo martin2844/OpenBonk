@@ -20,16 +20,23 @@ def main():
     parser.add_argument('--unity', required=True, type=Path, help='Unity 2023.2.22f1 executable')
     parser.add_argument('--package', required=True, type=Path, help='local com.unity.postprocessing 3.4.0 package')
     parser.add_argument('--output', required=True, type=Path, help='new directory for the isolated project and output')
+    parser.add_argument('--graphics-settings', type=Path, help='optional local Unity GraphicsSettings.asset to study project-dependent shader variants')
     parser.add_argument('--runner', help='optional executable used to launch Unity')
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
     unity = args.unity.expanduser().resolve(strict=True)
     package = args.package.expanduser().resolve(strict=True)
+    graphics = None
+    if args.graphics_settings:
+        path = args.graphics_settings.expanduser()
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 1024 * 1024:
+            parser.error('graphics settings must be a regular file under 1 MiB')
+        graphics = path.resolve(strict=True)
     output = args.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir():
         parser.error('output must be a new path in an existing directory')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (ROOT, package, unity)):
+    if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (ROOT, package, unity, *([graphics] if graphics else []))):
         parser.error('output must be separate from checkout and inputs')
     if not unity.is_file() or not os.access(unity, os.X_OK):
         parser.error('Unity executable unavailable')
@@ -66,6 +73,7 @@ def main():
         'com.unity.postprocessing': '3.4.0', 'com.unity.modules.assetbundle': '1.0.0',
         'com.unity.modules.imgui': '1.0.0', 'com.unity.modules.jsonserialize': '1.0.0'}}) + '\n')
     (settings / 'ProjectVersion.txt').write_text('m_EditorVersion: 2023.2.22f1\n')
+    if graphics: shutil.copyfile(graphics, settings / 'GraphicsSettings.asset')
     shutil.copyfile(SOURCE, editor / 'OpenBonkPostprocessStudy.cs')
     env = os.environ.copy()
     env['OPENBONK_POSTPROCESS_OUTPUT'] = str(bundles)

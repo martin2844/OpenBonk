@@ -52,6 +52,13 @@ Path(sys.argv[sys.argv.index('-logFile') + 1]).write_text('Unity Editor version:
         self.assertNotEqual(self.run_tool('--check').returncode, 0)
         self.assertFalse(self.output.exists())
 
+    def test_optional_graphics_settings_are_copied_without_modifying_input(self):
+        source = self.root / 'GraphicsSettings.asset'; source.write_text('graphics fixture')
+        result = self.run_tool('--graphics-settings', str(source))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.output / 'project/ProjectSettings/GraphicsSettings.asset').read_text(), 'graphics fixture')
+        self.assertEqual(source.read_text(), 'graphics fixture')
+
 
 if __name__ == '__main__':
     unittest.main()
