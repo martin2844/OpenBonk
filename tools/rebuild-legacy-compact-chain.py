@@ -34,17 +34,22 @@ def main():
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--shader-bundles', type=Path, help='also rebuild the subsequent pinned scene and shader base using this local shader cache')
     parser.add_argument('--windows-data', type=Path, help='also reconstruct the localization base from a pinned Windows Megabonk_Data directory (requires --shader-bundles)')
+    parser.add_argument('--linux-zip', type=Path, help='also generate the shared audio plan using this pinned Linux Steam ZIP')
+    parser.add_argument('--windows-zip', type=Path, help='paired pinned Windows Steam ZIP for the shared audio plan')
     converted_group = parser.add_mutually_exclusive_group(required=True)
     converted_group.add_argument('--converted-obb', type=Path, help='pinned historical converted OBB')
     converted_group.add_argument('--converted-assets', type=Path, help='directory of three independently rebuilt shared assets')
     converted_group.add_argument('--rebuild-converted-assets', action='store_true', help='regenerate the shared assets and their templates from the old APK/OBB and Steam')
     args = parser.parse_args()
+    if bool(args.linux_zip) != bool(args.windows_zip): parser.error('--linux-zip and --windows-zip must be provided together')
+    if args.linux_zip and args.converted_obb: parser.error('audio plan generation requires --converted-assets or --rebuild-converted-assets')
     names = ('steam_data', *PINS, 'crunch_decoder')
     inputs = {name: getattr(args, name).expanduser().resolve(strict=True) for name in names}
     converted_path = args.converted_obb or args.converted_assets
     converted_input = converted_path.expanduser().resolve(strict=True) if converted_path else None
     shaders = args.shader_bundles.expanduser().resolve(strict=True) if args.shader_bundles else None
     windows = args.windows_data.expanduser().resolve(strict=True) if args.windows_data else None
+    zips = tuple(x.expanduser().resolve(strict=True) for x in (args.linux_zip, args.windows_zip)) if args.linux_zip else ()
     out = args.output.expanduser().absolute()
     if not inputs['steam_data'].is_dir() or not all(inputs[n].is_file() for n in (*PINS, 'crunch_decoder')):
         parser.error('Steam data must be a directory and other inputs must be files')
@@ -53,7 +58,8 @@ def main():
     out = out.parent.resolve() / out.name
     if shaders is not None and not shaders.is_dir(): parser.error('shader bundles must be a directory')
     if windows is not None and (not windows.is_dir() or shaders is None): parser.error('--windows-data requires a directory and --shader-bundles')
-    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *([windows] if windows else []), *inputs.values())):
+    if zips and not all(x.is_file() for x in zips): parser.error('Steam ZIPs must be files')
+    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *([shaders] if shaders else []), *([windows] if windows else []), *zips, *inputs.values())):
         parser.error('output must be separate from checkout and inputs')
     if shaders is not None:
         spec = importlib.util.spec_from_file_location('shader_pins', ROOT/'tools/pinned-shader-bundles.py')
@@ -91,6 +97,14 @@ def main():
             mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
             converted = tmp/'converted-assets.zip'
             mod.make_archive(converted_input, converted)
+        audio_plan = None
+        if zips:
+            audio_plan = tmp/'shared-audio-plan.bin'
+            run('analysis/data-conversion/generate-android-shared-audio-plan.py', '--rebuilt-assets', converted_input,
+                '--linux-zip', zips[0], '--windows-zip', zips[1], '--output', audio_plan)
+            with audio_plan.open('rb') as f:
+                if hashlib.file_digest(f, 'sha256').hexdigest() != '57a8feb4f98d9eb6692c208dd32d9f92556d52b41cb682936b03324945bd9883':
+                    raise ValueError('shared audio plan differs')
         scene_plans, scene, shared_inputs = tmp/'scene-plans', tmp/'scene', tmp/'shared-inputs'
         shared, hashed_plans, hashed, compact = (tmp/n for n in ('shared', 'hashed-plans', 'hashed', 'compact'))
         run('tools/generate-legacy-scene-manifests.py', '--steam-data', steam, '--old-apk', old_apk, '--old-obb', old_obb, '--output', scene_plans)
@@ -134,6 +148,9 @@ def main():
                     if any(p.is_symlink() for p in path.rglob('*')): raise ValueError('unexpected nested output symlink')
                     shutil.copytree(path, out/path.name)
                 else: raise ValueError('unexpected output type')
+            if audio_plan is not None:
+                with audio_plan.open('rb') as src, (out/'shared-audio-plan.bin').open('xb') as dest:
+                    shutil.copyfileobj(src, dest)
         except BaseException:
             shutil.rmtree(out)
             raise
