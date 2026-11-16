@@ -24,7 +24,9 @@ if a.output_dir.exists() or not a.output_dir.parent.is_dir():p.error('output mus
 for f,h in PINS.items():require(a.pc_data/f,WINDOWS_PINS[f] if a.windows_source else h)
 envs={name:UnityPy.load(str(a.pc_data/name)) for name in ('sharedassets1.assets','sharedassets2.assets')};sources={name:{o.path_id:o for o in env.objects} for name,env in envs.items()}
 if a.action=='template':
- require(a.input,'ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3' if a.expanded_shared_obb else OBB)
+ if a.expanded_shared_obb:
+  if sha(a.input) not in ('ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3','baf787dff6b987ca68c34f9351dd7866d8c269865069d43e8a7435ace555895d'):raise ValueError('incompatible alternate OBB')
+ else:require(a.input,OBB)
  if not a.comparison:p.error('template requires --comparison')
  require(a.comparison,COMPARISON);m=json.loads(a.comparison.read_text());records=[r for r in m['results'] if r['exact_payload']]
 else:

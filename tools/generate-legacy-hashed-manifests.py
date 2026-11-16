@@ -30,6 +30,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--steam-data', required=True, type=Path)
     parser.add_argument('--expanded-obb', required=True, type=Path)
+    parser.add_argument('--include-private-templates', action='store_true', help='retain regenerated template payloads alongside the manifests')
     parser.add_argument('--output', required=True, type=Path, help='new private directory')
     args = parser.parse_args()
     steam, obb = args.steam_data.resolve(strict=True), args.expanded_obb.resolve(strict=True)
@@ -40,7 +41,7 @@ def main():
     if any(output.is_relative_to(path) or path.is_relative_to(output) for path in (steam, obb, ROOT)):
         parser.error('output must be separate from checkout and inputs')
     with obb.open('rb') as stream:
-        if hashlib.file_digest(stream, 'sha256').hexdigest() != 'ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3':
+        if hashlib.file_digest(stream, 'sha256').hexdigest() not in ('ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3', 'baf787dff6b987ca68c34f9351dd7866d8c269865069d43e8a7435ace555895d'):
             raise ValueError('incompatible expanded shared OBB')
     with tempfile.TemporaryDirectory(prefix='.openbonk-hashed-manifests-', dir=output.parent) as directory:
         tmp = Path(directory)
@@ -65,8 +66,11 @@ def main():
         output.mkdir(mode=0o700)
         try:
             for folder, _, _ in TASKS:
-                (output/folder).mkdir(mode=0o700)
-                shutil.copyfile(tmp/folder/'manifest.json', output/folder/'manifest.json')
+                if args.include_private_templates:
+                    shutil.copytree(tmp/folder, output/folder)
+                else:
+                    (output/folder).mkdir(mode=0o700)
+                    shutil.copyfile(tmp/folder/'manifest.json', output/folder/'manifest.json')
         except BaseException:
             shutil.rmtree(output)
             raise

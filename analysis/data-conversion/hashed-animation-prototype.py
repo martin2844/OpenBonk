@@ -26,7 +26,9 @@ if a.output_dir.exists() or not a.output_dir.parent.is_dir():p.error('output mus
 require(a.pc_data/'sharedassets1.assets',WINDOWS_PINS['sharedassets1.assets'] if a.windows_source else PC)
 pc=UnityPy.load(str(a.pc_data/'sharedassets1.assets'));sources={o.path_id:o for o in pc.objects};index=collections.defaultdict(list)
 if a.action=='template':
- require(a.input,'ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3' if a.expanded_shared_obb else OBB)
+ if a.expanded_shared_obb:
+  if sha(a.input) not in ('ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3','baf787dff6b987ca68c34f9351dd7866d8c269865069d43e8a7435ace555895d'):raise ValueError('incompatible alternate OBB')
+ else:require(a.input,OBB)
  for o in pc.objects:
   if o.type.name=='AnimationClip':
    d=o.read();raw=o.get_raw_data();index[(d.m_Name,len(raw))].append((o.path_id,raw))

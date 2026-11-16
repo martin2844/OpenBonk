@@ -9,6 +9,12 @@ SCRIPT = Path(__file__).resolve().parents[1]/'generate-legacy-scene-manifests.py
 
 
 class SceneManifestsTest(unittest.TestCase):
+    def test_requires_a_complete_intermediate_source_choice(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--steam-data', 'steam', '--old-obb', 'old',
+                                 '--particle-obb', 'particle', '--output', 'output'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('provide --old-apk or both', result.stderr)
+
     def test_rejects_unpinned_obb_before_creating_output(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

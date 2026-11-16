@@ -46,7 +46,9 @@ if a.output.exists() or not a.output.parent.is_dir():p.error('output must not ex
 for name,h in PINS.items():require(a.pc_data/name,WINDOWS_PINS[name] if a.windows_source else h)
 envs={n:UnityPy.load(str(a.pc_data/n)) for n in ('resources.assets','sharedassets1.assets')};sources={n:{o.path_id:o for o in e.objects} for n,e in envs.items()}
 if a.action=='template':
- require(a.input,'ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3' if a.expanded_shared_obb else OBB)
+ if a.expanded_shared_obb:
+  if sha(a.input) not in ('ca049f82bb20220dd34ef636938f95e0f09ef0bdf4a0bf59795e0b03b87b9ce3','baf787dff6b987ca68c34f9351dd7866d8c269865069d43e8a7435ace555895d'):raise ValueError('incompatible alternate OBB')
+ else:require(a.input,OBB)
  if not a.study:p.error('--study required')
  require(a.study,STUDY);records=[r for r in json.loads(a.study.read_text()) if r['file']!=SKIP]
 else:
