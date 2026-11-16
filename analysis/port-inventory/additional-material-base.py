@@ -20,17 +20,17 @@ def fragment_names(z,i):
  return names
 
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('base',type=Path);p.add_argument('output',type=Path);p.add_argument('--steam-data',type=Path);p.add_argument('--windows-source',action='store_true',help='use pinned Windows material data for restore');a=p.parse_args();out=a.output.absolute()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=('template','restore'));p.add_argument('base',type=Path);p.add_argument('output',type=Path);p.add_argument('--steam-data',type=Path);p.add_argument('--templates-root',type=Path,default=ROOT/'build/android',help='directory containing additional-material-template-{0,2,4}');p.add_argument('--windows-source',action='store_true',help='use pinned Windows material data for restore');a=p.parse_args();out=a.output.absolute()
  if out.exists() or out.is_symlink() or not out.parent.is_dir():p.error('output must be new')
  if (a.action=='restore')!=(a.steam_data is not None):p.error('restore requires --steam-data')
  if a.windows_source and a.action!='restore':p.error('--windows-source requires restore')
- for src in [a.base]+([a.steam_data] if a.steam_data else []):
+ for src in [a.base]+([a.steam_data] if a.steam_data else [])+([a.templates_root/f'additional-material-template-{i}' for i in MANIFESTS] if a.action=='template' else []):
   src=src.resolve()
   if out.resolve().is_relative_to(src) or src.is_relative_to(out.resolve()):p.error('output must be separate from inputs')
  expected_apk=OLD_APK if a.action=='template' else NEW_APK;expected_obb=OLD_OBB if a.action=='template' else NEW_OBB
  for path,h in ((a.base/'base.apk',expected_apk),(a.base/'base.obb',expected_obb)):
   if not path.is_file() or repair.sha(path)!=h:raise ValueError('incompatible base: '+str(path))
- templates={i:(ROOT/'build/android'/f'additional-material-template-{i}' if a.action=='template' else a.base/f'material-extra-{i}') for i in MANIFESTS}
+ templates={i:(a.templates_root/f'additional-material-template-{i}' if a.action=='template' else a.base/f'material-extra-{i}') for i in MANIFESTS}
  for i,folder in templates.items():
   if repair.sha(folder/'manifest.json')!=MANIFESTS[i]:raise ValueError('incompatible manifest')
  with tempfile.TemporaryDirectory(prefix='.material-pair-',dir=out.parent) as t:

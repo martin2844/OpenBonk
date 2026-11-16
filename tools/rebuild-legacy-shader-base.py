@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Rebuild six consecutive private legacy shader-scrubbing stages.
+"""Rebuild nine consecutive private legacy shader-scrubbing stages.
 
 This consumes a pinned earlier base and locally compiled shader bundles. It
 does not build the complete beta APK, and its output contains private data.
 """
 import argparse
-import hashlib
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -45,7 +44,7 @@ def run(script, *args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--base', required=True, type=Path, help='pinned fog-shader-scrubbed base')
+    parser.add_argument('--base', required=True, type=Path, help='pinned additional-material-scrubbed base')
     parser.add_argument('--shader-bundles', required=True, type=Path, help='pinned local shader cache')
     parser.add_argument('--output', required=True, type=Path, help='new private base directory')
     args = parser.parse_args()
@@ -59,17 +58,14 @@ def main():
     spec = importlib.util.spec_from_file_location('shader_pins', ROOT / 'tools/pinned-shader-bundles.py')
     pins = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(pins)
-    for name in ('feature-probe', 'builtin-probe', 'localshader-instance', 'localshader-study'):
-        path = shaders / name
-        if not path.is_file() or path.stat().st_size > 8 * 1024 * 1024:
-            raise ValueError('missing or oversized shader bundle: ' + name)
-        with path.open('rb') as stream:
-            if hashlib.file_digest(stream, 'sha256').hexdigest() != pins.PINS[name]:
-                raise ValueError('incompatible shader bundle: ' + name)
+    pins.verify(shaders)
     with tempfile.TemporaryDirectory(prefix='.openbonk-legacy-shaders-', dir=output.parent) as tmp:
         tmp = Path(tmp)
         current = base
         for name, template_script, scrub_script in (
+            ('compute', 'shared1-compute-shaders-template.py', 'scrub-shared1-compute-base.py'),
+            ('render', 'shared1-render-shaders-template.py', 'scrub-shared1-render-base.py'),
+            ('fog', 'shared1-fog-shaders-template.py', 'scrub-shared1-fog-base.py'),
             ('local', 'shared1-local-shaders-template.py', 'scrub-shared1-local-shader-base.py'),
             ('shader-references', 'shared1-reference-shaders-template.py', 'scrub-shared1-reference-shader-base.py'),
             ('instancing', 'shared1-instancing-shaders-template.py', 'scrub-shared1-instancing-shader-base.py'),
@@ -85,7 +81,7 @@ def main():
         extract(current/'base.obb', builtin_input, 'assets/bin/Data/0000000000000000f000000000000000', False)
         run('analysis/data-conversion/builtin-shaders-template.py', 'template', shaders, builtin_input, builtin_template)
         run('analysis/port-inventory/scrub-builtin-shader-base.py', current, builtin_template, output)
-    print('Rebuilt six pinned legacy shader stages; keep the output private.')
+    print('Rebuilt nine pinned legacy shader stages; keep the output private.')
 
 
 if __name__ == '__main__':
