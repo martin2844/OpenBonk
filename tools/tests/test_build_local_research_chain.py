@@ -141,6 +141,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn('--resource-fallback', dict(module.commands(a))['converted textures'])
             a.shadow_fallback = True
             self.assertIn('--shadow-fallback', dict(module.commands(a))['converted textures'])
+            a.emoji_fallback = True
+            self.assertIn('--emoji-fallback', dict(module.commands(a))['converted textures'])
 
 
 if __name__ == '__main__': unittest.main()

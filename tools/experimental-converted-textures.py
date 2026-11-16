@@ -22,6 +22,7 @@ GROUPS = ('sharedassets1', 'sharedassets2')
 NORMAL_MAPS = frozenset(('Tiles1_Normal', 'Tiles4_Normal'))
 FONT_ALIASES = {'LiberationSans SDF Atlas_0': 'LiberationSans SDF Atlas'}
 RESOURCE_TEXTURES = frozenset(('GridBox_Collider', 'GridBox_Trigger', 'GridBox_Default'))
+EMOJI_TEXTURES = frozenset(('psd_EmojiOne', 'psd_EmojiOne2'))
 COLLISION_TEXTURES = {'bush': (64, 64, 7, 3, 45), 'retaliation': (32, 32, 1, 12, 47)}
 FOREST_TEXTURES = {'Forest1_TopGrass': ('Forest1_TopGrass', 128, 128, 8),
                    'Forest1_TopGrass_0': ('Forest1_TopGrass', 128, 128, 8),
@@ -76,6 +77,23 @@ def acceptable_quality_image(original, converted, max_mean=1):
         if max(ImageStat.Stat(diff).mean) > max_mean: return False
         r, g, blue = diff.split()
         if ImageChops.lighter(ImageChops.lighter(r, g), blue).getextrema()[1] > 32: return False
+    return True
+
+
+def acceptable_emoji_image(original, converted):
+    """Bound visible and alpha differences, including sparse high-error pixels."""
+    from PIL import Image, ImageChops, ImageStat
+    a, b = original.convert('RGBA'), converted.convert('RGBA')
+    if a.size != b.size or a.width <= 0 or a.height <= 0: return False
+    alpha = ImageChops.difference(a.getchannel('A'), b.getchannel('A'))
+    if ImageStat.Stat(alpha).mean[0] > 0.1 or alpha.getextrema()[1] > 16: return False
+    for shade in (0, 255):
+        base = Image.new('RGBA', a.size, (shade, shade, shade, 255))
+        diff = ImageChops.difference(Image.alpha_composite(base, a).convert('RGB'), Image.alpha_composite(base, b).convert('RGB'))
+        if max(ImageStat.Stat(diff).mean) > 0.5: return False
+        r, g, blue = diff.split()
+        maximum = ImageChops.lighter(ImageChops.lighter(r, g), blue)
+        if maximum.getextrema()[1] > 110 or sum(maximum.histogram()[33:]) * 1000 > a.width * a.height: return False
     return True
 
 
@@ -235,20 +253,21 @@ def run(args):
     font_fallback = getattr(args, 'font_fallback', False)
     resource_fallback = getattr(args, 'resource_fallback', False)
     shadow_fallback = getattr(args, 'shadow_fallback', False)
+    emoji_fallback = getattr(args, 'emoji_fallback', False)
     shared0_sdf = getattr(args, 'shared0_sdf', False)
-    if (font_fallback or resource_fallback or shadow_fallback) and quality is None: raise ValueError('resource, font or shadow fallback requires the quality encoder')
+    if (font_fallback or resource_fallback or shadow_fallback or emoji_fallback) and quality is None: raise ValueError('resource, font, shadow or emoji fallback requires the quality encoder')
     output = args.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): raise ValueError('output must be a new directory')
     output = output.parent.resolve() / output.name
     if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (source, obb, ROOT)): raise ValueError('output must be separate from inputs and checkout')
     index = defaultdict(list); resources_index = defaultdict(list); shared0_index = defaultdict(list)
-    for group in (*GROUPS, *(['sharedassets0'] if shared0_sdf else []), *(['resources'] if font_fallback or resource_fallback else [])):
+    for group in (*GROUPS, *(['sharedassets0'] if shared0_sdf else []), *(['resources'] if font_fallback or resource_fallback or emoji_fallback else [])):
         file = source / (group + '.assets')
         if not file.is_file() or file.is_symlink(): raise ValueError('missing regular Steam asset file')
         for obj in UnityPy.load(str(file)).objects:
             if obj.type.name == 'Texture2D':
                 tex = obj.read()
-                if group == 'resources' and tex.m_Name not in set(FONT_ALIASES.values()) | RESOURCE_TEXTURES: continue
+                if group == 'resources' and tex.m_Name not in set(FONT_ALIASES.values()) | RESOURCE_TEXTURES | EMOJI_TEXTURES: continue
                 (resources_index if group == 'resources' else shared0_index if group == 'sharedassets0' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append(tex)
     changes, outcomes, failures, rows = {}, Counter(), Counter(), []
     aliases = defaultdict(list); quality_excluded = set()
@@ -276,7 +295,8 @@ def run(args):
                     shared0_candidate = group == 'sharedassets0' and shared0_sdf_target(target)
                     if group == 'sharedassets0' and not shared0_candidate: continue
                     font_candidate = bool(font_fallback and group not in GROUPS and target.m_Name in FONT_ALIASES)
-                    resource_candidate = bool(resource_fallback and group not in GROUPS and target.m_Name in RESOURCE_TEXTURES)
+                    emoji_candidate = bool(emoji_fallback and group not in GROUPS and target.m_Name in EMOJI_TEXTURES)
+                    resource_candidate = bool(emoji_candidate or (resource_fallback and group not in GROUPS and target.m_Name in RESOURCE_TEXTURES))
                     alias_source = collision_source(target.m_Name)
                     collision_spec = COLLISION_TEXTURES.get(alias_source)
                     collision = bool(group == 'sharedassets1' and collision_spec and
@@ -304,9 +324,10 @@ def run(args):
                         quality_excluded.add(PREFIX + group)
                         outcomes['font_metadata_differs'] += 1; continue
                     resource = bool(resource_candidate and source_name == src.m_Name and
-                                    ((source_name in ('GridBox_Collider', 'GridBox_Trigger') and int(src.m_TextureFormat) == 12 and int(target.m_TextureFormat) == 47) or
-                                     (source_name == 'GridBox_Default' and int(src.m_TextureFormat) == 10 and int(target.m_TextureFormat) == 45)) and
-                                    (target.m_Width, target.m_Height, target.m_MipCount) == (512, 512, 10))
+                                    ((source_name in ('GridBox_Collider', 'GridBox_Trigger') and int(src.m_TextureFormat) == 12 and int(target.m_TextureFormat) == 47 and target.m_MipCount == 10) or
+                                     (source_name == 'GridBox_Default' and int(src.m_TextureFormat) == 10 and int(target.m_TextureFormat) == 45 and target.m_MipCount == 10) or
+                                     (emoji_candidate and int(src.m_TextureFormat) == 12 and int(target.m_TextureFormat) == 47 and target.m_MipCount == 1)) and
+                                    (target.m_Width, target.m_Height) == (512, 512))
                     if resource_candidate and not resource:
                         quality_excluded.add(PREFIX + group)
                         outcomes['resource_metadata_differs'] += 1; continue
@@ -346,7 +367,8 @@ def run(args):
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform)
                                     limit = 1.2 if resource and source_name == 'GridBox_Default' else 1
-                                    if not acceptable_quality_image(original, converted, limit): raise ResourceQualityError('resource mip quality differs')
+                                    if not (acceptable_emoji_image(original, converted) if emoji_candidate else acceptable_quality_image(original, converted, limit)):
+                                        raise ResourceQualityError('resource mip quality differs')
                                 if collision:
                                     original = converter.parse_image_data(target_mips[level][2], w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
                                     converted = converter.parse_image_data(encoded, w, h, target.m_TextureFormat, target.object_reader.version, target.object_reader.platform).convert('RGBA')
@@ -386,7 +408,7 @@ def run(args):
                         continue
                     # A high level-zero error indicates a questionable match or
                     # conversion; keep the existing texture for local review.
-                    accepted = (True if forest_candidate else acceptable_sdf_image(original_image, converted_image) if font or shared0_candidate else
+                    accepted = (True if forest_candidate else acceptable_emoji_image(original_image, converted_image) if emoji_candidate else acceptable_sdf_image(original_image, converted_image) if font or shared0_candidate else
                                 acceptable_quality_image(original_image, converted_image) if high_quality else acceptable_texture_error(mean))
                     if not accepted:
                         if group not in GROUPS: quality_excluded.add(PREFIX + group)
@@ -461,6 +483,7 @@ def main():
     p.add_argument('--shared0-sdf', action='store_true', help='study selected sharedassets0 font atlases with strict edge checks; requires relocated sharedassets0 in the OBB')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct an SDF font atlas with the quality encoder')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures with per-mip quality checks')
+    p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases with bounded sparse pixel differences')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally choose a unique matching DropShadow with strict quality checks')
     run(p.parse_args())
 

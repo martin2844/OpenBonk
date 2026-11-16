@@ -67,6 +67,9 @@ class ConvertedTexturePlanTests(unittest.TestCase):
         self.assertTrue(module.valid_resource_record(default))
         self.assertFalse(module.valid_resource_record(dict(default, source_format=12)))
         self.assertFalse(module.valid_resource_record(dict(default, target_format=47)))
+        emoji = dict(row, name='psd_EmojiOne', source_name='psd_EmojiOne')
+        self.assertTrue(module.valid_resource_record(emoji))
+        self.assertFalse(module.valid_resource_record(dict(emoji, source_name='psd_EmojiOne2')))
 
     def test_quality_etc2_rgb_keeps_color_block_and_checks_size(self):
         class Encoder:

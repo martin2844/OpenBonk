@@ -27,8 +27,8 @@ def sha(data): return hashlib.sha256(data).hexdigest()
 
 
 def valid_resource_record(row):
-    return (row.get('name') in study.RESOURCE_TEXTURES and row.get('source_name') == row['name'] and
-            ((row['name'] in ('GridBox_Collider', 'GridBox_Trigger') and row.get('source_format') == 12 and row.get('target_format') == 47) or
+    return (row.get('name') in study.RESOURCE_TEXTURES | study.EMOJI_TEXTURES and row.get('source_name') == row['name'] and
+            (((row['name'] in ('GridBox_Collider', 'GridBox_Trigger') or row['name'] in study.EMOJI_TEXTURES) and row.get('source_format') == 12 and row.get('target_format') == 47) or
              (row['name'] == 'GridBox_Default' and row.get('source_format') == 10 and row.get('target_format') == 45)) and row.get('quality') is True and
             row.get('normal') is False and row.get('direct_normal') is False and
             not any(k in row for k in ('font', 'alias_group', 'alias_target_id')))
@@ -179,7 +179,7 @@ def generate(args):
         for obj in UnityPy.load(str(path)).objects:
             if obj.type.name == 'Texture2D':
                 tex = obj.read()
-                if group == 'resources' and tex.m_Name not in set(study.FONT_ALIASES.values()) | study.RESOURCE_TEXTURES: continue
+                if group == 'resources' and tex.m_Name not in set(study.FONT_ALIASES.values()) | study.RESOURCE_TEXTURES | study.EMOJI_TEXTURES: continue
                 (resources_index if group == 'resources' else shared0_index if group == 'sharedassets0' else index)[(tex.m_Name, tex.m_Width, tex.m_Height)].append((group, obj, tex))
     rows = []; output.mkdir(mode=0o700)
     try:
@@ -213,7 +213,8 @@ def generate(args):
                         raise ValueError('collision texture metadata differs')
                     if prior.get('font') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (1024, 1024, 1)):
                         raise ValueError('font texture metadata differs')
-                    if prior.get('resource') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (512, 512, 10)):
+                    expected_mips = 1 if prior.get('name') in study.EMOJI_TEXTURES else 10
+                    if prior.get('resource') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (512, 512, expected_mips)):
                         raise ValueError('resource texture metadata differs')
                     if (any(getattr(tex, k, None) != getattr(src, k, None) for k in ('m_MipCount', 'm_ImageCount', 'm_ColorSpace')) or
                             int(tex.m_TextureFormat) != prior['target_format'] or int(src.m_TextureFormat) != prior['source_format']):
