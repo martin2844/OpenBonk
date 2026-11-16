@@ -50,6 +50,14 @@ def valid_collision_record(row):
             not any(k in row for k in ('font', 'resource', 'shadow', 'alias_group', 'alias_target_id')))
 
 
+def valid_lightmap_record(row):
+    return (row.get('lightmap_alias') is True and row.get('group') == 'sharedassets1' and
+            row.get('name') in study.LIGHTMAP_ALIASES and row.get('source_name') == study.LIGHTMAP_ALIASES[row['name']] and
+            row.get('source_format') == 1 and row.get('target_format') == 47 and row.get('bytes') == 65536 and
+            row.get('normal') is False and row.get('quality') is True and row.get('direct_normal') is False and
+            not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'forest_source', 'alias_group', 'alias_target_id')))
+
+
 def valid_forest_record(row):
     spec = study.FOREST_TEXTURES.get(row.get('name'))
     return (row.get('forest_source') is True and row.get('group') == 'sharedassets1' and spec is not None and
@@ -147,7 +155,8 @@ def generate(args):
             raise ValueError('invalid shadow texture mapping')
         if 'collision_alias' in row and not valid_collision_record(row): raise ValueError('invalid collision texture mapping')
         if 'forest_source' in row and not valid_forest_record(row): raise ValueError('invalid forest texture mapping')
-        if group in study.GROUPS and 'source_name' in row and row.get('collision_alias') is not True and row.get('forest_source') is not True:
+        if 'lightmap_alias' in row and not valid_lightmap_record(row): raise ValueError('invalid lightmap mapping')
+        if group in study.GROUPS and 'source_name' in row and row.get('collision_alias') is not True and row.get('forest_source') is not True and row.get('lightmap_alias') is not True:
             raise ValueError('unexpected source name in shared texture')
         if group not in (*study.GROUPS, 'sharedassets0') and not re.fullmatch(r'[0-9a-f]{32}', group): raise ValueError('invalid texture group')
         if group in study.GROUPS and ('font' in row or 'resource' in row): raise ValueError('resource markers require a standalone texture')
@@ -211,6 +220,8 @@ def generate(args):
                         raise ValueError('shadow texture metadata differs')
                     if prior.get('collision_alias') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != study.COLLISION_TEXTURES[prior['source_name']][:3]):
                         raise ValueError('collision texture metadata differs')
+                    if prior.get('lightmap_alias') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (256, 256, 1)):
+                        raise ValueError('lightmap texture metadata differs')
                     if prior.get('font') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (1024, 1024, 1)):
                         raise ValueError('font texture metadata differs')
                     expected_mips = 1 if prior.get('name') in study.EMOJI_TEXTURES else 10

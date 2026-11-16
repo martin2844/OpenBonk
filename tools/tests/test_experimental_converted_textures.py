@@ -111,6 +111,17 @@ class TextureConversionTests(unittest.TestCase):
         for error in ([0, 0, 10.01, 0], [0, 0, float('nan'), 0], [0, 0, -1, 0], [0, 0, 0]):
             self.assertFalse(module.acceptable_texture_error(error))
 
+    def test_lightmap_gate_bounds_alpha_and_rgb(self):
+        from PIL import Image
+        original = Image.new('RGBA', (10, 10), (128, 128, 128, 128))
+        self.assertTrue(module.acceptable_lightmap_image(original, original.copy()))
+        close = Image.new('RGBA', (10, 10), (128, 128, 128, 121))
+        self.assertTrue(module.acceptable_lightmap_image(original, close))
+        close.putpixel((0, 0), (128, 128, 128, 77))
+        self.assertFalse(module.acceptable_lightmap_image(original, close))
+        close = Image.new('RGBA', (10, 10), (131, 128, 128, 128))
+        self.assertFalse(module.acceptable_lightmap_image(original, close))
+
     def test_shared0_sdf_accepts_only_known_atlas_layouts(self):
         texture = SimpleNamespace(m_Name='NotoSansSC-Bold SDF Atlas 19', m_Width=1024, m_Height=1024,
                                   m_MipCount=1, m_ImageCount=1, m_TextureFormat=47)

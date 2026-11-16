@@ -12,6 +12,15 @@ spec.loader.exec_module(module)
 
 
 class ConvertedTexturePlanTests(unittest.TestCase):
+    def test_lightmap_alias_requires_known_identity_and_format(self):
+        row = {'lightmap_alias': True, 'group': 'sharedassets1', 'name': 'LDR_LLL1_4_0',
+               'source_name': 'LDR_LLL1_4', 'source_format': 1, 'target_format': 47,
+               'bytes': 65536, 'normal': False, 'quality': True, 'direct_normal': False}
+        self.assertTrue(module.valid_lightmap_record(row))
+        for change in ({'name': 'LDR_LLL1_2_0'}, {'source_name': 'LDR_LLL1_5'}, {'quality': False},
+                       {'group': 'sharedassets2'}, {'bytes': 16}, {'shadow': True}):
+            self.assertFalse(module.valid_lightmap_record(dict(row, **change)))
+
     def test_shared0_sdf_record_is_scoped_to_known_atlases(self):
         row = {'shared0_sdf': True, 'group': 'sharedassets0', 'name': 'NotoSansSC-Bold SDF Atlas 19',
                'source_format': 1, 'target_format': 47, 'bytes': 1048576,
