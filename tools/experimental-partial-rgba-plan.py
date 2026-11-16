@@ -103,12 +103,12 @@ def sources(folder, include_resources=False):
 
 
 def rgba_alias(target, payload, candidates):
-    """Accept a renamed RGBA source only when its nonzero bytes nearly all match."""
+    """Match small aliases exactly, or large aliases by near-exact nonzero bytes."""
     if (not target.m_Name.endswith('_0') or int(target.m_TextureFormat) != 4 or
-            target.m_ImageCount != 1 or len(payload) < 65536):
+            target.m_ImageCount != 1 or not payload):
         return None
     nonzero = len(payload) - payload.count(0)
-    if nonzero < 30000: return None
+    if not nonzero: return None
     matches = []
     for item in candidates:
         src = item[2]
@@ -120,7 +120,7 @@ def rgba_alias(target, payload, candidates):
         except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): continue
         if len(output) != len(payload): continue
         matched = sum(a != 0 and a == b for a, b in zip(payload, output))
-        if matched * 100 >= nonzero * 99:
+        if output == payload or (len(payload) >= 65536 and nonzero >= 30000 and matched * 100 >= nonzero * 99):
             matches.append((item, output))
     # Identical candidates are interchangeable; differing candidates are ambiguous.
     if not matches or len({sha(output) for _, output in matches}) != 1: return None

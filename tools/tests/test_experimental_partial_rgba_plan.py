@@ -58,6 +58,17 @@ class PartialRgbaPlanTests(unittest.TestCase):
                      'assets/bin/Data/sharedassets1.assets.split01', 'assets/bin/Data/../bad'):
             self.assertIsNone(module.ENTRY.fullmatch(name))
 
+    def test_small_renamed_rgba_requires_exact_bytes(self):
+        target = SimpleNamespace(m_Name='icon_0', m_TextureFormat=4, m_ImageCount=1,
+                                 m_MipCount=1, m_ColorSpace=0, m_Width=2, m_Height=2)
+        source = SimpleNamespace(m_TextureFormat=4, m_ImageCount=1, m_MipCount=1, m_ColorSpace=0)
+        item = ('sharedassets1', 1, source); payload = b'A' * 15 + b'\0'
+        with patch.object(module, 'converted', return_value=payload) as convert:
+            self.assertEqual(module.rgba_alias(target, payload, [item])[0], item)
+            convert.return_value = b'A' * 16
+            self.assertIsNone(module.rgba_alias(target, payload, [item]))
+            self.assertIsNone(module.rgba_alias(target, bytes(16), [item]))
+
     def test_etc2_rgb_uses_color_blocks_and_rejects_bad_lengths(self):
         source = SimpleNamespace(m_TextureFormat=10, get_image_data=lambda: b'compressed')
         encoder = SimpleNamespace(encode=lambda data, w, h, fmt: b'A' * 8 + b'B' * 8 + b'C' * 8 + b'D' * 8)

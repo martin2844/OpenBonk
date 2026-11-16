@@ -1182,4 +1182,6 @@ A subsequent private build used a newly compiled runtime containing the bottom-c
 
 The animation audit can now trace ambiguous constant arrays through the serialized typetree, checking the complete object length, array size and bytes before counting. Rechecking both templates found 229 arrays, 99,144 retained nonzero sample bytes, one empty clip and no skipped arrays per platform. This closes those 11 audit gaps; it does not remove the remaining bytes or cover other asset fields.
 
+The partial RGBA research plan also accepts small `_0` aliases when the entire converted payload is byte-identical to a Steam source. On the private Edit candidate's object templates this found two additional textures, masking 8,573 additional nonzero bytes on both Linux and Windows. Focused Android plans restored all 1,072 archive entries on a Retroid Pocket 5 using both platforms' source files. This study was not included in the 0.1.1 beta APK and does not establish an asset-free package.
+
 The project includes reconstructed game-derived material and third-party components of different provenance. No blanket source license is asserted here; check the applicable rights and component notices before redistribution or reuse.
