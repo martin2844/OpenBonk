@@ -31,15 +31,19 @@ def require(p,h):
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('base',type=Path);p.add_argument('converted_obb',type=Path);p.add_argument('output',type=Path);p.add_argument('--include-identical-rebuilt',action='store_true',help='also blank known reconstructed objects that already match');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('base',type=Path);p.add_argument('converted_obb',type=Path);p.add_argument('output',type=Path);p.add_argument('--include-identical-rebuilt',action='store_true',help='also blank known reconstructed objects that already match');p.add_argument('--inputs-root',type=Path,default=ROOT/'build/android',help='directory containing pinned transplant reports and share-source-experiment plans');a=p.parse_args()
     if a.output.exists() or a.output.is_symlink() or not a.output.parent.is_dir():p.error('output must be new')
     out=a.output.resolve();src=a.base.resolve()
     if out.is_relative_to(src) or src.is_relative_to(out):p.error('output must be separate from base')
+    for path in (a.converted_obb, *(a.inputs_root/name for name,_,_ in pinned.REPORTS.values()),
+                 *(a.inputs_root/'share-source-experiment'/row[0] for row in EXTRA_PLANS.values())):
+        path=path.resolve()
+        if out.is_relative_to(path) or path.is_relative_to(out):p.error('output must be separate from inputs')
     apk=a.base/'base.apk';obb=a.base/'base.obb';require(apk,INPUT_APK);require(obb,INPUT_OBB);require(a.converted_obb,CONVERTED_OBB)
     plans={}
     if a.include_identical_rebuilt:
         for key,(path,h,field,count) in EXTRA_PLANS.items():
-            f=ROOT/'build/android/share-source-experiment'/path;require(f,h);rows=json.loads(f.read_text())[field]
+            f=a.inputs_root/'share-source-experiment'/path;require(f,h);rows=json.loads(f.read_text())[field]
             if len(rows)!=count or len({r['target_id'] for r in rows})!=count:raise ValueError('invalid extra manifest: '+key)
             plans[key]=rows
     replacements_apk={};replacements_obb={};summary={};manifest={'version':1,'kind':'local research only, not for distribution','include_identical_rebuilt':a.include_identical_rebuilt,'assets':{}}
@@ -53,7 +57,7 @@ def main():
             for i in range(3):
                 name=f'sharedassets{i}.assets';z=az if i==0 else oz;dest=replacements_apk if i==0 else replacements_obb
                 original=pinned.base.archive_compare.load_archive(z,name);converted=pinned.base.archive_compare.load_archive(cz,name)
-                file,rep_sha,count=pinned.REPORTS[name];rep=ROOT/'build/android'/file;require(rep,rep_sha);m=json.loads(rep.read_text())
+                file,rep_sha,count=pinned.REPORTS[name];rep=a.inputs_root/file;require(rep,rep_sha);m=json.loads(rep.read_text())
                 if digest(original)!=m['new_sha256'] or digest(converted)!=m['converted_sha256']:raise ValueError('asset source mismatch: '+name)
                 old_objs=pinned.base.objects(UnityPy.load(original));converted_objs=pinned.base.objects(UnityPy.load(converted));rows=list(m['changed_objects'])
                 if len(rows)!=count or len({r['path_id'] for r in rows})!=count or old_objs.keys()!=converted_objs.keys():raise ValueError('invalid object inventory')
