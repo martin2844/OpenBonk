@@ -163,7 +163,7 @@ def select_forest_source(target, candidates, texture=lambda item: item, matches=
 
 def select_shadow_source(target, candidates, texture=lambda item: item):
     """Choose one unambiguous, visually close source for the known shadow."""
-    if (target.m_Name != 'DropShadow' or (target.m_Width, target.m_Height, target.m_MipCount,
+    if (target.m_Name not in ('DropShadow', 'DropShadow_0') or (target.m_Width, target.m_Height, target.m_MipCount,
             target.m_ImageCount, int(target.m_TextureFormat)) != (512, 512, 1, 1, 47)):
         return None
     try:
@@ -282,11 +282,13 @@ def run(args):
                     collision = bool(group == 'sharedassets1' and collision_spec and
                                      (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount, int(target.m_TextureFormat)) == (*collision_spec[:3], 1, collision_spec[4]))
                     forest_candidate = group == 'sharedassets1' and target.m_Name in FOREST_TEXTURES
+                    shadow_candidate = bool(shadow_fallback and group == 'sharedassets1' and target.m_Name in ('DropShadow', 'DropShadow_0'))
                     source_name = (FONT_ALIASES[target.m_Name] if font_candidate else alias_source if collision else
+                                   'DropShadow' if shadow_candidate else
                                    FOREST_TEXTURES[target.m_Name][0] if forest_candidate else target.m_Name)
                     candidates = (shared0_index if shared0_candidate else resources_index if font_candidate or resource_candidate else index)[(source_name, target.m_Width, target.m_Height)]
                     src = select_forest_source(target, candidates) if forest_candidate else select_source(target, candidates)
-                    shadow = bool(src is None and shadow_fallback and group == 'sharedassets1' and target.m_Name == 'DropShadow')
+                    shadow = bool(shadow_candidate and (src is None or target.m_Name == 'DropShadow_0'))
                     if shadow: src = select_shadow_source(target, candidates)
                     if src is None:
                         if font_candidate or resource_candidate: quality_excluded.add(PREFIX + group)

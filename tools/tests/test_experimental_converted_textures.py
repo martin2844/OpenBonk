@@ -147,6 +147,9 @@ class TextureConversionTests(unittest.TestCase):
         self.assertIs(module.select_shadow_source(target, [good, bad]), good)
         self.assertIsNone(module.select_shadow_source(target, [good, Texture(100, 12)]))
         self.assertIsNone(module.select_shadow_source(target, [bad]))
+        target.m_Name = 'DropShadow_0'
+        self.assertIs(module.select_shadow_source(target, [good, bad]), good)
+        self.assertIsNone(module.select_shadow_source(target, [good, Texture(100, 12)]))
         target.m_Name = 'Other'
         self.assertIsNone(module.select_shadow_source(target, [good]))
 

@@ -75,6 +75,44 @@ def apply_ranges(raw, rows, streams=None):
     return bytes(result)
 
 
+def video_records(target, source, group, resource, files):
+    """Restore the loading video, retaining only a differing WebM track UID."""
+    if target.get('m_Name') != 'Buffering3' or source.get('m_Name') != 'Buffering3':
+        raise ValueError('unexpected video clip')
+    dst, src = target['m_ExternalResources'], source['m_ExternalResources']
+    src_name, dst_name = src['m_Source'], dst['m_Source']
+    size, src_offset, dst_offset = src['m_Size'], src['m_Offset'], dst['m_Offset']
+    if (src_name not in {g + '.resource' for g in audio.GROUPS} or dst_name != group + '.resource' or
+            any(type(v) is not int for v in (size, src_offset, dst_offset, dst['m_Size'])) or
+            not 0 < size <= 16 * 1024 * 1024 or size != dst['m_Size'] or src_offset < 0 or dst_offset < 0 or
+            dst_offset + size > len(resource)):
+        raise ValueError('unexpected video resource reference')
+    with files[src_name].open('rb') as stream:
+        stream.seek(src_offset)
+        payload = stream.read(size)
+    original = resource[dst_offset:dst_offset + size]
+    if len(payload) != size:
+        raise ValueError('target video does not match Steam')
+    spans = [(0, size)]
+    if original != payload:
+        # TrackUID (EBML ID 73c5, seven-byte value) is metadata. Preserve the
+        # target UID only if it is the sole difference and appears exactly
+        # once in both WebM headers; all actual media bytes must match.
+        marker = b'\x73\xc5\x87'
+        if (not original.startswith(b'\x1a\x45\xdf\xa3') or not payload.startswith(b'\x1a\x45\xdf\xa3') or
+                original.count(marker) != 1 or payload.count(marker) != 1):
+            raise ValueError('target video does not match Steam')
+        pos = original.index(marker)
+        uid = pos + len(marker)
+        if (payload.index(marker) != pos or uid + 7 > size or
+                original[:uid] != payload[:uid] or original[uid + 7:] != payload[uid + 7:]):
+            raise ValueError('target video does not match Steam')
+        spans = [(0, uid), (uid + 7, size)]
+    return [{'entry': audio.PREFIX + group + '.resource', 'target_offset': dst_offset + start,
+             'source': src_name, 'source_offset': src_offset + start, 'size': end - start,
+             'sha256': digest(payload[start:end])} for start, end in spans if end > start]
+
+
 def generate(args):
     import UnityPy
     source = args.steam_data.resolve(strict=True)
@@ -82,11 +120,15 @@ def generate(args):
     output = output_path(args.output, (source, obb))
     files = sources(source)
     index = defaultdict(list)
+    videos = defaultdict(list)
     for group in audio.GROUPS:
         for obj in UnityPy.load(str(files[group + '.assets'])).objects:
             if obj.type.name == 'AudioClip':
                 clip = obj.read()
                 index[clip.m_Name].append(clip)
+            elif obj.type.name == 'VideoClip':
+                clip = obj.read_typetree()
+                videos[clip.get('m_Name')].append(clip)
     if not index:
         raise ValueError('no Steam clips found')
     rows = []
@@ -101,6 +143,13 @@ def generate(args):
                 entry = audio.PREFIX + group + '.resource'
                 resource = zin.read(entry)
                 for obj in UnityPy.load(data).objects:
+                    if obj.type.name == 'VideoClip':
+                        video = obj.read_typetree()
+                        matches = videos.get(video.get('m_Name'), [])
+                        if video.get('m_Name') != 'Buffering3' or len(matches) != 1:
+                            raise ValueError('missing or ambiguous Steam video')
+                        rows.extend(video_records(video, matches[0], group, resource, files))
+                        continue
                     if obj.type.name != 'AudioClip':
                         continue
                     clip = obj.read()

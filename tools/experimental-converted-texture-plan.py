@@ -35,7 +35,7 @@ def valid_resource_record(row):
 
 
 def valid_shadow_record(row):
-    return (row.get('shadow') is True and row.get('group') == 'sharedassets1' and row.get('name') == 'DropShadow' and
+    return (row.get('shadow') is True and row.get('group') == 'sharedassets1' and row.get('name') in ('DropShadow', 'DropShadow_0') and
             row.get('source_format') == 12 and row.get('target_format') == 47 and row.get('quality') is True and
             row.get('normal') is False and row.get('direct_normal') is False and
             not any(k in row for k in ('font', 'resource', 'source_name', 'alias_group', 'alias_target_id')))
@@ -192,7 +192,8 @@ def generate(args):
                 for key, prior in chosen[group].items():
                     if key not in objects: raise ValueError('missing target texture')
                     obj = objects[key]; tex = obj.read()
-                    found = (shared0_index if prior.get('shared0_sdf') is True else resources_index if prior.get('font') is True or prior.get('resource') is True else index)[(prior.get('source_name', tex.m_Name), tex.m_Width, tex.m_Height)]
+                    source_name = 'DropShadow' if prior.get('shadow') is True else prior.get('source_name', tex.m_Name)
+                    found = (shared0_index if prior.get('shared0_sdf') is True else resources_index if prior.get('font') is True or prior.get('resource') is True else index)[(source_name, tex.m_Width, tex.m_Height)]
                     chosen_source = (next((item for item in found if item[0] == 'sharedassets1' and sha(bytes(item[2].get_image_data())) == prior['source_sha256']), None)
                                      if prior.get('forest_source') is True else
                                      study.select_shadow_source(tex, found, texture=lambda item: item[2]) if prior.get('shadow') is True

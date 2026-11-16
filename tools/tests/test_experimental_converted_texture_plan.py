@@ -50,6 +50,7 @@ class ConvertedTexturePlanTests(unittest.TestCase):
         row = {'shadow': True, 'group': 'sharedassets1', 'name': 'DropShadow', 'source_format': 12,
                'target_format': 47, 'quality': True, 'normal': False, 'direct_normal': False}
         self.assertTrue(module.valid_shadow_record(row))
+        self.assertTrue(module.valid_shadow_record(dict(row, name='DropShadow_0')))
         for change in ({'group': 'sharedassets2'}, {'quality': False}, {'name': 'other'},
                        {'source_format': 4}, {'alias_group': 'sharedassets1'}, {'shadow': False}):
             with self.subTest(change=change): self.assertFalse(module.valid_shadow_record(dict(row, **change)))
