@@ -17,6 +17,31 @@ spec.loader.exec_module(module)
 
 class SteamResearchBuildTests(unittest.TestCase):
     @patch.object(module.subprocess, 'run')
+    def test_version_overrides_reach_both_chains_and_dual_packager(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--version-code', '2', '--version-name', '0.1.1-beta')
+        for call in run.call_args_list[-3:]:
+            command = call.args[0]
+            self.assertEqual(command[command.index('--version-code') + 1], '2')
+            self.assertEqual(command[command.index('--version-name') + 1], '0.1.1-beta')
+
+    @patch.object(module.subprocess, 'run')
+    def test_invalid_android_version_is_rejected(self, run):
+        for args in (('--version-code', '0'), ('--version-code', '2100000001'),
+                     ('--version-name', ''), ('--version-name', 'bad"name')):
+            with self.assertRaises(SystemExit): self.invoke(*args)
+
+    @patch.object(module.subprocess, 'run')
+    def test_final_apk_version_verification(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0, "package: name='com.example.app' versionCode='2' versionName='0.1.1-beta'\n")
+        module.check_apk_version('aapt2', 'app.apk', 2, '0.1.1-beta')
+        with self.assertRaises(ValueError): module.check_apk_version('aapt2', 'app.apk', 3, '0.1.1-beta')
+        with self.assertRaises(ValueError): module.check_apk_version('aapt2', 'app.apk', 2, 'wrong')
+        run.return_value.stdout = 'not an APK\n'
+        with self.assertRaises(ValueError): module.check_apk_version('aapt2', 'app.apk', 2, None)
+
+    @patch.object(module.subprocess, 'run')
     def test_online_flag_reaches_both_platforms_and_dual_packager(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
@@ -67,7 +92,7 @@ class SteamResearchBuildTests(unittest.TestCase):
     def invoke(self, *extra):
         with patch.object(sys, 'argv', self.argv + list(extra)), patch.object(module, 'check_conversion_imports'), \
                 patch.object(module.research_chain, 'validate_steam_inputs'), \
-                patch.object(module, 'check_online_apk'), \
+                patch.object(module, 'check_online_apk'), patch.object(module, 'check_apk_version'), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()): module.main()
 
     def test_final_permission_check_requires_online_permissions(self):

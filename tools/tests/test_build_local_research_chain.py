@@ -47,6 +47,13 @@ class ResearchChainTests(unittest.TestCase):
             args.gradle_online = True
             self.assertIn('--gradle-online', module.commands(args)[-1][1])
 
+    def test_version_overrides_reach_packager(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp)); args.version_code = 2; args.version_name = '0.1.1-beta'
+            command = module.commands(args)[-1][1]
+            self.assertEqual(command[command.index('--version-code') + 1], '2')
+            self.assertEqual(command[command.index('--version-name') + 1], '0.1.1-beta')
+
     def test_optional_animation_curves_feed_audio_plan_and_final_check(self):
         with tempfile.TemporaryDirectory() as temp:
             args = self.args(Path(temp))

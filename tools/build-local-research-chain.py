@@ -164,6 +164,9 @@ def commands(a):
     if partial: build += ['--partial-rgba-plan', plans / 'partial-rgba/android-plan.json', '--partial-rgba-intermediate-obb', partial_output]
     if a.gradle_user_home: build += ['--gradle-user-home', a.gradle_user_home]
     if getattr(a, 'gradle_online', False): build += ['--gradle-online']
+    for attr in ('version_code', 'version_name'):
+        value = getattr(a, attr, None)
+        if value is not None: build += ['--' + attr.replace('_', '-'), value]
     py('research launcher APK', 'build-generated-audio-launcher.py', *build)
     return steps
 
@@ -175,6 +178,8 @@ def main():
     for name in ('steam-zip', 'host-library', 'android-library', 'decoder', 'gradle-user-home'):
         p.add_argument('--' + name, type=Path)
     p.add_argument('--application-id', required=True)
+    p.add_argument('--version-code', type=int, help='override the Android package version code')
+    p.add_argument('--version-name', help='override the Android package version name')
     p.add_argument('--platform', choices=('linux', 'windows'), default='linux', help='Steam data platform (Windows support is experimental)')
     p.add_argument('--quality-textures', action='store_true', help='experimentally use the high-quality ETC2 encoder for selected textures')
     p.add_argument('--normal-fallback', action='store_true', help='experimentally recover RGB normal maps that pass every mip direction check')
@@ -201,6 +206,8 @@ def main():
     p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()
+    if a.version_code is not None and not 1 <= a.version_code <= 2100000000: p.error('invalid Android version code')
+    if a.version_name is not None and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._+\-]{0,99}', a.version_name, re.ASCII): p.error('invalid Android version name')
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')
     if a.animation_curve_extended and (not a.animation_curve_fallback or a.animation_curve_relaxed): p.error('--animation-curve-extended requires --animation-curve-fallback and excludes --animation-curve-relaxed')
     if a.animation_curve_hybrid and not a.animation_curve_fallback: p.error('--animation-curve-hybrid requires --animation-curve-fallback')

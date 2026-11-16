@@ -67,6 +67,20 @@ def check_online_apk(aapt2, apk, application_id, runner=None):
             raise ValueError('final APK missing required permission: ' + required)
 
 
+def check_apk_version(aapt2, apk, code, name, runner=None):
+    if code is None and name is None: return
+    command = ([runner] if runner else []) + [str(aapt2), 'dump', 'badging', str(apk)]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=True)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise ValueError('could not inspect final APK version') from error
+    lines = [line for line in result.stdout.splitlines() if line.startswith('package: ')]
+    if len(lines) != 1: raise ValueError('could not parse final APK version')
+    fields = dict(re.findall(r"\b(versionCode|versionName)='([^']*)'", lines[0]))
+    if (code is not None and fields.get('versionCode') != str(code)) or (name is not None and fields.get('versionName') != name):
+        raise ValueError('final APK version does not match requested metadata')
+
+
 def commands(a):
     out = a.output; prepared = out / 'steam/build'; workspace = prepared / 'workspace'; plugins = prepared / 'managed-plugins'
     wrapped = ['--runner', a.runner] if a.runner else []
@@ -113,6 +127,9 @@ def commands(a):
     if getattr(a, 'transparent_atlas_scrub', False): chain += ['--transparent-atlas-scrub']
     if shared0: chain += ['--shared0-fonts']
     if getattr(a, 'gradle_online', False): chain += ['--gradle-online']
+    for attr in ('version_code', 'version_name'):
+        value = getattr(a, attr, None)
+        if value is not None: chain += ['--' + attr.replace('_', '-'), value]
     for attr in ('steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home'):
         value = getattr(a, attr)
         if value: chain += ['--' + attr.replace('_', '-'), value]
@@ -155,6 +172,9 @@ def commands(a):
         if getattr(a, 'transparent_atlas_scrub', False): windows_chain += ['--transparent-atlas-scrub']
         if shared0: windows_chain += ['--shared0-fonts']
         if getattr(a, 'gradle_online', False): windows_chain += ['--gradle-online']
+        for attr in ('version_code', 'version_name'):
+            value = getattr(a, attr, None)
+            if value is not None: windows_chain += ['--' + attr.replace('_', '-'), value]
         if a.gradle_user_home: windows_chain += ['--gradle-user-home', a.gradle_user_home]
         dual_args = SimpleNamespace(output=linux_research, steam_data=a.game / 'Megabonk_Data',
                                     unity_editor=a.unity.parent, runtime_obb=runtime_obb,
@@ -162,7 +182,7 @@ def commands(a):
                                     gradle_project=gradle_project, unity_project=workspace,
                                     json_jar=a.json_jar, application_id=a.application_id, runner=a.runner,
                                     host_library=a.host_library, android_library=a.android_library, decoder=a.decoder,
-                                    steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux', quality_textures=a.quality_textures, normal_fallback=a.normal_fallback, partial_rgba=getattr(a, 'partial_rgba', False), gradle_online=getattr(a, 'gradle_online', False))
+                                    steam_zip=a.steam_zip, gradle_user_home=a.gradle_user_home, platform='linux', quality_textures=a.quality_textures, normal_fallback=a.normal_fallback, partial_rgba=getattr(a, 'partial_rgba', False), gradle_online=getattr(a, 'gradle_online', False), version_code=getattr(a, 'version_code', None), version_name=getattr(a, 'version_name', None))
         dual = research_chain.commands(dual_args)[-1][1]
         dual[dual.index('--output') + 1] = str(out / 'dual-launcher')
         dual += ['--windows-research', str(windows_research)]
@@ -176,6 +196,8 @@ def main():
     for name in ('game', 'assetripper', 'unity', 'json-jar', 'output'): p.add_argument('--' + name, required=True, type=Path)
     for name in ('lua-library', 'steam-zip', 'host-library', 'android-library', 'decoder', 'gradle-user-home', 'windows-game', 'windows-steam-zip'): p.add_argument('--' + name, type=Path)
     p.add_argument('--application-id', required=True)
+    p.add_argument('--version-code', type=int, help='override the Android package version code')
+    p.add_argument('--version-name', help='override the Android package version name')
     p.add_argument('--runner', help='optional wrapper for AssetRipper, Unity and native tools')
     p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
     p.add_argument('--include-rewired', action='store_true', help='experimentally include local Rewired plugins in both Unity builds')
@@ -202,6 +224,8 @@ def main():
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally relocate sharedassets0 and reconstruct selected fonts and the default skybox')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
+    if a.version_code is not None and not 1 <= a.version_code <= 2100000000: p.error('invalid Android version code')
+    if a.version_name is not None and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._+\-]{0,99}', a.version_name, re.ASCII): p.error('invalid Android version name')
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')
     if a.animation_curve_extended and (not a.animation_curve_fallback or a.animation_curve_relaxed): p.error('--animation-curve-extended requires --animation-curve-fallback and excludes --animation-curve-relaxed')
     if a.animation_curve_hybrid and not a.animation_curve_fallback: p.error('--animation-curve-hybrid requires --animation-curve-fallback')
@@ -301,6 +325,7 @@ def main():
     apk = a.output / result / 'gradle/launcher/build/outputs/apk/release/launcher-release.apk'
     try:
         check_online_apk(aapt2, apk, a.application_id, a.runner)
+        check_apk_version(aapt2, apk, a.version_code, a.version_name, a.runner)
     except ValueError as error:
         raise SystemExit(f'{error}; local outputs and log retained at {a.output}') from error
     print('Private research APK created:', apk, flush=True)

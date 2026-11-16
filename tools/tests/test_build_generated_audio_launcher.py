@@ -14,6 +14,18 @@ SPEC.loader.exec_module(MODULE)
 
 
 class GeneratedAudioBuildTest(unittest.TestCase):
+    def test_package_version_override_is_validated_and_changes_only_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            gradle = Path(tmp) / 'build.gradle'
+            original = 'defaultConfig {\n        versionCode 1\n        versionName "old"\n        minSdkVersion 26\n}\n'
+            gradle.write_text(original)
+            MODULE.set_package_version(gradle, 2, '0.1.1-beta')
+            self.assertEqual(gradle.read_text(), original.replace('versionCode 1', 'versionCode 2').replace('"old"', '"0.1.1-beta"'))
+            for code in (0, -1, 2100000001, True):
+                with self.assertRaises(ValueError): MODULE.set_package_version(gradle, code, None)
+            for name in ('', 'bad"name', 'bad\nname', 'x' * 101):
+                with self.assertRaises(ValueError): MODULE.set_package_version(gradle, None, name)
+
     def test_gradle_offline_by_default_and_online_only_when_requested(self):
         self.assertIn('--offline', MODULE.gradle_command('java', 'gradle.jar'))
         online = MODULE.gradle_command('java', 'gradle.jar', 'steam-run', True)

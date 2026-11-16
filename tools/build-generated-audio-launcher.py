@@ -268,6 +268,15 @@ def replace_once(path, pattern, replacement, dotall=False):
     path.write_text(text, encoding='utf-8')
 
 
+def set_package_version(path, code=None, name=None):
+    if code is not None and (type(code) is not int or not 1 <= code <= 2100000000): raise ValueError('invalid Android version code')
+    if name is not None and (not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._+\-]{0,99}', name, re.ASCII)): raise ValueError('invalid Android version name')
+    if code is not None:
+        replace_once(path, r'^[ \t]*versionCode[ \t]+[0-9]+[ \t]*$', '        versionCode ' + str(code))
+    if name is not None:
+        replace_once(path, r'^[ \t]*versionName[ \t]+"[^"\n]*"[ \t]*$', '        versionName "' + name + '"')
+
+
 def verify_research_platform(plan, platform):
     inventories = json.loads((ROOT / 'tools/launcher-steam-inputs.json').read_text(encoding='utf-8'))['platforms']
     selected = inventories[platform]; other = inventories['windows' if platform == 'linux' else 'linux']
@@ -320,6 +329,8 @@ def main():
     for name in ('gradle-project', 'unity-project', 'runtime-apk', 'audio-template', 'audio-plan', 'expected-obb', 'unity-editor', 'output'):
         p.add_argument('--' + name, type=Path, required=True)
     p.add_argument('--application-id', required=True)
+    p.add_argument('--version-code', type=int, help='override the Android package version code')
+    p.add_argument('--version-name', help='override the Android package version name')
     p.add_argument('--runner', help='optional executable such as steam-run')
     p.add_argument('--gradle-user-home', type=Path, help='existing local Gradle cache')
     p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
@@ -372,6 +383,8 @@ def main():
     if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []), *([cubemap_plan, cubemap_intermediate] if cubemap_plan else []), *([animation_plan, animation_intermediate] if animation_plan else []), *([object_plan, object_intermediate] if object_plan else []), *([partial_plan, partial_intermediate] if partial_plan else []), *([windows_research] if windows_research else []))):
         p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
+    if a.version_code is not None and not 1 <= a.version_code <= 2100000000: p.error('invalid Android version code')
+    if a.version_name is not None and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._+\-]{0,99}', a.version_name, re.ASCII): p.error('invalid Android version name')
     if a.runner and not shutil.which(a.runner): p.error('configured runner not found')
     android = editor / 'Data/PlaybackEngines/AndroidPlayer'
     java, gradle_jar = android / 'OpenJDK/bin/java', android / 'Tools/gradle/lib/gradle-launcher-7.6.jar'
@@ -486,6 +499,7 @@ def main():
     result_hash = digest(expected)
     (launcher / 'SplitExpectedData.java').write_text('package com.megabonk.launcher;\nfinal class SplitExpectedData { static final String SHA256 = "' + result_hash + '", LEGACY_SHA256 = "", SECOND_LEGACY_SHA256 = "", THIRD_LEGACY_SHA256 = "", FOURTH_LEGACY_SHA256 = "", FIFTH_LEGACY_SHA256 = "", SIXTH_LEGACY_SHA256 = ""; }\n', encoding='ascii')
     replace_once(work / 'launcher/build.gradle', r'applicationId\s+"[^"\n]+"', 'applicationId "' + a.application_id + '"')
+    set_package_version(work / 'launcher/build.gradle', a.version_code, a.version_name)
     replace_once(library / 'build.gradle', r'    afterEvaluate \{\n.*?\n    \}\n    sourceSets', '    sourceSets', dotall=True)
     ndk = str(android / 'NDK')
     if any(ord(c) < 32 for c in ndk): raise ValueError('invalid NDK path')
