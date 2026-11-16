@@ -1,0 +1,44 @@
+import importlib.util
+from pathlib import Path
+import tempfile
+import unittest
+import warnings
+import zipfile
+
+
+SCRIPT = Path(__file__).resolve().parents[1] / 'rebuild-legacy-shader-base.py'
+spec = importlib.util.spec_from_file_location('legacy_shader_base', SCRIPT)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+
+class ExtractTest(unittest.TestCase):
+    def test_orders_split_assets_numerically(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root / 'base.obb'
+            with zipfile.ZipFile(archive, 'w') as out:
+                for i in reversed(range(12)):
+                    out.writestr('asset.split' + str(i), bytes([i]))
+            module.extract(archive, root/'asset', 'asset.split', True)
+            self.assertEqual((root/'asset').read_bytes(), bytes(range(12)))
+
+    def test_rejects_missing_and_duplicate_parts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = root/'base.obb'
+            with zipfile.ZipFile(archive, 'w') as out:
+                out.writestr('asset.split1', b'a')
+            with self.assertRaisesRegex(ValueError, 'incomplete split'):
+                module.extract(archive, root/'asset', 'asset.split', True)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', UserWarning)
+                with zipfile.ZipFile(archive, 'w') as out:
+                    out.writestr('asset.split0', b'a')
+                    out.writestr('asset.split0', b'b')
+            with self.assertRaisesRegex(ValueError, 'duplicate'):
+                module.extract(archive, root/'asset', 'asset.split', True)
+
+
+if __name__ == '__main__':
+    unittest.main()
