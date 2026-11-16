@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild two consecutive private legacy shader-scrubbing stages.
+"""Rebuild six consecutive private legacy shader-scrubbing stages.
 
 This consumes a pinned earlier base and locally compiled shader bundles. It
 does not build the complete beta APK, and its output contains private data.
@@ -45,7 +45,7 @@ def run(script, *args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--base', required=True, type=Path, help='pinned instancing-reference-scrubbed base')
+    parser.add_argument('--base', required=True, type=Path, help='pinned fog-shader-scrubbed base')
     parser.add_argument('--shader-bundles', required=True, type=Path, help='pinned local shader cache')
     parser.add_argument('--output', required=True, type=Path, help='new private base directory')
     args = parser.parse_args()
@@ -59,7 +59,7 @@ def main():
     spec = importlib.util.spec_from_file_location('shader_pins', ROOT / 'tools/pinned-shader-bundles.py')
     pins = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(pins)
-    for name in ('feature-probe', 'builtin-probe'):
+    for name in ('feature-probe', 'builtin-probe', 'localshader-instance', 'localshader-study'):
         path = shaders / name
         if not path.is_file() or path.stat().st_size > 8 * 1024 * 1024:
             raise ValueError('missing or oversized shader bundle: ' + name)
@@ -68,15 +68,24 @@ def main():
                 raise ValueError('incompatible shader bundle: ' + name)
     with tempfile.TemporaryDirectory(prefix='.openbonk-legacy-shaders-', dir=output.parent) as tmp:
         tmp = Path(tmp)
-        feature_input, feature_template, feature_base = tmp/'feature.assets', tmp/'feature-template', tmp/'feature-base'
-        extract(base/'base.obb', feature_input, 'assets/bin/Data/sharedassets1.assets.split', True)
-        run('analysis/data-conversion/shared1-feature-shaders-template.py', 'template', shaders, feature_input, feature_template)
-        run('analysis/port-inventory/scrub-shared1-feature-shader-base.py', base, feature_template, feature_base)
+        current = base
+        for name, template_script, scrub_script in (
+            ('local', 'shared1-local-shaders-template.py', 'scrub-shared1-local-shader-base.py'),
+            ('shader-references', 'shared1-reference-shaders-template.py', 'scrub-shared1-reference-shader-base.py'),
+            ('instancing', 'shared1-instancing-shaders-template.py', 'scrub-shared1-instancing-shader-base.py'),
+            ('references', 'shared1-instancing-reference-template.py', 'scrub-shared1-instancing-reference-base.py'),
+            ('feature', 'shared1-feature-shaders-template.py', 'scrub-shared1-feature-shader-base.py'),
+        ):
+            source, template, next_base = tmp/f'{name}.assets', tmp/f'{name}-template', tmp/f'{name}-base'
+            extract(current/'base.obb', source, 'assets/bin/Data/sharedassets1.assets.split', True)
+            run('analysis/data-conversion/' + template_script, 'template', shaders, source, template)
+            run('analysis/port-inventory/' + scrub_script, current, template, next_base)
+            current = next_base
         builtin_input, builtin_template = tmp/'builtin.assets', tmp/'builtin-template'
-        extract(feature_base/'base.obb', builtin_input, 'assets/bin/Data/0000000000000000f000000000000000', False)
+        extract(current/'base.obb', builtin_input, 'assets/bin/Data/0000000000000000f000000000000000', False)
         run('analysis/data-conversion/builtin-shaders-template.py', 'template', shaders, builtin_input, builtin_template)
-        run('analysis/port-inventory/scrub-builtin-shader-base.py', feature_base, builtin_template, output)
-    print('Rebuilt both pinned legacy shader stages; keep the output private.')
+        run('analysis/port-inventory/scrub-builtin-shader-base.py', current, builtin_template, output)
+    print('Rebuilt six pinned legacy shader stages; keep the output private.')
 
 
 if __name__ == '__main__':
