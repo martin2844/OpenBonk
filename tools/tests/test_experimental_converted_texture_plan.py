@@ -65,6 +65,8 @@ class ConvertedTexturePlanTests(unittest.TestCase):
             self.assertFalse(module.valid_resource_record(dict(row, **change)))
         default = dict(row, name='GridBox_Default', source_name='GridBox_Default', source_format=10, target_format=45)
         self.assertTrue(module.valid_resource_record(default))
+        nodraw = dict(default, name='GridBox_NoDraw', source_name='GridBox_NoDraw')
+        self.assertTrue(module.valid_resource_record(nodraw))
         self.assertFalse(module.valid_resource_record(dict(default, source_format=12)))
         self.assertFalse(module.valid_resource_record(dict(default, target_format=47)))
         emoji = dict(row, name='psd_EmojiOne', source_name='psd_EmojiOne')

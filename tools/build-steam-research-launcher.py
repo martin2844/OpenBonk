@@ -96,6 +96,7 @@ def commands(a):
     if getattr(a, 'animation_curve_fallback', False): chain += ['--animation-curve-fallback']
     if a.font_fallback: chain += ['--font-fallback']
     if a.resource_fallback: chain += ['--resource-fallback']
+    if getattr(a, 'nodraw_fallback', False): chain += ['--nodraw-fallback']
     if getattr(a, 'shadow_fallback', False): chain += ['--shadow-fallback']
     if getattr(a, 'emoji_fallback', False): chain += ['--emoji-fallback']
     if getattr(a, 'partial_rgba', False): chain += ['--partial-rgba']
@@ -129,6 +130,7 @@ def commands(a):
         if getattr(a, 'animation_curve_fallback', False): windows_chain += ['--animation-curve-fallback']
         if a.font_fallback: windows_chain += ['--font-fallback']
         if a.resource_fallback: windows_chain += ['--resource-fallback']
+        if getattr(a, 'nodraw_fallback', False): windows_chain += ['--nodraw-fallback']
         if getattr(a, 'shadow_fallback', False): windows_chain += ['--shadow-fallback']
         if getattr(a, 'emoji_fallback', False): windows_chain += ['--emoji-fallback']
         if getattr(a, 'partial_rgba', False): windows_chain += ['--partial-rgba']
@@ -166,6 +168,7 @@ def main():
     p.add_argument('--animation-curve-fallback', action='store_true', help='experimentally substitute tightly bounded Steam animation curves')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
+    p.add_argument('--nodraw-fallback', action='store_true', help='also reconstruct the NoDraw debug grid; requires --resource-fallback')
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally reconstruct a uniquely matching shadow; requires --quality-textures')
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
@@ -177,6 +180,7 @@ def main():
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')
     if a.resource_fallback and not a.quality_textures: p.error('--resource-fallback requires --quality-textures')
+    if a.nodraw_fallback and not a.resource_fallback: p.error('--nodraw-fallback requires --resource-fallback')
     if a.shadow_fallback and not a.quality_textures: p.error('--shadow-fallback requires --quality-textures')
     if a.emoji_fallback and not a.quality_textures: p.error('--emoji-fallback requires --quality-textures')
     if a.partial_etc2 and (not a.partial_rgba or not a.quality_textures): p.error('--partial-etc2 requires --partial-rgba and --quality-textures')

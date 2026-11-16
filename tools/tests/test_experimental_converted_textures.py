@@ -80,6 +80,18 @@ class TextureConversionTests(unittest.TestCase):
         changed = original.copy(); changed.putpixel((0, 0), (100, 100, 100, 238))
         self.assertFalse(module.acceptable_emoji_image(original, changed))
 
+    def test_nodraw_quality_bounds_mean_maximum_and_alpha(self):
+        from PIL import Image
+        original = Image.new('RGBA', (10, 10), (100, 100, 100, 255))
+        changed = original.copy(); changed.putpixel((0, 0), (200, 100, 100, 255))
+        self.assertTrue(module.acceptable_nodraw_image(original, changed))
+        changed.putpixel((0, 0), (211, 100, 100, 255))
+        self.assertFalse(module.acceptable_nodraw_image(original, changed))
+        changed = Image.new('RGBA', (10, 10), (113, 100, 100, 255))
+        self.assertFalse(module.acceptable_nodraw_image(original, changed))
+        changed = Image.new('RGBA', (10, 10), (100, 100, 100, 250))
+        self.assertFalse(module.acceptable_nodraw_image(original, changed))
+
     def test_texture_error_gate_rejects_large_or_invalid_errors(self):
         self.assertTrue(module.acceptable_texture_error([0.0, 2.0, 10.0, 0.0]))
         for error in ([0, 0, 10.01, 0], [0, 0, float('nan'), 0], [0, 0, -1, 0], [0, 0, 0]):

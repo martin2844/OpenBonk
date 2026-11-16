@@ -29,7 +29,7 @@ def sha(data): return hashlib.sha256(data).hexdigest()
 def valid_resource_record(row):
     return (row.get('name') in study.RESOURCE_TEXTURES | study.EMOJI_TEXTURES and row.get('source_name') == row['name'] and
             (((row['name'] in ('GridBox_Collider', 'GridBox_Trigger') or row['name'] in study.EMOJI_TEXTURES) and row.get('source_format') == 12 and row.get('target_format') == 47) or
-             (row['name'] == 'GridBox_Default' and row.get('source_format') == 10 and row.get('target_format') == 45)) and row.get('quality') is True and
+             (row['name'] in ('GridBox_Default', 'GridBox_NoDraw') and row.get('source_format') == 10 and row.get('target_format') == 45)) and row.get('quality') is True and
             row.get('normal') is False and row.get('direct_normal') is False and
             not any(k in row for k in ('font', 'alias_group', 'alias_target_id')))
 
