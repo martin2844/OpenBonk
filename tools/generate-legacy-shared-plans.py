@@ -32,6 +32,7 @@ def main():
     terrain_group.add_argument('--shared1-before-normal', type=Path, help='pinned stage before normal and large texture templates')
     terrain_group.add_argument('--shared1-before-exact', type=Path, help='pinned stage before exact renamed texture templates')
     terrain_group.add_argument('--shared1-before-alpha8', type=Path, help='pinned stage before alpha texture templates')
+    terrain_group.add_argument('--shared1-terrain-from-obb', action='store_true', help='rebuild the terrain source from the old OBB')
     parser.add_argument('--crunch-decoder', type=Path, help='local six-face Unity Crunch decoder, required before cubemaps')
     mesh_group = parser.add_mutually_exclusive_group(required=True)
     mesh_group.add_argument('--shared1-mesh-input', type=Path, help='pinned texture-template directory')
@@ -39,17 +40,20 @@ def main():
     mesh_group.add_argument('--shared1-source-from-obb', action='store_true', help='rebuild the pre-template asset from the old OBB and Steam audio')
     parser.add_argument('--output', required=True, type=Path, help='new private directory')
     args = parser.parse_args()
-    if bool(args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8) != bool(args.crunch_decoder):
+    if args.shared1_terrain_from_obb and not args.shared1_source_from_obb:
+        parser.error('--shared1-terrain-from-obb requires --shared1-source-from-obb')
+    if bool(args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8 or args.shared1_terrain_from_obb) != bool(args.crunch_decoder):
         parser.error('an earlier terrain source and --crunch-decoder must be supplied together')
     steam, obb = args.steam_data.resolve(strict=True), args.android_obb.resolve(strict=True)
-    terrain = (args.shared1_terrain_asset or args.shared1_terrain_source or args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8).resolve(strict=True)
+    terrain_path = args.shared1_terrain_asset or args.shared1_terrain_source or args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8
+    terrain = terrain_path.resolve(strict=True) if terrain_path else None
     decoder = args.crunch_decoder.resolve(strict=True) if args.crunch_decoder else None
     mesh = (args.shared1_mesh_input or args.shared1_source_dir).resolve(strict=True) if not args.shared1_source_from_obb else None
     output = args.output.expanduser().absolute()
-    if not steam.is_dir() or not obb.is_file() or not (terrain.is_dir() if not args.shared1_terrain_asset else terrain.is_file()) or (decoder is not None and not decoder.is_file()) or (mesh is not None and not mesh.is_dir()) or output.exists() or output.is_symlink() or not output.parent.is_dir():
+    if not steam.is_dir() or not obb.is_file() or (terrain is not None and not (terrain.is_dir() if not args.shared1_terrain_asset else terrain.is_file())) or (decoder is not None and not decoder.is_file()) or (mesh is not None and not mesh.is_dir()) or output.exists() or output.is_symlink() or not output.parent.is_dir():
         parser.error('inputs must exist and output must be new')
     output = output.parent.resolve()/output.name
-    if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (steam, obb, terrain, ROOT, *([mesh] if mesh else []), *([decoder] if decoder else []))):
+    if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (steam, obb, ROOT, *([terrain] if terrain else []), *([mesh] if mesh else []), *([decoder] if decoder else []))):
         parser.error('output must be separate from checkout and inputs')
     with tempfile.TemporaryDirectory(prefix='.openbonk-shared2-plans-', dir=output.parent) as directory:
         tmp = Path(directory)
@@ -74,33 +78,42 @@ def main():
                        direct/'manifest.json', rgba/'manifest.json', etc)
             helper.run('analysis/data-conversion/bc-to-etc-texture-prototype.py', 'template', steam, mesh,
                        direct/'manifest.json', rgba/'manifest.json', etc/'manifest.json', bc)
+            if args.shared1_terrain_from_obb:
+                extra_rgba = tmp/'extra-rgba'
+                helper.run('analysis/data-conversion/bc-to-rgba-texture-prototype.py', 'template', steam, mesh,
+                           direct/'manifest.json', rgba/'manifest.json', etc/'manifest.json', extra_rgba)
             helper.run('analysis/data-conversion/combined-texture-bc-prototype.py', 'template', steam, mesh,
                        direct/'manifest.json', rgba/'manifest.json', etc/'manifest.json', bc/'manifest.json', combined)
             mesh = combined
-        if args.shared1_before_alpha8:
+        mesh_output = tmp/'full-cubemaps-stripped'
+        helper.run('analysis/data-conversion/cross-scene-mesh-bc-prototype.py', 'template', steam, mesh, mesh_output)
+        if args.shared1_terrain_from_obb:
+            outline, terrain = tmp/'terrain-outline', tmp/'terrain-bc-rgba'
+            helper.run('analysis/data-conversion/rebuild-outline-bc-prototype.py', 'template', steam, mesh_output, outline)
+            helper.run('analysis/data-conversion/strip-bc-rgba-template.py', 'strip', steam, outline, extra_rgba/'manifest.json', terrain)
+        if args.shared1_before_alpha8 or args.shared1_terrain_from_obb:
             alpha = tmp/'terrain-alpha8'
             helper.run('analysis/data-conversion/alpha8-staged-prototype.py', 'template', steam, terrain, alpha)
             terrain = alpha
-        if args.shared1_before_exact or args.shared1_before_alpha8:
+        if args.shared1_before_exact or args.shared1_before_alpha8 or args.shared1_terrain_from_obb:
             exact = tmp/'terrain-exact'
             helper.run('analysis/data-conversion/exact-renamed-textures-prototype.py', 'strip', steam, terrain, exact)
             terrain = exact
-        if args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8:
+        if args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8 or args.shared1_terrain_from_obb:
             normal, large = tmp/'terrain-normal', tmp/'terrain-large'
             helper.run('analysis/data-conversion/normal-map-staged-prototype.py', 'template', steam, terrain, normal)
             helper.run('analysis/data-conversion/large-textures-staged-prototype.py', 'template', steam, normal, large)
             terrain = large
-        if args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8:
+        if args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8 or args.shared1_terrain_from_obb:
             cubemaps = tmp/'terrain-cubemaps'
             helper.run('analysis/data-conversion/all-cubemaps-staged-prototype.py', 'template', steam, terrain, decoder, cubemaps)
             terrain = cubemaps
-        if args.shared1_terrain_source or args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8:
+        if args.shared1_terrain_source or args.shared1_before_cubemaps or args.shared1_before_normal or args.shared1_before_exact or args.shared1_before_alpha8 or args.shared1_terrain_from_obb:
             matched = tmp/'terrain-source'
             helper.run('analysis/data-conversion/matched-textures-staged-prototype.py', 'template', steam, terrain, matched)
             terrain = matched/'sharedassets1.assets'
-        terrain_output, mesh_output = tmp/'shared1-terrain-animation-template', tmp/'full-cubemaps-stripped'
+        terrain_output = tmp/'shared1-terrain-animation-template'
         helper.run('analysis/data-conversion/shared1-terrain-animation-prototype.py', 'template', steam, terrain, terrain_output)
-        helper.run('analysis/data-conversion/cross-scene-mesh-bc-prototype.py', 'template', steam, mesh, mesh_output)
         shared1 = (
             ('shared1-terrain-animation-template', 'objects-manifest.json', '9641811a775b44f61ab6b2148ceb384ea6fa2155acd99a5d8fc44449402a1259'),
             ('full-cubemaps-stripped', 'mesh-manifest.json', 'bf97a55467b07f123143ad1c9e787f935441f077d5ec3a291e9f42c9b1677bf3'),

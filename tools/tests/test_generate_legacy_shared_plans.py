@@ -18,6 +18,13 @@ class SharedPlansTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn('must be supplied together', result.stderr)
 
+    def test_terrain_from_obb_requires_source_from_obb(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--steam-data', 'steam', '--android-obb', 'base.obb',
+                                 '--shared1-terrain-from-obb', '--shared1-mesh-input', 'source', '--output', 'out'],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--shared1-terrain-from-obb requires --shared1-source-from-obb', result.stderr)
+
     def test_rejects_output_inside_steam_input(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
