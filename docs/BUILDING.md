@@ -1,5 +1,17 @@
 # Source and build status
 
+The experimental `tools/prepare-partial-fast-comparison.py` prepares private
+per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
+textures in a local partial-conversion template and compatible Steam data.
+On a Retroid Pocket 5, the ARM64 converter reproduced all 36 UnityPy fast
+encoder outputs exactly for Cactus, BossPortalNormal, FBX_Log0_Color_Normal,
+Bullseye_0 and t_chest_normal (26 BC1-to-ETC2 RGB, one BC3-to-ETC2 RGBA,
+and nine RGBA-to-ETC2 RGBA mips). The checked-in fixture generator reproduced
+the initial private study byte for byte. This confirms those particular encoder
+results, not other textures, platforms or visual quality. Fast partial
+reconstruction is not yet integrated into the build, and the template still
+contains game-derived data. Inputs and fixtures must remain private.
+
 This checkout exposes the current reconstruction and tools for inspection and development. **A clean checkout is not yet sufficient to rebuild the published APK.** The original local build depended on an exported Unity project, original game assets, third-party plugins, generated plans and binary intermediates that are not all included here. Some editor and research diagnostics still contain `/home/your-user` placeholders where local paths were removed; configure them for your environment before using them. Do not interpret a missing local input or an untested build as a working release pipeline.
 
 For a concise procedure to build a private research APK from a checkout and local Steam data, start with the [build quickstart](BUILD_QUICKSTART.md).
