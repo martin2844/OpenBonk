@@ -6,6 +6,22 @@ public static class OpenBonkPostprocessStudy {
 PlayerSettings.colorSpace = ColorSpace.Linear;
 if (Environment.GetEnvironmentVariable("OPENBONK_POSTPROCESS_VULKAN_PRETRANSFORM") == "1")
     PlayerSettings.vulkanEnablePreTransform = true;
+if (Environment.GetEnvironmentVariable("OPENBONK_POSTPROCESS_COMPUTE") == "1") {
+ string prefix = "Packages/com.unity.postprocessing/PostProcessing/Shaders/";
+ string[] names = {"AutoExposure", "MultiScaleVORender", "MultiScaleVOUpsample", "MultiScaleVODownsample1", "MultiScaleVODownsample2", "Lut3DBaker", "Histogram", "Texture3DLerp", "GaussianDownsample", "ExposureHistogram", "Waveform", "Vectorscope"};
+ var builds = new AssetBundleBuild[names.Length];
+ for (int i = 0; i < names.Length; i++) {
+  string category = names[i] == "Histogram" || names[i] == "Waveform" || names[i] == "Vectorscope" ? "Debug/" : "Builtins/";
+  string path = prefix + category + names[i] + ".compute";
+  if (AssetDatabase.LoadAssetAtPath<ComputeShader>(path) == null) throw new Exception("Missing compute shader: " + path);
+  builds[i] = new AssetBundleBuild { assetBundleName = names[i].ToLowerInvariant(), assetNames = new[] { path } };
+ }
+ string computeOutput = Environment.GetEnvironmentVariable("OPENBONK_POSTPROCESS_OUTPUT");
+ if (String.IsNullOrEmpty(computeOutput) || !System.IO.Directory.Exists(computeOutput)) throw new Exception("Missing output directory");
+ var manifest = BuildPipeline.BuildAssetBundles(computeOutput, builds, BuildAssetBundleOptions.ForceRebuildAssetBundle, BuildTarget.Android);
+ if (manifest == null || manifest.GetAllAssetBundles().Length != names.Length) throw new Exception("Compute shader build failed");
+ Debug.Log("OPENBONK_POSTPROCESS_COMPUTE_OK");
+}
         string[] renderPaths = {
             "Packages/com.unity.postprocessing/PostProcessing/Shaders/Builtins/CopyStdFromTexArray.shader",
             "Packages/com.unity.postprocessing/PostProcessing/Shaders/Builtins/GrainBaker.shader",

@@ -27,27 +27,34 @@ PINS = {
     'vectorscope': '753a83dd8bd4589810419d3273f5c9f77c3e59d14ff177b92f943d3b3ff59998',
     'waveform': 'b521e97e19d36157323b9c0dd2f9393c225ef4fd483fc0f227e21807410af8e7',
 }
+PACKAGE_NAMES = frozenset(('postprocess-study', 'autoexposure', 'multiscalevorender', 'multiscalevoupsample',
+                           'multiscalevodownsample1', 'multiscalevodownsample2', 'lut3dbaker', 'histogram',
+                           'texture3dlerp', 'gaussiandownsample', 'exposurehistogram', 'waveform', 'vectorscope'))
 
 
-def verify(folder):
+def verify(folder, package=None):
     folder = Path(folder)
+    package = Path(package) if package is not None else None
     for name, expected in PINS.items():
-        file = folder/name
-        if not file.is_file() or file.stat().st_size > 8*1024*1024:
+        file = (package if package is not None and name in PACKAGE_NAMES else folder)/name
+        if file.is_symlink() or not file.is_file() or file.stat().st_size > 8*1024*1024:
             raise ValueError('missing or oversized cached shader: '+str(file))
         with file.open('rb') as stream:
             if hashlib.file_digest(stream, 'sha256').hexdigest() != expected:
                 raise ValueError('incompatible cached shader: '+str(file))
 
 
-def stage(folder, destination):
+def stage(folder, destination, package=None):
     folder, destination = Path(folder).resolve(), Path(destination).absolute()
-    if destination.exists() or destination.is_symlink() or destination.resolve().is_relative_to(folder):
+    package = Path(package).resolve() if package is not None else None
+    if destination.exists() or destination.is_symlink() or destination.resolve().is_relative_to(folder) or (package is not None and destination.resolve().is_relative_to(package)):
         raise ValueError('shader output must be new and outside the cache')
-    verify(folder)
+    verify(folder, package)
     destination.mkdir(mode=0o700)
     try:
-        for name in PINS: shutil.copyfile(folder/name, destination/name)
+        for name in PINS:
+            source = package if package is not None and name in PACKAGE_NAMES else folder
+            shutil.copyfile(source/name, destination/name)
         verify(destination)
     except BaseException:
         shutil.rmtree(destination)

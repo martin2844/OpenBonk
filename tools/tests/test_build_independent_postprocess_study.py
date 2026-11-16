@@ -26,7 +26,11 @@ p = Path(sys.argv[sys.argv.index('-projectPath') + 1])
 assert not (p / 'Packages/com.unity.postprocessing/Tests').exists()
 assert (p / 'Assets/Editor/OpenBonkPostprocessStudy.cs').is_file()
 Path(os.environ['OPENBONK_POSTPROCESS_OUTPUT'], 'postprocess-study').write_bytes(b'bundle')
-Path(sys.argv[sys.argv.index('-logFile') + 1]).write_text('Unity Editor version: 2023.2.22f1\\nOPENBONK_MINIMAL_POSTPROCESS_SUCCESS')
+marker = '\\nOPENBONK_POSTPROCESS_COMPUTE_OK' if os.environ.get('OPENBONK_POSTPROCESS_COMPUTE') == '1' else ''
+if marker:
+    for n in 'autoexposure multiscalevorender multiscalevoupsample multiscalevodownsample1 multiscalevodownsample2 lut3dbaker histogram texture3dlerp gaussiandownsample exposurehistogram waveform vectorscope'.split():
+        Path(os.environ['OPENBONK_POSTPROCESS_OUTPUT'], n).write_bytes(b'compute')
+Path(sys.argv[sys.argv.index('-logFile') + 1]).write_text('Unity Editor version: 2023.2.22f1\\nOPENBONK_MINIMAL_POSTPROCESS_SUCCESS' + marker)
 ''')
         self.editor.chmod(0o700)
         self.output = self.root / 'output'
@@ -71,6 +75,11 @@ Path(sys.argv[sys.argv.index('-logFile') + 1]).write_text('Unity Editor version:
         result = self.run_tool('--verify-pinned', '--vulkan-pretransform')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('differs from the pinned build', result.stderr)
+
+    def test_compute_build_is_requested_and_must_report_success(self):
+        result = self.run_tool('--include-compute')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('OPENBONK_POSTPROCESS_COMPUTE_OK', (self.output/'unity.log').read_text())
 
 
 if __name__ == '__main__':

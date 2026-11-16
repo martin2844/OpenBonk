@@ -6,6 +6,7 @@ have their own terms; inspect the supplied package and applicable licenses.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,9 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'analysis/port-inventory/OpenBonkPostprocessStudy.cs'
 PINNED_BUNDLE_SHA256 = '7cbb023315a2ad6722bf11e23cc0139b0208dea1d81f3202ad7ebcbc0851eb80'
+COMPUTE_NAMES = ('autoexposure', 'multiscalevorender', 'multiscalevoupsample', 'multiscalevodownsample1',
+                 'multiscalevodownsample2', 'lut3dbaker', 'histogram', 'texture3dlerp',
+                 'gaussiandownsample', 'exposurehistogram', 'waveform', 'vectorscope')
 
 
 def main():
@@ -24,6 +28,7 @@ def main():
     parser.add_argument('--output', required=True, type=Path, help='new directory for the isolated project and output')
     parser.add_argument('--graphics-settings', type=Path, help='optional local Unity GraphicsSettings.asset to study project-dependent shader variants')
     parser.add_argument('--vulkan-pretransform', action='store_true', help='enable Vulkan pretransform while compiling the isolated shader bundle')
+    parser.add_argument('--include-compute', action='store_true', help='also compile the 12 post-processing compute shader bundles')
     parser.add_argument('--verify-pinned', action='store_true', help='require the historical post-processing bundle hash (requires --vulkan-pretransform)')
     parser.add_argument('--runner', help='optional executable used to launch Unity')
     parser.add_argument('--check', action='store_true')
@@ -85,6 +90,8 @@ def main():
     env['OPENBONK_POSTPROCESS_OUTPUT'] = str(bundles)
     if args.vulkan_pretransform: env['OPENBONK_POSTPROCESS_VULKAN_PRETRANSFORM'] = '1'
     else: env.pop('OPENBONK_POSTPROCESS_VULKAN_PRETRANSFORM', None)
+    if args.include_compute: env['OPENBONK_POSTPROCESS_COMPUTE'] = '1'
+    else: env.pop('OPENBONK_POSTPROCESS_COMPUTE', None)
     log = output / 'unity.log'
     cmd = ([runner] if runner else []) + [str(unity), '-batchmode', '-nographics', '-quit',
            '-projectPath', str(project), '-executeMethod', 'OpenBonkPostprocessStudy.Build', '-logFile', str(log)]
@@ -92,16 +99,31 @@ def main():
     log_text = log.read_text(errors='replace') if log.is_file() else ''
     if status or 'OPENBONK_MINIMAL_POSTPROCESS_SUCCESS' not in log_text:
         raise SystemExit(f'Unity study failed; inspect {log}')
+    if args.include_compute and 'OPENBONK_POSTPROCESS_COMPUTE_OK' not in log_text:
+        raise SystemExit(f'Unity compute shader build did not complete; inspect {log}')
     if not any(line.startswith('Unity Editor version:') and line.split()[3] == '2023.2.22f1'
                for line in log_text.splitlines() if len(line.split()) >= 4):
         raise SystemExit(f'Unexpected Unity editor version; inspect {log}')
     result = bundles / 'postprocess-study'
     if not result.is_file() or not result.stat().st_size:
         raise SystemExit(f'Unity did not produce the shader bundle; inspect {log}')
+    if args.include_compute:
+        for name in COMPUTE_NAMES:
+            path = bundles/name
+            if path.is_symlink() or not path.is_file() or not 0 < path.stat().st_size <= 8*1024*1024:
+                raise SystemExit('Missing or invalid compute shader bundle: '+name)
     if args.verify_pinned:
         with result.open('rb') as stream:
             if hashlib.file_digest(stream, 'sha256').hexdigest() != PINNED_BUNDLE_SHA256:
                 raise SystemExit(f'Generated shader bundle differs from the pinned build; inspect {log}')
+        if args.include_compute:
+            spec = importlib.util.spec_from_file_location('shader_pins', ROOT/'tools/pinned-shader-bundles.py')
+            pins = importlib.util.module_from_spec(spec); spec.loader.exec_module(pins)
+            for name in COMPUTE_NAMES:
+                path = bundles/name
+                with path.open('rb') as stream:
+                    if hashlib.file_digest(stream, 'sha256').hexdigest() != pins.PINS[name]:
+                        raise SystemExit('Generated compute shader bundle differs: '+name)
         print('Pinned shader bundle hash verified.', flush=True)
     print('Shader study bundle:', result, flush=True)
     print('Local research only; source provenance and distribution rights remain to be reviewed.', flush=True)

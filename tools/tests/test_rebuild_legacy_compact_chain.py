@@ -9,6 +9,14 @@ SCRIPT = Path(__file__).resolve().parents[1] / 'rebuild-legacy-compact-chain.py'
 
 
 class CompactChainTests(unittest.TestCase):
+    def test_package_shader_bundles_require_cache(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), '--steam-data', 'steam', '--old-apk', 'old.apk',
+                                 '--old-obb', 'old.obb', '--new-apk', 'new.apk', '--new-obb', 'new.obb',
+                                 '--crunch-decoder', 'decoder', '--rebuild-converted-assets', '--package-shader-bundles', 'package',
+                                 '--output', 'output'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('--package-shader-bundles requires --shader-bundles', result.stderr)
+
     def test_launcher_aliases_are_exact_and_do_not_replace_files(self):
         spec = importlib.util.spec_from_file_location('compact_chain', SCRIPT)
         module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
