@@ -32,10 +32,13 @@ def require(p,h):
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('base',type=Path);p.add_argument('output',type=Path);p.add_argument('--expanded-shared-base',action='store_true');a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('base',type=Path);p.add_argument('output',type=Path);p.add_argument('--expanded-shared-base',action='store_true');p.add_argument('--manifest-root',type=Path,default=builder.BUILD/'share-source-experiment',help='directory containing the eight pinned category manifests');a=p.parse_args()
     if a.output.exists() or a.output.is_symlink() or not a.output.parent.is_dir():p.error('output must be new')
     out,src=a.output.resolve(),a.base.resolve()
     if out.is_relative_to(src) or src.is_relative_to(out):p.error('output must be separate from base')
+    for folder,_,_ in builder.HASHED_CATEGORIES:
+        directory=(a.manifest_root/folder).resolve()
+        if out.is_relative_to(directory) or directory.is_relative_to(out):p.error('output must be separate from manifests')
     apk=a.base/'base.apk';obb=a.base/'base.obb';asset_manifest=a.base/'asset-manifest.json'
     input_apk_sha=EXPANDED_APK_SHA if a.expanded_shared_base else APK_SHA;input_obb_sha=EXPANDED_OBB_SHA if a.expanded_shared_base else OBB_SHA;asset_manifest_sha=EXPANDED_ASSET_MANIFEST_SHA if a.expanded_shared_base else ASSET_MANIFEST_SHA
     require(apk,input_apk_sha);require(obb,input_obb_sha);require(asset_manifest,asset_manifest_sha)
@@ -47,7 +50,7 @@ def main():
             if az.read('assets/unity_obb_guid')!=oz.read('unity_obb_guid'):raise ValueError('APK/OBB GUID mismatch')
             dex=az.read('classes.dex');old=input_obb_sha.encode('ascii');previous,following=repair.dex_bounds(dex,old)
             for i,(folder,key,count) in enumerate(builder.HASHED_CATEGORIES):
-                directory=builder.BUILD/'share-source-experiment'/folder;manifest=directory/'manifest.json';require(manifest,builder.HASHED_MANIFEST_HASHES[i]);rows=json.loads(manifest.read_text())[key]
+                directory=a.manifest_root/folder;manifest=directory/'manifest.json';require(manifest,builder.HASHED_MANIFEST_HASHES[i]);rows=json.loads(manifest.read_text())[key]
                 if len(rows)!=count or len({x['file'] for x in rows})!=count:raise ValueError('invalid category inventory')
                 selected=removed=0
                 for row in rows:
@@ -65,14 +68,13 @@ def main():
                         entries[resource]={'original_sha256':digest(audio),'scrubbed_sha256':digest(blank),'kind':folder}
                     else:
                         if digest(raw)!=row['original_sha256']:raise ValueError('original resource mismatch: '+entry)
-                        template=directory/name;require(template,row['template_sha256']);blank=template.read_bytes()
-                        if len(blank)!=len(raw):raise ValueError('template size mismatch')
                         spans=[(row['vertex_offset'],row['vertex_size']),(row['index_offset'],row['index_size'])] if key=='meshes' else [(row['offset'],row['size'])]
                         spans.sort();candidate=bytearray(raw)
                         if any(o<0 or n<0 or o+n>len(raw) for o,n in spans) or any(x[0]+x[1]>y[0] for x,y in zip(spans,spans[1:])):raise ValueError('invalid payload bounds')
                         for offset,size in spans:
                             candidate[offset:offset+size]=bytes(size);selected+=size;removed+=sum(x!=0 for x in raw[offset:offset+size])
-                        if candidate!=blank:raise ValueError('template changes other bytes')
+                        blank=bytes(candidate)
+                        if digest(blank)!=row['template_sha256']:raise ValueError('generated template differs')
                         replacements[entry]=blank;entries[entry]={'original_sha256':digest(raw),'scrubbed_sha256':digest(blank),'kind':folder}
                 summary[folder]={'items':count,'selected_bytes':selected,'nonzero_bytes_removed':removed}
             with zipfile.ZipFile(new_obb,'x',allowZip64=True) as dest:
