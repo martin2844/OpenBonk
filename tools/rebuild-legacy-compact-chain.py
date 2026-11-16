@@ -35,17 +35,19 @@ def main():
     converted_group = parser.add_mutually_exclusive_group(required=True)
     converted_group.add_argument('--converted-obb', type=Path, help='pinned historical converted OBB')
     converted_group.add_argument('--converted-assets', type=Path, help='directory of three independently rebuilt shared assets')
+    converted_group.add_argument('--rebuild-converted-assets', action='store_true', help='regenerate the shared assets and their templates from the old APK/OBB and Steam')
     args = parser.parse_args()
     names = ('steam_data', *PINS, 'crunch_decoder')
     inputs = {name: getattr(args, name).expanduser().resolve(strict=True) for name in names}
-    converted_input = (args.converted_obb or args.converted_assets).expanduser().resolve(strict=True)
+    converted_path = args.converted_obb or args.converted_assets
+    converted_input = converted_path.expanduser().resolve(strict=True) if converted_path else None
     out = args.output.expanduser().absolute()
     if not inputs['steam_data'].is_dir() or not all(inputs[n].is_file() for n in (*PINS, 'crunch_decoder')):
         parser.error('Steam data must be a directory and other inputs must be files')
     if out.exists() or out.is_symlink() or not out.parent.is_dir():
         parser.error('output must be a new directory in an existing parent')
     out = out.parent.resolve() / out.name
-    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, converted_input, *inputs.values())):
+    if any(out.is_relative_to(p) or p.is_relative_to(out) for p in (ROOT, *([converted_input] if converted_input else []), *inputs.values())):
         parser.error('output must be separate from checkout and inputs')
     for name, expected in PINS.items():
         with inputs[name].open('rb') as f:
@@ -57,13 +59,17 @@ def main():
         with converted_input.open('rb') as f:
             if hashlib.file_digest(f, 'sha256').hexdigest() != 'bad3e899a7d75e7be6828261e04604f6d82c128296b0da125f4b48d0be0cdeb9':
                 parser.error('pinned input differs: converted-obb')
-    elif not converted_input.is_dir():
+    elif args.converted_assets and not converted_input.is_dir():
         parser.error('converted assets must be a directory')
     with tempfile.TemporaryDirectory(prefix='.openbonk-compact-chain-', dir=out.parent) as d:
         tmp = Path(d)
         steam, old_apk, old_obb, new_apk, new_obb, decoder = (inputs[n] for n in names)
         converted = converted_input
-        if args.converted_assets:
+        if args.rebuild_converted_assets:
+            converted_input = tmp/'converted-rebuilt'
+            run('tools/rebuild-legacy-converted-assets.py', '--steam-data', steam, '--old-apk', old_apk,
+                '--old-obb', old_obb, '--crunch-decoder', decoder, '--output', converted_input)
+        if args.converted_assets or args.rebuild_converted_assets:
             spec = importlib.util.spec_from_file_location('converted_assets', ROOT/'tools/legacy-converted-assets.py')
             mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
             converted = tmp/'converted-assets.zip'
