@@ -100,6 +100,67 @@ Shader "Toon/Lit Tri Planar Noise Blend" {
 			}
 			ENDCG
 		}
+		Pass {
+			Name "FORWARD_ADD"
+			Tags { "LightMode"="ForwardAdd" }
+			Blend One One
+			ZWrite Off
+			CGPROGRAM
+			#pragma vertex vertAdd
+			#pragma fragment fragAdd
+			#pragma multi_compile_fwdadd_fullshadows
+			#pragma multi_compile_fog
+			#include "UnityCG.cginc"
+			#include "Lighting.cginc"
+			#include "AutoLight.cginc"
+			sampler2D _MainTex, _TopTex2, _MainTexSide, _BelowYTexture, _Noise, _Ramp;
+			float4 _Color, _EdgeColor;
+			float _Scale, _SideScale, _NoiseScale, _TopNoiseScale, _TopTex2Intensity, _TopTex2BlendSize, _TopSpread, _EdgeWidth, _BelowYThreshold, _BelowYBlend;
+			struct addInput { float4 vertex : POSITION; float3 normal : NORMAL; };
+			struct addOutput {
+				float4 pos : SV_POSITION;
+				float3 worldPos : TEXCOORD0;
+				float3 normal : TEXCOORD1;
+				UNITY_FOG_COORDS(2)
+				UNITY_LIGHTING_COORDS(3, 4)
+			};
+			addOutput vertAdd(addInput v) {
+				addOutput o;
+				UNITY_INITIALIZE_OUTPUT(addOutput, o);
+				o.pos = UnityObjectToClipPos(v.vertex);
+				o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+				o.normal = UnityObjectToWorldNormal(v.normal);
+				UNITY_TRANSFER_FOG(o, o.pos);
+				UNITY_TRANSFER_LIGHTING(o, float2(0, 0));
+				return o;
+			}
+			float3 sampleAddTriplanar(sampler2D tex, float3 p, float scale, float3 weights) {
+				return tex2D(tex, p.yz * scale).rgb * weights.x + tex2D(tex, p.xz * scale).rgb * weights.y + tex2D(tex, p.xy * scale).rgb * weights.z;
+			}
+			float4 fragAdd(addOutput i) : SV_Target {
+				float3 n = i.normal;
+				float3 weights = n * n; weights *= weights; weights /= max(dot(weights, float3(1, 1, 1)), 1e-8);
+				float3 top = sampleAddTriplanar(_MainTex, i.worldPos, _Scale, weights);
+				float3 top2 = sampleAddTriplanar(_TopTex2, i.worldPos, _Scale, weights);
+				float topNoise = tex2D(_Noise, i.worldPos.xz * _TopNoiseScale).r;
+				float topBlend = _TopTex2BlendSize > 0.0 ? smoothstep(_TopTex2Intensity - _TopTex2BlendSize * .5, _TopTex2Intensity + _TopTex2BlendSize * .5, topNoise) : step(_TopTex2Intensity, topNoise);
+				top = lerp(top, top2, topBlend);
+				float3 side = sampleAddTriplanar(_MainTexSide, i.worldPos, _SideScale, weights);
+				float noise = tex2D(_Noise, i.worldPos.xz * _NoiseScale).r;
+				float blend = smoothstep(_TopSpread, _TopSpread + _EdgeWidth, n.y + noise * .5 - .25);
+				float3 albedo = lerp(side, top, blend) + _EdgeColor.rgb * blend * (1.0 - blend);
+				float below = 1.0 - smoothstep(_BelowYThreshold - _BelowYBlend * .5, _BelowYThreshold + _BelowYBlend * .5, i.worldPos.y);
+				albedo = lerp(albedo, tex2D(_BelowYTexture, i.worldPos.xz * _Scale).rgb, below) * _Color.rgb;
+				float3 lightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
+				float ndl = dot(n, lightDir) * .5 + .5;
+				float3 ramp = tex2D(_Ramp, ndl.xx).rgb;
+				UNITY_LIGHT_ATTENUATION(attenuation, i, i.worldPos);
+				float4 color = float4(albedo * ramp * _LightColor0.rgb * (2.0 * attenuation), 1.0);
+				UNITY_APPLY_FOG_COLOR(i.fogCoord, color, float4(0, 0, 0, 0));
+				return color;
+			}
+			ENDCG
+		}
 	}
 	Fallback "Diffuse"
 }
