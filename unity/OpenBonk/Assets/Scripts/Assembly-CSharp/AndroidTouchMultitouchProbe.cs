@@ -27,8 +27,9 @@ internal sealed class AndroidTouchMultitouchProbe : MonoBehaviour
         while (Time.realtimeSinceStartup < deadline && (overlay = GameObject.Find("Touch overlay")) == null) yield return null;
         if (overlay == null || EventSystem.current == null) { Debug.LogError("Touch multitouch probe INCONCLUSIVE: overlay unavailable"); yield break; }
         var stick = overlay.GetComponentsInChildren<AndroidTouchStick>().FirstOrDefault(s => !s.look);
+        var look = overlay.GetComponentsInChildren<AndroidTouchStick>().FirstOrDefault(s => s.look);
         var jump = overlay.GetComponentsInChildren<AndroidTouchButton>().FirstOrDefault(b => b.action == "Jump");
-        if (stick == null || jump == null) { Debug.LogError("Touch multitouch probe INCONCLUSIVE: controls unavailable"); yield break; }
+        if (stick == null || look == null || jump == null) { Debug.LogError("Touch multitouch probe INCONCLUSIVE: controls unavailable"); yield break; }
 
         var move = new PointerEventData(EventSystem.current) { pointerId = 101, position = RectTransformUtility.WorldToScreenPoint(null, stick.transform.position) };
         var press = new PointerEventData(EventSystem.current) { pointerId = 102, position = RectTransformUtility.WorldToScreenPoint(null, jump.transform.position) };
@@ -48,6 +49,22 @@ internal sealed class AndroidTouchMultitouchProbe : MonoBehaviour
         float releasedMove = MyInputManager.GetAxis(MyInputManager.MoveVertical);
         bool passed = simultaneousMove > .4f && simultaneousJump && releasedJump && remainingMove > .4f && Mathf.Abs(releasedMove) < .01f;
         Debug.Log($"Touch multitouch probe {(passed ? "PASS" : "FAIL")}: bothMove={simultaneousMove:F2} bothJump={simultaneousJump} jumpReleased={releasedJump} remainingMove={remainingMove:F2} releasedMove={releasedMove:F2}");
+
+        move.pointerId = 301;
+        ExecuteEvents.Execute(stick.gameObject, move, ExecuteEvents.pointerDownHandler);
+        move.position += Vector2.up * 40f;
+        ExecuteEvents.Execute(stick.gameObject, move, ExecuteEvents.dragHandler);
+        bool moveOnly = AndroidTouchInput.Move.magnitude > .4f && AndroidTouchInput.Look == Vector2.zero;
+        var camera = new PointerEventData(EventSystem.current) { pointerId = 302, position = RectTransformUtility.WorldToScreenPoint(null, look.transform.position) };
+        ExecuteEvents.Execute(look.gameObject, camera, ExecuteEvents.pointerDownHandler);
+        camera.position += Vector2.right * 90f;
+        ExecuteEvents.Execute(look.gameObject, camera, ExecuteEvents.dragHandler);
+        bool bothSticks = AndroidTouchInput.Move.magnitude > .4f && AndroidTouchInput.Look.x > .4f;
+        ExecuteEvents.Execute(stick.gameObject, move, ExecuteEvents.pointerUpHandler);
+        bool lookHeld = AndroidTouchInput.Move == Vector2.zero && AndroidTouchInput.Look.x > .4f;
+        ExecuteEvents.Execute(look.gameObject, camera, ExecuteEvents.pointerUpHandler);
+        bool bothReleased = AndroidTouchInput.Look == Vector2.zero;
+        Debug.Log($"Touch dual-stick probe {(moveOnly && bothSticks && lookHeld && bothReleased ? "PASS" : "FAIL")}: moveOnly={moveOnly} both={bothSticks} lookHeld={lookHeld} released={bothReleased}");
 
         // Android can interrupt a gesture without delivering pointer-up.
         // Exercise focus loss and make sure a new pointer can use the stick.

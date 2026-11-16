@@ -21,6 +21,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
     private bool appPaused;
     private string locale;
     private AndroidTouchButton[] buttons;
+    private AndroidTouchLayoutEditor layoutEditor;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Install()
@@ -118,6 +119,9 @@ internal sealed class AndroidTouchControls : MonoBehaviour
             CreateButton(safe, "MapOverlay", new Vector2(-420, 400), 110),
             CreateButton(safe, "Pause", new Vector2(-700, -75), 90, true)
         };
+        Canvas.ForceUpdateCanvases();
+        layoutEditor = overlay.AddComponent<AndroidTouchLayoutEditor>();
+        layoutEditor.Initialize(safe, buttons);
         locale = null;
         overlay.SetActive(false);
     }
@@ -189,13 +193,15 @@ internal sealed class AndroidTouchStick : MonoBehaviour, IPointerDownHandler, ID
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (AndroidTouchLayoutEditor.Editing) return;
         if (pointer != int.MinValue) return;
         pointer = eventData.pointerId;
         UpdatePosition(eventData);
     }
-    public void OnDrag(PointerEventData eventData) { if (eventData.pointerId == pointer) UpdatePosition(eventData); }
+    public void OnDrag(PointerEventData eventData) { if (!AndroidTouchLayoutEditor.Editing && eventData.pointerId == pointer) UpdatePosition(eventData); }
     public void OnPointerUp(PointerEventData eventData) { if (eventData.pointerId == pointer) Release(); }
     private void OnDisable() { Release(); }
+    internal void ResetPointer() { Release(); }
 
     private void UpdatePosition(PointerEventData eventData)
     {
@@ -226,6 +232,7 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (AndroidTouchLayoutEditor.Editing) return;
         if (pointer != int.MinValue) return;
         pointer = eventData.pointerId;
         if (action == "Pause")
@@ -237,10 +244,181 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
     }
     public void OnPointerUp(PointerEventData eventData) { if (eventData.pointerId == pointer) Release(); }
     private void OnDisable() { Release(); }
+    internal void ResetPointer() { Release(); }
     private void Release()
     {
         pointer = int.MinValue;
         if (action != "Pause") AndroidTouchInput.SetButton(action, false);
+    }
+}
+
+// A small in-game editor is available while the touch overlay is visible.
+// Positions are relative to the safe area, so they survive resolution changes.
+internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
+{
+    private const string Prefix = "openbonk.touch.layout.";
+    internal static bool Editing { get; private set; }
+    private RectTransform safe;
+    private AndroidTouchButton[] buttons;
+    private AndroidTouchLayoutTarget[] targets;
+    private AndroidTouchLayoutTarget selected;
+    private AndroidTouchButton swapFrom;
+    private GameObject toolbar;
+    private TextMeshProUGUI selectedLabel;
+    private bool Spanish => (LocalizationSettings.SelectedLocale?.Identifier.Code ?? "en").StartsWith("es", StringComparison.OrdinalIgnoreCase);
+
+    internal void Initialize(RectTransform area, AndroidTouchButton[] actionButtons)
+    {
+        safe = area; buttons = actionButtons;
+        var list = new System.Collections.Generic.List<AndroidTouchLayoutTarget>();
+        foreach (var stick in safe.GetComponentsInChildren<AndroidTouchStick>()) AddTarget(list, (RectTransform)stick.transform, stick.name, null);
+        foreach (var button in buttons)
+        {
+            string id = button.action;
+            string mapped = PlayerPrefs.GetString(Prefix + id + ".action", id);
+            if (IsRemappable(id) && IsRemappable(mapped)) button.action = mapped;
+            AddTarget(list, (RectTransform)button.transform, id, button);
+        }
+        targets = list.ToArray();
+        MakeButton(safe, "Customize", new Vector2(92, -58), new Vector2(166, 76), () => StartEditing(), false);
+        toolbar = new GameObject("Touch layout toolbar", typeof(RectTransform));
+        var bar = (RectTransform)toolbar.transform; bar.SetParent(safe, false);
+        bar.anchorMin = bar.anchorMax = new Vector2(.5f, 1); bar.pivot = new Vector2(.5f, 1);
+        bar.anchoredPosition = new Vector2(0, -12); bar.sizeDelta = new Vector2(1000, 160);
+        MakeButton(bar, "Done", new Vector2(-370, -45), new Vector2(155, 76), FinishEditing, true);
+        MakeButton(bar, "Reset", new Vector2(-195, -45), new Vector2(155, 76), ResetLayout, true);
+        MakeButton(bar, "−", new Vector2(-20, -45), new Vector2(110, 76), () => Resize(.9f), true);
+        MakeButton(bar, "+", new Vector2(110, -45), new Vector2(110, 76), () => Resize(1.1f), true);
+        MakeButton(bar, "Swap", new Vector2(260, -45), new Vector2(150, 76), StartSwap, true);
+        var text = new GameObject("Selection", typeof(RectTransform), typeof(TextMeshProUGUI));
+        var rect = (RectTransform)text.transform; rect.SetParent(bar, false); rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1);
+        rect.anchoredPosition = new Vector2(0, -120); rect.sizeDelta = new Vector2(900, 60);
+        selectedLabel = text.GetComponent<TextMeshProUGUI>(); selectedLabel.font = TMP_Settings.defaultFontAsset;
+        selectedLabel.fontSize = 25; selectedLabel.alignment = TextAlignmentOptions.Center; selectedLabel.raycastTarget = false;
+        toolbar.SetActive(false);
+    }
+
+    private void AddTarget(System.Collections.Generic.List<AndroidTouchLayoutTarget> list, RectTransform rect, string id, AndroidTouchButton button)
+    {
+        var target = rect.gameObject.AddComponent<AndroidTouchLayoutTarget>(); target.Setup(this, safe, id, button, Prefix); list.Add(target);
+    }
+    private static bool IsRemappable(string action) => action == "Jump" || action == "Slide" || action == "Interact" || action == "Aim" || action == "MapOverlay";
+    private void StartEditing()
+    {
+        foreach (var stick in safe.GetComponentsInChildren<AndroidTouchStick>()) stick.ResetPointer();
+        foreach (var button in buttons) button.ResetPointer();
+        AndroidTouchInput.ReleaseAll(); Editing = true; selected = null; swapFrom = null; toolbar.SetActive(true); Refresh();
+    }
+    private void FinishEditing() { Editing = false; swapFrom = null; toolbar.SetActive(false); AndroidTouchInput.ReleaseAll(); PlayerPrefs.Save(); }
+    private void OnDisable() { if (Editing) FinishEditing(); }
+    private void OnDestroy() { Editing = false; }
+    internal void Select(AndroidTouchLayoutTarget target)
+    {
+        selected = target;
+        if (swapFrom != null && target.Button != null && target.Button != swapFrom && IsRemappable(target.Button.action))
+        {
+            string action = swapFrom.action; swapFrom.action = target.Button.action; target.Button.action = action;
+            foreach (var t in targets) if (t.Button != null && IsRemappable(t.Id)) PlayerPrefs.SetString(Prefix + t.Id + ".action", t.Button.action);
+            foreach (var b in buttons) b.RefreshLabel();
+            swapFrom = null;
+        }
+        Refresh();
+    }
+    private void StartSwap() { swapFrom = selected?.Button; if (swapFrom != null && !IsRemappable(swapFrom.action)) swapFrom = null; Refresh(); }
+    private void Resize(float factor) { if (selected != null) selected.Resize(factor); Refresh(); }
+    private void ResetLayout()
+    {
+        swapFrom = null; foreach (var target in targets) target.ResetLayout();
+        foreach (var button in buttons) button.RefreshLabel(); PlayerPrefs.Save(); Refresh();
+    }
+    private void Refresh()
+    {
+        if (selectedLabel == null) return;
+        selectedLabel.text = swapFrom != null ? (Spanish ? "Toca otro botón para intercambiar" : "Tap another button to swap") :
+            (selected == null ? (Spanish ? "Arrastra un control para moverlo" : "Drag a control to move it") :
+            (AndroidControlText.TouchAction(selected.Button?.action) ?? selected.Id) + "  ·  " + (Spanish ? "Tamaño" : "Size") + " " + Mathf.RoundToInt(selected.Scale * 100) + "%");
+    }
+    private void MakeButton(RectTransform parent, string id, Vector2 position, Vector2 size, UnityEngine.Events.UnityAction click, bool center)
+    {
+        var obj = new GameObject(id, typeof(RectTransform), typeof(Image), typeof(Button));
+        var rect = (RectTransform)obj.transform; rect.SetParent(parent, false);
+        rect.anchorMin = rect.anchorMax = center ? new Vector2(.5f, 1) : new Vector2(0, 1); rect.anchoredPosition = position; rect.sizeDelta = size;
+        obj.GetComponent<Image>().color = new Color(.06f, .1f, .12f, .92f); obj.GetComponent<Button>().onClick.AddListener(click);
+        var child = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI)); var tr = (RectTransform)child.transform;
+        tr.SetParent(rect, false); tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.offsetMin = tr.offsetMax = Vector2.zero;
+        var label = child.GetComponent<TextMeshProUGUI>(); label.font = TMP_Settings.defaultFontAsset; label.fontSize = 24; label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
+        label.text = Spanish ? (id == "Customize" ? "Editar" : id == "Done" ? "Listo" : id == "Reset" ? "Reiniciar" : id == "Swap" ? "Cambiar" : id) : (id == "Customize" ? "Edit" : id);
+    }
+}
+
+internal sealed class AndroidTouchLayoutTarget : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
+{
+    internal string Id { get; private set; }
+    internal AndroidTouchButton Button { get; private set; }
+    internal float Scale => ((RectTransform)transform).localScale.x;
+    private AndroidTouchLayoutEditor editor;
+    private RectTransform safe, rect;
+    private string prefix;
+    private Vector2 originalPosition, originalAnchor;
+    private int pointer = int.MinValue;
+    private Vector2 dragOffset;
+    internal void Setup(AndroidTouchLayoutEditor owner, RectTransform area, string id, AndroidTouchButton button, string key)
+    {
+        editor = owner; safe = area; rect = (RectTransform)transform; Id = id; Button = button; prefix = key + id + ".";
+        originalPosition = rect.anchoredPosition; originalAnchor = rect.anchorMin;
+        float scale = PlayerPrefs.GetFloat(prefix + "scale", 1); if (float.IsNaN(scale) || float.IsInfinity(scale)) scale = 1;
+        rect.localScale = Vector3.one * Mathf.Clamp(scale, .5f, 1.8f);
+        if (PlayerPrefs.HasKey(prefix + "x") && PlayerPrefs.HasKey(prefix + "y"))
+        {
+            float x = PlayerPrefs.GetFloat(prefix + "x"), y = PlayerPrefs.GetFloat(prefix + "y");
+            if (!float.IsNaN(x) && !float.IsInfinity(x) && !float.IsNaN(y) && !float.IsInfinity(y)) SetNormalized(new Vector2(x, y));
+        }
+    }
+    public void OnPointerDown(PointerEventData e)
+    {
+        if (!AndroidTouchLayoutEditor.Editing || pointer != int.MinValue) return;
+        pointer = e.pointerId; editor.Select(this);
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(safe, e.position, e.pressEventCamera, out var local)) dragOffset = (Vector2)safe.InverseTransformPoint(rect.position) - local;
+    }
+    public void OnDrag(PointerEventData e)
+    {
+        if (!AndroidTouchLayoutEditor.Editing || pointer != e.pointerId) return;
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(safe, e.position, e.pressEventCamera, out var local)) return;
+        Vector2 pos = local + dragOffset; Rect bounds = safe.rect;
+        if (bounds.width <= 0 || bounds.height <= 0) return;
+        SetNormalized(new Vector2((pos.x - bounds.xMin) / bounds.width, (pos.y - bounds.yMin) / bounds.height)); SavePosition();
+    }
+    public void OnPointerUp(PointerEventData e) { if (e.pointerId == pointer) pointer = int.MinValue; }
+    private void OnDisable() { pointer = int.MinValue; }
+    private void SetNormalized(Vector2 value)
+    {
+        float width = safe.rect.width, height = safe.rect.height;
+        if (width <= 0 || height <= 0) return;
+        float halfX = Mathf.Min(.5f, rect.rect.width * Scale / (2f * width));
+        float halfY = Mathf.Min(.5f, rect.rect.height * Scale / (2f * height));
+        value = new Vector2(Mathf.Clamp(value.x, halfX, 1f - halfX), Mathf.Clamp(value.y, halfY, 1f - halfY)); rect.anchorMin = rect.anchorMax = Vector2.zero;
+        rect.anchoredPosition = new Vector2(value.x * safe.rect.width, value.y * safe.rect.height);
+    }
+    private void SavePosition()
+    {
+        if (safe.rect.width <= 0 || safe.rect.height <= 0) return;
+        PlayerPrefs.SetFloat(prefix + "x", Mathf.Clamp01(rect.anchoredPosition.x / safe.rect.width));
+        PlayerPrefs.SetFloat(prefix + "y", Mathf.Clamp01(rect.anchoredPosition.y / safe.rect.height));
+    }
+    internal void Resize(float factor)
+    {
+        Vector2 local = safe.InverseTransformPoint(rect.position); Rect bounds = safe.rect;
+        rect.localScale = Vector3.one * Mathf.Clamp(Scale * factor, .5f, 1.8f); PlayerPrefs.SetFloat(prefix + "scale", Scale);
+        if (bounds.width > 0 && bounds.height > 0)
+        {
+            SetNormalized(new Vector2((local.x - bounds.xMin) / bounds.width, (local.y - bounds.yMin) / bounds.height)); SavePosition();
+        }
+    }
+    internal void ResetLayout()
+    {
+        rect.anchorMin = rect.anchorMax = originalAnchor; rect.anchoredPosition = originalPosition; rect.localScale = Vector3.one;
+        PlayerPrefs.DeleteKey(prefix + "x"); PlayerPrefs.DeleteKey(prefix + "y"); PlayerPrefs.DeleteKey(prefix + "scale"); PlayerPrefs.DeleteKey(prefix + "action");
+        if (Button != null) Button.action = Id;
     }
 }
 #endif
