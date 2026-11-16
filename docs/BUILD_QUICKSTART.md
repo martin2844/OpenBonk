@@ -23,6 +23,14 @@ python3.13 -m venv .venv
 .venv/bin/python -m pip install -r tools/requirements-conversion.txt
 ```
 
+To check the included Python tools before a long build, run:
+
+```sh
+.venv/bin/python -m unittest discover -s tools/tests
+```
+
+The suite uses temporary fixtures and does not build the APK or check gameplay. On the tested NixOS host it required `steam-run` before the Python command so that native libraries could load. With that wrapper, 336 tests passed at commit `29bd61d`; this is not a substitute for the build and device checks below.
+
 In Bash, replace the example paths below. `OPENBONK_OUTPUT` must be a new path outside the checkout and game installations. The optional Windows directory must contain `Megabonk_Data`; omit the `--windows-game` line for a Linux-only research APK.
 
 ```sh
