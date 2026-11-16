@@ -17,6 +17,39 @@ ROOT = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location('audio_inspect', ROOT / 'tools/inspect-packed-steam-audio.py')
 audio = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audio)
+spec = importlib.util.spec_from_file_location('packed_audio', ROOT / 'tools/experimental-packed-steam-audio.py')
+packed_audio = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(packed_audio)
+
+
+def normalize_video_offsets(before, after, old_resource, new_resource, group, prior, current):
+    """Validate relocated video payloads before normalizing their offsets."""
+    if prior.keys() != current.keys():
+        raise ValueError('video objects changed')
+    normalized = bytearray(after)
+    for key, old_obj in prior.items():
+        new_obj = current[key]
+        old = old_obj.read_typetree()['m_ExternalResources']
+        new = new_obj.read_typetree()['m_ExternalResources']
+        if old['m_Source'] != new['m_Source'] or old['m_Size'] != new['m_Size']:
+            raise ValueError('video resource metadata changed')
+        if not old['m_Source'] and not old['m_Size']:
+            continue
+        source, size = old['m_Source'], old['m_Size']
+        old_offset, new_offset = old['m_Offset'], new['m_Offset']
+        if (source != group + '.resource' or type(size) is not int or size <= 0 or
+                type(old_offset) is not int or type(new_offset) is not int or
+                old_offset < 0 or new_offset < 0 or old_offset + size > len(old_resource) or
+                new_offset + size > len(new_resource)):
+            raise ValueError('video resource range is invalid')
+        if old_resource[old_offset:old_offset + size] != new_resource[new_offset:new_offset + size]:
+            raise ValueError('video payload changed')
+        old_field = old_obj.byte_start + packed_audio.video_offset_field(old_obj.get_raw_data(), source, old_offset, size)
+        new_field = new_obj.byte_start + packed_audio.video_offset_field(new_obj.get_raw_data(), source, new_offset, size)
+        if old_field != new_field:
+            raise ValueError('video object layout changed')
+        normalized[new_field:new_field + 8] = before[old_field:old_field + 8]
+    return normalized
 
 
 def wave_properties(data, channels, frequency):
@@ -55,13 +88,17 @@ def main():
             b = audio.split_data(after, group)
             if len(a) != len(b):
                 raise ValueError('asset length changed')
-            prior = {o.path_id: o for o in UnityPy.load(a).objects if o.type.name == 'AudioClip'}
-            current = {o.path_id: o for o in UnityPy.load(b).objects if o.type.name == 'AudioClip'}
+            old_objects = UnityPy.load(a).objects
+            new_objects = UnityPy.load(b).objects
+            prior = {o.path_id: o for o in old_objects if o.type.name == 'AudioClip'}
+            current = {o.path_id: o for o in new_objects if o.type.name == 'AudioClip'}
             if prior.keys() != current.keys():
                 raise ValueError('audio objects changed')
             old_resource = before.read(audio.PREFIX + group + '.resource')
             new_resource = after.read(audio.PREFIX + group + '.resource')
-            normalized = bytearray(b)
+            normalized = normalize_video_offsets(a, b, old_resource, new_resource, group,
+                {o.path_id: o for o in old_objects if o.type.name == 'VideoClip'},
+                {o.path_id: o for o in new_objects if o.type.name == 'VideoClip'})
             for key, obj in prior.items():
                 old, new = obj.read(), current[key].read()
                 x, y = old.m_Resource, new.m_Resource
