@@ -177,6 +177,18 @@ tests do not establish a clean Unity build, Windows import through the
 combined APK, all languages or complete gameplay parity. Outputs remain
 private because they still contain game assets.
 
+The experimental `--normal-block-fallback` option requires `--normal-fallback`
+and `--partial-etc2-byte`. For three known ETC2 RGB normal maps, it tries the
+fast and quality Steam-derived encoders separately for each 4×4 block and
+only substitutes a changed block when every decoded normal direction stays
+within 10 degrees of the existing image. An unchanged encoded block is kept
+even if its decoded vector is degenerate; blocks for which neither candidate
+passes stay byte-identical. Linux and Windows local studies produced matching
+converted OBB hashes, with 11,437 eligible and 856 preserved unsafe blocks.
+The selected images are approximations, not byte-identical reconstructions.
+The measured angle bound does not prove equivalent in-game shading; the stage
+and any resulting APK must remain private pending further validation.
+
 The opt-in `--localization-small` option (requiring `--localization-cab`)
 also matches byte-identical fragments down to 12 bytes. In an isolated study,
 Linux and Windows templates each masked 969,444 nonzero CAB bytes, 40,100 more

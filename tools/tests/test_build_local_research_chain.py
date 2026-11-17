@@ -14,6 +14,14 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_normal_block_stage_feeds_all_downstream_plans(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp)); args.normal_block_fallback = True
+            commands = dict(module.commands(args)); expected = str(args.output/'normal-block-study/converted.obb')
+            self.assertIn(expected, commands['individual audio plan'])
+            self.assertIn(expected, commands['restore and verify individual audio'])
+            self.assertIn(str(args.host_library), commands['bounded normal blocks'])
+
     def test_localization_stage_precedes_partial_and_binds_packager_inputs(self):
         with tempfile.TemporaryDirectory() as temp:
             args = self.args(Path(temp)); args.partial_rgba = True; args.localization_cab = True; args.localization_small = True
