@@ -190,8 +190,8 @@ The measured angle bound does not prove equivalent in-game shading; the stage
 and any resulting APK must remain private pending further validation.
 
 The experimental `--color-block-fallback` option requires `--partial-etc2-byte`.
-It handles the specifically identified `FBX_Barrel_Color` and `t_birdo_blue`
-textures, selecting a Steam source only when it is unambiguous under the
+Its initial version handled the specifically identified `FBX_Barrel_Color` and
+`t_birdo_blue` textures, selecting a Steam source only when it was unambiguous under the
 existing metadata or partial-byte checks. For every substituted 4×4 block,
 the decoded candidate must satisfy both the quality and alpha/visible-pixel
 limits; unsafe blocks stay byte-identical. The option rejects missing,
@@ -203,6 +203,16 @@ all 1,072 expected entries from its respective Steam ZIP. These are bounded
 approximations, not pixel-identical textures; the complete launcher, rendering
 and all game content were not tested with this option. The output remains
 private and still contains game data.
+
+The option also covers `B_Pylon_Color` and `B_Pylon_Emission` in
+`sharedassets4`, subject to the same source and block checks. A focused Linux
+study masked 11,994 nonzero bytes in these two payloads versus 10,273 before
+the substitution. Linux and Windows source data produced the same converted
+OBB; focused Linux and Windows plans each restored all 1,072 expected entries
+on a Retroid Pocket 5. The independent clean-clone OBB also accepted the four
+targets. These pixel bounds do not establish equivalent emissive shading or visual behavior.
+The extended option has not been tested in a complete launcher build; the
+results and remaining templates contain game data and stay private.
 
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture

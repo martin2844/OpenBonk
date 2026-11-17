@@ -19,7 +19,9 @@ partial = normal.partial
 
 # Unity can assign different path IDs across otherwise equivalent exports.
 TARGETS = {('sharedassets1.assets', 'FBX_Barrel_Color'): (128, 128, 8, 1, 45),
-           ('sharedassets1.assets', 't_birdo_blue'): (128, 128, 8, 1, 45)}
+           ('sharedassets1.assets', 't_birdo_blue'): (128, 128, 8, 1, 45),
+           ('sharedassets4.assets', 'B_Pylon_Color'): (128, 128, 8, 1, 45),
+           ('sharedassets4.assets', 'B_Pylon_Emission'): (128, 128, 8, 1, 45)}
 
 
 def identify_target(group, target, seen):
