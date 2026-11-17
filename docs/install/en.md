@@ -58,7 +58,7 @@ To back up Android progress, close the game completely, open the launcher and se
 
 ## Troubleshooting
 
-- **Incompatible ZIP:** select `Megabonk_Data` from a complete installation and a supported game version. Steam updates may change files checked by the launcher.
+- **Incompatible ZIP or `Unsupported or damaged file: sharedassets1.assets`:** the file in the ZIP does not match the data supported by this beta. The game version may differ, the files may have been modified, or the ZIP may be damaged. Verify Megabonk's installed files in Steam, then create a new ZIP from that installation's `Megabonk_Data` folder. Back up PC mods before verifying. The smaller-ZIP helper in this guide also checks the files before transfer. If the error persists, report the game version, whether the copy is for Windows or Linux, and how you created the ZIP. Do not share game files or saves.
 - **Not enough space:** free space and try again. The launcher does not yet calculate total space requirements in advance.
 - **Text import fails at launch:** reopen the game to retry while the pending ZIP remains cached. If Android cleared the cache, select the ZIP again.
 - **APK will not install over another version:** its signature or application ID may differ. Back up any progress you want to keep before uninstalling an existing app.

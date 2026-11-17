@@ -56,7 +56,7 @@ Para respaldar el progreso de Android, cerrá completamente el juego, abrí el l
 
 ## Si algo falla
 
-- **ZIP incompatible:** comprobá que seleccionaste la carpeta `Megabonk_Data` de una instalación completa y una versión admitida. Actualizaciones de Steam pueden cambiar archivos que el launcher valida.
+- **ZIP incompatible o `Unsupported or damaged file: sharedassets1.assets`:** el archivo del ZIP no coincide con los datos que admite esta beta. Puede tratarse de otra versión del juego, archivos modificados o un ZIP dañado. En Steam, verificá la integridad de los archivos de Megabonk y volvé a crear el ZIP desde la carpeta `Megabonk_Data` de esa instalación. Si usás mods en la PC, respaldalos antes de verificar. También podés usar el asistente de ZIP reducido de este documento: valida los archivos antes de copiarlos al teléfono. Si el error continúa, indicá la versión del juego, si la copia es de Windows o Linux y cómo creaste el ZIP; no compartas el ZIP ni tu partida.
 - **Falta de espacio:** liberá espacio e intentá de nuevo. El launcher todavía no calcula por adelantado el espacio total necesario.
 - **Falla la importación de textos al iniciar:** volvé a abrir el juego para reintentar mientras el ZIP pendiente siga en la caché. Si Android limpió esa caché, seleccioná de nuevo tu ZIP.
 - **La APK no se instala sobre otra versión:** la firma o el identificador pueden diferir. No desinstales una app con progreso que quieras conservar sin haber hecho primero un respaldo.
