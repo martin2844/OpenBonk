@@ -34,6 +34,13 @@ incompatible ZIP and displayed its expected three-byte size and hash prefix;
 the temporary app and ZIP were removed. This makes reports possible without a
 PC, but does not add support for a different game version.
 
+An additional opt-in `--partial-emission1-alias` study selects a uniquely
+matched Steam texture and removes only byte-identical fragments. In the
+corrected Linux and Windows study templates, nonzero inline texture bytes
+fell from 42,211 to 36,962. Desktop Java restored all 1,072 entries with
+both ZIPs and rejected an invalid plan hash. This option has not yet been
+validated on Android or in an integrated APK.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
