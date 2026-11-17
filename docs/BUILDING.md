@@ -158,6 +158,13 @@ import, close-up normal-map appearance, a comparison with the original,
 other GPUs or full gameplay. The APK still contains other game-derived
 data and remains private.
 
+The private single-platform chest-study launcher also imported the Linux
+ZIP on the Xiaomi and produced the expected OBB SHA-256. The game then
+reached its main menu. The isolated app and copied ZIP were removed.
+This complements the preloaded-OBB Forest smoke test above; it does not
+verify Windows import on Android, close-up normal-map appearance or full
+gameplay parity.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
