@@ -41,6 +41,19 @@ fell from 42,211 to 36,962. Desktop Java restored all 1,072 entries with
 both ZIPs and rejected an invalid plan hash. This option has not yet been
 validated on Android or in an integrated APK.
 
+A combined local Android research APK built from the corrected orientation
+plans restored the expected OBB exactly from each compatible Linux and
+Windows ZIP in an independent desktop check. Its 173 checked launcher Java
+sources matched the checkout; the generated checksum placeholder was
+excluded. On a Xiaomi 22126RN91Y, an isolated installation with a
+preloaded OBB reached the game main menu. The installation was removed.
+This did not exercise interactive ZIP import or gameplay. For each of the
+two packaged templates, the inline audit found 42,211 nonzero bytes in
+1,157 textures and 22 nonzero bytes in 229 animation sample arrays, with
+no skipped records in those categories. Other data is not covered; the APK
+contains game-derived data and must remain private. The Emission alias
+study above was not enabled in this combined APK.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
