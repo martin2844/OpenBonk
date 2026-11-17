@@ -149,6 +149,15 @@ bytes larger than the former ETC2 payload. All 549 Python tests passed.
 This does not prove absence of other game assets, Unity Android loading,
 normal-map rendering or gameplay parity. Keep outputs private.
 
+A private launcher using the reserialized chest study and a preloaded
+reconstructed OBB ran on a Xiaomi 22126RN91Y. Unity reached the menu and
+a brief Forest run with Fox and 18 recorded enemy defeats; no Unity
+error entries were found in the captured recent log. The isolated app
+was removed. This tests loading the altered OBB, not interactive ZIP
+import, close-up normal-map appearance, a comparison with the original,
+other GPUs or full gameplay. The APK still contains other game-derived
+data and remains private.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
