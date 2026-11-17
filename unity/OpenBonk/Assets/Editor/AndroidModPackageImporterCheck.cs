@@ -45,6 +45,10 @@ public static class AndroidModPackageImporterCheck
             string multi = "{\"id\":\"test-mod\",\"api\":2,\"hooks\":[\"move_speed_multiplier\",\"damage_multiplier\"]}";
             using (var zip = Zip("manifest.json", multi, "main.lua", "return {1.25, 1.5}"))
                 Require(AndroidModPackageImporter.Install(zip, root + "-multi") == "test-mod", "multi-hook package");
+            string tome = "{\"id\":\"test-mod\",\"api\":1,\"hook\":\"starting_tome:Luck\"}";
+            using (var zip = Zip("manifest.json", tome, "main.lua", "return {10000,99}"))
+                Require(AndroidModPackageImporter.Install(zip, root + "-tome") == "test-mod", "starting tome package");
+            Reject(root + "-bad-tome", "manifest.json", tome.Replace("starting_tome:Luck", "starting_tome:13"), "main.lua", "return {10000,99}");
             string invalidRoot = root + "-invalid";
             Reject(invalidRoot, "manifest.json", multi.Replace("damage_multiplier", "move_speed_multiplier"), "main.lua", "return {1, 1}");
             Reject(invalidRoot, "manifest.json", multi.Replace("damage_multiplier", "bad_hook"), "main.lua", "return {1, 1}");
@@ -65,6 +69,8 @@ public static class AndroidModPackageImporterCheck
             if (Directory.Exists(root + "-damage")) Directory.Delete(root + "-damage", true);
             if (Directory.Exists(root + "-multi")) Directory.Delete(root + "-multi", true);
             if (Directory.Exists(root + "-invalid")) Directory.Delete(root + "-invalid", true);
+            if (Directory.Exists(root + "-tome")) Directory.Delete(root + "-tome", true);
+            if (Directory.Exists(root + "-bad-tome")) Directory.Delete(root + "-bad-tome", true);
         }
     }
 }

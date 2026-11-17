@@ -13,6 +13,10 @@ public final class UnlockImportCheck {
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","unlock_all_bad")), "unknown hook rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hooks",new org.json.JSONArray().put("unlock_all"))), "wrong API rejected");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","collect_spawned_xp")), "XP pickup hook accepted");
+        require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","starting_tome:Luck")), "starting tome accepted");
+        require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","starting_tome:13")), "numeric tome rejected");
+        require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","starting_tome:luck")), "wrong case rejected");
+        require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","starting_tome:Luck")), "wrong tome API rejected");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","damage_multiplier")), "legacy hook still accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hooks",new org.json.JSONArray().put("stat_add:Luck"))), "stat hook still accepted");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hooks",new org.json.JSONArray().put("stat_add:Luck").put("stat_add:Luck"))), "duplicate stat hooks rejected");
@@ -42,6 +46,19 @@ public final class UnlockImportCheck {
             }
             require(LauncherModImporter.install(new ByteArrayInputStream(instantBuffer.toByteArray()), root.toFile(), prefs).equals("instant-collect"), "instant XP package install");
             require(!prefs.getBoolean("instant-collect", true), "instant XP import defaults disabled");
+            Path lucky = Paths.get(args[2]);
+            ByteArrayOutputStream luckyBuffer = new ByteArrayOutputStream();
+            try (ZipOutputStream luckyZip = new ZipOutputStream(luckyBuffer)) {
+                for (String name : new String[]{"manifest.json", "main.lua"}) {
+                    luckyZip.putNextEntry(new ZipEntry(name)); luckyZip.write(Files.readAllBytes(lucky.resolve(name))); luckyZip.closeEntry();
+                }
+            }
+            require(LauncherModImporter.install(new ByteArrayInputStream(luckyBuffer.toByteArray()), root.toFile(), prefs).equals("lucky-tome"), "starting tome package import");
+            require(!prefs.getBoolean("lucky-tome", true), "starting tome initially disabled");
+            prefs.edit().putBoolean("lucky-tome", true).commit();
+            require(prefs.getBoolean("lucky-tome", false), "starting tome enabled");
+            prefs.edit().putBoolean("lucky-tome", false).commit();
+            require(!prefs.getBoolean("lucky-tome", true), "starting tome disabled");
             System.out.println("PASS startup hook validation, ZIP imports and enable/disable preferences");
         } finally {
             try (var paths = Files.walk(temporary)) {

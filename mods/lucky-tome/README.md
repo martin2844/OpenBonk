@@ -1,0 +1,7 @@
+# Lucky Tome (experimental)
+
+An independently written Lua mod inspired by [LuckyMan](https://thunderstore.io/c/megabonk/p/Semibox/LuckyMan/). No original code or assets are included; no upstream license was identified.
+
+At player spawn it adds the Luck tome with a flat +10,000 Luck and 98 additional Legendary upgrades with empty modifiers. The delivery occurs only once per inventory, so stage transitions cannot duplicate the bonus. This differs from the observed original spawn patch, which has no equivalent guard. New runs get their own tome. Turning the mod off and restarting stops it affecting future runs; existing in-progress inventories are not retroactively changed.
+
+Requires a future OpenBonk runtime with the `starting_tome:Luck` hook; 0.1.4 does not support this mod. It is not in the public catalog. A Xiaomi IL2CPP diagnostic build loaded the independently written Lua policy in a Forest run and observed Luck tome level 99 and bonus 10,000. After disabling it through the diagnostic manifest and restarting, a new run had no Luck tome or bonus. An Editor test verifies one grant for repeated calls on the same inventory, a separate grant for a new inventory and exactly 99 normal upgrade events. The launcher importer accepted the package in a JVM harness, but the future integrated launcher and preference persistence have not been tested on Android. Normal in-game actions, including the original tome upgrade events, may still change progress; the mod does not directly edit a profile.

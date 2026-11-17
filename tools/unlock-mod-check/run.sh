@@ -7,4 +7,4 @@ src="$repo/unity/OpenBonk/Assets/AndroidSplitLauncher"
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 "$jdk/javac" -cp "$json" -d "$out" "$repo/tools/mod-recovery-check/android/content/SharedPreferences.java" "$repo/tools/mod-recovery-check/com/megabonk/launcher/RecoveryCheck.java" "$repo/tools/unlock-mod-check/SplitDataLauncher.java" "$repo/tools/unlock-mod-check/UnlockImportCheck.java" "$src/LauncherModHookValidation.java" "$src/LauncherModImporter.java" "$src/LauncherModIntegrity.java" "$src/LauncherModRecovery.java" "$src/LauncherContentImporter.java"
-"$jdk/java" -cp "$out:$json" com.megabonk.launcher.UnlockImportCheck "$repo/mods/unlock-everything" "$repo/mods/instant-collect"
+"$jdk/java" -cp "$out:$json" com.megabonk.launcher.UnlockImportCheck "$repo/mods/unlock-everything" "$repo/mods/instant-collect" "$repo/mods/lucky-tome"

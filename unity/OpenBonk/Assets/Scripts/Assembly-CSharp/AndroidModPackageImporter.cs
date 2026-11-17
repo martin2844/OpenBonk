@@ -60,7 +60,7 @@ public static class AndroidModPackageImporter
         Manifest manifest;
         try { manifest = JsonUtility.FromJson<Manifest>(StrictUtf8.GetString(manifestBytes)); }
         catch (Exception e) { throw new InvalidDataException("Invalid manifest", e); }
-        if (manifest == null || !ValidId(manifest.id) || !AndroidModHooks.TryGetStats(manifest.api, manifest.hook, manifest.hooks, out _) ||
+        if (manifest == null || !ValidId(manifest.id) || (!AndroidModHooks.TryGetStats(manifest.api, manifest.hook, manifest.hooks, out _) && !OpenBonkStartingTomes.TryParseHook(manifest.api, manifest.hook, out _)) ||
             (!string.IsNullOrEmpty(prefix) && prefix != manifest.id))
             throw new InvalidDataException("Unsupported manifest or package ID");
         string script = StrictUtf8.GetString(scriptBytes);

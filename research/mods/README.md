@@ -30,10 +30,10 @@ The table excludes deprecated packages and the three platform-wide loaders/manag
 
 ## Porting status
 
-### Compatibility inventory for beta 0.1.3
+### Compatibility inventory for beta 0.1.4
 
 The rank, download counts and package links in the table above identify these
-20 single-player candidates and the excluded multiplayer entry. This is a feasibility review, not a device test of these mods.
+20 single-player candidates and the excluded multiplayer entry. This is a feasibility review; only the explicitly described adaptations have been tested on a device.
 “Unknown” means no license was established for the package; GitHub's detected
 source-code license does not establish rights to third-party models or audio.
 Multiplayer is excluded by request.
@@ -41,7 +41,7 @@ Multiplayer is excluded by request.
 | Rank | Function | Source license evidence | Missing capability / result |
 | ---: | --- | --- | --- |
 | 1 | Load custom characters | [MIT source](https://github.com/PeterMoras/MEGABONK_CustomCharacterLoader/blob/main/LICENSE) | Existing API 3 supports a subset; PC bundles, weapons and arbitrary character behavior need conversion and more runtime APIs. |
-| 2 | Unlock characters, skins and items | [MIT source](https://github.com/lukeod/megabonk_unlockEverything/blob/main/LICENSE) | [Experimental Lua port](../../mods/unlock-everything/) needs the new unlock query hook, not present in 0.1.3. Android menu, restart and short run tested; final launcher import remains untested. |
+| 2 | Unlock characters, skins and items | [MIT source](https://github.com/lukeod/megabonk_unlockEverything/blob/main/LICENSE) | [Experimental Lua port](../../mods/unlock-everything/) is available in the 0.1.4 catalog. Remote import, enable/disable, menu and a short run were tested on an isolated Android build. |
 | 3 | Multiplayer | Unknown | Excluded. |
 | 4 | Add selected items through a menu | Unknown | Needs inventory insertion and in-game UI. |
 | 5 | Goth Witch Noelle character | Unknown; model rights unverified | Windows bundle, custom character/weapon behavior and asset rights need review. |
@@ -53,8 +53,8 @@ Multiplayer is excluded by request.
 | 11 | Search and spawn items, including bulk actions | Unknown | Needs inventory insertion and in-game UI. |
 | 12 | Track chests, shrines and vendors in an overlay | Unknown | Needs world object enumeration/events and overlay UI. |
 | 13 | Web dashboard for stats, inventory and game actions | [MIT repository](https://github.com/kss306/MegaBonkPlus) | Needs live state, inventory, teleport, spawn and UI/network APIs. |
-| 14 | Instantly collect XP orbs when spawned | Unknown; linked source currently unavailable | [Independent experimental adaptation](../../mods/instant-collect/) needs the new spawn pickup policy, not present in 0.1.3. Binary inspection indicates all spawned XP, including non-enemy sources, is affected. An isolated Android probe covered combined orbs, single reward and turning the policy off; final launcher import remains untested. |
-| 15 | Start with level 99 Luck Tome | Unknown; no license identified in [source repository](https://github.com/Semibox/MegabonkMod) | [Source](https://github.com/Semibox/MegabonkMod/blob/main/MegabonkMod.LuckyMan/Core.cs) inserts a tome with +10,000 Luck and 98 Legendary upgrades; Lua cannot insert tomes and stat additions are capped at 1,000. |
+| 14 | Instantly collect XP orbs when spawned | Unknown; linked source currently unavailable | [Independent experimental adaptation](../../mods/instant-collect/) is available in the 0.1.4 catalog. Remote import and enable/disable were tested on an isolated Android build; a separate probe covered combined orbs and single rewards. |
+| 15 | Start with level 99 Luck Tome | Unknown; no license identified in [source repository](https://github.com/Semibox/MegabonkMod) | [Source](https://github.com/Semibox/MegabonkMod/blob/main/MegabonkMod.LuckyMan/Core.cs) inserts a tome with +10,000 Luck and 98 Legendary upgrades. The [independent experimental Lucky Tome implementation](../../mods/lucky-tome/) uses a new starting-tome hook tested in an isolated Android runtime; the published 0.1.4 APK does not support it. Repeated spawns on one inventory are intentionally guarded, unlike the observed original. |
 | 16 | Toggle unlocked weapons, tomes and items | Unknown | Needs item-pool and inventory controls, plus configuration UI. |
 | 17 | Mod menu for refreshes, resources and runtime patches | Unknown | Needs live resource mutation and menu controls beyond existing Lua hooks. |
 | 18 | Automatically open nearby pots | Unknown | Needs proximity queries and object interaction. |
@@ -67,8 +67,9 @@ is also not equivalent to the current global stat hook: it offers an interactive
 in-run editor and per-stat resets. [InstantCollect](https://thunderstore.io/c/megabonk/p/China1/InstantCollect/)
 and [Potomatic](https://thunderstore.io/c/megabonk/p/Maskoliver/Potomatic/)
 specify collection and interaction behavior respectively; inflating pickup
-range is not equivalent. No complete popular port has been validated or
-published from this inventory.
+range is not equivalent. Unlock Everything and Instant Collect have been
+published as experimental catalog adaptations; the other candidates remain
+subject to the limitations listed above.
 
 The smallest groups of missing host capabilities are:
 
@@ -87,23 +88,22 @@ The smallest groups of missing host capabilities are:
 4. **Characters and weapons:** load Android-compatible models, materials,
    animation and sounds with suitable attribution/permissions; define weapon
    projectiles, collision, damage and upgrades. Ranks 1, 5, 7, 8 and 20 need
-   varying subsets. The new base-stat/collider schema is in source after
-   0.1.3, not in the published APK; it does not solve custom projectiles.
+   varying subsets. The base-stat/collider schema is present in 0.1.4 but
+   does not solve custom projectiles or asset conversion.
 
 These are broad requirements, not a promise that one hook would make every
 mod compatible. In each case the original package's timing, numerical rules,
 reset behavior and compatibility still require comparison and device tests.
 
-No adaptation from this inventory has been published in the remote catalog.
-Development source contains experimental Unlock Everything and instant-XP
-adaptations requiring hooks absent from 0.1.3. It does not expose general
+The remote catalog contains experimental Unlock Everything and instant-XP
+adaptations that require 0.1.4. The published runtime does not expose general
 save/unlock mutation, spawn, UI, arbitrary pickup, network or Steamworks APIs.
 A Lua script cannot by itself implement these without new host functionality.
 Multiplayer additionally needs a networking and synchronization design. Models,
 animations and audio need Android-compatible assets.
 
 Multiplayer is excluded from the requested work. For the remaining candidates,
-the beta 0.1.2 API must be checked before publishing a catalog entry: a remote
+the installed beta's API must be checked before publishing a catalog entry: a remote
 Lua package cannot add a host function that the installed APK does not expose.
 The catalog can be updated without changing the APK when the package is already
 compatible with that API.

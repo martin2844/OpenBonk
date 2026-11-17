@@ -39,6 +39,23 @@ return 1.25
 
 Put both files at the root of a ZIP and import it in the launcher. API 1 accepts one of `move_speed_multiplier`, `damage_multiplier`, `attack_speed_multiplier`, `xp_multiplier`, `gold_multiplier`, or `pickup_range_multiplier`; its result must be between 0.1 and 4. API 2 supports multiple stat hooks. See the [runtime reference](../native/lua/README.md) and [`native/lua/example-*`](../native/lua/) for examples and restrictions.
 
+## Experimental starting tomes (source builds only)
+
+A development build may support the API 1 hook `starting_tome:Luck` (or another
+exact `ETome` name). Return a two-number Lua table containing a flat stat bonus
+from -10,000 through 10,000 and an integer level count from 1 through 99:
+
+```lua
+return { 10000, 99 }
+```
+
+The host adds the tome once to each new player inventory, using a New grant and
+then empty Legendary upgrades. A repeated spawn reusing the same inventory is
+ignored. This affects future runs after enabling or disabling the package; it
+does not remove a grant from a run already in progress. Special tomes may
+perform their usual effects when upgraded. This hook requires a future build;
+**beta 0.1.4 does not support it**. See the independent [Lucky Tome example](../mods/lucky-tome/).
+
 ## Content packages
 
 Experimental API 3 packages use a `manifest.json` with `api: 3`, `kind: "content"`, an `id`, and a `files` list with each payload's path, size and SHA-256. The package can declare supported character, weapon, item or map content. Exact fields and hooks depend on the content type; use the builders as working examples rather than assuming arbitrary game objects can be created.

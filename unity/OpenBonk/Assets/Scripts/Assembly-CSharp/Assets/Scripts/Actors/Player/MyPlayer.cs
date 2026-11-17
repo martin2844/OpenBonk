@@ -158,6 +158,9 @@ namespace Assets.Scripts.Actors.Player
 			Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Player"), LayerMask.NameToLayer("Enemy"), false);
 			fogOfWar.transform.SetParent(null);
 			fogOfWar.SetActive(true);
+#if UNITY_ANDROID && !UNITY_EDITOR
+			AndroidLuaMods.ApplySpawnTomes(inventory);
+#endif
 		}
 
 		public void StartPlayer(ECharacter character, Vector3 direction)

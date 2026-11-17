@@ -86,7 +86,7 @@ internal static class AndroidLuaMods
                     string file = Path.Combine(folders[i], "manifest.json");
                     if (!File.Exists(file) || new FileInfo(file).Length > FileLimit) continue;
                     var manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(file));
-                    if (manifest == null || !ValidRefresh(manifest) || manifest.id != Path.GetFileName(folders[i]) || (!StartupPolicyManifest(manifest) && !AndroidModHooks.TryGetStats(manifest.api, manifest.hook, manifest.hooks, out _))) continue;
+                    if (manifest == null || !ValidRefresh(manifest) || manifest.id != Path.GetFileName(folders[i]) || (!StartupPolicyManifest(manifest) && !OpenBonkStartingTomes.TryParseHook(manifest.api, manifest.hook, out _) && !AndroidModHooks.TryGetStats(manifest.api, manifest.hook, manifest.hooks, out _))) continue;
                     result.Add(new ModInfo { id = manifest.id, enabled = Enabled(manifest) });
                 }
                 catch (Exception e) { Debug.LogWarning("Lua mods: cannot read manifest: " + e.Message); }
@@ -139,6 +139,39 @@ internal static class AndroidLuaMods
             }
         }
         catch (Exception e) { Debug.LogWarning("Lua startup policies: cannot read mod directory: " + e.Message); }
+    }
+
+    internal static void ApplySpawnTomes(PlayerInventory inventory)
+    {
+        if (inventory?.tomeInventory == null || DataManager.Instance == null) return;
+        string root = Path.Combine(Application.persistentDataPath, "Mods");
+        if (!Directory.Exists(root)) return;
+        try
+        {
+            string[] folders = Directory.GetDirectories(root); Array.Sort(folders, StringComparer.Ordinal);
+            foreach (string folder in folders)
+            {
+                try
+                {
+                    string path = Path.Combine(folder, "manifest.json");
+                    if (!File.Exists(path) || new FileInfo(path).Length > FileLimit) continue;
+                    var manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(path));
+                    if (manifest == null || !ValidRefresh(manifest) || manifest.id != Path.GetFileName(folder) ||
+                        !OpenBonkStartingTomes.TryParseHook(manifest.api, manifest.hook, out var tomeId) || !Enabled(manifest)) continue;
+                    path = Path.Combine(folder, "main.lua");
+                    if (!File.Exists(path) || new FileInfo(path).Length > FileLimit) throw new InvalidDataException("missing or oversized main.lua");
+                    string source = File.ReadAllText(path);
+                    if (source.IndexOf('\0') >= 0) throw new InvalidDataException("NUL in script");
+                    var error = new byte[256]; var values = new double[2];
+                    int status = megabonk_lua_eval_values(Encoding.UTF8.GetBytes(source + "\0"), 2, values, error, (UIntPtr)error.Length);
+                    if (status != 0 || !OpenBonkStartingTomes.ValidValues(values[0], values[1])) throw new InvalidDataException("invalid starting tome values");
+                    if (OpenBonkStartingTomes.Grant(inventory.tomeInventory, manifest.id, DataManager.Instance.GetTome(tomeId), values[0], values[1]))
+                        Debug.Log($"Lua starting tome granted: {manifest.id} tome={tomeId} bonus={values[0]} levels={values[1]}");
+                }
+                catch (Exception e) { Debug.LogWarning($"Lua starting tome skipped: {Path.GetFileName(folder)}: {e.Message}"); }
+            }
+        }
+        catch (Exception e) { Debug.LogWarning("Lua starting tomes: cannot read mod directory: " + e.Message); }
     }
 
     private static void Apply(PlayerInventory inventory)

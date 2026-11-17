@@ -1,0 +1,6 @@
+{
+  "id": "lucky-tome",
+  "api": 1,
+  "enabled": false,
+  "hook": "starting_tome:Luck"
+}

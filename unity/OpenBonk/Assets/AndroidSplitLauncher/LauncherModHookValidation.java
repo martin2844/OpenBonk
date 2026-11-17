@@ -10,7 +10,7 @@ final class LauncherModHookValidation {
         int api = manifest.optInt("api", 0);
         if (manifest.has("refresh") && !manifest.isNull("refresh") &&
             (!(manifest.opt("refresh") instanceof String) || api != 2 || !"level_up".equals(manifest.optString("refresh")))) return false;
-        if (api == 1) return "unlock_all".equals(manifest.optString("hook", "")) || "collect_spawned_xp".equals(manifest.optString("hook", "")) || hookStat(manifest.optString("hook", "")) != null;
+        if (api == 1) return startingTome(manifest.optString("hook", "")) || "unlock_all".equals(manifest.optString("hook", "")) || "collect_spawned_xp".equals(manifest.optString("hook", "")) || hookStat(manifest.optString("hook", "")) != null;
         JSONArray hooks = manifest.optJSONArray("hooks");
         if (api != 2 || hooks == null || hooks.length() < 1 || hooks.length() > 112) return false;
         HashSet<String> seen = new HashSet<>();
@@ -20,6 +20,12 @@ final class LauncherModHookValidation {
             if (stat == null || !seen.add(stat + (hook.startsWith("stat_add:") ? ":add" : ":mul"))) return false;
         }
         return true;
+    }
+
+    private static final HashSet<String> TOMES = new HashSet<>(Arrays.asList(
+        "Damage", "Agility", "Cooldown", "Quantity", "Knockback", "Armor", "Health", "Regeneration", "Size", "ProjectileSpeed", "Duration", "Evasion", "Attraction", "Luck", "Xp", "Golden", "Precision", "Shield", "Blood", "Thorns", "Bounce", "Cursed", "Silver", "Balance", "Chaos", "Gambler", "Hoarder"));
+    private static boolean startingTome(String hook) {
+        return hook.startsWith("starting_tome:") && TOMES.contains(hook.substring("starting_tome:".length()));
     }
 
     private static final HashSet<String> LUA_STATS = new HashSet<>(Arrays.asList(
