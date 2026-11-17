@@ -1,0 +1,42 @@
+name: Advertise Android release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published Android release tag
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  update-manifest:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Verify release asset and update manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern OpenBonk.apk --dir "$RUNNER_TEMP"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)"
+          test -n "$AAPT"
+          python3 tools/update-android-manifest.py "$RELEASE_TAG" "$RUNNER_TEMP/OpenBonk.apk" --aapt "$AAPT"
+      - name: Publish update metadata
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- updates/android.json; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add updates/android.json
+          git commit -m 'Update Android release manifest'
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -14,8 +14,10 @@ To build the ARM64 decoder, set `ANDROID_NDK_HOME` and run
 checks the patch and target hashes. Zstandard's source archive and license are
 included here; its SHA-256 is verified by the build script.
 
-After publishing an Android release, run `tools/update-android-manifest.py`
-with the release tag, the signed APK and `--aapt /path/to/aapt` (plus
-`--runner` if needed). It verifies the published APK's size and SHA-256,
-reads its Android version code, and updates `updates/android.json`. Commit
-and push that file so existing launchers can discover the release.
+The Android release workflow verifies the published APK's size and SHA-256,
+reads its version code, and updates `updates/android.json` so launchers can
+discover it. Check that the workflow succeeds after each release; it can also
+be run manually for a published tag. As a local fallback, run
+`tools/update-android-manifest.py` with the tag, signed APK and
+`--aapt /path/to/aapt` (plus `--runner` if needed), then commit and push the
+resulting manifest.
