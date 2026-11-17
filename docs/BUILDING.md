@@ -229,9 +229,17 @@ payloads allowed 29,394 nonzero bytes to be restored, compared with 22,887
 before the substitutions. Linux and Windows produced the same converted OBB,
 and focused plans restored all 1,072 expected entries on a Retroid Pocket 5
 from either ZIP. A second clean-export OBB with different path IDs selected
-the same eight targets and had the same per-target block counts. This extended
-option has not been tested in a complete launcher or visually reviewed; the
-bounded substitutions are not byte-identical and outputs remain private.
+the same eight targets and had the same per-target block counts. These bounded
+substitutions are not byte-identical and outputs remain private.
+An ensuing 38-stage Linux chain reused the earlier runtime and Gradle export,
+passed its restoration checks and built a launcher with all eight targets.
+Its packaged template retained 99,081 nonzero bytes across 1,157 identified
+inline texture payloads, with seven empty textures and no streams or skips;
+other asset categories were not measured. On a Retroid Pocket 5, the isolated
+APK imported the Linux ZIP, produced the expected OBB hash and entered a short
+Forest run with enemy defeats. This did not visually inspect the affected
+ghost variants or barrel, test a complete Windows launcher with the eight
+targets, or establish gameplay parity. The APK still contains game data.
 
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture
