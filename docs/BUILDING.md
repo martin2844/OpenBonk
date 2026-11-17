@@ -85,6 +85,20 @@ The Windows inputs were extracted from a previously prepared ZIP; Android tests
 covered only two bundles. This reader is not yet connected to a restoration
 plan or launcher and does not remove any assets from the APK.
 
+The private single-bundle prototype `tools/experimental-localization-cab-plan.py`
+and `SteamLocalizationCab` now exercise that idea end to end for an English
+bundle. They wrap the Android serialized CAB in an uncompressed UnityFS bundle,
+mask exact fragments matched against a Steam CAB and restore them with the Java
+reader. Linux and Windows source plans each masked 44,598 nonzero CAB bytes;
+both restored the expected uncompressed bundle exactly on the host and a
+Retroid Pocket 5, and rejected a modified source and plan. UnityPy read the
+uncompressed bundle with the same 53 objects, CAB bytes and directory flags as
+the original. This is a single-language experiment, not the compressed
+published bundle, and it has not been loaded by Unity or integrated into an
+APK. The plan must be authenticated against a trusted hash before any launcher
+integration. Its templates and expected output still contain assets and remain
+private; the masked-byte count is not an APK size or ownership measurement.
+
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
 failed because its validation rejected fast ETC2 records. After updating the
