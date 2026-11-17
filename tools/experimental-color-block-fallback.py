@@ -29,7 +29,7 @@ TARGETS = {('sharedassets1.assets', 'FBX_Barrel_Color'): (128, 128, 8, 1, 45),
            ('sharedassets4.assets', 'B_Pylon_Emission'): (128, 128, 8, 1, 45)}
 ALIASES = {'FBX_Barrel_Color_0': 'FBX_Barrel_Color', 't_ghost_red_0': 't_ghost_red',
            't_ghost_purple_0': 't_ghost_purple', 't_ghost_black_0': 't_ghost_black',
-           'Bullseye_0': 'Bullseye'}
+           'Bullseye_0': 'Bullseye', 'Emission_2': 'Emission'}
 
 
 def discover_bullseye(archive, groups):
@@ -103,6 +103,7 @@ def generate(args):
     targets = dict(TARGETS)
     if getattr(args, 'emission_alias', False):
         targets[('sharedassets1.assets', 'Emission_1')] = (128, 128, 8, 1, 45)
+        targets[('sharedassets0.assets', 'Emission_2')] = (128, 128, 8, 1, 45)
     changes, records, seen = {}, [], set()
     with zipfile.ZipFile(obb) as archive:
         infos = partial.masker.zip_entries(archive)

@@ -306,8 +306,8 @@ half as much. Linux and Windows produced identical masked templates, and both
 Android plans restored all 1,072 expected entries on a Retroid Pocket 5. The
 same additional sources were selected in a second clean export. This does not
 verify a full launcher or remove the other game data.
-An ensuing 38-stage Linux chain reused the existing runtime and Gradle export
-and built a launcher with this option. Its packaged template retained 81,405
+An earlier 38-stage Linux chain reused the existing runtime and Gradle export
+and built a launcher using the original 50% alias criterion. Its packaged template retained 81,405
 nonzero bytes in 1,157 identified inline texture payloads, with seven empty
 textures and no streamed references or skips; other asset categories were not
 measured. On a Retroid Pocket 5, the isolated APK imported the Linux ZIP,
@@ -335,6 +335,14 @@ asset categories. On a Retroid Pocket 5, the isolated APK imported the Linux
 ZIP, produced the expected OBB hash and entered a short Forest run with enemy
 defeats. The emission texture's in-game appearance, full Windows launcher and
 complete gameplay were not checked, and the APK remains private.
+The option now also selects `Emission_2` in `sharedassets0` by the existing
+encoded-byte alias check, then applies the same per-block bounds. A focused
+Linux and Windows study produced identical converted OBBs: 1,360 blocks passed,
+seven were preserved, and 2,724 encoded bytes changed. The target retained 14
+nonzero bytes after partial masking, compared with 2,728 before substitution.
+Both plans restored all 1,072 focused-input entries on a Retroid Pocket 5; a
+second clean export with a different path ID reported the same block counts.
+This second texture has not been tested in a full launcher or visually in game.
 
 The opt-in `--bullseye-block-fallback` requires `--color-block-fallback` and
 `--partial-etc2-small`. It scans readable hashed Unity groups for exactly one
@@ -350,6 +358,15 @@ restored all 1,072 focused-input entries on a Retroid Pocket 5. A second clean
 export with a different group identifier selected the target and reported the
 same block counts. These are bounded approximations; no full launcher or
 in-game appearance was verified, and other game data remains private.
+An ensuing 38-stage Linux chain reused the existing runtime and Gradle export
+and built a launcher with the bullseye option, the first emission substitution
+and the 1,024-byte alias threshold. Its packaged template retained 68,511
+nonzero bytes in 1,157 identified inline texture payloads, with seven empty
+textures and no streams or skips; the audit excludes other categories. On a
+Retroid Pocket 5, the isolated APK imported the Linux ZIP, produced the
+expected OBB hash and entered a short Forest run with an enemy defeat. The
+target's visual appearance and the full Windows launcher were not checked;
+the APK still contains game data and remains private.
 
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture
