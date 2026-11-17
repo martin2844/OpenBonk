@@ -294,6 +294,35 @@ including the nested templates, and three others: two dex optimization
 profiles and the Unity OBB GUID. This is a file listing, not an inspection of
 those entries or of APK resources outside `assets/`.
 
+A fresh GitHub clone at `5f538e7` subsequently completed all seven dual-build
+stages with the four bounded color targets, extended and hybrid animation
+curves, and small localization fragments. It used installed Unity and
+AssetRipper, local dependencies and Steam inputs, existing caches, and Windows
+data from a previously prepared ZIP. Its Linux and Windows chains produced
+the same OBB hash. An independent desktop checker extracted both plans from
+the combined APK and reconstructed that OBB from each platform ZIP. On a
+Retroid Pocket 5, an isolated installation imported the Windows ZIP, generated
+the expected OBB hash and entered a brief Forest run with enemy defeats; the
+app and copied ZIP were removed. Source and binary workspace checks passed in
+their documented scope, including 1,965 C#, 24 Unity Java, 173 launcher Java
+and 85 shader files. The IL2CPP executable sections and 103,755 selected
+method records matched the earlier `auto-color-block-dual` experimental APK;
+the published beta's executable sections differed. The cloned Linux template
+retained 106,486 nonzero bytes in the 1,157 measured inline texture payloads,
+with seven empty textures, no streams and no skips. These checks do not prove
+complete gameplay, rendering, metadata or asset parity. The output remains
+private and still contains game data.
+
+For an additional packaging check, the clone's generated dual Gradle project
+was copied and built online with an initially empty `GRADLE_USER_HOME`, using
+the installed Unity JDK, Gradle and Android SDK. Gradle reported success with
+155 tasks executed and 20 up to date. Both APK archives had 453 entries; two
+native library entries differed in complete bytes, but their ARM64 executable
+sections matched, as did the IL2CPP executable sections. The APK hashes were
+different and the cold-cache APK was not tested on a device. This verifies a
+Gradle dependency-cache scenario on this host, not an entire build on a new
+machine or an asset-free release.
+
 In a focused partial-texture study of those three maps, the bounded-block
 output let the byte-granularity plan mask 84,405 nonzero bytes, compared with
 55,076 before substitution. Plans generated from Linux and Windows source
