@@ -13,3 +13,9 @@ To build the ARM64 decoder, set `ANDROID_NDK_HOME` and run
 `--obb-migration-library` when building with the pinned 0.1.2 OBB. The build
 checks the patch and target hashes. Zstandard's source archive and license are
 included here; its SHA-256 is verified by the build script.
+
+After publishing an Android release, run `tools/update-android-manifest.py`
+with the release tag, the signed APK and `--aapt /path/to/aapt` (plus
+`--runner` if needed). It verifies the published APK's size and SHA-256,
+reads its Android version code, and updates `updates/android.json`. Commit
+and push that file so existing launchers can discover the release.
