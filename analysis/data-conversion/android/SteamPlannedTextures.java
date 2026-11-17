@@ -19,6 +19,13 @@ public final class SteamPlannedTextures {
     private static final class Fragment {
         Texture texture; String entry, maskedHash, originalHash; byte[] mask; int targetOffset, convertedOffset, size;
     }
+    // Plans select bytes by bit index. Avoid expensive alternate ETC2 encoding
+    // when this mip has no selected bytes for that encoder.
+    static boolean hasSelectedBytes(byte[] choices, int start, int count) {
+        for (int i = start, end = start + count; i < end; i++)
+            if ((choices[i / 8] & (1 << (i & 7))) != 0) return true;
+        return false;
+    }
     private static MessageDigest sha() {
         try { return MessageDigest.getInstance("SHA-256"); }
         catch (NoSuchAlgorithmException e) { throw new AssertionError(e); }
@@ -263,7 +270,7 @@ public final class SteamPlannedTextures {
                                 if ((t.blend[block / 8] & (1 << (block & 7))) != 0) mip[i] = fast[i];
                             }
                         }
-                        if (mip != null && t.blendRgba != null) {
+                        if (mip != null && t.blendRgba != null && hasSelectedBytes(t.blendRgba, outputPos, wanted)) {
                             byte[] alternate;
                             try { alternate = SteamConvertedTextures.convertQualityRgbaMip(Arrays.copyOfRange(input, inputPos, inputPos + n), w, h, sourceFormat); }
                             catch (UnsatisfiedLinkError e) { throw new IOException("RGBA texture converter unavailable", e); }
@@ -277,9 +284,7 @@ public final class SteamPlannedTextures {
                             for (int metric = 1; metric <= 3; metric++) {
                                 byte[] choices = t.extraChoices[metric - 1];
                                 if (choices == null) continue;
-                                boolean used = false;
-                                for (int i = 0; i < wanted && !used; i++) { int pos = outputPos + i; used = (choices[pos / 8] & (1 << (pos & 7))) != 0; }
-                                if (!used) continue;
+                                if (!hasSelectedBytes(choices, outputPos, wanted)) continue;
                                 byte[] alternate;
                                 try { alternate = SteamConvertedTextures.convertQualityExtraMip(Arrays.copyOfRange(input, inputPos, inputPos + n), w, h, sourceFormat, metric); }
                                 catch (UnsatisfiedLinkError e) { throw new IOException("extra texture converter unavailable", e); }

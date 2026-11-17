@@ -91,6 +91,14 @@ on the device, all controls, long-run stability, full visual parity or
 distribution readiness. The experimental barrel option was not enabled
 in this APK.
 
+The partial texture restorer skips an alternate ETC2 encoding for a mip
+when its selection mask uses none of that encoder’s bytes. In one Linux
+plan, 98 of 290 mips with an RGBA selection mask needed no alternate
+encoding. A Java range check covered bit boundaries, and desktop Java
+restored all 1,072 expected archive entries from each platform ZIP with
+the changed code. Device timing and the changed launcher have not yet
+been tested; this does not establish a particular speedup.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
