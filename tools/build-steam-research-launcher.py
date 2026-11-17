@@ -140,6 +140,7 @@ def commands(a):
     if getattr(a, 'partial_etc2_extra', False): chain += ['--partial-etc2-extra']
     if getattr(a, 'color_block_extra', False): chain += ['--color-block-extra']
     if getattr(a, 'small_color_block_fallback', False): chain += ['--small-color-block-fallback']
+    if getattr(a, 'small_color_block_aliases', False): chain += ['--small-color-block-aliases']
     if getattr(a, 'transparent_atlas_scrub', False): chain += ['--transparent-atlas-scrub']
     if shared0: chain += ['--shared0-fonts']
     if getattr(a, 'gradle_online', False): chain += ['--gradle-online']
@@ -205,6 +206,7 @@ def commands(a):
         if getattr(a, 'partial_etc2_extra', False): windows_chain += ['--partial-etc2-extra']
         if getattr(a, 'color_block_extra', False): windows_chain += ['--color-block-extra']
         if getattr(a, 'small_color_block_fallback', False): windows_chain += ['--small-color-block-fallback']
+        if getattr(a, 'small_color_block_aliases', False): windows_chain += ['--small-color-block-aliases']
         if getattr(a, 'transparent_atlas_scrub', False): windows_chain += ['--transparent-atlas-scrub']
         if shared0: windows_chain += ['--shared0-fonts']
         if getattr(a, 'gradle_online', False): windows_chain += ['--gradle-online']
@@ -276,6 +278,7 @@ def main():
     p.add_argument('--partial-etc2-extra', action='store_true', help='try additional ETC2 metrics; requires --partial-etc2-rgba')
     p.add_argument('--color-block-extra', action='store_true', help='try extra ETC2 metrics for bounded color blocks; requires --color-block-fallback and --partial-etc2-extra')
     p.add_argument('--small-color-block-fallback', action='store_true', help='experimentally substitute bounded small color blocks; requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
+    p.add_argument('--small-color-block-aliases', action='store_true', help='also reconstruct unambiguous renamed small colors; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally relocate sharedassets0 and reconstruct selected fonts and the default skybox')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
@@ -315,6 +318,7 @@ def main():
     if a.partial_etc2_extra and not a.partial_etc2_rgba: p.error('--partial-etc2-extra requires --partial-etc2-rgba')
     if a.color_block_extra and not (a.color_block_fallback and a.partial_etc2_extra): p.error('--color-block-extra requires --color-block-fallback and --partial-etc2-extra')
     if a.small_color_block_fallback and not (a.quality_textures and a.partial_etc2_tiny and a.partial_etc2_extra): p.error('--small-color-block-fallback requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
+    if a.small_color_block_aliases and not (a.small_color_block_fallback and a.partial_etc2_aliases): p.error('--small-color-block-aliases requires --small-color-block-fallback and --partial-etc2-aliases')
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')
     a.output = output.parent.resolve() / output.name
     try:

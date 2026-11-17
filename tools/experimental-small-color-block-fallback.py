@@ -29,6 +29,28 @@ def eligible_target(target, payload):
                  (getattr(target.m_StreamData, 'path', '') or getattr(target.m_StreamData, 'size', 0))))
 
 
+def select_alias_source(target, payload, index, group, encoder):
+    """Mirror partial-plan source selection and refuse renamed ambiguous data."""
+    item = partial.study.select_source(target, partial.candidate_sources(index, target, group, target.m_Name), texture=lambda x: x[2])
+    if item is not None: return item
+    if target.m_Name.endswith('_0'):
+        alias = partial.etc2_alpha_alias(target, payload, partial.candidate_sources(index, target, group, target.m_Name[:-2]), encoder)
+        if alias: return alias[0]
+    source_name = target.m_Name[:-2] if target.m_Name.endswith('_0') else target.m_Name
+    match = partial.partial_etc2_source(target, payload, partial.candidate_sources(index, target, group, source_name), encoder)
+    if match: return match[0]
+    match = partial.scored_etc2_alias(target, payload, index, group, encoder)
+    return match[0] if match else None
+
+
+def stable_alias_source(target, original, replacement, index, group, encoder):
+    """Require the same Steam object before and after bounded conversion."""
+    before = select_alias_source(target, original, index, group, encoder)
+    after = select_alias_source(target, replacement, index, group, encoder)
+    if before is None or after is None or before[:2] != after[:2]: return None
+    return before
+
+
 def replace_mip(old, outputs, images, level, block_size):
     """Substitute only bounded blocks which still contain unmatchable bytes."""
     from PIL import ImageChops, ImageStat
@@ -85,6 +107,9 @@ def generate(args):
                 target = obj.read(); old = bytes(target.image_data)
                 if not eligible_target(target, old): continue
                 source = partial.study.select_source(target, partial.candidate_sources(index, target, group, target.m_Name), texture=lambda item: item[2])
+                is_alias = source is None
+                if is_alias and getattr(args, 'aliases', False):
+                    source = select_alias_source(target, old, index, group, encoder)
                 if source is None or int(source[2].m_TextureFormat) not in (1, 3, 4, 10, 12, 25): continue
                 body = obj.get_raw_data()
                 if body.count(old) != 1: continue
@@ -106,6 +131,7 @@ def generate(args):
                 if not changed: continue
                 replacement = b''.join(chunks); offset = obj.byte_start + body.index(old)
                 if not partial.eligible_etc2_payload(replacement, True, True): continue
+                if is_alias and stable_alias_source(target, old, replacement, index, group, encoder) is None: continue
                 if len(replacement) != len(old) or raw[offset:offset + len(old)] != old or modified[offset:offset + len(old)] != old:
                     raise ValueError('small color texture range differs or overlaps')
                 modified[offset:offset + len(old)] = replacement
@@ -133,6 +159,7 @@ def main():
     parser.add_argument('--obb', required=True, type=Path)
     parser.add_argument('--quality-library', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--aliases', action='store_true', help='allow unambiguous matched names, rechecking the selected source after conversion')
     generate(parser.parse_args())
 
 

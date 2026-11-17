@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 from PIL import Image
 
 path = Path(__file__).resolve().parents[1] / 'experimental-small-color-block-fallback.py'
@@ -10,6 +11,26 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class SmallColorBlockTests(unittest.TestCase):
+    def test_alias_source_must_remain_identical_after_conversion(self):
+        first = ('sharedassets1', 1, object())
+        second = ('sharedassets1', 2, object())
+        with patch.object(module, 'select_alias_source', side_effect=[first, first]):
+            self.assertIs(module.stable_alias_source(None, b'a', b'b', None, 'g', None), first)
+        with patch.object(module, 'select_alias_source', side_effect=[first, second]):
+            self.assertIsNone(module.stable_alias_source(None, b'a', b'b', None, 'g', None))
+        with patch.object(module, 'select_alias_source', side_effect=[first, None]):
+            self.assertIsNone(module.stable_alias_source(None, b'a', b'b', None, 'g', None))
+
+    def test_alias_fallback_follows_partial_plan_order(self):
+        target = SimpleNamespace(m_Name='FillTop_0')
+        item = ('sharedassets1', 4, object())
+        with patch.object(module.partial.study, 'select_source', return_value=None), \
+             patch.object(module.partial, 'candidate_sources', return_value=[]), \
+             patch.object(module.partial, 'etc2_alpha_alias', return_value=None), \
+             patch.object(module.partial, 'partial_etc2_source', return_value=None), \
+             patch.object(module.partial, 'scored_etc2_alias', return_value=(item, b'data')):
+            self.assertEqual(module.select_alias_source(target, b'data', {}, 'g', None), item)
+
     def test_only_bounded_unrecoverable_blocks_are_changed(self):
         original = Image.new('RGBA', (12, 4), (100, 100, 100, 255))
         close = original.copy(); close.paste((101, 100, 100, 255), (4, 0, 8, 4))

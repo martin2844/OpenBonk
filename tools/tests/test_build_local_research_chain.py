@@ -69,6 +69,8 @@ class ResearchChainTests(unittest.TestCase):
             commands = dict(module.commands(args))
             self.assertIn(str(args.output/'small-color-block-study/converted.obb'), commands['individual audio plan'])
             self.assertIn(str(args.host_library), commands['bounded small color blocks'])
+            args.small_color_block_aliases = True
+            self.assertIn('--aliases', dict(module.commands(args))['bounded small color blocks'])
 
     def test_localization_stage_precedes_partial_and_binds_packager_inputs(self):
         with tempfile.TemporaryDirectory() as temp:
