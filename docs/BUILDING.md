@@ -38,8 +38,10 @@ An additional opt-in `--partial-emission1-alias` study selects a uniquely
 matched Steam texture and removes only byte-identical fragments. In the
 corrected Linux and Windows study templates, nonzero inline texture bytes
 fell from 42,211 to 36,962. Desktop Java restored all 1,072 entries with
-both ZIPs and rejected an invalid plan hash. This option has not yet been
-validated on Android or in an integrated APK.
+both ZIPs and rejected an invalid plan hash. On a Xiaomi 22126RN91Y, the
+Android restoration check also reproduced all 1,072 expected entries with each
+ZIP. The temporary device files were removed. This isolated check does not
+validate the option in an integrated APK or test gameplay.
 
 A combined local Android research APK built from the corrected orientation
 plans restored the expected OBB exactly from each compatible Linux and
