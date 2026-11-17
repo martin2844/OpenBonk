@@ -16,6 +16,24 @@ SPEC.loader.exec_module(MODULE)
 
 
 class GeneratedAudioBuildTest(unittest.TestCase):
+    def test_pinned_migration_paths_validate_targets_versions_and_patch_bytes(self):
+        old_target = '9011ea73423c8418db7f7d0895c515b98a23001e947fd227b83c221a04e37475'
+        new_target = 'c3a42cbb1b38bdf89ee0e8175b81f2f70da4206e9a4862a67b11cda7cf3adf34'
+        self.assertEqual(len(MODULE.verified_migration_patches(old_target, 2)), 1)
+        self.assertEqual(len(MODULE.verified_migration_patches(new_target, 5)), 2)
+        with self.assertRaisesRegex(ValueError, 'version code'):
+            MODULE.verified_migration_patches(new_target, 4)
+        with self.assertRaisesRegex(ValueError, 'no pinned'):
+            MODULE.verified_migration_patches('0' * 64, 5)
+        with tempfile.TemporaryDirectory() as tmp:
+            import shutil
+            target = Path(tmp) / 'updates/migrations'; target.mkdir(parents=True)
+            for source in MODULE.verified_migration_patches(new_target, 5):
+                shutil.copyfile(source, target / source.name)
+            (target / '0.1.1-to-integration.zst').write_bytes(b'corrupt')
+            with self.assertRaisesRegex(ValueError, 'digest mismatch'):
+                MODULE.verified_migration_patches(new_target, 5, Path(tmp))
+
     def test_reused_gradle_export_gets_current_launcher_sources(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); checkout = root / 'checkout'; java = root / 'export/src/main/java'

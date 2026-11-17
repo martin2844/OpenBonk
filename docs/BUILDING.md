@@ -25,7 +25,29 @@ initial inputs only. `--help` lists underlying options. Use a separate
 application ID for device tests; it will not update the published app.
 The output APK is `dual-launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk`
 under the output directory. Signing it with a different key prevents an
-in-place update of the published beta. Do not commit game data or keys.
+in-place update of the published beta. Do not commit original game files or keys.
+
+### Experimental OBB migrations for the mod runtime
+
+The dual-input build optionally accepts `--obb-migration-library /path/to/libopenbonk_migration.so`.
+Build the ARM64 library with `native/zstd/build.sh` and pass the option alongside
+`--windows-game`. The final packager checks the expected OBB SHA-256 and every
+bundled patch hash; unknown outputs are rejected instead of applying an unsafe
+patch. The integrated-mod target requires Android `--version-code 5` or higher.
+The new target hash is `c3a42cbb1b38bdf89ee0e8175b81f2f70da4206e9a4862a67b11cda7cf3adf34`.
+The packaged deltas can migrate the original 0.1.1 data or the shared 0.1.2/0.1.3
+data directly to this target. The 0.1.2 target retains its earlier 0.1.1 delta.
+These pinned deltas contain game-derived data and are intended for beta builds.
+A changed output requires new deltas and corresponding hash updates; this option
+does not make a build reproducible byte for byte or authorize a release.
+
+On a Xiaomi, a private integrated APK imported both sample Lua mods via the
+launcher, loaded both when enabled, and loaded neither after disabling them.
+Using isolated test data, its migration from each verified source OBB generated
+the exact new OBB while retaining the source and a byte-identical test profile.
+The 0.1.1 case staged its OBB in the isolated installation; it was not an
+end-to-end upgrade from the published 0.1.1 APK. Import of a complete game ZIP
+on that integrated build and release signing remain unverified.
 
 The published 0.1.2 APK was built from the clean clone at `db88b13`, then
 the exported Gradle project was repackaged with the release package/version,

@@ -439,6 +439,30 @@ def gradle_command(java, gradle_jar, runner=None, online=False):
         'org.gradle.launcher.GradleMain', *([] if online else ['--offline']), '--no-daemon', ':launcher:assembleRelease']
 
 
+MIGRATION_PATCHES = {
+    '9011ea73423c8418db7f7d0895c515b98a23001e947fd227b83c221a04e37475': (
+        ('0.1.1-to-0.1.2.zst', '12ad4f8dbd7a6f62a79ddbcf6039f1f73af5d11cb9ed260b0cd424de6646c7c5'),),
+    'c3a42cbb1b38bdf89ee0e8175b81f2f70da4206e9a4862a67b11cda7cf3adf34': (
+        ('0.1.1-to-integration.zst', '2e2c7ea8ecf0e53cf58aa3cc05c232e7ea6454e05499a7dd8c1224b68e55a3c8'),
+        ('0.1.3-to-integration.zst', 'eb7a78b632370e696e0d87b754cb61ffa4c978c3bda9fb97f725a27e29ce7e48')),
+}
+
+
+def verified_migration_patches(expected_sha, version_code, root=ROOT):
+    patches = MIGRATION_PATCHES.get(expected_sha)
+    if patches is None:
+        raise ValueError('no pinned OBB migration for the expected game data')
+    if len(patches) == 2 and (version_code is None or version_code < 5):
+        raise ValueError('integration migration requires version code 5 or later')
+    paths = []
+    for name, expected in patches:
+        path = root / 'updates/migrations' / name
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+            raise ValueError('OBB migration patch digest mismatch: ' + name)
+        paths.append(path)
+    return paths
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('gradle-project', 'unity-project', 'runtime-apk', 'audio-template', 'audio-plan', 'expected-obb', 'unity-editor', 'output'):
@@ -549,6 +573,8 @@ def main():
                                         (partial_plan and has_quality_textures(windows[2]['partial-rgba'])))))
     if quality_needed and (texture_library.stat().st_size > 64 * 1024 * 1024 or b'Java_com_openbonk_dataprep_SteamConvertedTextures_convertQualityMip' not in texture_library.read_bytes()):
         raise ValueError('Android texture library lacks the quality encoder')
+    migration_patches = verified_migration_patches(digest(expected), a.version_code) if a.obb_migration_library else []
+    if a.obb_migration_library: a.obb_migration_library.expanduser().resolve(strict=True)
     print('Local prototype prerequisites verified; output contains game data.', flush=True)
     if a.check:
         print('Check only; no APK was built.')
@@ -563,17 +589,13 @@ def main():
     overlay_launcher_sources(ROOT, source)
     if a.obb_migration_library:
         migration_library = a.obb_migration_library.expanduser().resolve(strict=True)
-        migration_patch = ROOT / 'updates/migrations/0.1.1-to-0.1.2.zst'
-        if digest(expected) != '9011ea73423c8418db7f7d0895c515b98a23001e947fd227b83c221a04e37475':
-            raise ValueError('the bundled OBB migration applies only to the pinned 0.1.2 game data')
-        if hashlib.sha256(migration_patch.read_bytes()).hexdigest() != '12ad4f8dbd7a6f62a79ddbcf6039f1f73af5d11cb9ed260b0cd424de6646c7c5':
-            raise ValueError('OBB migration patch digest mismatch')
         native_dir = library / 'src/main/jniLibs/arm64-v8a'
         native_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(migration_library, native_dir / 'libopenbonk_migration.so')
         migration_dir = library / 'src/main/assets/openbonk-migrations'
         migration_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(migration_patch, migration_dir / '0.1.1-to-0.1.2.zst')
+        for migration_patch in migration_patches:
+            shutil.copy2(migration_patch, migration_dir / migration_patch.name)
     dataprep.mkdir(parents=True, exist_ok=True)
     for file in JAVA.glob('Steam*.java'): shutil.copy2(file, dataprep / file.name)
     shutil.copy2(JAVA / 'LauncherDiagnosticGenerator.java', launcher / 'LauncherDiagnosticGenerator.java')

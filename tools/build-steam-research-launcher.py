@@ -238,6 +238,7 @@ def commands(a):
         dual = research_chain.commands(dual_args)[-1][1]
         dual[dual.index('--output') + 1] = str(out / 'dual-launcher')
         dual += ['--windows-research', str(windows_research)]
+        if a.obb_migration_library: dual += ['--obb-migration-library', str(a.obb_migration_library)]
         steps.extend([('build Windows research launcher', tool('build-local-research-chain.py', *windows_chain)),
                       ('build dual-platform research launcher', dual)])
     return steps
@@ -246,7 +247,7 @@ def commands(a):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('game', 'assetripper', 'unity', 'json-jar', 'output'): p.add_argument('--' + name, required=True, type=Path)
-    for name in ('lua-library', 'steam-zip', 'host-library', 'android-library', 'decoder', 'gradle-user-home', 'windows-game', 'windows-steam-zip'): p.add_argument('--' + name, type=Path)
+    for name in ('lua-library', 'steam-zip', 'host-library', 'android-library', 'decoder', 'gradle-user-home', 'windows-game', 'windows-steam-zip', 'obb-migration-library'): p.add_argument('--' + name, type=Path)
     p.add_argument('--application-id', required=True)
     p.add_argument('--version-code', type=int, help='override the Android package version code')
     p.add_argument('--version-name', help='override the Android package version name')
@@ -354,7 +355,8 @@ def main():
     except OSError as error:
         p.error('cannot check output filesystem: ' + str(error))
     if a.windows_steam_zip and not a.windows_game: p.error('Windows ZIP requires --windows-game')
-    for name in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home', 'windows_game', 'windows_steam_zip'):
+    if a.obb_migration_library and not a.windows_game: p.error('OBB migration packaging requires --windows-game')
+    for name in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home', 'windows_game', 'windows_steam_zip', 'obb_migration_library'):
         value = getattr(a, name)
         if value is None: continue
         if value.expanduser().is_symlink(): p.error(name + ' must not be a symbolic link')
@@ -367,7 +369,7 @@ def main():
         if free < 35 * 1024**3:
             print(f'Warning: output filesystem has {free / 1024**3:.1f} GiB free; '
                   'the dual-platform build may need at least 35 GiB. See the build quickstart.', file=sys.stderr)
-    inputs = [getattr(a, n) for n in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home', 'windows_game', 'windows_steam_zip') if getattr(a, n) is not None]
+    inputs = [getattr(a, n) for n in ('game', 'assetripper', 'unity', 'json_jar', 'lua_library', 'steam_zip', 'host_library', 'android_library', 'decoder', 'gradle_user_home', 'windows_game', 'windows_steam_zip', 'obb_migration_library') if getattr(a, n) is not None]
     if any(a.output.is_relative_to(x) or x.is_relative_to(a.output) for x in (ROOT, *inputs)): p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
     if a.runner and not shutil.which(a.runner): p.error('runner not found')

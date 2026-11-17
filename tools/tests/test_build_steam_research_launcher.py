@@ -114,6 +114,19 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertIn('--localization-plan', run.call_args_list[-1].args[0])
 
     @patch.object(module.subprocess, 'run')
+    def test_migration_library_only_reaches_dual_packager(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        library = self.root / 'migration.so'; library.write_bytes(b'library')
+        with self.assertRaises(SystemExit): self.invoke('--obb-migration-library', str(library))
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--obb-migration-library', str(library))
+        commands = [call.args[0] for call in run.call_args_list]
+        matching = [c for c in commands if '--obb-migration-library' in c]
+        self.assertEqual(len(matching), 1)
+        self.assertEqual(matching[0][matching[0].index('--obb-migration-library') + 1], str(library))
+        self.assertIn('--windows-research', matching[0])
+
+    @patch.object(module.subprocess, 'run')
     def test_version_overrides_reach_both_chains_and_dual_packager(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
