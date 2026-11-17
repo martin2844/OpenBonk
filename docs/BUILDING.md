@@ -110,8 +110,12 @@ the original Android bundle: each contained 51 string tables with matching
 entry counts and content hashes. With the original shared bundle loaded, all
 51 reconstructed tables resolved 1,127 entries by key, with none missing. This
 used a private diagnostic APK and directly supplied bundles, not launcher
-import or gameplay; other languages and the uncompressed shared bundle have
-not been tested in Unity. The temporary app and copied data were removed.
+import or gameplay. The same diagnostic then compared reconstructed Spanish
+and Japanese bundles against their Android originals on the Retroid. Each had
+51 matching tables; with the original shared bundle loaded, each resolved
+1,127 entries by key with none missing. The uncompressed shared bundle and
+other languages have not been tested in Unity. The temporary app and copied
+data were removed.
 
 The experimental `tools/experimental-localization-obb-plan.py` generates an
 isolated OBB stage for those 18 bundles; `SteamLocalizationObb` restores it
