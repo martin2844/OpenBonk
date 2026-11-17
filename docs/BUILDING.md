@@ -224,6 +224,17 @@ does not validate Windows import or the affected textures and animations
 under all conditions, and does not prove gameplay parity. The APK and
 templates still contain game data and remain private.
 
+The corresponding Windows research chain also completed and generated the
+same final OBB as Linux. A combined APK was assembled from these existing
+chain outputs; an independent desktop check extracted its packaged plans and
+reconstructed the expected OBB from both platform ZIPs. On a Retroid Pocket
+5, that combined APK imported the prepared Windows ZIP, produced the expected
+OBB SHA-256 and entered a short Forest run with enemy defeats. The isolated
+installation and ZIP were removed afterward. The Windows data originated
+from a previously prepared ZIP, and this was not a new clean Unity build or
+an interactive Linux import of this exact combined APK. The approximation,
+all content and long-run behavior remain unverified, and the APK is private.
+
 In a focused partial-texture study of those three maps, the bounded-block
 output let the byte-granularity plan mask 84,405 nonzero bytes, compared with
 55,076 before substitution. Plans generated from Linux and Windows source
