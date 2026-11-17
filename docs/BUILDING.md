@@ -281,6 +281,13 @@ hashes for all 109 selected objects in these direct groups, including the
 toon shader and Unity splash texture. Both builds used the same host and local
 inputs. This comparison does not establish where the source material came from,
 whether those objects can be redistributed, or equivalence of other fields.
+The auditor also hashes each complete serialized group. The combined APK's
+`Resources/unity default resources` was byte-identical to the corresponding
+file in a separate minimal Unity 2023.2.22f1 Android project built without
+game assets. The `unity_builtin_extra` files differed; 27 of 43 selected
+shader name-and-object-hash tuples matched between the two. These comparisons
+apply to the two tested outputs and do not establish the provenance of the
+remaining shaders or prove the APK is asset-free.
 
 In a focused partial-texture study of those three maps, the bounded-block
 output let the byte-granularity plan mask 84,405 nonzero bytes, compared with

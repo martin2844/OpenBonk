@@ -55,7 +55,8 @@ def inventory(archive):
     for name, parts in sorted(groups.items()):
         size = sum(info.file_size for info in parts)
         try:
-            objects = UnityPy.load(b''.join(archive.read(info) for info in parts)).objects
+            serialized = b''.join(archive.read(info) for info in parts)
+            objects = UnityPy.load(serialized).objects
             counts, media = Counter(), []
             for obj in objects:
                 kind = obj.type.name
@@ -75,6 +76,7 @@ def inventory(archive):
                     except Exception as error:
                         problems.append({'group': name, 'path_id': obj.path_id, 'reason': type(error).__name__})
             output.append({'group': name, 'size': size, 'part_count': len(parts),
+                           'sha256': hashlib.sha256(serialized).hexdigest(),
                            'types': dict(sorted(counts.items())), 'media': media})
         except Exception as error:
             problems.append({'group': name, 'reason': type(error).__name__})

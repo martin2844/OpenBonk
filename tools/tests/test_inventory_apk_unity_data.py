@@ -31,6 +31,7 @@ class InventoryTests(unittest.TestCase):
         load.assert_called_once_with(b'abcd')
         self.assertEqual(report['serialized_groups'][0]['media'][0]['name'], 'sample')
         self.assertEqual(report['serialized_groups'][0]['media'][0]['serialized_sha256'], hashlib.sha256(b'abcd').hexdigest())
+        self.assertEqual(report['serialized_groups'][0]['sha256'], hashlib.sha256(b'abcd').hexdigest())
         self.assertEqual(report['other_data_entries'][0]['name'], 'Managed/Metadata/global-metadata.dat')
         self.assertEqual(report['problems'], [])
 
