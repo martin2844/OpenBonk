@@ -218,7 +218,7 @@ def main():
     p.add_argument('--quality-textures', action='store_true', help='experimentally use the high-quality ETC2 encoder for selected textures')
     p.add_argument('--normal-fallback', action='store_true', help='experimentally recover RGB normal maps that pass every mip direction check')
     p.add_argument('--normal-block-fallback', action='store_true', help='experimentally substitute individually bounded normal-map blocks; requires --normal-fallback and --partial-etc2-byte')
-    p.add_argument('--color-block-fallback', action='store_true', help='experimentally substitute bounded blocks in four color textures; requires --partial-etc2-byte')
+    p.add_argument('--color-block-fallback', action='store_true', help='experimentally substitute bounded blocks in eight color textures; requires --partial-etc2-byte')
     p.add_argument('--animation-curve-fallback', action='store_true', help='experimentally substitute tightly bounded Steam animation curves')
     p.add_argument('--animation-curve-relaxed', action='store_true', help='use a 1e-4 curve bound; requires --animation-curve-fallback')
     p.add_argument('--animation-curve-extended', action='store_true', help='use a 1e-3 curve bound; requires --animation-curve-fallback')

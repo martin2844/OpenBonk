@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from PIL import Image
 
@@ -11,6 +12,16 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class ColorBlockTests(unittest.TestCase):
+    def test_alias_requires_encoded_byte_match(self):
+        target = SimpleNamespace(m_Name='t_ghost_red_0', image_data=b'pixels')
+        with patch.object(module.partial, 'candidate_sources', return_value=['candidate']) as candidates, \
+             patch.object(module.partial.study, 'select_source') as metadata_only, \
+             patch.object(module.partial, 'partial_etc2_source', return_value=None) as match:
+            self.assertIsNone(module.select_source(target, {}, 'sharedassets1.assets', object()))
+        self.assertEqual(candidates.call_args.args[-1], 't_ghost_red')
+        metadata_only.assert_not_called()
+        self.assertEqual(match.call_args.args[1], b'pixels')
+
     def test_target_selection_is_stable_across_path_ids_and_rejects_ambiguity(self):
         target = SimpleNamespace(m_Name='t_birdo_blue', m_Width=128, m_Height=128,
                                  m_MipCount=8, m_ImageCount=1, m_TextureFormat=45)

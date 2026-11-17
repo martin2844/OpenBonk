@@ -221,6 +221,18 @@ Forest run with enemy defeats. The test did not specifically inspect the pylon
 or its emissive shading. The APK and remaining templates still contain game
 data and stay private.
 
+Four renamed `sharedassets1` textures are also eligible: the second barrel
+color texture and the red, purple and black ghost textures. Their Steam source
+is accepted only after the existing encoded-byte matching check resolves the
+name alias; metadata alone is insufficient. In a focused study these four
+payloads allowed 29,394 nonzero bytes to be restored, compared with 22,887
+before the substitutions. Linux and Windows produced the same converted OBB,
+and focused plans restored all 1,072 expected entries on a Retroid Pocket 5
+from either ZIP. A second clean-export OBB with different path IDs selected
+the same eight targets and had the same per-target block counts. This extended
+option has not been tested in a complete launcher or visually reviewed; the
+bounded substitutions are not byte-identical and outputs remain private.
+
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture
 metadata rather than path ID. A local run against that clone's OBB found both

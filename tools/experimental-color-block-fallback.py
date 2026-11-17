@@ -20,8 +20,14 @@ partial = normal.partial
 # Unity can assign different path IDs across otherwise equivalent exports.
 TARGETS = {('sharedassets1.assets', 'FBX_Barrel_Color'): (128, 128, 8, 1, 45),
            ('sharedassets1.assets', 't_birdo_blue'): (128, 128, 8, 1, 45),
+           ('sharedassets1.assets', 'FBX_Barrel_Color_0'): (128, 128, 8, 1, 45),
+           ('sharedassets1.assets', 't_ghost_red_0'): (128, 128, 8, 1, 45),
+           ('sharedassets1.assets', 't_ghost_purple_0'): (128, 128, 8, 1, 45),
+           ('sharedassets1.assets', 't_ghost_black_0'): (128, 128, 8, 1, 45),
            ('sharedassets4.assets', 'B_Pylon_Color'): (128, 128, 8, 1, 45),
            ('sharedassets4.assets', 'B_Pylon_Emission'): (128, 128, 8, 1, 45)}
+ALIASES = {'FBX_Barrel_Color_0': 'FBX_Barrel_Color', 't_ghost_red_0': 't_ghost_red',
+           't_ghost_purple_0': 't_ghost_purple', 't_ghost_black_0': 't_ghost_black'}
 
 
 def identify_target(group, target, seen):
@@ -37,6 +43,19 @@ def identify_target(group, target, seen):
 def acceptable_color(reference, candidate, level):
     return (partial.study.acceptable_quality_image(reference, candidate, 1) and
             partial.study.acceptable_bounded_mip(reference, candidate, level))
+
+
+def select_source(target, index, group, encoder):
+    source_name = ALIASES.get(target.m_Name, target.m_Name)
+    candidates = partial.candidate_sources(index, target, group, source_name)
+    # Renamed targets need an explicit encoded-byte match, even if their
+    # metadata alone appears unique.
+    item = (None if target.m_Name in ALIASES else
+            partial.study.select_source(target, candidates, texture=lambda x: x[2]))
+    if item is None:
+        match = partial.partial_etc2_source(target, bytes(target.image_data), candidates, encoder)
+        if match is not None: item = match[0]
+    return item
 
 
 def generate(args):
@@ -61,11 +80,7 @@ def generate(args):
                 key = identify_target(group, target, seen)
                 if key is None: continue
                 fmt = int(target.m_TextureFormat)
-                candidates = partial.candidate_sources(index, target, group, target.m_Name)
-                item = partial.study.select_source(target, candidates, texture=lambda x: x[2])
-                if item is None:
-                    match = partial.partial_etc2_source(target, bytes(target.image_data), candidates, encoder)
-                    if match is not None: item = match[0]
+                item = select_source(target, index, group, encoder)
                 if item is None or int(item[2].m_TextureFormat) not in (1, 3, 4, 10, 12, 25):
                     raise ValueError('source missing or ambiguous')
                 src = item[2]
