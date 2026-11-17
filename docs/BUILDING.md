@@ -255,6 +255,18 @@ bytes in the identified inline payloads. This does not inspect asset bundles,
 unreferenced resource bytes or other asset types and does not establish that
 the APK is asset-free. Reports remain local.
 
+`tools/inventory-apk-unity-data.py` separately inventories serialized Unity
+groups stored directly under `assets/bin/Data` in a local APK, and lists other
+entries there without interpreting them. For the combined APK above it read
+three groups without parser errors. `globalgamemanagers.assets` contained one
+texture named `Splash Screen Unity Logo`, one shader and one sprite; the
+shader and sprite had empty names in the reader. The other two groups had no
+objects from the tool's selected media-type list. Eleven other Unity data
+entries, including builtin resources and managed metadata, were listed but
+not inspected. One manager object had an unknown type identifier. This
+inventory does not inspect the nested templates or establish ownership,
+contents of every object, or absence of game assets; the report stays local.
+
 In a focused partial-texture study of those three maps, the bounded-block
 output let the byte-granularity plan mask 84,405 nonzero bytes, compared with
 55,076 before substitution. Plans generated from Linux and Windows source
