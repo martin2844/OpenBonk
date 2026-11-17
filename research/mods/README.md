@@ -29,6 +29,69 @@ The table excludes deprecated packages and the three platform-wide loaders/manag
 
 ## Porting status
 
+### Compatibility inventory for beta 0.1.3
+
+The rank, download counts and package links in the table above identify these
+20 candidates. This is a feasibility review, not a device test of these mods.
+“Unknown” means no license was established for the package; GitHub's detected
+source-code license does not establish rights to third-party models or audio.
+Multiplayer is excluded by request.
+
+| Rank | Function | Source license evidence | Missing capability / result |
+| ---: | --- | --- | --- |
+| 1 | Load custom characters | [MIT source](https://github.com/PeterMoras/MEGABONK_CustomCharacterLoader/blob/main/LICENSE) | Existing API 3 supports a subset; PC bundles, weapons and arbitrary character behavior need conversion and more runtime APIs. |
+| 2 | Unlock characters, skins and items | [MIT source](https://github.com/lukeod/megabonk_unlockEverything/blob/main/LICENSE) | Lua has no save/unlock API. |
+| 3 | Multiplayer | Unknown | Excluded. |
+| 4 | Add selected items through a menu | Unknown | Needs inventory insertion and in-game UI. |
+| 5 | Goth Witch Noelle character | Unknown; model rights unverified | Windows bundle, custom character/weapon behavior and asset rights need review. |
+| 6 | Shared BonkersLib framework | [MIT repository](https://github.com/kss306/MegaBonkPlus) | PC BepInEx library, not a self-contained Lua gameplay mod; each consumer needs equivalent APIs. |
+| 7 | Cow-noichi character | Unknown; model rights unverified | See [study](COW_NOICHI.md): custom projectile, assets and published runtime support remain missing. |
+| 8 | GodOfDeath character | Unknown; model rights unverified | PC bundle, base stats, collider and custom weapon; requires Android conversion and supported weapon behavior. |
+| 9 | Toggle unlocked weapons, tomes and items | Unknown | Needs item-pool and inventory controls, plus configuration UI. |
+| 10 | Minimap resize, zoom and map information | Unknown | Needs map/UI controls and map data unavailable to Lua. |
+| 11 | Search and spawn items, including bulk actions | Unknown | Needs inventory insertion and in-game UI. |
+| 12 | Track chests, shrines and vendors in an overlay | Unknown | Needs world object enumeration/events and overlay UI. |
+| 13 | Web dashboard for stats, inventory and game actions | [MIT repository](https://github.com/kss306/MegaBonkPlus) | Needs live state, inventory, teleport, spawn and UI/network APIs. |
+| 14 | Instantly collect XP orbs on enemy death | Unknown; linked source currently unavailable | Kill callback exists but cannot collect or suppress spawned orbs. |
+| 15 | Start with level 99 Luck Tome | Unknown; no license identified in [source repository](https://github.com/Semibox/MegabonkMod) | [Source](https://github.com/Semibox/MegabonkMod/blob/main/MegabonkMod.LuckyMan/Core.cs) inserts a tome with +10,000 Luck and 98 Legendary upgrades; Lua cannot insert tomes and stat additions are capped at 1,000. |
+| 16 | Toggle unlocked weapons, tomes and items | Unknown | Needs item-pool and inventory controls, plus configuration UI. |
+| 17 | Mod menu for refreshes, resources and runtime patches | Unknown | Needs live resource mutation and menu controls beyond existing Lua hooks. |
+| 18 | Automatically open nearby pots | Unknown | Needs proximity queries and object interaction. |
+| 19 | Offline save editor and unlock-all tool | Unknown | Standalone save editing, not an in-game Lua hook; APK has no mod-facing save API. |
+| 20 | Goth Kitty Siella character | Unknown; model rights unverified | Custom character assets and behavior require Android conversion and fidelity/rights review. |
+
+Lower-ranked [StatMod](https://thunderstore.io/c/megabonk/p/anro/StatMod/)
+is also not equivalent to the current global stat hook: it offers an interactive
+in-run editor and per-stat resets. [InstantCollect](https://thunderstore.io/c/megabonk/p/China1/InstantCollect/)
+and [Potomatic](https://thunderstore.io/c/megabonk/p/Maskoliver/Potomatic/)
+specify collection and interaction behavior respectively; inflating pickup
+range is not equivalent. No complete popular port has been validated or
+published from this inventory.
+
+The smallest groups of missing host capabilities are:
+
+1. **Inventory and unlocks:** inspect and add/remove/upgrade specific items,
+   weapons and tomes; edit item pools; read/write progression unlocks. These
+   are needed by ranks 2, 4, 9, 11, 15, 16 and 19. In particular, an API 3
+   item definition does not give a Lua mod an arbitrary inventory command.
+2. **World queries and actions:** enumerate nearby pots, chests, shrines,
+   vendors and XP orbs; observe their creation and state; interact with or
+   collect a specific object. Ranks 12, 14 and 18 need these operations. A
+   kill callback supplies no orb handle and does not prevent duplicate rewards.
+3. **Interactive UI and live game state:** display mod panels, controls and
+   map overlays, inspect/change game state, and persist configuration. Ranks
+   4, 9–13, 16 and 17 need some combination. Fixed stat hooks do not implement
+   an interactive editor or a dashboard.
+4. **Characters and weapons:** load Android-compatible models, materials,
+   animation and sounds with suitable attribution/permissions; define weapon
+   projectiles, collision, damage and upgrades. Ranks 1, 5, 7, 8 and 20 need
+   varying subsets. The new base-stat/collider schema is in source after
+   0.1.3, not in the published APK; it does not solve custom projectiles.
+
+These are broad requirements, not a promise that one hook would make every
+mod compatible. In each case the original package's timing, numerical rules,
+reset behavior and compatibility still require comparison and device tests.
+
 None of these packages has been ported and bundled as part of this research. The existing experimental API does not expose general save/unlock, spawn, UI, per-kill pickup, network or Steamworks APIs. A Lua script cannot by itself implement these without new host functionality. Multiplayer additionally needs a networking and synchronization design. Models, animations and audio need Android-compatible assets.
 
 Multiplayer is excluded from the requested work. For the remaining candidates,
