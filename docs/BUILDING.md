@@ -38,6 +38,18 @@ and reached Forest using prepared data. The fresh-clone build separately
 imported a compatible Linux ZIP and reached Forest on that device; Windows
 restoration was checked on the desktop. These are limited smoke tests.
 
+The preset was subsequently run end to end from the clean `1fd26ae` checkout
+on the same Linux host, using the local Steam inputs and installed toolchain.
+All seven stages completed with package `com.megabonk.nativeport.splittest`,
+version code 3 and version name `0.1.2-beta`. The Linux and Windows canonical
+OBBs had the same SHA-256. An independent desktop check selected the plans
+from the final APK and restored the expected OBB exactly from each generated
+ZIP. The resulting APK was installed on a Xiaomi 22126RN91Y with a preloaded
+OBB; Fox entered Forest and defeated enemies in a brief run. The temporary
+installation was removed. This run did not exercise ZIP import on the phone,
+test other devices or reproduce the published APK byte for byte; signing and
+local path replacement are separate steps.
+
 For the native build-path replacement performed on the 0.1.2 candidate,
 `tools/replace-apk-native-path.py` accepts the input APK, a new unsigned output
 path, and `--source-prefix` and `--replacement-prefix` values of the same UTF-8
