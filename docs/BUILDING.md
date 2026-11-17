@@ -1,5 +1,47 @@
 # Source and build status
 
+## Android beta 0.1.2 build preset
+
+`tools/build-android-beta.py` selects the options used in the clean-clone
+build behind beta 0.1.2 and forwards all arguments to the existing
+`build-steam-research-launcher.py` builder. It does not contain game files,
+Unity, AssetRipper or a signing key. Install the prerequisites and conversion
+environment described below, then use a new output directory, for example:
+
+```sh
+/path/to/openbonk-venv/bin/python tools/build-android-beta.py \
+  --game /path/to/linux/Megabonk \
+  --windows-game /path/to/windows/Megabonk \
+  --assetripper /path/to/AssetRipper.GUI.Free \
+  --unity /path/to/Unity/2023.2.22f1/Editor/Unity \
+  --json-jar /path/to/json-20180813.jar \
+  --application-id com.megabonk.nativeport.splittest \
+  --version-code 3 --version-name 0.1.2-beta \
+  --gradle-online --output /path/to/new-output
+```
+
+Use `--runner` if the host needs a wrapper, and `--check` to validate the
+initial inputs only. `--help` lists underlying options. Use a separate
+application ID for device tests; it will not update the published app.
+The output APK is `dual-launcher/gradle/launcher/build/outputs/apk/release/launcher-release.apk`
+under the output directory. Signing it with a different key prevents an
+in-place update of the published beta. Do not commit game data or keys.
+
+The published 0.1.2 APK was built from the clean clone at `db88b13`, then
+the exported Gradle project was repackaged with the release package/version,
+local native build-path prefixes were replaced, and the result was signed.
+The preset records the feature choices, and the builder accepts release
+metadata directly, but this exact one-command recipe and the published bytes
+have not been independently reproduced. Unity and native build outputs can
+vary by environment. The published APK was installed over 0.1.1 on a Xiaomi
+and reached Forest using prepared data. The fresh-clone build separately
+imported a compatible Linux ZIP and reached Forest on that device; Windows
+restoration was checked on the desktop. These are limited smoke tests.
+
+The asset-free distribution requirement applies to the post-beta release.
+Beta 0.1.2 contains game-derived data, and distribution rights for individual
+components have not been fully established.
+
 **Texture-quality correction:** earlier block-level normal, color, small-color
 and lightmap studies compared vertically flipped decoded images against blocks
 in storage order. Their reported per-block error bounds are not established,

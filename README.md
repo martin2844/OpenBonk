@@ -99,7 +99,7 @@ The repository contains reconstructed C# game scripts, the Android launcher and 
 - [Build status and limitations](docs/BUILDING.md) — dependencies, verification results and known gaps.
 - [Unity source](unity/OpenBonk/Assets/) · [Lua runtime](native/lua/) · [Mod examples](mods/) · [Preparation tools](tools/)
 
-The checkout cannot yet reproduce the published APK on its own: parts of the Unity project, third-party dependencies, generated plans and game-derived data are not included. The local research APK is not a redistributable release.
+Building Android requires a compatible local Steam installation, Unity with Android support, AssetRipper and other dependencies; generated game data and signing keys are not included. A fresh clone has produced a playable Android build, but the exact published APK has not yet been independently rebuilt from scratch. See [Android build instructions](docs/BUILDING.md).
 
 ## Privacy and attribution
 
