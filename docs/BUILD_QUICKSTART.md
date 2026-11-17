@@ -51,6 +51,10 @@ the new environment generated a byte-identical partial-texture plan and
 template. These checks were on the same Linux host with Unity and other tools
 already installed; they are not a full rebuild or a test on another machine.
 
+At `0305a07`, the existing local conversion environment passed all 539
+Python tests. This covers tool fixtures; it is not a clean build or an Android
+gameplay test.
+
 In Bash, replace the example paths below. `OPENBONK_OUTPUT` must be a new path outside the checkout and game installations. The optional Windows directory must contain `Megabonk_Data`; omit the `--windows-game` line for a Linux-only research APK.
 
 ```sh
