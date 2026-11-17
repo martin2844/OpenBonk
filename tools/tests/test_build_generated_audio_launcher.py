@@ -6,6 +6,7 @@ import struct
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'build-generated-audio-launcher.py'
@@ -97,6 +98,27 @@ class GeneratedAudioBuildTest(unittest.TestCase):
             path.write_bytes(b'different')
         with self.assertRaisesRegex(ValueError, 'final OBBs differ'):
             MODULE.verify_windows_research(root, self.expected, self.runtime, self.gradle)
+
+    def test_windows_localization_verifies_and_selects_rebound_inputs(self):
+        root = self.root/'win'; canonical = root/'canonical'; canonical.mkdir(parents=True)
+        objects = root/'plans/objects'; objects.mkdir(parents=True)
+        partial = root/'plans/partial-rgba'; partial.mkdir()
+        locale = root/'plans/localization'; locale.mkdir()
+        files = [objects/'template.obb', locale/'template.obb', locale/'plan.json', partial/'template.obb',
+                 canonical/'objects-plan.json', canonical/'partial-rgba-plan.json', canonical/'after-localization.obb',
+                 canonical/'after-partial-rgba.obb', canonical/'final.obb',
+                 *[canonical/(name+'-plan.json') for name in ('animation','cubemap','mesh','texture','packed','audio')],
+                 *[canonical/('after-'+name+'.obb') for name in ('objects','animation','cubemap','mesh','texture','packed')]]
+        for path in files: path.write_bytes(b'data')
+        with patch.object(MODULE,'verify_research_platform'), patch.object(MODULE,'verify_localization') as loc, \
+             patch.object(MODULE,'verify_animations') as animations, patch.object(MODULE,'verify_meshes'), \
+             patch.object(MODULE,'verify_textures'), patch.object(MODULE,'verify_packed'), patch.object(MODULE,'verify'):
+            selected, _, plans = MODULE.verify_windows_research(root,canonical/'final.obb',self.runtime,self.gradle,partial_rgba=True,localization=True)
+        self.assertEqual(selected,locale/'template.obb')
+        self.assertEqual(plans['partial-rgba'],canonical/'partial-rgba-plan.json')
+        self.assertEqual(plans['localization'],locale/'plan.json')
+        loc.assert_called_once_with(locale/'template.obb',locale/'plan.json',canonical/'after-localization.obb','windows')
+        self.assertEqual(animations.call_args_list[0].args[0], canonical/'after-localization.obb')
 
     def test_dual_plan_rejects_wrong_platform_sources(self):
         inventory = json.loads((MODULE.ROOT / 'tools/launcher-steam-inputs.json').read_text())['platforms']

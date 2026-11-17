@@ -348,22 +348,26 @@ def verify_research_platform(plan, platform):
         raise ValueError('research plan does not distinguish Steam platforms')
 
 
-def verify_windows_research(root, expected, runtime, gradle, partial_rgba=False):
+def verify_windows_research(root, expected, runtime, gradle, partial_rgba=False, localization=False):
     """Validate a second complete seven-stage plan against the same runtime."""
     canonical = root / 'canonical'
     template = root / 'plans/objects/template.obb'
     obj = canonical / 'objects-plan.json' if partial_rgba else root / 'plans/objects/plan.json'
     partial_template = root / 'plans/partial-rgba/template.obb'
-    partial_plan = root / 'plans/partial-rgba/android-plan.json'
+    partial_plan = canonical / 'partial-rgba-plan.json' if localization else root / 'plans/partial-rgba/android-plan.json'
     partial_output = canonical / 'after-partial-rgba.obb'
+    locale_template = root / 'plans/localization/template.obb'
+    locale_plan = root / 'plans/localization/plan.json'
+    locale_output = canonical / 'after-localization.obb'
     paths = {name: canonical / (name + '-plan.json') for name in ('animation', 'cubemap', 'mesh', 'texture', 'packed', 'audio')}
     outputs = {name: canonical / ('after-' + name + '.obb') for name in ('objects', 'animation', 'cubemap', 'mesh', 'texture', 'packed')}
     final = canonical / 'final.obb'
-    for path in (template, obj, final, *paths.values(), *outputs.values(), *([partial_template, partial_plan, partial_output] if partial_rgba else [])):
+    for path in (template, obj, final, *paths.values(), *outputs.values(), *([partial_template, partial_plan, partial_output] if partial_rgba else []), *([locale_template, locale_plan, locale_output] if localization else [])):
         if path.is_symlink() or not path.is_file(): raise ValueError('incomplete Windows research inputs')
     if digest(final) != digest(expected): raise ValueError('Windows and Linux final OBBs differ')
     verify_research_platform(obj, 'windows')
-    if partial_rgba: verify_animations(partial_template, partial_plan, partial_output, partial_rgba=True)
+    if localization: verify_localization(locale_template, locale_plan, locale_output, 'windows')
+    if partial_rgba: verify_animations(locale_output if localization else partial_template, partial_plan, partial_output, partial_rgba=True)
     verify_meshes(partial_output if partial_rgba else template, obj, outputs['objects'], objects=True)
     verify_animations(outputs['objects'], paths['animation'], outputs['animation'])
     verify_textures(outputs['animation'], paths['cubemap'], outputs['cubemap'], cubemaps=True)
@@ -372,7 +376,8 @@ def verify_windows_research(root, expected, runtime, gradle, partial_rgba=False)
     verify_packed(outputs['texture'], paths['packed'], outputs['packed'])
     verify(outputs['packed'], paths['audio'], final, runtime, gradle)
     if partial_rgba: paths['partial-rgba'] = partial_plan
-    return partial_template if partial_rgba else template, obj, paths
+    if localization: paths['localization'] = locale_plan
+    return locale_template if localization else partial_template if partial_rgba else template, obj, paths
 
 
 def has_quality_textures(plan):
@@ -411,6 +416,7 @@ def main():
     p.add_argument('--partial-rgba-intermediate-obb', type=Path, help='canonical partial RGBA restoration used by the object plan')
     p.add_argument('--localization-plan', type=Path, help='optional experimental localization OBB restoration plan')
     p.add_argument('--localization-intermediate-obb', type=Path, help='canonical localization restoration used by the partial texture plan')
+    p.add_argument('--localization-platform', choices=('linux', 'windows'), help='platform of the localization plan; inferred from the plan when omitted')
     p.add_argument('--windows-research', type=Path, help='optional validated Windows seven-stage research output')
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
@@ -440,8 +446,10 @@ def main():
     if bool(a.localization_plan) != bool(a.localization_intermediate_obb) or (a.localization_plan and not partial_plan): p.error('localization mode requires both inputs and partial RGBA mode')
     localization_plan = a.localization_plan.expanduser().resolve(strict=True) if a.localization_plan else None
     localization_intermediate = a.localization_intermediate_obb.expanduser().resolve(strict=True) if a.localization_intermediate_obb else None
+    localization_platform = a.localization_platform or (json.loads(localization_plan.read_text(encoding='utf-8')).get('platform') if localization_plan else 'linux')
+    if localization_platform not in ('linux', 'windows'): p.error('invalid localization plan platform')
     windows_research = a.windows_research.expanduser().resolve(strict=True) if a.windows_research else None
-    if localization_plan and windows_research: p.error('localization mode does not yet support dual-platform packaging')
+    if windows_research and localization_platform != 'linux': p.error('dual-platform packaging requires Linux primary inputs')
     if windows_research and (not windows_research.is_dir() or not object_plan): p.error('Windows research requires a directory and complete seven-stage Linux inputs')
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be a new directory')
@@ -465,7 +473,7 @@ def main():
     if a.gradle_user_home and not a.gradle_user_home.expanduser().resolve(strict=True).is_dir(): p.error('Gradle cache must be a directory')
     for path in gradle.rglob('*'):
         if path.is_symlink(): p.error('Gradle project must not contain symbolic links')
-    if localization_plan: verify_localization(template, localization_plan, localization_intermediate, 'linux')
+    if localization_plan: verify_localization(template, localization_plan, localization_intermediate, localization_platform)
     if partial_plan: verify_animations(localization_intermediate or template, partial_plan, partial_intermediate, partial_rgba=True)
     if object_plan:
         verify_meshes(partial_intermediate or template, object_plan, object_intermediate, objects=True)
@@ -483,7 +491,7 @@ def main():
         verify_packed(texture_intermediate or template, packed, intermediate)
     guid = verify(intermediate or template, plan, expected, runtime, gradle)
     if windows_research: verify_research_platform(object_plan, 'linux')
-    windows = verify_windows_research(windows_research, expected, runtime, gradle, partial_rgba=bool(partial_plan)) if windows_research else None
+    windows = verify_windows_research(windows_research, expected, runtime, gradle, partial_rgba=bool(partial_plan), localization=bool(localization_plan)) if windows_research else None
     quality_needed = bool((texture_plan and has_quality_textures(texture_plan)) or
                           (partial_plan and has_quality_textures(partial_plan)) or
                           (windows and (has_quality_textures(windows[2]['texture']) or
@@ -545,12 +553,13 @@ def main():
         win_template, win_object, win_plans = windows
         dest = assets / 'windows'; dest.mkdir()
         (assets / 'dual-platform').write_bytes(b'OPENBONK_DUAL_RESEARCH_V1')
-        (dest / 'generated-audio-mode').write_bytes(b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8' if partial_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7')
+        (dest / 'generated-audio-mode').write_bytes(b'OPENBONK_GENERATED_AUDIO_RESEARCH_V9' if localization_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8' if partial_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7')
         shutil.copyfile(win_template, dest / 'generated-audio-template.openbonk')
         plan_files = {'generated-audio': win_plans['audio'], 'packed-audio': win_plans['packed'],
                       'texture': win_plans['texture'], 'mesh': win_plans['mesh'], 'cubemap': win_plans['cubemap'],
                       'animation': win_plans['animation'], 'object': win_object}
         if partial_plan: plan_files['partial-rgba'] = win_plans['partial-rgba']
+        if localization_plan: plan_files['localization'] = win_plans['localization']
         for name, path in plan_files.items():
             shutil.copyfile(path, dest / (name + '-plan.json'))
             (dest / (name + '-plan.sha256')).write_text(digest(path), encoding='ascii')

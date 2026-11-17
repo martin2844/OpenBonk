@@ -70,6 +70,13 @@ build_args=(
 
 The example enables the same conversion options used by the independently tested `276b8d0` build below. These experimental options reconstruct additional data from the Steam ZIP and can increase preparation time. Current code may produce different output from that earlier build, and the APK still contains assets and must remain private.
 
+For an experiment, `--localization-cab` can additionally be supplied with
+`--partial-rgba`. It normalizes and reconstructs selected Android localization
+bundles during import. The resulting APK still contains other assets. The new
+automated and dual-platform paths must be tested independently on your inputs;
+the earlier device test used manually prepared Linux plans and existing runtime
+intermediates.
+
 On systems that require `steam-run` for native binaries, add `--runner steam-run` to `build_args` and run Python in a compatible environment (for example, prefix both Python commands with `steam-run` if its conversion modules need libraries provided by that environment). One NixOS host also needed `libxml2.so.2` exposed to Unity through a local runner wrapper and a higher open-file limit (`ulimit -n 65536`); these are host-specific, not guarantees. The conversion options are experimental and can make first import take several minutes.
 
 The initial check runs the configured Unity editor with `-version` through the same runner and requires `2023.2.22f1`. If it reports a missing shared library, fix the environment or runner before starting the build. This checks editor startup, not license activation, Android compilation or package downloads.

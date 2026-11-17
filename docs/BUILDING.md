@@ -152,9 +152,9 @@ Windows chain or Unity gameplay. A subsequent host test used the actual
 Linux Steam ZIP restored the expected combined OBB, an altered localization
 plan hash was rejected without leaving output, and temporary preparation files
 were removed. V9 invokes the localization stage before the existing texture
-and other restoration stages. The launcher packager can verify and include
-manually prepared Linux V9 plans; the end-to-end build does not yet generate
-them automatically, and dual-platform V9 packaging is not implemented.
+and other restoration stages. The build scripts now expose an experimental
+`--localization-cab` path with `--partial-rgba`, including dual-platform
+packaging; at the time of this note the automated paths were still under test.
 
 A private Linux V9 APK assembled from existing intermediates imported the Steam
 ZIP through the Retroid launcher and produced the expected OBB hash. Fox then

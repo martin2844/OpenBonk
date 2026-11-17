@@ -17,6 +17,17 @@ spec.loader.exec_module(module)
 
 class SteamResearchBuildTests(unittest.TestCase):
     @patch.object(module.subprocess, 'run')
+    def test_localization_option_reaches_both_chains_and_requires_partial(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        with self.assertRaises(SystemExit): self.invoke('--localization-cab')
+        windows = self.root/'windows'; (windows/'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--partial-rgba', '--localization-cab', '--windows-game', str(windows))
+        chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
+        self.assertEqual(len(chains), 2)
+        self.assertTrue(all('--localization-cab' in chain for chain in chains))
+        self.assertIn('--localization-plan', run.call_args_list[-1].args[0])
+
+    @patch.object(module.subprocess, 'run')
     def test_version_overrides_reach_both_chains_and_dual_packager(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)

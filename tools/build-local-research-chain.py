@@ -102,7 +102,10 @@ def commands(a):
         if quality: py('Android texture converter', 'build-etc2-quality-jni.py', '--target', 'android', '--ndk', android / 'NDK', '--output', armlib, *wrapped)
         else: py('Android texture converter', 'build-android-texture-library.py', '--ndk', android / 'NDK', '--output', armlib, *wrapped)
     if a.decoder is None: py('Crunch decoder', 'build-crunch-decoder.py', decoder)
-    py('individual Steam audio', 'experimental-steam-audio.py', '--steam-data', steam, '--obb', a.runtime_obb, '--output', out / 'individual-audio.obb')
+    localization = getattr(a, 'localization_cab', False)
+    if localization:
+        py('normalize Android localization', 'experimental-localization-obb-plan.py', '--steam-data', steam, '--obb', a.runtime_obb, '--platform', a.platform, '--output', out / 'localization-normalized')
+    py('individual Steam audio', 'experimental-steam-audio.py', '--steam-data', steam, '--obb', out / 'localization-normalized/converted.obb' if localization else a.runtime_obb, '--output', out / 'individual-audio.obb')
     py('packed Steam audio', 'experimental-packed-steam-audio.py', '--steam-data', steam, '--obb', out / 'individual-audio.obb', '--output', out / 'packed-audio.obb')
     py('converted textures', 'experimental-converted-textures.py', '--steam-data', steam, '--obb', out / 'packed-audio.obb', '--output', out / 'texture-study', *(['--quality-library', hostlib] if quality else []), *(['--normal-fallback'] if normal_fallback else []), *(['--font-fallback'] if getattr(a, 'font_fallback', False) else []), *(['--resource-fallback'] if getattr(a, 'resource_fallback', False) else []), *(['--nodraw-fallback'] if getattr(a, 'nodraw_fallback', False) else []), *(['--atlas-fallback'] if getattr(a, 'atlas_fallback', False) else []), *(['--lightmap-fallback'] if getattr(a, 'lightmap_fallback', False) else []), *(['--emission-fallback'] if getattr(a, 'emission_fallback', False) else []), *(['--fox-fallback'] if getattr(a, 'fox_fallback', False) else []), *(['--bounded-fallback'] if getattr(a, 'bounded_fallback', False) else []), *(['--shadow-fallback'] if getattr(a, 'shadow_fallback', False) else []), *(['--emoji-fallback'] if getattr(a, 'emoji_fallback', False) else []), *(['--shared0-sdf'] if getattr(a, 'shared0_fonts', False) else []))
     py('converted cubemaps', 'experimental-converted-cubemaps.py', '--steam-data', steam, '--obb', out / 'texture-study/converted.obb', '--decoder', decoder, '--output', out / 'cubemap-study', *wrapped)
@@ -129,16 +132,26 @@ def commands(a):
         byte = ['--byte-etc2'] if getattr(a, 'partial_etc2_byte', False) else []
         py('partial RGBA plan', 'experimental-partial-rgba-plan.py', 'generate', '--steam-data', steam, '--obb', plans / 'objects/template.obb', '--output', plans / 'partial-rgba', *etc2, *small, *fast, *blend, *byte)
         py('bind Android partial RGBA plan', 'experimental-partial-rgba-plan.py', 'export-android', '--steam-data', steam, '--template', plans / 'partial-rgba/template.obb', '--plan', plans / 'partial-rgba/plan.json', '--output', plans / 'partial-rgba/android-plan.json', *etc2)
+        if localization:
+            py('localization plan', 'experimental-localization-obb-plan.py', '--steam-data', steam, '--obb', plans / 'partial-rgba/template.obb', '--platform', a.platform, '--output', plans / 'localization')
     classes = ['SteamPlannedMeshes.java', 'SteamPlannedTextures.java', 'SteamPackedAudio.java', 'SteamGeneratedAudio.java',
                'SteamPlannedObjectsCheck.java', 'SteamPlannedAnimationsCheck.java', 'SteamPlannedCubemapsCheck.java',
                'SteamPlannedMeshesCheck.java', 'SteamPlannedTexturesCheck.java', 'SteamPartialRgbaCheck.java', 'SteamPackedAudioCheck.java', 'SteamGeneratedAudioCheck.java']
+    if localization: classes += ['SteamUnityFs.java', 'SteamLocalizationCab.java', 'SteamLocalizationObb.java']
     steps.append(('compile preparation checks', [*prefix, str(jdk / 'bin/javac'), '--release', '8', '-cp', str(a.json_jar), '-d', str(out / 'classes'),
-                  str(FIXTURES / 'SteamConvertedTextures.java'), str(FIXTURES / 'SteamCubemapResources.java'), *[str(JAVA / name) for name in classes]]))
+                  str(FIXTURES / 'SteamConvertedTextures.java'), str(FIXTURES / 'SteamCubemapResources.java'), *[str(JAVA / name) for name in classes], *([str(TOOLS / 'unityfs-check/com/openbonk/dataprep/LocalizationObbCheck.java')] if localization else [])]))
     obj = results / 'after-objects.obb'; anim = results / 'after-animation.obb'; cube = results / 'after-cubemap.obb'
     mesh = results / 'after-mesh.obb'; texture = results / 'after-texture.obb'; packed = results / 'after-packed.obb'; final = results / 'final.obb'
     if partial:
         partial_output = results / 'after-partial-rgba.obb'
-        java('restore and verify partial RGBA', 'SteamPartialRgbaCheck', hostlib, plans / 'partial-rgba/template.obb', steamzip, plans / 'partial-rgba/android-plan.json', partial_output, plans / 'objects/template.obb', 'pass')
+        partial_template = plans / 'partial-rgba/template.obb'
+        partial_plan = plans / 'partial-rgba/android-plan.json'
+        if localization:
+            localization_output = results / 'after-localization.obb'
+            java('restore and verify localization', 'LocalizationObbCheck', plans / 'localization/template.obb', steamzip, plans / 'localization/plan.json', localization_output, partial_template)
+            rebind('bind partial RGBA plan', partial_plan, partial_template, localization_output, results / 'partial-rgba-plan.json')
+            partial_template, partial_plan = localization_output, results / 'partial-rgba-plan.json'
+        java('restore and verify partial RGBA', 'SteamPartialRgbaCheck', hostlib, partial_template, steamzip, partial_plan, partial_output, plans / 'objects/template.obb', 'pass')
         rebind('bind object plan', plans / 'objects/plan.json', plans / 'objects/template.obb', partial_output, results / 'objects-plan.json')
     java('restore and verify objects', 'SteamPlannedObjectsCheck', partial_output if partial else plans / 'objects/template.obb', steamzip, results / 'objects-plan.json' if partial else plans / 'objects/plan.json', obj, plans / 'animation/template.obb', 'pass')
     rebind('bind animation plan', plans / 'animation/plan.json', plans / 'animation/template.obb', obj, results / 'animation-plan.json')
@@ -156,7 +169,7 @@ def commands(a):
     py('verify video resource', 'check-obb-video.py', '--obb', final,
        '--clip', a.unity_project / 'Assets/VideoClip/Buffering3.webm')
     build = ['--gradle-project', a.gradle_project, '--unity-project', a.unity_project, '--runtime-apk', a.runtime_apk,
-             '--audio-template', plans / ('partial-rgba/template.obb' if partial else 'objects/template.obb'), '--audio-plan', results / 'audio-plan.json',
+             '--audio-template', plans / ('localization/template.obb' if localization else 'partial-rgba/template.obb' if partial else 'objects/template.obb'), '--audio-plan', results / 'audio-plan.json',
              '--packed-plan', results / 'packed-plan.json', '--intermediate-obb', packed,
              '--texture-plan', results / 'texture-plan.json', '--texture-intermediate-obb', texture, '--texture-library', armlib,
              '--mesh-plan', results / 'mesh-plan.json', '--mesh-intermediate-obb', mesh,
@@ -164,7 +177,8 @@ def commands(a):
              '--animation-plan', results / 'animation-plan.json', '--animation-intermediate-obb', anim,
              '--object-plan', results / 'objects-plan.json' if partial else plans / 'objects/plan.json', '--object-intermediate-obb', obj,
              '--expected-obb', final, '--unity-editor', a.unity_editor, '--output', out / 'launcher', '--application-id', a.application_id, *wrapped]
-    if partial: build += ['--partial-rgba-plan', plans / 'partial-rgba/android-plan.json', '--partial-rgba-intermediate-obb', partial_output]
+    if partial: build += ['--partial-rgba-plan', results / 'partial-rgba-plan.json' if localization else plans / 'partial-rgba/android-plan.json', '--partial-rgba-intermediate-obb', partial_output]
+    if localization: build += ['--localization-plan', plans / 'localization/plan.json', '--localization-intermediate-obb', results / 'after-localization.obb', '--localization-platform', a.platform]
     if a.gradle_user_home: build += ['--gradle-user-home', a.gradle_user_home]
     if getattr(a, 'gradle_online', False): build += ['--gradle-online']
     for attr in ('version_code', 'version_name'):
@@ -201,6 +215,7 @@ def main():
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally select a unique shadow texture; requires --quality-textures')
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
+    p.add_argument('--localization-cab', action='store_true', help='experimentally reconstruct Android localization bundles; requires --partial-rgba')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
     p.add_argument('--partial-etc2-small', action='store_true', help='also attempt smaller ETC2 textures; requires --partial-etc2')
     p.add_argument('--partial-etc2-fast', action='store_true', help='experimentally select the fast encoder where it recovers more exact bytes; requires --partial-etc2')
@@ -212,6 +227,7 @@ def main():
     p.add_argument('--gradle-online', action='store_true', help='allow Gradle to download missing dependencies')
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()
+    if a.localization_cab and not a.partial_rgba: p.error('--localization-cab requires --partial-rgba')
     if a.version_code is not None and not 1 <= a.version_code <= 2100000000: p.error('invalid Android version code')
     if a.version_name is not None and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._+\-]{0,99}', a.version_name, re.ASCII): p.error('invalid Android version name')
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')
