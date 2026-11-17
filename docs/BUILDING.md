@@ -204,6 +204,20 @@ approximations, not pixel-identical textures; the complete launcher, rendering
 and all game content were not tested with this option. The output remains
 private and still contains game data.
 
+A subsequent 38-stage Linux chain reused the existing runtime and Gradle
+export and combined this color option with bounded normal blocks, extended
+and hybrid animation-curve substitutions, and the small localization plan.
+All desktop restoration checks passed, and its launcher built successfully.
+Its packaged Linux template retained 110,697 nonzero bytes across 1,157
+identified inline texture payloads, with seven empty textures and no skipped
+records; this excludes other fields and asset categories. On a Retroid Pocket
+5, the isolated APK imported the Linux Steam ZIP, generated the expected OBB
+SHA-256, and entered a brief Forest run with enemy defeats. The temporary
+installation and copied ZIP were removed. This is not a fresh Unity build,
+does not validate Windows import or the affected textures and animations
+under all conditions, and does not prove gameplay parity. The APK and
+templates still contain game data and remain private.
+
 In a focused partial-texture study of those three maps, the bounded-block
 output let the byte-granularity plan mask 84,405 nonzero bytes, compared with
 55,076 before substitution. Plans generated from Linux and Windows source
