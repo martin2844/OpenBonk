@@ -310,8 +310,15 @@ converted OBBs. For this texture, 1,292 blocks passed and 75 were preserved;
 in its resulting payload, leaving 238, compared with 7,294 retained before
 the substitution. Both platform plans restored all 1,072 entries of the
 focused input on a Retroid Pocket 5. These are bounded approximations, not
-byte-identical pixels: a full launcher and in-game emission appearance have
-not been tested, and remaining game data must stay private.
+byte-identical pixels, and remaining game data must stay private.
+An ensuing 38-stage Linux chain reused the existing runtime and Gradle export
+and built a launcher with this option. Its packaged template retained 74,349
+nonzero bytes in 1,157 identified inline texture payloads, with seven empty
+textures and no streamed references or skips; this does not measure other
+asset categories. On a Retroid Pocket 5, the isolated APK imported the Linux
+ZIP, produced the expected OBB hash and entered a short Forest run with enemy
+defeats. The emission texture's in-game appearance, full Windows launcher and
+complete gameplay were not checked, and the APK remains private.
 
 The opt-in `--bullseye-block-fallback` requires `--color-block-fallback` and
 `--partial-etc2-small`. It scans readable hashed Unity groups for exactly one
