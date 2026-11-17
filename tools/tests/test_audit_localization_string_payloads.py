@@ -34,6 +34,13 @@ class LocalizationStringAuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.string_offsets(field('cat'), ['cat', None])
 
+    def test_shared_keys_and_translated_values_are_separate_fields(self):
+        tree = {'m_Entries': [{'m_Key': 'jump'}], 'm_TableData': [{'m_Localized': 'Jump'}]}
+        self.assertEqual(module.table_values(tree, True), ['jump'])
+        self.assertEqual(module.table_values(tree, False), ['Jump'])
+        self.assertIsNone(module.table_values({}, True))
+        with self.assertRaises(ValueError): module.table_values({'m_Entries': [{'m_Key': None}]}, True)
+
     def test_packaged_template_must_match_audited_entry(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); stage = root / 'stage.zip'; apk = root / 'test.apk'

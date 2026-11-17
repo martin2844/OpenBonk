@@ -2,8 +2,8 @@
 """Measure UTF-8 string bytes left in a private localization-stage template.
 
 Reports counts, not text. The reference and template still contain game data.
-This covers readable StringTable m_TableData values only; it is not an asset,
-provenance, translation, or distribution audit.
+This covers readable StringTable m_TableData values and optionally SharedTableData
+entry keys; it is not an asset, provenance, translation, or distribution audit.
 """
 import argparse
 import base64
@@ -49,6 +49,16 @@ def string_offsets(body, values):
     return matches, skipped
 
 
+def table_values(tree, is_shared):
+    table = tree.get('m_Entries' if is_shared else 'm_TableData')
+    if table is None: return None
+    if not isinstance(table, list): raise ValueError('invalid table')
+    field = 'm_Key' if is_shared else 'm_Localized'
+    if any(not isinstance(item, dict) or not isinstance(item.get(field), str) for item in table):
+        raise ValueError('invalid table entry')
+    return [item[field] for item in table]
+
+
 def check_packaged_template(apk, template, entries, platform):
     name = 'assets/openbonk-diagnostic/' + ('windows/' if platform == 'windows' else '') + 'generated-audio-template.openbonk'
     with zipfile.ZipFile(apk) as outer, zipfile.ZipFile(template) as stage:
@@ -64,7 +74,7 @@ def check_packaged_template(apk, template, entries, platform):
                     raise ValueError('packaged localization differs from audited template')
 
 
-def audit(reference, template, plan):
+def audit(reference, template, plan, include_shared_keys=False):
     import UnityPy
     spec = importlib.util.spec_from_file_location('localization_cab_audit', ROOT / 'tools/experimental-localization-cab-plan.py')
     helper = importlib.util.module_from_spec(spec); spec.loader.exec_module(helper)
@@ -81,7 +91,8 @@ def audit(reference, template, plan):
             entry = record['entry']
             if entry in seen: raise ValueError('duplicate localization entry')
             seen.add(entry)
-            if 'localization-string-tables-' not in entry: continue
+            is_shared = entry.endswith('/localization-assets-shared_assets_all.bundle')
+            if 'localization-string-tables-' not in entry and not (include_shared_keys and is_shared): continue
             raw_plan = base64.b64decode(record['plan'], validate=True)
             if len(raw_plan) < 104 or raw_plan[:4] != b'OBL1' or sha(raw_plan) != record['plan_sha256']:
                 raise ValueError('invalid localization CAB plan')
@@ -97,16 +108,14 @@ def audit(reference, template, plan):
                     len(plain) != len(masked_bytes) or any(x and x != y for x, y in zip(masked_bytes, plain))):
                 raise ValueError('localization reference or mask mismatch')
             masked_cab = masked_bytes[offset:offset + len(cab)]
-            row = {'entry': entry, 'strings': 0, 'empty_strings': 0, 'skipped_strings': 0, 'skipped_objects': 0,
+            row = {'entry': entry, 'field': 'shared_keys' if is_shared else 'localized_values',
+                   'strings': 0, 'empty_strings': 0, 'skipped_strings': 0, 'skipped_objects': 0,
                    'total_nonzero_utf8_bytes': 0, 'retained_nonzero_utf8_bytes': 0}
             for obj in env.objects:
                 if obj.type.name != 'MonoBehaviour': continue
                 try:
-                    tree = obj.read_typetree(); table = tree.get('m_TableData')
-                    if table is None: continue
-                    if not isinstance(table, list): raise ValueError('invalid table')
-                    values = [item.get('m_Localized') for item in table if isinstance(item, dict)]
-                    if len(values) != len(table): raise ValueError('invalid table entry')
+                    values = table_values(obj.read_typetree(), is_shared)
+                    if values is None: continue
                     body = obj.get_raw_data(); matches, skipped = string_offsets(body, values)
                     row['empty_strings'] += values.count('')
                     row['skipped_strings'] += skipped
@@ -120,8 +129,10 @@ def audit(reference, template, plan):
                 except (ValueError, TypeError, IndexError, KeyError, AttributeError, NotImplementedError):
                     row['skipped_objects'] += 1
             rows.append(row)
-    if not rows: raise ValueError('no string-table bundles found')
-    return {'platform': metadata['platform'], 'bundles': rows, 'limitations': 'Only readable, uniquely located nonempty StringTable m_TableData UTF-8 values in selected localization-stage bundles are measured. Other text, object fields, bundles, APK entries and provenance are outside scope.'}
+    if not any(row['field'] == 'localized_values' for row in rows): raise ValueError('no string-table bundles found')
+    if include_shared_keys and sum(row['field'] == 'shared_keys' for row in rows) != 1:
+        raise ValueError('missing or duplicate shared localization bundle')
+    return {'platform': metadata['platform'], 'bundles': rows, 'limitations': 'Only readable, uniquely located nonempty StringTable m_TableData values and optionally SharedTableData m_Entries keys in selected localization-stage bundles are measured. Other text, object fields, bundles, APK entries and provenance are outside scope.'}
 
 
 def main():
@@ -130,12 +141,13 @@ def main():
         parser.add_argument('--' + name, required=True, type=Path)
     parser.add_argument('--apk', type=Path, help='also compare audited entries with the packaged template')
     parser.add_argument('--platform', choices=('linux', 'windows'), default='linux')
+    parser.add_argument('--include-shared-keys', action='store_true', help='also measure keys in the shared localization bundle')
     a = parser.parse_args()
     inputs = [a.reference_obb.resolve(strict=True), a.template_obb.resolve(strict=True), a.plan.resolve(strict=True)]
     out = a.output.expanduser().absolute()
     if out.exists() or out.is_symlink() or not out.parent.is_dir() or out.resolve().is_relative_to(ROOT) or out.resolve() in inputs:
         parser.error('output must be a new file outside the checkout and inputs')
-    result = audit(*inputs)
+    result = audit(*inputs, include_shared_keys=a.include_shared_keys)
     if a.apk:
         if a.platform != result['platform']: parser.error('platform does not match localization plan')
         apk = a.apk.resolve(strict=True)
@@ -145,7 +157,7 @@ def main():
     with out.open('x', encoding='utf-8') as stream:
         json.dump(result, stream, indent=2); stream.write('\n')
     rows = result['bundles']
-    print('String-table bundles:', len(rows), 'strings:', sum(x['strings'] for x in rows),
+    print('Localization bundles:', len(rows), 'strings:', sum(x['strings'] for x in rows),
           'retained nonzero UTF-8 bytes:', sum(x['retained_nonzero_utf8_bytes'] for x in rows),
           'skipped strings:', sum(x['skipped_strings'] for x in rows), 'skipped objects:', sum(x['skipped_objects'] for x in rows))
 
