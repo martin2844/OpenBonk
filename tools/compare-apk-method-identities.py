@@ -104,21 +104,44 @@ def apk_methods(path):
         return method_signatures(archive.read(entries[0]))
 
 
+def method_shapes(methods):
+    """Count owner/name/arity only; overload types and method bodies are omitted."""
+    return Counter((identity[:4], identity[-1]) for identity, _, _, _ in methods)
+
+
+def unmatched_owners(first, second):
+    result = Counter()
+    for ((image, namespace, owner, _), _), count in (first - second).items():
+        result[(image, namespace, owner)] += count
+    return [{'image': image.decode('utf-8', errors='replace'), 'namespace': namespace.decode('utf-8', errors='replace'),
+             'type': owner.decode('utf-8', errors='replace'), 'count': count}
+            for (image, namespace, owner), count in sorted(result.items())]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('first', type=Path); parser.add_argument('second', type=Path)
+    parser.add_argument('--shapes', action='store_true', help='compare owner, name and arity while ignoring raw indices and tokens; does not distinguish all overloads')
     args = parser.parse_args()
     try:
         first, second = apk_methods(args.first), apk_methods(args.second)
     except (OSError, ValueError, zipfile.BadZipFile, struct.error) as error:
         parser.exit(2, f'Cannot compare metadata: {error}\n')
-    a, b = Counter(first), Counter(second)
+    a, b = (method_shapes(first), method_shapes(second)) if args.shapes else (Counter(first), Counter(second))
     report = {'match': a == b, 'first_methods': len(first), 'second_methods': len(second),
-              'different_ordinals': sum(x != y for x, y in zip(first, second)) + abs(len(first) - len(second)),
               'unmatched_first': sum((a - b).values()), 'unmatched_second': sum((b - a).values())}
+    if args.shapes:
+        report.update({'comparison': 'owner-name-arity', 'first_ambiguous_shapes': sum(1 for count in a.values() if count > 1),
+                       'second_ambiguous_shapes': sum(1 for count in b.values() if count > 1),
+                       'unmatched_first_by_owner': unmatched_owners(a, b), 'unmatched_second_by_owner': unmatched_owners(b, a)})
+    else:
+        report['different_ordinals'] = sum(x != y for x, y in zip(first, second)) + abs(len(first) - len(second))
     print(json.dumps(report, indent=2))
     if a != b: parser.exit(1, 'Selected method records differ.\n')
-    print('Selected method records and raw type indices match; resolved types, method bodies and behavior remain unverified.')
+    if args.shapes:
+        print('Owner/name/arity counts match; overload types, tokens, method bodies and behavior remain unverified.')
+    else:
+        print('Selected method records and raw type indices match; resolved types, method bodies and behavior remain unverified.')
 
 
 if __name__ == '__main__': main()

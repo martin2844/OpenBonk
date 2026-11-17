@@ -51,6 +51,16 @@ class CompareMethodIdentityTests(unittest.TestCase):
         bad = bytearray(metadata()); struct.pack_into('<i', bad, 448 + 12, 2)
         with self.assertRaises(ValueError): module.method_signatures(bad)
 
+    def test_method_shapes_ignore_indices_but_preserve_arity_and_multiplicity(self):
+        original = module.method_signatures(metadata())
+        changed = bytearray(metadata()); struct.pack_into('<i', changed, 448 + 8, 99)
+        self.assertEqual(module.method_shapes(original), module.method_shapes(module.method_signatures(bytes(changed))))
+        changed = bytearray(metadata()); struct.pack_into('<H', changed, 448 + 30, 0)
+        self.assertNotEqual(module.method_shapes(original), module.method_shapes(module.method_signatures(bytes(changed))))
+        self.assertNotEqual(module.method_shapes(original), module.method_shapes(original + [original[0]]))
+        owners = module.unmatched_owners(module.method_shapes(original + [original[0]]), module.method_shapes(original))
+        self.assertEqual(owners, [{'image': 'Game.dll', 'namespace': 'Game', 'type': 'Fox', 'count': 1}])
+
     def test_duplicate_metadata_entries_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'test.apk'
