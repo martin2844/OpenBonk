@@ -201,6 +201,10 @@ class ResearchChainTests(unittest.TestCase):
             a.partial_etc2_rgba = True
             steps = dict(module.commands(a))
             self.assertIn('--rgba-etc2', steps['partial RGBA plan'])
+            a.partial_etc2_extra = True
+            steps = dict(module.commands(a))
+            self.assertIn('--extra-etc2', steps['partial RGBA plan'])
+            self.assertNotIn('--extra-etc2', steps['bind Android partial RGBA plan'])
             a.transparent_atlas_scrub = True
             steps = dict(module.commands(a))
             self.assertEqual(steps['individual audio plan'][steps['individual audio plan'].index('--obb') + 1],

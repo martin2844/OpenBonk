@@ -278,7 +278,15 @@ def verify_animations(template, plan_path, intermediate, partial_rgba=False):
                     choices = base64.b64decode(row['blend_rgba'], validate=True)
                     if len(choices) != (size + 7) // 8 or (size % 8 and choices[-1] >> (size % 8)):
                         raise ValueError('invalid RGBA texture choices')
-            elif 'blend_unit' in row or 'blend_rgba' in row: raise ValueError('blend choices without base choices')
+                if 'blend_extra' in row:
+                    extras = row['blend_extra']
+                    if 'blend_rgba' not in row or not isinstance(extras, list) or not 1 <= len(extras) <= 3: raise ValueError('invalid extra texture choices')
+                    previous = 0
+                    for extra in extras:
+                        if not isinstance(extra, dict) or type(extra.get('metric')) is not int or not previous < extra['metric'] <= 3 or not isinstance(extra.get('choices'), str): raise ValueError('invalid extra texture choices')
+                        previous = extra['metric']; choices = base64.b64decode(extra['choices'], validate=True)
+                        if len(choices) != (size + 7) // 8 or (size % 8 and choices[-1] >> (size % 8)): raise ValueError('invalid extra texture choices')
+            elif 'blend_unit' in row or 'blend_rgba' in row or 'blend_extra' in row: raise ValueError('blend choices without base choices')
             for fragment in row['fragments']:
                 offset, size, total = fragment.get('converted_offset'), fragment.get('size'), row.get('target_size')
                 if any(type(x) is not int for x in (offset, size, total)) or offset < 0 or size <= 0 or offset + size > total: raise ValueError('invalid partial texture range')

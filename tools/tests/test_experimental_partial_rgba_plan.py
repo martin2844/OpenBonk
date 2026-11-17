@@ -47,6 +47,28 @@ class PartialRgbaPlanTests(unittest.TestCase):
         with patch.object(sys, 'argv', args), patch.object(module, 'generate') as generate: module.main()
         self.assertTrue(generate.call_args.args[0].rgba_etc2)
 
+    def test_additional_metrics_reconstruct_and_validate_masks(self):
+        encoder = SimpleNamespace(rgba_variant=lambda: 'rgba', extra_variant=lambda metric: metric)
+        item = {'target_format': 47, 'quality': True, 'width': 1, 'height': 1, 'mips': 1,
+                'blend': 'Ag==', 'blend_unit': 1, 'blend_rgba': 'BA==',
+                'blend_extra': [{'metric': 1, 'choices': 'CA=='}, {'metric': 2, 'choices': 'EA=='}, {'metric': 3, 'choices': 'IA=='}]}
+        values = [b'Axxxxx', b'xBxxxx', b'xxCxxx', b'xxxDxx', b'xxxxEx', b'xxxxxF']
+        with patch.object(module, 'converted', side_effect=values):
+            self.assertEqual(module.converted_plan_texture(None, item, encoder), b'ABCDEF')
+        for extras in ([], [{'metric': 1, 'choices': 'gA=='}], [{'metric': 2, 'choices': 'AA=='}, {'metric': 2, 'choices': 'AA=='}], [{'metric': True, 'choices': 'AA=='}], [{'metric': 4, 'choices': 'AA=='}]):
+            with patch.object(module, 'converted', side_effect=values), self.assertRaises(ValueError):
+                module.converted_plan_texture(None, dict(item, blend_extra=extras), encoder)
+        missing_rgba = dict(item); del missing_rgba['blend_rgba']
+        with patch.object(module, 'converted', side_effect=values), self.assertRaises(ValueError):
+            module.converted_plan_texture(None, missing_rgba, encoder)
+
+    def test_extra_encoder_cli_requires_rgba(self):
+        args = ['tool', 'generate', '--steam-data', '/unused', '--obb', '/unused', '--output', '/unused', '--extra-etc2']
+        with patch.object(sys, 'argv', args), self.assertRaises(SystemExit): module.main()
+        args += ['--rgba-etc2', '--etc2-quality-library', '/unused', '--fast-etc2', '--blend-etc2', '--byte-etc2']
+        with patch.object(sys, 'argv', args), patch.object(module, 'generate') as generate: module.main()
+        self.assertTrue(generate.call_args.args[0].extra_etc2)
+
     def test_rgba_normal_mode_is_validated_and_applied(self):
         item = {'target_format': 4, 'source_format': 12, 'normal_rgba': True,
                 'width': 1, 'height': 1, 'mips': 1}

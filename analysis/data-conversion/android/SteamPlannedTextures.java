@@ -14,7 +14,7 @@ public final class SteamPlannedTextures {
     private static final String PREFIX = "assets/bin/Data/";
     private static final class Texture {
         String source, inputHash, outputHash, decodedHash; long inputOffset, convertedOffset;
-        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat, blendUnit = 16; boolean normal, normalRgba, quality; byte[] blend, blendRgba;
+        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat, blendUnit = 16; boolean normal, normalRgba, quality; byte[] blend, blendRgba; byte[][] extraChoices;
     }
     private static final class Fragment {
         Texture texture; String entry, maskedHash, originalHash; byte[] mask; int targetOffset, convertedOffset, size;
@@ -152,6 +152,24 @@ public final class SteamPlannedTextures {
                     catch (IllegalArgumentException e) { throw new IOException("invalid RGBA encoder choices", e); }
                     if (t.blendRgba.length != (t.outputSize + 7) / 8 || ((t.outputSize & 7) != 0 && ((t.blendRgba[t.blendRgba.length - 1] & 255) >>> (t.outputSize & 7)) != 0)) throw new IOException("invalid RGBA encoder choices");
                 }
+                if (row.has("blend_extra")) {
+                    if (!partial || t.blendRgba == null || !(row.get("blend_extra") instanceof JSONArray)) throw new IOException("invalid extra encoder choices");
+                    JSONArray extras = row.getJSONArray("blend_extra");
+                    if (extras.length() < 1 || extras.length() > 3) throw new IOException("invalid extra encoder choices");
+                    t.extraChoices = new byte[3][]; int previousMetric = 0;
+                    for (int k = 0; k < extras.length(); k++) {
+                        JSONObject extra = extras.getJSONObject(k);
+                        if (!(extra.get("metric") instanceof Integer) || !(extra.get("choices") instanceof String)) throw new IOException("invalid extra encoder choices");
+                        int metric = extra.getInt("metric");
+                        if (metric <= previousMetric || metric > 3) throw new IOException("invalid extra encoder metric");
+                        previousMetric = metric;
+                        byte[] choices;
+                        try { choices = Base64.getDecoder().decode(extra.getString("choices")); }
+                        catch (IllegalArgumentException e) { throw new IOException("invalid extra encoder choices", e); }
+                        if (choices.length != (t.outputSize + 7) / 8 || ((t.outputSize & 7) != 0 && ((choices[choices.length - 1] & 255) >>> (t.outputSize & 7)) != 0)) throw new IOException("invalid extra encoder choices");
+                        t.extraChoices[metric - 1] = choices;
+                    }
+                }
                 t.convertedOffset = total; total += t.outputSize; if (total > MAX_TOTAL) throw new IOException("texture limit exceeded");
                 JSONArray fs = row.getJSONArray("fragments"); int position = 0;
                 if (fs.length() == 0 || fs.length() > 128) throw new IOException("invalid fragment count");
@@ -253,6 +271,23 @@ public final class SteamPlannedTextures {
                             for (int i = 0; i < wanted; i++) {
                                 int position = outputPos + i;
                                 if ((t.blendRgba[position / 8] & (1 << (position & 7))) != 0) mip[i] = alternate[t.targetFormat == 45 ? (i / 8) * 16 + 8 + (i % 8) : i];
+                            }
+                        }
+                        if (mip != null && t.extraChoices != null) {
+                            for (int metric = 1; metric <= 3; metric++) {
+                                byte[] choices = t.extraChoices[metric - 1];
+                                if (choices == null) continue;
+                                boolean used = false;
+                                for (int i = 0; i < wanted && !used; i++) { int pos = outputPos + i; used = (choices[pos / 8] & (1 << (pos & 7))) != 0; }
+                                if (!used) continue;
+                                byte[] alternate;
+                                try { alternate = SteamConvertedTextures.convertQualityExtraMip(Arrays.copyOfRange(input, inputPos, inputPos + n), w, h, sourceFormat, metric); }
+                                catch (UnsatisfiedLinkError e) { throw new IOException("extra texture converter unavailable", e); }
+                                if (alternate == null || alternate.length != (t.targetFormat == 45 ? wanted * 2 : wanted)) throw new IOException("extra texture conversion failed");
+                                for (int i = 0; i < wanted; i++) {
+                                    int position = outputPos + i;
+                                    if ((choices[position / 8] & (1 << (position & 7))) != 0) mip[i] = alternate[t.targetFormat == 45 ? (i / 8) * 16 + 8 + (i % 8) : i];
+                                }
                             }
                         }
                         if (mip == null || mip.length != wanted) throw new IOException("texture conversion failed");

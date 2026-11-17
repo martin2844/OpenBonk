@@ -133,6 +133,7 @@ def commands(a):
     if getattr(a, 'partial_etc2_blend', False): chain += ['--partial-etc2-blend']
     if getattr(a, 'partial_etc2_byte', False): chain += ['--partial-etc2-byte']
     if getattr(a, 'partial_etc2_rgba', False): chain += ['--partial-etc2-rgba']
+    if getattr(a, 'partial_etc2_extra', False): chain += ['--partial-etc2-extra']
     if getattr(a, 'transparent_atlas_scrub', False): chain += ['--transparent-atlas-scrub']
     if shared0: chain += ['--shared0-fonts']
     if getattr(a, 'gradle_online', False): chain += ['--gradle-online']
@@ -191,6 +192,7 @@ def commands(a):
         if getattr(a, 'partial_etc2_blend', False): windows_chain += ['--partial-etc2-blend']
         if getattr(a, 'partial_etc2_byte', False): windows_chain += ['--partial-etc2-byte']
         if getattr(a, 'partial_etc2_rgba', False): windows_chain += ['--partial-etc2-rgba']
+        if getattr(a, 'partial_etc2_extra', False): windows_chain += ['--partial-etc2-extra']
         if getattr(a, 'transparent_atlas_scrub', False): windows_chain += ['--transparent-atlas-scrub']
         if shared0: windows_chain += ['--shared0-fonts']
         if getattr(a, 'gradle_online', False): windows_chain += ['--gradle-online']
@@ -255,6 +257,7 @@ def main():
     p.add_argument('--partial-etc2-blend', action='store_true', help='experimentally choose the encoder per output block; requires --partial-etc2-fast')
     p.add_argument('--partial-etc2-byte', action='store_true', help='experimentally choose the encoder per output byte; requires --partial-etc2-blend')
     p.add_argument('--partial-etc2-rgba', action='store_true', help='also use RGBA error metric to recover exact ETC2 bytes; requires --partial-etc2-byte')
+    p.add_argument('--partial-etc2-extra', action='store_true', help='try additional ETC2 metrics; requires --partial-etc2-rgba')
     p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally relocate sharedassets0 and reconstruct selected fonts and the default skybox')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
@@ -288,6 +291,7 @@ def main():
     if a.partial_etc2_blend and not a.partial_etc2_fast: p.error('--partial-etc2-blend requires --partial-etc2-fast')
     if a.partial_etc2_byte and not a.partial_etc2_blend: p.error('--partial-etc2-byte requires --partial-etc2-blend')
     if a.partial_etc2_rgba and not a.partial_etc2_byte: p.error('--partial-etc2-rgba requires --partial-etc2-byte')
+    if a.partial_etc2_extra and not a.partial_etc2_rgba: p.error('--partial-etc2-extra requires --partial-etc2-rgba')
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')
     a.output = output.parent.resolve() / output.name
     try:

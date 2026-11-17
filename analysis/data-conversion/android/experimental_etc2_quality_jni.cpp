@@ -39,6 +39,27 @@ extern "C" int openbonk_quality_mip(const uint8_t* input, size_t length, int wid
     } catch (...) { return -1; }
 }
 
+static bool extra_metric(int id, Etc::ErrorMetric& metric) {
+    switch (id) {
+        case 1: metric = Etc::ErrorMetric::RGBX; return true;
+        case 2: metric = Etc::ErrorMetric::NUMERIC; return true;
+        case 3: metric = Etc::ErrorMetric::NORMALXYZ; return true;
+        default: return false;
+    }
+}
+
+extern "C" int openbonk_quality_extra_mip(const uint8_t* input, size_t length, int width, int height, int sourceFormat,
+                                        uint8_t* output, size_t capacity, int id) {
+    Etc::ErrorMetric metric;
+    if (!input || !output || !extra_metric(id, metric) || length == 0 || length > 64 * 1024 * 1024) return -1;
+    try {
+        std::vector<uint8_t> source(input, input + length), result;
+        if (!convert_quality(source, width, height, sourceFormat, result, metric) || result.size() > capacity) return -1;
+        std::copy(result.begin(), result.end(), output);
+        return static_cast<int>(result.size());
+    } catch (...) { return -1; }
+}
+
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_com_openbonk_dataprep_SteamConvertedTextures_convertQualityMip(
         JNIEnv* env, jclass, jbyteArray input, jint width, jint height, jint sourceFormat) {
@@ -66,6 +87,24 @@ Java_com_openbonk_dataprep_SteamConvertedTextures_convertQualityRgbaMip(
         std::vector<uint8_t> source(length), output;
         env->GetByteArrayRegion(input, 0, length, reinterpret_cast<jbyte*>(source.data()));
         if (env->ExceptionCheck() || !convert_quality(source, width, height, sourceFormat, output, Etc::ErrorMetric::RGBA)) return nullptr;
+        jbyteArray result = env->NewByteArray(output.size());
+        if (!result) return nullptr;
+        env->SetByteArrayRegion(result, 0, output.size(), reinterpret_cast<const jbyte*>(output.data()));
+        return result;
+    } catch (...) { return nullptr; }
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_openbonk_dataprep_SteamConvertedTextures_convertQualityExtraMip(
+        JNIEnv* env, jclass, jbyteArray input, jint width, jint height, jint sourceFormat, jint id) {
+    Etc::ErrorMetric metric;
+    if (!input || !extra_metric(id, metric)) return nullptr;
+    try {
+        const jsize length = env->GetArrayLength(input);
+        if (length <= 0 || length > 64 * 1024 * 1024) return nullptr;
+        std::vector<uint8_t> source(length), output;
+        env->GetByteArrayRegion(input, 0, length, reinterpret_cast<jbyte*>(source.data()));
+        if (env->ExceptionCheck() || !convert_quality(source, width, height, sourceFormat, output, metric)) return nullptr;
         jbyteArray result = env->NewByteArray(output.size());
         if (!result) return nullptr;
         env->SetByteArrayRegion(result, 0, output.size(), reinterpret_cast<const jbyte*>(output.data()));
