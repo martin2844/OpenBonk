@@ -20,8 +20,9 @@ public final class SteamLocalizationCab {
         require(n >= 0 && n <= p.remaining()); byte[] out=new byte[n]; p.get(out); return out;
     }
     private static int integer(ByteBuffer p) throws IOException { require(p.remaining() >= 4); return p.getInt(); }
-    public static byte[] restore(byte[] template, byte[] source, byte[] plan) throws IOException {
-        require(template != null && source != null && plan != null && template.length <= LIMIT && source.length <= LIMIT && plan.length <= 1024*1024);
+    public static byte[] restore(byte[] template, byte[] source, byte[] plan, byte[] trustedPlanHash) throws IOException {
+        require(template != null && source != null && plan != null && trustedPlanHash != null && trustedPlanHash.length == 32 && template.length <= LIMIT && source.length <= LIMIT && plan.length <= 1024*1024);
+        require(MessageDigest.isEqual(trustedPlanHash,hash(plan)));
         ByteBuffer p = ByteBuffer.wrap(plan).order(ByteOrder.BIG_ENDIAN);
         require(Arrays.equals(read(p,4),new byte[]{'O','B','L','1'}));
         byte[] sourceHash=read(p,32), templateHash=read(p,32), outputHash=read(p,32);

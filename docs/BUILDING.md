@@ -93,11 +93,25 @@ reader. Linux and Windows source plans each masked 44,598 nonzero CAB bytes;
 both restored the expected uncompressed bundle exactly on the host and a
 Retroid Pocket 5, and rejected a modified source and plan. UnityPy read the
 uncompressed bundle with the same 53 objects, CAB bytes and directory flags as
-the original. This is a single-language experiment, not the compressed
-published bundle, and it has not been loaded by Unity or integrated into an
-APK. The plan must be authenticated against a trusted hash before any launcher
-integration. Its templates and expected output still contain assets and remain
+the original. The prototype has not been integrated into an APK; its restore
+method now requires the plan's trusted SHA-256, which an eventual launcher must
+provide independently of the plan. Its templates and expected output still contain assets and remain
 private; the masked-byte count is not an APK size or ownership measurement.
+
+A further local study generated and restored plans for all 18 localization
+bundles available in both supplied ZIPs. Every Linux and Windows plan restored
+the same corresponding uncompressed Android bundle, and UnityPy reported the
+original CAB bytes and directory flags. The Linux templates masked 929,344
+nonzero CAB bytes in total; remaining payloads and other asset categories were
+not covered. The separate locales bundle was not included because it is absent
+from the minimal Windows ZIP. These 36 restorations were checked on the host.
+In a separate Retroid test, Unity loaded the reconstructed English bundle and
+the original Android bundle: each contained 51 string tables with matching
+entry counts and content hashes. With the original shared bundle loaded, all
+51 reconstructed tables resolved 1,127 entries by key, with none missing. This
+used a private diagnostic APK and directly supplied bundles, not launcher
+import or gameplay; other languages and the uncompressed shared bundle have
+not been tested in Unity. The temporary app and copied data were removed.
 
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
