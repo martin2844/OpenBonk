@@ -1043,8 +1043,7 @@ public final class SplitDataLauncher extends Activity {
                         LauncherDiagnosticIntegration.create(this, IMPORT_GATE::stage), staged -> {
                             OriginalGameDataValidator.Problem problem = OriginalGameDataValidator.problem(staged);
                             if (problem == null) return null;
-                            return (problem.missing ? (es ? "Falta el archivo " : "Missing file ") :
-                                (es ? "Archivo incompatible o dañado: " : "Unsupported or damaged file: ")) + problem.file;
+                            return OriginalGameDataValidator.describeProblem(problem, es);
                         });
                 } else stageSteamZip(in);
             } catch (Exception e) {

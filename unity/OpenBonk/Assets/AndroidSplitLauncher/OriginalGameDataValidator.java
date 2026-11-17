@@ -7,7 +7,26 @@ import java.util.zip.ZipFile;
 final class OriginalGameDataValidator {
     static final class Problem {
         final String file; final boolean missing;
-        Problem(String file, boolean missing) { this.file = file; this.missing = missing; }
+        final long size; final String hashPrefix;
+        Problem(String file, boolean missing) { this(file, missing, -1, null); }
+        Problem(String file, boolean missing, long size, String hashPrefix) {
+            this.file = file; this.missing = missing; this.size = size; this.hashPrefix = hashPrefix;
+        }
+    }
+
+    private static Problem assetMismatch(ZipFile zip, java.util.zip.ZipEntry entry) {
+        return new Problem("sharedassets1.assets", false, entry.getSize(),
+                OriginalZipContentCheck.diagnosticHashPrefix(zip, entry, 128L * 1024 * 1024));
+    }
+
+    static String describeProblem(Problem problem, boolean spanish) {
+        if (problem.missing) return (spanish ? "Falta el archivo " : "Missing file ") + problem.file;
+        if (problem.size < 0) return (spanish ? "Archivo incompatible o dañado: " : "Unsupported or damaged file: ") + problem.file;
+        String info = problem.size + " bytes";
+        if (problem.hashPrefix != null) info += ", SHA-256 " + problem.hashPrefix;
+        return (spanish ? "Archivo no reconocido: " : "Unrecognized file: ") + problem.file + " (" + info + "). " +
+                (spanish ? "Puede ser otra versión, estar modificado o dañado. Compartí esta pantalla, no el ZIP."
+                         : "It may be a different version, modified or damaged. Share this screen, not the ZIP.");
     }
 
     // Diagnostic only: acceptance continues to use valid().
@@ -38,10 +57,10 @@ final class OriginalGameDataValidator {
             if (texture == null || texture.isDirectory()) return new Problem("sharedassets1.assets.resS", true);
             for (int i = 0; i < bundles.length; i++) if (entries[i] == null || entries[i].isDirectory()) return new Problem(bundles[i], true);
             long length = asset.getSize();
-            if (length != 50251684L && length != 56239204L) return new Problem("sharedassets1.assets", false);
+            if (length != 50251684L && length != 56239204L) return assetMismatch(zip, asset);
             if (texture.getSize() != 113115008L) return new Problem("sharedassets1.assets.resS", false);
             String assetHash = length == 50251684L ? "64c5156116e20fe645acc133bfae7ab1fdd3a7bbc99f915559efc0640be0349a" : "d9c955e43af9151f4d9d4e3ae9328ff2582bde7a1c9aa4580ddb2ba95ad66b35";
-            if (!contentValid(zip, asset, assetHash)) return new Problem("sharedassets1.assets", false);
+            if (!contentValid(zip, asset, assetHash)) return assetMismatch(zip, asset);
             if (!contentValid(zip, texture, "43c08c5f3228f725f01567bacfabfbb6d2ff50afd7a0536c5a9e1953f6e86fea")) return new Problem("sharedassets1.assets.resS", false);
             for (int i = 0; i < bundles.length; i++) {
                 if (entries[i].getSize() <= 0 || entries[i].getSize() > 8L * 1024 * 1024 ||

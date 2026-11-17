@@ -8,6 +8,29 @@ import java.util.zip.ZipFile;
 
 /** Checks the uncompressed bytes before a pending import replaces an older one. */
 final class OriginalZipContentCheck {
+    // Diagnostic only. A bounded, CRC-checked prefix lets support distinguish
+    // game versions without asking a player to send their game files.
+    static String diagnosticHashPrefix(ZipFile zip, ZipEntry entry, long limit) {
+        if (entry == null || entry.getSize() <= 0 || entry.getSize() > limit || entry.getCrc() < 0) return null;
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            CRC32 crc = new CRC32(); long total = 0;
+            try (InputStream input = zip.getInputStream(entry)) {
+                byte[] buffer = new byte[65536]; int count;
+                while ((count = input.read(buffer)) != -1) {
+                    total += count;
+                    if (total > entry.getSize()) return null;
+                    crc.update(buffer, 0, count); digest.update(buffer, 0, count);
+                }
+            }
+            if (total != entry.getSize() || crc.getValue() != entry.getCrc()) return null;
+            StringBuilder hash = new StringBuilder(16);
+            byte[] bytes = digest.digest();
+            for (int i = 0; i < 8; i++) hash.append(String.format(java.util.Locale.ROOT, "%02x", bytes[i] & 255));
+            return hash.toString();
+        } catch (Exception error) { return null; }
+    }
+
     static boolean valid(ZipFile zip, ZipEntry entry, String expectedHash) throws Exception {
         if (entry == null || entry.getSize() < 0 || entry.getCrc() < 0) return false;
         MessageDigest digest = expectedHash == null ? null : MessageDigest.getInstance("SHA-256");
