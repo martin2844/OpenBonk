@@ -243,7 +243,10 @@ def partial_etc2_source(target, payload, candidates, encoder, tiny_alias=False):
     matches.sort(key=lambda match: match[0], reverse=True)
     best, item, output = matches[0]
     if tiny_alias:
-        if best < 16 or best * 2 < nonzero: return None
+        # Small aliases normally need a majority match. When at least 1,024
+        # bytes agree, also accept the existing larger-texture 25% criterion.
+        if not ((best >= 16 and best * 2 >= nonzero) or
+                (best >= 1024 and best * 4 >= nonzero)): return None
     elif best < 1024 or best * 4 < nonzero: return None
     # Identical outputs are interchangeable; dissimilar close contenders are not.
     if any(other * 2 >= best and data != output for other, _, data in matches[1:]): return None
