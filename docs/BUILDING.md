@@ -183,6 +183,18 @@ the expected OBB exactly from both local Steam ZIPs. This host check used the
 previously generated runtime and build intermediates and did not itself test
 the Android picker, controls or gameplay. The Windows ZIP was prepared from
 previously extracted data, not a new Windows installation.
+The same combined APK was then installed separately on the Retroid and
+imported the Windows ZIP through its picker. Its installed OBB hash matched
+the expected OBB, and Fox entered Forest and defeated enemies in a short run.
+The temporary installation and copied ZIP were removed. This does not test
+the combined APK's Linux picker, all languages or long-term gameplay.
+
+An inventory of the combined V9 APK classified all 38 Addressables bundles
+without reported problems. The Linux and Windows templates retained 86,341
+and 108,109 nonzero bytes respectively in those bundle entries, compared with
+544,017 and 565,785 in the earlier experimental templates. These entry counts
+include container headers and metadata; they are not an asset-ownership audit
+or an APK-wide measurement. Other game data remain in the private APK.
 
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
