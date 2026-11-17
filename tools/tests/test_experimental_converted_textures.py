@@ -9,6 +9,29 @@ spec.loader.exec_module(module)
 
 
 class TextureConversionTests(unittest.TestCase):
+    def test_normal_retry_keeps_quality_gate_and_does_not_hide_other_errors(self):
+        calls = []
+        def fast_fails(quality):
+            calls.append(quality)
+            if not quality: raise module.NormalQualityError('fast mip rejected')
+            return [b'quality']
+        self.assertEqual(module.encode_with_normal_retry(fast_fails, False, True, True), ([b'quality'], True))
+        self.assertEqual(calls, [False, True])
+        calls.clear()
+        self.assertEqual(module.encode_with_normal_retry(fast_fails, True, True, True), ([b'quality'], True))
+        self.assertEqual(calls, [True])
+        calls.clear()
+        self.assertEqual(module.encode_with_normal_retry(lambda quality: [b'fast'], False, True, True), ([b'fast'], False))
+        for direct, available in ((False, True), (True, False)):
+            with self.assertRaises(module.NormalQualityError):
+                module.encode_with_normal_retry(fast_fails, False, direct, available)
+        def both_fail(quality): raise module.NormalQualityError('mip rejected')
+        with self.assertRaises(module.NormalQualityError):
+            module.encode_with_normal_retry(both_fail, False, True, True)
+        def other_failure(quality): raise ValueError('bad input')
+        with self.assertRaises(ValueError):
+            module.encode_with_normal_retry(other_failure, False, True, True)
+
     def test_bounded_texture_gate_checks_every_channel_and_alpha(self):
         from PIL import Image
         original = Image.new('RGBA', (10, 10), (20, 20, 20, 255))

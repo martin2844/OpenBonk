@@ -52,6 +52,16 @@ class ResourceQualityError(ValueError):
     pass
 
 
+def encode_with_normal_retry(encode_mips, initial_quality, direct_normal, quality_available):
+    """Retry a rejected fast normal conversion without relaxing its mip checks."""
+    try:
+        return encode_mips(initial_quality), initial_quality
+    except NormalQualityError:
+        if initial_quality or not direct_normal or not quality_available:
+            raise
+        return encode_mips(True), True
+
+
 def acceptable_texture_error(mean):
     return len(mean) == 4 and all(math.isfinite(v) and 0 <= v <= MAX_MEAN_ERROR for v in mean)
 
@@ -507,7 +517,8 @@ def run(args):
                                         raise ResourceQualityError('forest mip quality differs')
                                 encoded_mips.append(encoded)
                             return encoded_mips
-                        chunks = encode_mips(font or resource or shadow or lightmap_candidate or shared0_fox_candidate); high_quality = font or resource or shadow or lightmap_candidate or shared0_fox_candidate
+                        initial_quality = bool(font or resource or shadow or lightmap_candidate or shared0_fox_candidate)
+                        chunks, high_quality = encode_with_normal_retry(encode_mips, initial_quality, direct_normal, quality is not None)
                         new = b''.join(chunks)
                         if len(new) != len(old): raise ValueError('converted size differs')
                         w, h, old_top = target_mips[0]

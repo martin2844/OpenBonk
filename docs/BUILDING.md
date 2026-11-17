@@ -45,6 +45,19 @@ cover other data types. This reused prior build intermediates; it does not prove
 a fresh end-to-end build, Windows ZIP import through that APK, complete gameplay
 parity or suitability for distribution. The APK and inputs remain private.
 
+Combining `--bounded-fallback` with `--partial-etc2-byte` in another private
+Linux and Windows study selected `Cactus` for bounded reconstruction. The
+chains reused the previously generated runtime and intermediates, produced
+matching OBB hashes, and an independent check restored the expected OBB from
+both ZIPs using the combined APK's plans. Both platform templates retained
+144,107 nonzero bytes in 1,157 identified inline texture payloads, with seven
+empty textures and no skipped records. This is 11,416 fewer bytes than the
+preceding Linux measurement, but excludes other asset fields and categories.
+The Retroid imported the Linux ZIP through the launcher and reported Data ready;
+the cactus was not visually checked in the Desert. The approximation and these
+checks do not establish visual equivalence, an uninterrupted clean build, or an
+asset-free APK. Keep the APK and inputs private.
+
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
 failed because its validation rejected fast ETC2 records. After updating the
