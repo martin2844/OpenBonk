@@ -176,6 +176,13 @@ reported 29,170 retained nonzero bytes in 1,157 textures with no skips,
 and 554 Python tests passed. This does not establish Android rendering,
 full visual parity or absence of other assets; keep the APK private.
 
+A private launcher containing both chest and water experiments loaded a
+prebuilt OBB on the Xiaomi 22126RN91Y, reached the menu and a brief
+Forest run, and showed the death screen. No Unity error entries appeared
+in the recent captured log. The test app was removed. This smoke test
+did not exercise ZIP import, inspect water rendering, compare the scene
+to the original or establish full gameplay parity. It remains private.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
