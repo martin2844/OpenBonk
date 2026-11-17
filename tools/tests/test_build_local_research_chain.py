@@ -14,6 +14,17 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_steam_chest_rgba_precedes_plans_and_replaces_manifest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp))
+            self.assertNotIn('experimental Steam chest RGBA', dict(module.commands(args)))
+            args.steam_chest_rgba = True
+            steps = module.commands(args); labels = [name for name, _ in steps]; commands = dict(steps)
+            self.assertLess(labels.index('experimental Steam chest RGBA'), labels.index('individual audio plan'))
+            self.assertIn(str(args.output/'steam-chest-rgba/converted.obb'), commands['individual audio plan'])
+            self.assertIn(str(args.output/'steam-chest-rgba/manifest.json'), commands['texture plan'])
+            self.assertIn(str(args.output/'texture-study/report.json'), commands['experimental Steam chest RGBA'])
+
     def test_reordered_bindings_reach_animation_plan_only_when_enabled(self):
         with tempfile.TemporaryDirectory() as temp:
             args = self.args(Path(temp))

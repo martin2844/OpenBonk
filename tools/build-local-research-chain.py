@@ -136,9 +136,14 @@ def commands(a):
     if getattr(a, 'small_color_block_fallback', False):
         py('bounded small color blocks', 'experimental-small-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'small-color-block-study', *(['--aliases'] if getattr(a, 'small_color_block_aliases', False) else []), *(['--lightmaps'] if getattr(a, 'lightmap_block_fallback', False) else []))
         converted = out / 'small-color-block-study/converted.obb'
+    texture_manifest = out / 'texture-study/report.json'
+    if getattr(a, 'steam_chest_rgba', False):
+        py('experimental Steam chest RGBA', 'experimental-steam-chest-rgba.py', '--steam-data', steam, '--obb', converted, '--manifest', texture_manifest, '--output', out / 'steam-chest-rgba')
+        converted = out / 'steam-chest-rgba/converted.obb'
+        texture_manifest = out / 'steam-chest-rgba/manifest.json'
     toolplan('individual audio plan', 'experimental-steam-audio-plan.py', converted, plans / 'audio')
     toolplan('packed audio plan', 'experimental-packed-audio-plan.py', plans / 'audio/template.obb', plans / 'packed')
-    toolplan('texture plan', 'experimental-converted-texture-plan.py', plans / 'packed/template.obb', plans / 'texture', '--manifest', out / 'texture-study/report.json', *(['--quality-library', hostlib] if quality else []))
+    toolplan('texture plan', 'experimental-converted-texture-plan.py', plans / 'packed/template.obb', plans / 'texture', '--manifest', texture_manifest, *(['--quality-library', hostlib] if quality else []))
     toolplan('mesh plan', 'experimental-mesh-buffer-plan.py', plans / 'texture/template.obb', plans / 'mesh')
     toolplan('cubemap plan', 'experimental-cubemap-plan.py', plans / 'mesh/template.obb', plans / 'cubemap', '--manifest', out / 'cubemap-study/report.json', '--decoder', decoder, *wrapped)
     toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation', *(['--shared0-fonts'] if getattr(a, 'shared0_fonts', False) else []), *(['--reordered-bindings'] if getattr(a, 'reordered_animation_bindings', False) else []), *(['--neighboring-animation-keys'] if getattr(a, 'neighboring_animation_keys', False) else []))
@@ -266,6 +271,7 @@ def main():
     p.add_argument('--barrel-block-bounded', action='store_true', help='use bounded pixel limits for two barrel textures; requires --color-block-extra and --partial-etc2-aliases')
     p.add_argument('--precise-color-blocks', action='store_true', help='try strictly bounded alternatives for five color textures; requires --color-block-extra and --partial-etc2-aliases')
     p.add_argument('--small-color-block-fallback', action='store_true', help='experimentally substitute bounded small color blocks; requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
+    p.add_argument('--steam-chest-rgba', action='store_true', help='experimentally reserialize one Steam-derived chest normal to RGBA before all plans; Unity Android loading is unverified')
     p.add_argument('--small-color-block-aliases', action='store_true', help='also reconstruct unambiguous renamed small colors; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--lightmap-block-fallback', action='store_true', help='experimentally replace bounded blocks in two LDR lightmaps; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')

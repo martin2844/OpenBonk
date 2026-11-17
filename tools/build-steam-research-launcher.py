@@ -143,6 +143,7 @@ def commands(a):
     if getattr(a, 'barrel_block_bounded', False): chain += ['--barrel-block-bounded']
     if getattr(a, 'precise_color_blocks', False): chain += ['--precise-color-blocks']
     if getattr(a, 'small_color_block_fallback', False): chain += ['--small-color-block-fallback']
+    if getattr(a, 'steam_chest_rgba', False): chain += ['--steam-chest-rgba']
     if getattr(a, 'small_color_block_aliases', False): chain += ['--small-color-block-aliases']
     if getattr(a, 'lightmap_block_fallback', False): chain += ['--lightmap-block-fallback']
     if getattr(a, 'transparent_atlas_scrub', False): chain += ['--transparent-atlas-scrub']
@@ -213,6 +214,7 @@ def commands(a):
         if getattr(a, 'barrel_block_bounded', False): windows_chain += ['--barrel-block-bounded']
         if getattr(a, 'precise_color_blocks', False): windows_chain += ['--precise-color-blocks']
         if getattr(a, 'small_color_block_fallback', False): windows_chain += ['--small-color-block-fallback']
+        if getattr(a, 'steam_chest_rgba', False): windows_chain += ['--steam-chest-rgba']
         if getattr(a, 'small_color_block_aliases', False): windows_chain += ['--small-color-block-aliases']
         if getattr(a, 'lightmap_block_fallback', False): windows_chain += ['--lightmap-block-fallback']
         if getattr(a, 'transparent_atlas_scrub', False): windows_chain += ['--transparent-atlas-scrub']
@@ -289,6 +291,7 @@ def main():
     p.add_argument('--barrel-block-bounded', action='store_true', help='use bounded pixel limits for two barrel textures; requires --color-block-extra and --partial-etc2-aliases')
     p.add_argument('--precise-color-blocks', action='store_true', help='try strictly bounded alternatives for five color textures; requires --color-block-extra and --partial-etc2-aliases')
     p.add_argument('--small-color-block-fallback', action='store_true', help='experimentally substitute bounded small color blocks; requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
+    p.add_argument('--steam-chest-rgba', action='store_true', help='experimentally reserialize one Steam-derived chest normal to RGBA before all plans; Unity Android loading is unverified')
     p.add_argument('--small-color-block-aliases', action='store_true', help='also reconstruct unambiguous renamed small colors; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--lightmap-block-fallback', action='store_true', help='experimentally replace bounded blocks in two LDR lightmaps; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')

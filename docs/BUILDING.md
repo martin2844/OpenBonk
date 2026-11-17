@@ -137,6 +137,18 @@ long-run stability or full gameplay and visual parity. The APK remains
 private because it contains game-derived texture data. Separately, 542
 Python tool tests passed locally at `eae6758`.
 
+The opt-in `--steam-chest-rgba` study reserializes one chest normal as
+RGBA32 generated from the local Steam source before any reconstruction
+plans are built. It checks object identities, unrelated object bytes,
+external references and split sizes. In a local study, all eight
+regenerated desktop Java stages restored 1,072 entries exactly from
+each ZIP. The final template retained no nonzero bytes in that texture’s
+RGBA payload and no partial pixel mask for it; 30,060 nonzero bytes
+remained across other measured textures. The RGBA payload is 305,820
+bytes larger than the former ETC2 payload. All 549 Python tests passed.
+This does not prove absence of other game assets, Unity Android loading,
+normal-map rendering or gameplay parity. Keep outputs private.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
