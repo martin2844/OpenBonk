@@ -12,6 +12,32 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class ColorBlockTests(unittest.TestCase):
+    def test_precise_color_gate_and_target_scope(self):
+        original = Image.new('RGBA', (4, 4), (100, 100, 100, 255))
+        safe = original.copy(); safe.putpixel((0, 0), (116, 100, 100, 255)); safe.putpixel((1, 0), (108, 100, 100, 255))
+        self.assertFalse(module.acceptable_color(original, safe, 0))
+        self.assertTrue(module.acceptable_precise(original, safe, 0))
+        self.assertTrue(module.acceptable_block(original, safe, 0, precise=True))
+        unsafe = original.copy(); unsafe.putpixel((0, 0), (117, 100, 100, 255)); unsafe.putpixel((1, 0), (108, 100, 100, 255))
+        self.assertFalse(module.acceptable_block(original, unsafe, 0, precise=True))
+        alpha = original.copy(); alpha.putpixel((0, 0), (100, 100, 100, 245))
+        self.assertFalse(module.acceptable_block(original, alpha, 0, precise=True))
+        key = ('sharedassets1.assets', 't_birdo_blue')
+        self.assertTrue(module.use_precise_color(True, key, 3))
+        self.assertFalse(module.use_precise_color(True, key, 4))
+        self.assertFalse(module.use_precise_color(False, key, 0))
+        self.assertFalse(module.use_precise_color(True, ('sharedassets1.assets', 'FBX_Barrel_Color'), 0))
+
+    def test_precise_increment_checks_against_previous_result(self):
+        baseline = Image.new('RGBA', (8, 4), (100, 100, 100, 255))
+        candidate = baseline.copy()
+        candidate.putpixel((0, 0), (116, 100, 100, 255)); candidate.putpixel((1, 0), (108, 100, 100, 255))
+        candidate.putpixel((4, 0), (117, 100, 100, 255)); candidate.putpixel((5, 0), (108, 100, 100, 255))
+        result, rejected = module.bound_precise_increment(b'A'*16, b'B'*16, baseline, candidate, 0, 8)
+        self.assertEqual((result, rejected), (b'B'*8 + b'A'*8, 1))
+        with self.assertRaises(ValueError):
+            module.bound_precise_increment(b'A', b'B'*16, baseline, candidate, 0, 8)
+
     def test_barrel_uses_existing_bounded_mip_limit(self):
         key = ('sharedassets1.assets', 'FBX_Barrel_Color')
         self.assertTrue(module.use_bounded_barrel(True, key, 3))

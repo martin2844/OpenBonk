@@ -102,6 +102,17 @@ entries for each ZIP on a Xiaomi 22126RN91Y. Device timing and the changed
 launcher have not yet been tested; this does not establish a particular
 speedup.
 
+A further opt-in `--precise-color-blocks` study reduced measured nonzero
+inline texture bytes from 34,744 to 33,502 across 1,157 textures, without
+skips. It checks incremental block changes against the prior result as
+well as the source: 494 changed blocks passed a composite RGB mean limit
+of 1.5/255 and maximum of 16/255; 16 candidates failed the incremental
+limit and were rejected. In this study mips 3–7 of the five affected
+textures remained identical to the previous output. Desktop Java restored
+all 1,072 entries from each ZIP, and 65 focused tests passed. This is not
+a gameplay or complete visual comparison, an Android test, or evidence of
+an asset-free APK. The option remains experimental.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.

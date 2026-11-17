@@ -76,7 +76,8 @@ class SteamResearchBuildTests(unittest.TestCase):
         with self.assertRaises(SystemExit): self.invoke('--lightmap-block-fallback')
         with self.assertRaises(SystemExit): self.invoke('--partial-emission1-alias')
         with self.assertRaises(SystemExit): self.invoke('--barrel-block-bounded')
-        self.invoke('--windows-game', str(windows), '--quality-textures', '--color-block-fallback', '--color-block-extra', '--barrel-block-bounded', '--small-color-block-fallback', '--small-color-block-aliases', '--lightmap-block-fallback', '--partial-emission1-alias', '--partial-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-tiny', '--partial-etc2-aliases', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte', '--partial-etc2-rgba', '--partial-etc2-extra')
+        with self.assertRaises(SystemExit): self.invoke('--precise-color-blocks')
+        self.invoke('--windows-game', str(windows), '--quality-textures', '--color-block-fallback', '--color-block-extra', '--barrel-block-bounded', '--precise-color-blocks', '--small-color-block-fallback', '--small-color-block-aliases', '--lightmap-block-fallback', '--partial-emission1-alias', '--partial-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-tiny', '--partial-etc2-aliases', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte', '--partial-etc2-rgba', '--partial-etc2-extra')
         chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
         self.assertEqual(len(chains), 2)
         self.assertTrue(all('--small-color-block-fallback' in chain for chain in chains))
@@ -84,6 +85,7 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertTrue(all('--lightmap-block-fallback' in chain for chain in chains))
         self.assertTrue(all('--partial-emission1-alias' in chain for chain in chains))
         self.assertTrue(all('--barrel-block-bounded' in chain for chain in chains))
+        self.assertTrue(all('--precise-color-blocks' in chain for chain in chains))
 
     @patch.object(module.subprocess, 'run')
     def test_localization_option_reaches_both_chains_and_requires_partial(self, run):
