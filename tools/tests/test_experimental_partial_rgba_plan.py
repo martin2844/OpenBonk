@@ -12,6 +12,30 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_three_encoders_reconstruct_only_selected_bytes(self):
+        original, high, fast, alternate = b'ABCD', b'Axxx', b'xBxx', b'xxCx'
+        base, base_mask = module.select_blocks(original, high, fast, 1)
+        output, rgba_mask = module.select_blocks(original, base, alternate, 1)
+        self.assertEqual(output, b'ABCx')
+        self.assertEqual((base_mask, rgba_mask), (b'\x02', b'\x04'))
+        encoder = SimpleNamespace(rgba_variant=lambda: 'rgba')
+        item = {'target_format': 47, 'quality': True, 'width': 1, 'height': 1, 'mips': 1,
+                'blend': 'Ag==', 'blend_unit': 1, 'blend_rgba': 'BA=='}
+        with patch.object(module, 'converted', side_effect=[high, fast, alternate]):
+            self.assertEqual(module.converted_plan_texture(None, item, encoder), output)
+        for update in ({'blend_rgba': 'gA=='}, {'blend_rgba': ''}, {'blend_unit': 16}):
+            with patch.object(module, 'converted', side_effect=[high, fast, alternate]), self.assertRaises(ValueError):
+                module.converted_plan_texture(None, dict(item, **update), encoder)
+        with self.assertRaises(ValueError):
+            module.converted_plan_texture(None, {'target_format': 47, 'blend_rgba': 'AA=='}, encoder)
+
+    def test_rgba_encoder_cli_requires_byte_selection(self):
+        args = ['tool', 'generate', '--steam-data', '/unused', '--obb', '/unused', '--output', '/unused', '--rgba-etc2']
+        with patch.object(sys, 'argv', args), self.assertRaises(SystemExit): module.main()
+        args += ['--etc2-quality-library', '/unused', '--fast-etc2', '--blend-etc2', '--byte-etc2']
+        with patch.object(sys, 'argv', args), patch.object(module, 'generate') as generate: module.main()
+        self.assertTrue(generate.call_args.args[0].rgba_etc2)
+
     def test_rgba_normal_mode_is_validated_and_applied(self):
         item = {'target_format': 4, 'source_format': 12, 'normal_rgba': True,
                 'width': 1, 'height': 1, 'mips': 1}

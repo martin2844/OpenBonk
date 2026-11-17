@@ -13,6 +13,7 @@ public final class SteamConvertedTextures {
     private static final String PLAN="5cbf43e71686f86f1660232db9beab57e29da05b7991c72605329b22d6772fd8";
     static native byte[] convertMip(byte[] source,int width,int height,int sourceFormat,int targetFormat);
     static native byte[] convertQualityMip(byte[] source,int width,int height,int sourceFormat);
+    static native byte[] convertQualityRgbaMip(byte[] source,int width,int height,int sourceFormat);
     static native byte[] convertNormalMip(byte[] source,int width,int height,int targetFormat);
     private static final class Converted {Texture t;int targetSize,width,height,mips,sourceFormat,targetFormat;}
 

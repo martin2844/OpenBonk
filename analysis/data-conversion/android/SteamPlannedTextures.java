@@ -14,7 +14,7 @@ public final class SteamPlannedTextures {
     private static final String PREFIX = "assets/bin/Data/";
     private static final class Texture {
         String source, inputHash, outputHash, decodedHash; long inputOffset, convertedOffset;
-        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat, blendUnit = 16; boolean normal, normalRgba, quality; byte[] blend;
+        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat, blendUnit = 16; boolean normal, normalRgba, quality; byte[] blend, blendRgba;
     }
     private static final class Fragment {
         Texture texture; String entry, maskedHash, originalHash; byte[] mask; int targetOffset, convertedOffset, size;
@@ -146,6 +146,12 @@ public final class SteamPlannedTextures {
                     int blocks = (t.outputSize + t.blendUnit - 1) / t.blendUnit;
                     if (t.blend.length != (blocks + 7) / 8 || ((blocks & 7) != 0 && ((t.blend[t.blend.length - 1] & 255) >>> (blocks & 7)) != 0)) throw new IOException("invalid blended texture choices");
                 } else if (row.has("blend_unit")) throw new IOException("blend unit without choices");
+                if (row.has("blend_rgba")) {
+                    if (!partial || t.blend == null || t.blendUnit != 1 || !(row.get("blend_rgba") instanceof String)) throw new IOException("invalid RGBA encoder choices");
+                    try { t.blendRgba = Base64.getDecoder().decode(row.getString("blend_rgba")); }
+                    catch (IllegalArgumentException e) { throw new IOException("invalid RGBA encoder choices", e); }
+                    if (t.blendRgba.length != (t.outputSize + 7) / 8 || ((t.outputSize & 7) != 0 && ((t.blendRgba[t.blendRgba.length - 1] & 255) >>> (t.outputSize & 7)) != 0)) throw new IOException("invalid RGBA encoder choices");
+                }
                 t.convertedOffset = total; total += t.outputSize; if (total > MAX_TOTAL) throw new IOException("texture limit exceeded");
                 JSONArray fs = row.getJSONArray("fragments"); int position = 0;
                 if (fs.length() == 0 || fs.length() > 128) throw new IOException("invalid fragment count");
@@ -237,6 +243,16 @@ public final class SteamPlannedTextures {
                             for (int i = 0; i < wanted; i++) {
                                 int block = (outputPos + i) / t.blendUnit;
                                 if ((t.blend[block / 8] & (1 << (block & 7))) != 0) mip[i] = fast[i];
+                            }
+                        }
+                        if (mip != null && t.blendRgba != null) {
+                            byte[] alternate;
+                            try { alternate = SteamConvertedTextures.convertQualityRgbaMip(Arrays.copyOfRange(input, inputPos, inputPos + n), w, h, sourceFormat); }
+                            catch (UnsatisfiedLinkError e) { throw new IOException("RGBA texture converter unavailable", e); }
+                            if (alternate == null || alternate.length != (t.targetFormat == 45 ? wanted * 2 : wanted)) throw new IOException("RGBA texture conversion failed");
+                            for (int i = 0; i < wanted; i++) {
+                                int position = outputPos + i;
+                                if ((t.blendRgba[position / 8] & (1 << (position & 7))) != 0) mip[i] = alternate[t.targetFormat == 45 ? (i / 8) * 16 + 8 + (i % 8) : i];
                             }
                         }
                         if (mip == null || mip.length != wanted) throw new IOException("texture conversion failed");

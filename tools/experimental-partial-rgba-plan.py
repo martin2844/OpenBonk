@@ -84,7 +84,7 @@ def converted_plan_texture(source, item, encoder):
     quality = quality_mode(item)
     normal = normal_rgba_mode(item)
     if 'blend' not in item:
-        if 'blend_unit' in item: raise ValueError('blend unit without choices')
+        if 'blend_unit' in item or 'blend_rgba' in item: raise ValueError('blend unit or RGBA choices without base choices')
         output = converted(source, item['width'], item['height'], item['mips'], target, encoder, not quality and target in (45, 47))
         return normal_rgba.reconstruct(output) if normal else output
     mask = item['blend']
@@ -92,7 +92,13 @@ def converted_plan_texture(source, item, encoder):
     choices = base64.b64decode(mask, validate=True)
     high = converted(source, item['width'], item['height'], item['mips'], target, encoder)
     fast = converted(source, item['width'], item['height'], item['mips'], target, encoder, True)
-    return blend_blocks(high, fast, choices, item.get('blend_unit', 16))
+    unit = item.get('blend_unit', 16)
+    output = blend_blocks(high, fast, choices, unit)
+    if 'blend_rgba' in item:
+        if unit != 1 or not isinstance(item['blend_rgba'], str) or encoder is None: raise ValueError('invalid RGBA encoder mode')
+        alternate = converted(source, item['width'], item['height'], item['mips'], target, encoder.rgba_variant())
+        output = blend_blocks(output, alternate, base64.b64decode(item['blend_rgba'], validate=True), 1)
+    return output
 
 
 def converted(source, width, height, mips, target_format=4, encoder=None, fast=False):
@@ -266,6 +272,7 @@ def generate(args):
     source = args.steam_data.resolve(strict=True); obb = args.obb.resolve(strict=True)
     quality_library = getattr(args, 'etc2_quality_library', None)
     encoder = study.load_quality_encoder(quality_library) if quality_library else None
+    rgba_encoder = encoder.rgba_variant() if getattr(args, 'rgba_etc2', False) and encoder else None
     out = objects.new_output(args.output, (source, obb)); index, _ = sources(source, bool(encoder))
     rows = []; textures = []; decoded = {}; normal_seen = False; out.mkdir(mode=0o700)
     with zipfile.ZipFile(obb) as zin:
@@ -316,7 +323,7 @@ def generate(args):
                         raise ValueError('unexpected or duplicate RGBA normal texture')
                     normal_seen = True
                     output = normal_rgba.reconstruct(output)
-                quality = target_format in (45, 47); blend = None
+                quality = target_format in (45, 47); blend = None; blend_rgba = None
                 if quality and getattr(args, 'fast_etc2', False):
                     try:
                         fast_output = converted(src, target.m_Width, target.m_Height, target.m_MipCount, target_format, encoder, True)
@@ -327,6 +334,14 @@ def generate(args):
                             blended, choices = select_blocks(payload, quality_output, fast_output, unit)
                             if equal_nonzero(payload, blended) > equal_nonzero(payload, output):
                                 output = blended; quality = True; blend = base64.b64encode(choices).decode('ascii')
+                        if rgba_encoder is not None:
+                            base, base_choices = select_blocks(payload, quality_output, fast_output, 1)
+                            alternate = converted(src, target.m_Width, target.m_Height, target.m_MipCount, target_format, rgba_encoder)
+                            improved, alternate_choices = select_blocks(payload, base, alternate, 1)
+                            if equal_nonzero(payload, improved) > equal_nonzero(payload, output):
+                                output = improved; quality = True
+                                blend = base64.b64encode(base_choices).decode('ascii')
+                                blend_rgba = base64.b64encode(alternate_choices).decode('ascii')
                     except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): pass
                 ident = len(textures); fragments = fragment_rows(parts, obj.byte_start + pos, payload, output, ident)
                 if not fragments:
@@ -341,6 +356,7 @@ def generate(args):
                 if blend is not None:
                     texture['blend'] = blend
                     if getattr(args, 'byte_etc2', False): texture['blend_unit'] = 1
+                if blend_rgba is not None: texture['blend_rgba'] = blend_rgba
                 textures.append(texture)
                 decoded[ident] = output; rows.extend(fragments)
         if getattr(args, 'normal_rgba', False) and not normal_seen: raise ValueError('RGBA normal texture missing or unsupported')
@@ -421,6 +437,7 @@ def export_android(args):
         if normal_rgba_mode(item): record['normal_rgba'] = True
         if 'blend' in item: record['blend'] = item['blend']
         if 'blend_unit' in item: record['blend_unit'] = item['blend_unit']
+        if 'blend_rgba' in item: record['blend_rgba'] = item['blend_rgba']
         records.append(record)
     if not records or len(grouped) != len(records): raise ValueError('invalid fragment mapping')
     result = {'schema': 1, 'kind': 'experimental-partial-rgba-texture-offsets', 'template_sha256': plan['template_sha256'], 'sources': used, 'records': records}
@@ -435,6 +452,7 @@ def main():
     g.add_argument('--include-tiny-etc2', action='store_true', help='also match exact bytes in small uniquely sourced ETC2 textures')
     g.add_argument('--include-etc2-aliases', action='store_true', help='also match unambiguous small ETC2 aliases by encoded bytes')
     g.add_argument('--normal-rgba', action='store_true', help='match exact bytes in the unpacked WaterNormal RGBA texture')
+    g.add_argument('--rgba-etc2', action='store_true', help='also match exact ETC2 bytes using the RGBA error metric; requires --byte-etc2')
     g.add_argument('--fast-etc2', action='store_true', help='experimentally select the fast ETC2 encoder when it recovers more exact bytes')
     g.add_argument('--blend-etc2', action='store_true', help='experimentally choose an encoder per 16-byte output block; requires --fast-etc2')
     g.add_argument('--byte-etc2', action='store_true', help='experimentally choose an encoder per output byte; requires --blend-etc2')
@@ -448,6 +466,8 @@ def main():
         p.error('--include-tiny-etc2 requires --include-small-etc2 and --byte-etc2')
     if a.action == 'generate' and a.include_etc2_aliases and not a.include_tiny_etc2:
         p.error('--include-etc2-aliases requires --include-tiny-etc2')
+    if a.action == 'generate' and a.rgba_etc2 and not a.byte_etc2:
+        p.error('--rgba-etc2 requires --byte-etc2')
     if a.action == 'generate' and a.fast_etc2 and not a.etc2_quality_library:
         p.error('--fast-etc2 requires --etc2-quality-library')
     if a.action == 'generate' and a.blend_etc2 and not a.fast_etc2:

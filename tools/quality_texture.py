@@ -4,14 +4,18 @@ from pathlib import Path
 
 
 class QualityEncoder:
-    def __init__(self, library):
+    def __init__(self, library, rgba=False):
         path = Path(library).expanduser()
         if path.is_symlink() or not path.is_file(): raise ValueError('quality library must be a regular file')
-        self.library = ctypes.CDLL(str(path.resolve(strict=True)))
-        try: self.convert = self.library.openbonk_quality_mip
+        self.path = path.resolve(strict=True)
+        self.library = ctypes.CDLL(str(self.path))
+        try: self.convert = getattr(self.library, 'openbonk_quality_rgba_mip' if rgba else 'openbonk_quality_mip')
         except AttributeError as error: raise ValueError('library has no quality encoder') from error
         self.convert.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_size_t]
         self.convert.restype = ctypes.c_int
+
+    def rgba_variant(self):
+        return QualityEncoder(self.path, rgba=True)
 
     def encode(self, data, width, height, source_format):
         if (not isinstance(data, bytes) or not data or len(data) > 64 * 1024 * 1024 or
