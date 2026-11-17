@@ -159,8 +159,8 @@ def generate(args):
                 chunks, safe, unsafe, changed = [], 0, 0, 0
                 for level, mips in enumerate(zip(*mipsets)):
                     w, h = mips[0][:2]
-                    images = [converter.parse_image_data(mip[2], w, h, fmt, target.object_reader.version,
-                                                         target.object_reader.platform).convert('RGBA') for mip in mips]
+                    images = [partial.decode_block_image(converter, mip[2], w, h, fmt, target.object_reader.version,
+                                                         target.object_reader.platform, 'RGBA') for mip in mips]
                     chunk, s, u, c = normal.blend_mip(*(mip[2] for mip in mips[:3]), *images[:3],
                                                      lambda a, b: acceptable_color(a, b, level),
                                                      8 if fmt == 45 else 16)

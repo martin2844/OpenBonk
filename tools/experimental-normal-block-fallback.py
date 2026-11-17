@@ -96,7 +96,10 @@ def generate(a):
                 chunks=[];safe=unsafe=changed=0
                 for mips in zip(*levels):
                     base,fast_mip,quality_mip = mips[:3]
-                    w,h,old_data=base; images=[converter.parse_image_data(item[2],w,h,45,target.object_reader.version,target.object_reader.platform).convert('RGB') for item in mips]
+                    # Encoded ETC2 blocks are in unflipped row order. UnityPy
+                    # flips images by default, which would compare each block
+                    # against a different row of pixels.
+                    w,h,old_data=base; images=[partial.decode_block_image(converter,item[2],w,h,45,target.object_reader.version,target.object_reader.platform,'RGB') for item in mips]
                     block,s,u,c=blend_mip(old_data,fast_mip[2],quality_mip[2],*images[:3],partial.study.acceptable_normal_image)
                     if variants:
                         block,added,extra_changed=fill_safe_extra_blocks(old_data,block,fast_mip[2],quality_mip[2],images[0],[(mip[2],image) for mip,image in zip(mips[3:],images[3:])],partial.study.acceptable_normal_image)

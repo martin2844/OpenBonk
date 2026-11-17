@@ -30,6 +30,11 @@ ENTRY = re.compile(re.escape(objects.PREFIX) + r'(?:[0-9a-f]{32}|sharedassets[01
 def sha(data): return hashlib.sha256(data).hexdigest()
 
 
+def decode_block_image(converter, payload, width, height, fmt, version, platform, mode):
+    """Keep decoded pixel rows in the same order as serialized ETC2 blocks."""
+    return converter.parse_image_data(payload, width, height, fmt, version, platform, flip=False).convert(mode)
+
+
 def quality_mode(item):
     value = item.get('quality', item.get('target_format', 4) in (45, 47))
     if type(value) is not bool or (item.get('target_format', 4) == 4 and value):

@@ -134,8 +134,8 @@ def generate(args):
                     chunks = []; selected = changed = 0
                     for level, mips in enumerate(zip(*mipsets)):
                         w, h = mips[0][:2]
-                        images = [converter.parse_image_data(mip[2], w, h, fmt, target.object_reader.version,
-                                                            target.object_reader.platform).convert('RGBA') for mip in mips]
+                        images = [partial.decode_block_image(converter, mip[2], w, h, fmt, target.object_reader.version,
+                                                            target.object_reader.platform, 'RGBA') for mip in mips]
                         chunk, n, c = replace_mip(mips[0][2], [m[2] for m in mips[1:]], images, level, 8 if fmt == 45 else 16, lightmap=lightmap)
                         chunks.append(chunk); selected += n; changed += c
                 except (ValueError, TypeError, IndexError, OSError, NotImplementedError, RuntimeError):

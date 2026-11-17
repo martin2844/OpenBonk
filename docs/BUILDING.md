@@ -1,11 +1,27 @@
 # Source and build status
 
-**Texture-quality correction in progress:** earlier block-level normal, color,
-small-color and lightmap studies compared vertically flipped decoded images
-against blocks in storage order. Their reported per-block error bounds are not
-established, and APKs built using those stages need renewed visual validation.
-The historical reconstruction and byte-count results below remain observations
-about those private outputs; they do not demonstrate visual fidelity.
+**Texture-quality correction:** earlier block-level normal, color, small-color
+and lightmap studies compared vertically flipped decoded images against blocks
+in storage order. Their reported per-block error bounds are not established,
+and APKs built using those stages need renewed visual validation. The corrected
+tools decode in storage order. Historical reconstruction and byte-count results
+below remain observations about those private outputs, not proof of fidelity.
+For example, independently decoding the top mip of `t_birdo_blue` before and
+after the earlier private color-block stage found a maximum RGB channel
+difference of 119/255, exceeding that stage's intended top-mip maximum of
+48/255. This is a decoded-pixel comparison, not a rendered-game measurement.
+For the corresponding corrected study, the same comparison measured a maximum
+of 16/255; this is one texture, not validation of the entire game.
+
+In a focused corrected study, Linux and Windows inputs produced matching OBBs
+at each of the normal, color and small-color stages. Independent block checks
+found no violations in 7,491 normal, 6,515 color and 2,215 small-color/lightmap
+blocks under their respective metrics. Those metrics do not bound hidden RGB
+under transparency or normal-vector magnitude. Each partial template retained
+42,211 nonzero bytes in 1,157 measured inline textures, with none skipped; the
+desktop Java helper restored all 1,072 expected entries from each Steam ZIP.
+Four decoded texture samples were inspected, but lighting and the full game
+have not been visually compared. Other asset types remain outside this audit.
 
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named

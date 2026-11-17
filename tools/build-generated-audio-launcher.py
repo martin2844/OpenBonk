@@ -22,6 +22,31 @@ ROOT = Path(__file__).resolve().parent.parent
 JAVA = ROOT / 'analysis/data-conversion/android'
 
 
+def overlay_launcher_sources(root, java_root):
+    """Use checkout launcher sources even when reusing a Gradle export.
+
+    SplitExpectedData is generated later from the expected OBB. Refuse
+    symlinks so an exported template cannot redirect writes outside the build.
+    """
+    groups = ((root / 'unity/OpenBonk/Assets/AndroidSplitLauncher', java_root / 'com/megabonk/launcher'),
+              (root / 'unity/OpenBonk/Assets/AndroidModPicker', java_root / 'com/megabonk/modpicker'))
+    for source, destination in groups:
+        files = sorted(source.glob('*.java'))
+        cursor = java_root
+        if cursor.is_symlink(): raise ValueError('symbolic link in launcher destination')
+        for part in destination.relative_to(java_root).parts:
+            cursor = cursor / part
+            if cursor.is_symlink(): raise ValueError('symbolic link in launcher destination')
+        if not files or source.is_symlink() or not destination.is_dir():
+            raise ValueError('missing or unsafe launcher source directory')
+        for file in files:
+            if file.name == 'SplitExpectedData.java': continue
+            target = destination / file.name
+            if file.is_symlink() or target.is_symlink():
+                raise ValueError('symbolic link in launcher source')
+            shutil.copy2(file, target)
+
+
 def digest(path):
     with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
@@ -525,6 +550,7 @@ def main():
     source = library / 'src/main/java'
     launcher = source / 'com/megabonk/launcher'
     dataprep = source / 'com/openbonk/dataprep'
+    overlay_launcher_sources(ROOT, source)
     dataprep.mkdir(parents=True, exist_ok=True)
     for file in JAVA.glob('Steam*.java'): shutil.copy2(file, dataprep / file.name)
     shutil.copy2(JAVA / 'LauncherDiagnosticGenerator.java', launcher / 'LauncherDiagnosticGenerator.java')

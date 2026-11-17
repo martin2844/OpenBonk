@@ -16,6 +16,27 @@ SPEC.loader.exec_module(MODULE)
 
 
 class GeneratedAudioBuildTest(unittest.TestCase):
+    def test_reused_gradle_export_gets_current_launcher_sources(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); checkout = root / 'checkout'; java = root / 'export/src/main/java'
+            launcher = checkout / 'unity/OpenBonk/Assets/AndroidSplitLauncher'
+            modpicker = checkout / 'unity/OpenBonk/Assets/AndroidModPicker'
+            destination = java / 'com/megabonk/launcher'; picker_dest = java / 'com/megabonk/modpicker'
+            for path in (launcher, modpicker, destination, picker_dest): path.mkdir(parents=True)
+            (launcher / 'Launch.java').write_text('new launcher')
+            (launcher / 'SplitExpectedData.java').write_text('checkout placeholder')
+            (modpicker / 'Picker.java').write_text('new picker')
+            (destination / 'Launch.java').write_text('stale launcher')
+            (destination / 'SplitExpectedData.java').write_text('generated checksum')
+            MODULE.overlay_launcher_sources(checkout, java)
+            self.assertEqual((destination / 'Launch.java').read_text(), 'new launcher')
+            self.assertEqual((destination / 'SplitExpectedData.java').read_text(), 'generated checksum')
+            self.assertEqual((picker_dest / 'Picker.java').read_text(), 'new picker')
+            (destination / 'Launch.java').unlink()
+            (destination / 'Launch.java').symlink_to(root / 'outside')
+            with self.assertRaisesRegex(ValueError, 'symbolic link'):
+                MODULE.overlay_launcher_sources(checkout, java)
+
     def test_localization_checks_fragments_sources_and_unrelated_entries(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); template = root/'a.obb'; result = root/'b.obb'; plan = root/'plan.json'
