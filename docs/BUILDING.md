@@ -269,7 +269,7 @@ five groups without parser errors, including the two builtin resource
 containers. `globalgamemanagers.assets` contained one texture named
 `Splash Screen Unity Logo`, one shader named
 `MK/Toon/Built-in/Standard/Simple + Outline`, and one sprite whose name was
-empty. The builtin containers
+empty, as well as a material and shader variant collection. The builtin containers
 contained shaders, textures, meshes and other Unity object types. Nine other
 Unity data entries, including managed metadata, were listed but not inspected.
 One manager object had an unknown type identifier. This
@@ -277,7 +277,7 @@ inventory does not inspect the nested templates or establish ownership,
 contents of every object, or absence of game assets; the report stays local.
 The tool also hashes the serialized bytes of its selected media objects. A
 comparison with the fresh `ca4503e` clone's APK found matching identities and
-hashes for all 109 selected objects in these direct groups, including the
+hashes for all 113 selected objects in these direct groups, including the
 toon shader and Unity splash texture. Both builds used the same host and local
 inputs. This comparison does not establish where the source material came from,
 whether those objects can be redistributed, or equivalence of other fields.

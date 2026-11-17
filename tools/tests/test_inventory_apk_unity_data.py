@@ -74,5 +74,13 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(report['serialized_groups'][0]['media'][0]['name'], 'Hidden/Test')
         self.assertEqual(report['problems'], [])
 
+    def test_material_objects_are_included(self):
+        material = SimpleNamespace(type=SimpleNamespace(name='Material'), path_id=4, byte_size=1,
+                                   read=lambda: SimpleNamespace(m_Name='Example'), get_raw_data=lambda: b'x')
+        with archive([('level0', b'x')]) as data, \
+             patch.object(module.UnityPy, 'load', return_value=SimpleNamespace(objects=[material])):
+            report = module.inventory(data)
+        self.assertEqual(report['serialized_groups'][0]['media'][0]['type'], 'Material')
+
 
 if __name__ == '__main__': unittest.main()

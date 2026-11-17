@@ -22,8 +22,10 @@ PREFIX = 'assets/bin/Data/'
 BASE = r'(?:globalgamemanagers(?:\.assets)?|level[0-9]+|resources\.assets|sharedassets[0-9]+\.assets|[0-9a-f]{32})'
 SINGLE = re.compile(BASE + r'\Z')
 SPLIT = re.compile('(' + BASE + r')\.split(0|[1-9][0-9]*)\Z')
-MEDIA = frozenset(('Texture2D', 'Texture3D', 'Cubemap', 'AudioClip', 'VideoClip',
-                   'Sprite', 'Mesh', 'TextAsset', 'Shader', 'ComputeShader', 'Font', 'MovieTexture'))
+MEDIA = frozenset(('Texture2D', 'Texture2DArray', 'Texture3D', 'Cubemap', 'CubemapArray',
+                   'RenderTexture', 'AudioClip', 'VideoClip', 'Sprite', 'SpriteAtlas',
+                   'Mesh', 'Material', 'AnimationClip', 'TerrainData', 'TextAsset',
+                   'Shader', 'ComputeShader', 'ShaderVariantCollection', 'Font', 'MovieTexture'))
 BUILTIN = frozenset(('Resources/unity default resources', 'Resources/unity_builtin_extra'))
 MAX_GROUP = 256 * 1024 * 1024
 
