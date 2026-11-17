@@ -35,6 +35,8 @@ The suite uses temporary fixtures and does not build the APK or check gameplay. 
 
 The current suite also passed all 454 tests locally at `1216f8e` using the existing conversion environment. This newer run does not establish that the Python dependencies were installed afresh or that every build input is available on another machine.
 
+A fresh GitHub clone at `a69124b` passed all 501 tests with the existing local conversion environment. This test run does not itself build an APK or verify game behavior.
+
 In Bash, replace the example paths below. `OPENBONK_OUTPUT` must be a new path outside the checkout and game installations. The optional Windows directory must contain `Megabonk_Data`; omit the `--windows-game` line for a Linux-only research APK.
 
 ```sh
