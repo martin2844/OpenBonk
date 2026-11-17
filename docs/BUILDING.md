@@ -167,6 +167,16 @@ build, did not test Windows import or all languages, and does not establish
 complete gameplay parity or an asset-free APK. The isolated app and copied ZIP
 were removed; the APK and build inputs remain private.
 
+Using existing relocated runtime and Gradle intermediates, the automated
+`--localization-cab` research chain later completed for both Linux and Windows
+and produced identical final OBB hashes. The Linux APK imported its Steam ZIP
+on a Retroid Pocket 5, generated that OBB hash, and entered a brief Forest run
+in which Fox defeated enemies. Spanish and Japanese reconstructed bundles
+were also compared in the separate Unity diagnostic described above. These
+tests do not establish a clean Unity build, Windows import through the
+combined APK, all languages or complete gameplay parity. Outputs remain
+private because they still contain game assets.
+
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
 failed because its validation rejected fast ETC2 records. After updating the
