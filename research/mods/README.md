@@ -69,6 +69,20 @@ base stats, and animations and long-run behavior have not been validated. The
 second temporary installation was removed. Neither study establishes permission
 to redistribute the original author's assets.
 
+Cow-noichi 1.1.1's character metadata declares eight base stat modifiers,
+custom collider dimensions, a per-level Luck passive and a Kunai weapon with
+its own projectile prefab, sound and upgrade options. In 0.1.2, the API 3
+character loader instead copies Fox's base stats and collider, and supports
+only the host's lightning, fireball or arrow attack implementations. The
+passive can express the per-level Luck change, but the complete character
+cannot be reproduced by its Lua script alone. A faithful port needs validated
+character-specific base stats/collider definitions and a suitable custom
+projectile/weapon interface (including size, audio and upgrades). The original
+model's material shader also needs an Android-compatible equivalent, not just
+an arbitrary opaque fallback. These require changes to the installed host or
+its supported data format; a catalog-only update cannot supply missing host
+capabilities.
+
 Check the original author, license and asset permissions separately for each port before copying or bundling source or artwork. A package link or source repository alone does not establish redistribution permission. Preserve attribution and applicable notices. Avoid claiming compatibility until package installation, enable/disable behavior and the feature itself are tested on Android.
 
 Nexus also hosts Megabonk mods; its ranking is separate and overlap and download counts must be evaluated independently. The Thunderstore API snapshot above does not establish the top 20 across both services.
