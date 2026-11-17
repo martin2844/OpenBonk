@@ -72,6 +72,24 @@ build_args=(
 
 The example enables the same conversion options used by the independently tested `276b8d0` build below. These experimental options reconstruct additional data from the Steam ZIP and can increase preparation time. Current code may produce different output from that earlier build, and the APK still contains assets and must remain private.
 
+For the later `a69124b` research build described below, the following options
+were also enabled in `build_args`:
+
+```sh
+build_args+=(
+  --normal-block-fallback --color-block-fallback --emission-block-fallback
+  --bullseye-block-fallback --animation-curve-extended --animation-curve-hybrid
+  --bounded-fallback --partial-normal-rgba --localization-cab --localization-small
+  --partial-etc2-tiny --partial-etc2-aliases --partial-etc2-fast
+  --partial-etc2-blend --partial-etc2-byte --partial-etc2-rgba
+  --version-code 2 --version-name 0.1.1-beta
+)
+```
+
+This is an experimental configuration, not a redistribution recipe. Bounded
+texture blocks and animation curves can differ from the earlier Android data.
+First import requires extra conversion work on the device.
+
 For an experiment, `--localization-cab` can additionally be supplied with
 `--partial-rgba`. It normalizes and reconstructs selected Android localization
 bundles during import. The resulting APK still contains other assets. The new
@@ -98,6 +116,19 @@ The output path must not exist. The script aligns and signs the APK and prints i
 The local dual-platform project used to assemble the published 0.1.1 APK enabled the conversion options in the example above. Subsequent changes to the research tools, generated inputs, package identity and signing can change the output, so these options are not a byte-for-byte reproduction recipe. The release was assembled from existing local intermediate projects and was not independently rebuilt from a clean checkout.
 
 A later local clone at `276b8d0` completed a new dual-platform build without interruption with those switches, `--version-code 2` and `--version-name 0.1.1-beta`, using installed Unity, AssetRipper, dependency caches and local Steam data. The Windows input was extracted from an existing ZIP, not obtained directly on a Windows PC. Both platform chains produced the same final OBB SHA-256, and an independent checker used the plans inside the combined APK to restore that OBB exactly from each generated ZIP. On a Retroid Pocket 5, an isolated installation of that APK imported each ZIP in separate tests and produced the expected OBB. Both tests reached short Forest runs with Fox and enemy defeats; the Windows-data run reached level one, selected an upgrade and resumed. The temporary APK and copied ZIPs were removed. This is not a complete gameplay test, a clean second computer or a byte-for-byte rebuild of the published APK. An inline texture audit still found game-derived payload bytes, so the generated APK remains local.
+
+A fresh GitHub clone at `a69124b` also completed all seven dual-platform build
+stages without interruption using the expanded options above, installed Unity
+and AssetRipper, existing dependency caches and local Steam inputs. The Windows
+data again came from a prepared ZIP. An independent checker restored the
+expected OBB exactly from each generated ZIP using the plans in the combined
+APK. The source and binary workspace checks passed within their documented
+scope. In separate Retroid Pocket 5 installations, each ZIP imported through
+the launcher, produced the expected OBB hash, and reached a brief Forest run
+with enemy defeats. Both temporary installations and copied ZIPs were removed.
+This is not a second-machine build, complete gameplay test, visual parity test,
+or byte-for-byte reproduction of the published APK. The generated APK remains
+private and contains game-derived data.
 
 For that build, the source checker found no changed, missing or unexpected C#, Java or shader files in its documented scope; the binary checker also found no mismatches against the local export and generated plugins. Those checks do not prove that every source was compiled, establish the provenance of all inputs or verify complete gameplay equivalence.
 
