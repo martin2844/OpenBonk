@@ -12,6 +12,17 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_scored_alias_tries_exact_name_before_export_suffix(self):
+        target = SimpleNamespace(m_Name='0_7', m_Width=32, m_Height=32)
+        exact = ('sharedassets1', 1, object()); stripped = ('sharedassets1', 2, object())
+        index = {('0_7', 32, 32): [exact], ('0', 32, 32): [stripped]}
+        with patch.object(module, 'partial_etc2_source', side_effect=[(exact, b'one')]) as choose:
+            self.assertEqual(module.scored_etc2_alias(target, b'original', index, 'sharedassets1.assets', object()), (exact, b'one'))
+            self.assertEqual(choose.call_count, 1)
+        with patch.object(module, 'partial_etc2_source', side_effect=[None, (stripped, b'two')]) as choose:
+            self.assertEqual(module.scored_etc2_alias(target, b'original', index, 'sharedassets1.assets', object()), (stripped, b'two'))
+            self.assertTrue(all(call.kwargs['tiny_alias'] for call in choose.call_args_list))
+
     def test_three_encoders_reconstruct_only_selected_bytes(self):
         original, high, fast, alternate = b'ABCD', b'Axxx', b'xBxx', b'xxCx'
         base, base_mask = module.select_blocks(original, high, fast, 1)

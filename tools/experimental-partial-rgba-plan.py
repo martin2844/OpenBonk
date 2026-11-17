@@ -267,6 +267,17 @@ def candidate_sources(index, target, group, name):
     return [item for item in items if item[0] not in isolated]
 
 
+def scored_etc2_alias(target, payload, index, group, encoder):
+    # A trailing number is sometimes part of the original name (for example
+    # 0_7), rather than a suffix introduced by Unity's export. Try the exact
+    # name first, then the stripped alias, with the same ambiguity checks.
+    names = (target.m_Name, re.sub(r'_[0-9]+$', '', target.m_Name))
+    for name in dict.fromkeys(names):
+        match = partial_etc2_source(target, payload, candidate_sources(index, target, group, name), encoder, tiny_alias=True)
+        if match: return match
+    return None
+
+
 def generate(args):
     import UnityPy
     source = args.steam_data.resolve(strict=True); obb = args.obb.resolve(strict=True)
@@ -305,8 +316,7 @@ def generate(args):
                     partial = partial_etc2_source(target, payload, candidate_sources(index, target, group, source_name), encoder)
                     if partial: item, output = partial
                 if item is None and target_format in (45, 47) and getattr(args, 'include_etc2_aliases', False):
-                    source_name = re.sub(r'_[0-9]+$', '', target.m_Name)
-                    partial = partial_etc2_source(target, payload, candidate_sources(index, target, group, source_name), encoder, tiny_alias=True)
+                    partial = scored_etc2_alias(target, payload, index, group, encoder)
                     if partial: item, output = partial
                 if item is None: continue
                 group_name, source_id, src = item
