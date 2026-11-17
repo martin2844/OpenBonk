@@ -131,7 +131,7 @@ def commands(a):
         py('bounded normal blocks', 'experimental-normal-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'normal-block-study')
         converted = out / 'normal-block-study/converted.obb'
     if getattr(a, 'color_block_fallback', False):
-        py('bounded color blocks', 'experimental-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'color-block-study', *(['--emission-alias'] if getattr(a, 'emission_block_fallback', False) else []), *(['--bullseye-alias'] if getattr(a, 'bullseye_block_fallback', False) else []))
+        py('bounded color blocks', 'experimental-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'color-block-study', *(['--emission-alias'] if getattr(a, 'emission_block_fallback', False) else []), *(['--bullseye-alias'] if getattr(a, 'bullseye_block_fallback', False) else []), *(['--extra-etc2'] if getattr(a, 'color_block_extra', False) else []))
         converted = out / 'color-block-study/converted.obb'
     toolplan('individual audio plan', 'experimental-steam-audio-plan.py', converted, plans / 'audio')
     toolplan('packed audio plan', 'experimental-packed-audio-plan.py', plans / 'audio/template.obb', plans / 'packed')
@@ -253,6 +253,7 @@ def main():
     p.add_argument('--partial-etc2-byte', action='store_true', help='experimentally choose the encoder per output byte; requires --partial-etc2-blend')
     p.add_argument('--partial-etc2-rgba', action='store_true', help='also use RGBA error metric to recover exact ETC2 bytes; requires --partial-etc2-byte')
     p.add_argument('--partial-etc2-extra', action='store_true', help='try additional ETC2 metrics; requires --partial-etc2-rgba')
+    p.add_argument('--color-block-extra', action='store_true', help='try extra ETC2 metrics for bounded color blocks; requires --color-block-fallback and --partial-etc2-extra')
     p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally reconstruct selected fonts and the default skybox from a relocated sharedassets0')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
@@ -289,6 +290,7 @@ def main():
     if a.partial_etc2_byte and not a.partial_etc2_blend: p.error('--partial-etc2-byte requires --partial-etc2-blend')
     if a.partial_etc2_rgba and not a.partial_etc2_byte: p.error('--partial-etc2-rgba requires --partial-etc2-byte')
     if a.partial_etc2_extra and not a.partial_etc2_rgba: p.error('--partial-etc2-extra requires --partial-etc2-rgba')
+    if a.color_block_extra and not (a.color_block_fallback and a.partial_etc2_extra): p.error('--color-block-extra requires --color-block-fallback and --partial-etc2-extra')
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')
     a.output = output.parent.resolve() / output.name

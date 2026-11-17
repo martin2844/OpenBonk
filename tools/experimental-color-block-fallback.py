@@ -66,6 +66,29 @@ def acceptable_color(reference, candidate, level):
             partial.study.acceptable_bounded_mip(reference, candidate, level))
 
 
+def fill_safe_extra_blocks(old, selected, fast, quality, original_image, variants, acceptable, block_bytes):
+    """Try more encoders only where both existing choices left the block unchanged."""
+    width, height = original_image.size
+    expected = ((width + 3) // 4) * ((height + 3) // 4) * block_bytes
+    if (block_bytes not in (8, 16) or width < 1 or height < 1 or
+            any(len(x) != expected for x in (old, selected, fast, quality)) or
+            any(len(payload) != expected or image.size != (width, height) for payload, image in variants)):
+        raise ValueError('invalid additional color blocks')
+    output = bytearray(selected); pos = added = changed = 0
+    for y in range(0, height, 4):
+        for x in range(0, width, 4):
+            original = old[pos:pos + block_bytes]
+            if selected[pos:pos + block_bytes] == original and original not in (fast[pos:pos + block_bytes], quality[pos:pos + block_bytes]):
+                box = (x, y, min(x + 4, width), min(y + 4, height)); reference = original_image.crop(box)
+                candidates = [payload[pos:pos + block_bytes] for payload, image in variants if acceptable(reference, image.crop(box))]
+                if candidates:
+                    chosen = max(candidates, key=lambda block: sum(a == b for a, b in zip(original, block)))
+                    output[pos:pos + block_bytes] = chosen; added += 1
+                    changed += sum(a != b for a, b in zip(original, chosen))
+            pos += block_bytes
+    return bytes(output), added, changed
+
+
 def select_source(target, index, group, encoder):
     if target.m_Name == 'Emission_1':
         candidates = partial.candidate_sources(index, target, group, 'Emission')
@@ -99,6 +122,7 @@ def generate(args):
     obb = args.obb.resolve(strict=True)
     output = partial.masker.regular_output(args.output, (steam, obb))
     encoder = partial.study.load_quality_encoder(args.quality_library)
+    extras = [encoder.rgba_variant(), *(encoder.extra_variant(i) for i in (1, 2, 3))] if getattr(args, 'extra_etc2', False) else []
     index, _ = partial.sources(steam, True)
     targets = dict(TARGETS)
     if getattr(args, 'emission_alias', False):
@@ -129,16 +153,21 @@ def generate(args):
                 if not old or body.count(old) != 1: raise ValueError('ambiguous texture payload')
                 fast = partial.converted(src, target.m_Width, target.m_Height, target.m_MipCount, fmt, encoder, True)
                 quality = partial.converted(src, target.m_Width, target.m_Height, target.m_MipCount, fmt, encoder)
+                variants = [partial.converted(src, target.m_Width, target.m_Height, target.m_MipCount, fmt, extra) for extra in extras]
                 mipsets = [partial.study.mip_slices(data, fmt, target.m_Width, target.m_Height, target.m_MipCount)
-                           for data in (old, fast, quality)]
+                           for data in (old, fast, quality, *variants)]
                 chunks, safe, unsafe, changed = [], 0, 0, 0
                 for level, mips in enumerate(zip(*mipsets)):
                     w, h = mips[0][:2]
                     images = [converter.parse_image_data(mip[2], w, h, fmt, target.object_reader.version,
                                                          target.object_reader.platform).convert('RGBA') for mip in mips]
-                    chunk, s, u, c = normal.blend_mip(*(mip[2] for mip in mips), *images,
+                    chunk, s, u, c = normal.blend_mip(*(mip[2] for mip in mips[:3]), *images[:3],
                                                      lambda a, b: acceptable_color(a, b, level),
                                                      8 if fmt == 45 else 16)
+                    if variants:
+                        chunk, added, additional_changed = fill_safe_extra_blocks(mips[0][2], chunk, mips[1][2], mips[2][2], images[0],
+                            [(mip[2], image) for mip, image in zip(mips[3:], images[3:])], lambda a, b: acceptable_color(a, b, level), 8 if fmt == 45 else 16)
+                        s += added; u -= added; c += additional_changed
                     chunks.append(chunk); safe += s; unsafe += u; changed += c
                 replacement = b''.join(chunks)
                 offset = obj.byte_start + body.index(old)
@@ -175,6 +204,7 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--emission-alias', action='store_true', help='also reconstruct bounded blocks of a uniquely matched emission alias')
     parser.add_argument('--bullseye-alias', action='store_true', help='also reconstruct bounded blocks of a uniquely identified bullseye alias')
+    parser.add_argument('--extra-etc2', action='store_true', help='try additional encoders for blocks rejected by the existing choices')
     generate(parser.parse_args())
 
 

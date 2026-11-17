@@ -87,5 +87,19 @@ class ColorBlockTests(unittest.TestCase):
         self.assertEqual(result, b'Q' * 16 + b'A' * 16)
         self.assertEqual((safe, unsafe), (1, 1))
 
+    def test_extra_encoders_only_fill_original_unsafe_blocks(self):
+        image = Image.new('RGBA', (16, 4), (120, 80, 40, 255))
+        variant = image.copy(); variant.paste((255, 0, 0, 255), (8, 0, 12, 4))
+        old = b'A' * 32
+        selected = b'Q' * 8 + b'A' * 24
+        fast = b'F' * 24 + b'A' * 8
+        quality = b'Q' * 8 + b'Q' * 24
+        result, added, changed = module.fill_safe_extra_blocks(old, selected, fast, quality, image,
+            [(b'X' * 32, variant)], lambda a, b: module.acceptable_color(a, b, 0), 8)
+        self.assertEqual(result, b'Q' * 8 + b'X' * 8 + b'A' * 16)
+        self.assertEqual((added, changed), (1, 8))
+        with self.assertRaises(ValueError):
+            module.fill_safe_extra_blocks(old, selected, fast, quality, image, [(b'bad', variant)], lambda a, b: True, 8)
+
 
 if __name__ == '__main__': unittest.main()
