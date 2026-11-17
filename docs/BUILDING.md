@@ -252,8 +252,14 @@ compared with 19 textures and 247,128 bytes without the option. The Linux and
 Windows source inputs produced identical masked templates, and their exported
 Android plans each restored all 1,072 expected entries on a Retroid Pocket 5.
 The Windows study used that same Linux input template, not a full Windows
-research chain. This option has not yet been tested in a complete launcher;
-the templates still contain other game data and remain private.
+research chain. A subsequent Linux 38-stage chain reused the existing runtime
+and Gradle export and built a launcher with this option. Its template retained
+88,674 nonzero bytes across 1,157 identified inline texture payloads; seven
+textures were empty and none were streamed or skipped. The audit excludes
+other asset categories. On a Retroid Pocket 5, the isolated APK imported the
+Linux ZIP, produced the expected OBB hash and reached a short Forest run with
+enemy defeats. This does not establish full gameplay or visual parity; the
+templates still contain other game data and remain private.
 
 The separate opt-in `--partial-normal-rgba` option requires `--partial-rgba`.
 It derives an RGBA candidate for `IL3DN_WaterNormal` from the Steam DXT5nm
