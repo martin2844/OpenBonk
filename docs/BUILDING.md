@@ -75,6 +75,16 @@ The 19-source study also included the locales bundle, which is outside the
 existing minimal localization source list; availability on both platforms
 must be checked. This measurement does not establish asset-free distribution.
 
+The experimental `SteamUnityFs` Java reader now handles the restricted UnityFS
+7/8 and raw/LZ4/LZ4HC-block layouts needed by these inputs, with bounds checks
+and a single-CAB requirement. In a local comparison, its extracted CAB bytes
+matched UnityPy for 19 Linux and 18 Windows Steam localization bundles. On a
+Retroid Pocket 5, the English bundle from each platform produced the same CAB
+hash as on the host. Malformed block and truncated-header checks were also run.
+The Windows inputs were extracted from a previously prepared ZIP; Android tests
+covered only two bundles. This reader is not yet connected to a restoration
+plan or launcher and does not remove any assets from the APK.
+
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
 failed because its validation rejected fast ETC2 records. After updating the
