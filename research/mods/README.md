@@ -53,7 +53,7 @@ Multiplayer is excluded by request.
 | 11 | Search and spawn items, including bulk actions | Unknown | Needs inventory insertion and in-game UI. |
 | 12 | Track chests, shrines and vendors in an overlay | Unknown | Needs world object enumeration/events and overlay UI. |
 | 13 | Web dashboard for stats, inventory and game actions | [MIT repository](https://github.com/kss306/MegaBonkPlus) | Needs live state, inventory, teleport, spawn and UI/network APIs. |
-| 14 | Instantly collect XP orbs on enemy death | Unknown; linked source currently unavailable | Kill callback exists but cannot collect or suppress spawned orbs. |
+| 14 | Instantly collect XP orbs when spawned | Unknown; linked source currently unavailable | [Independent experimental adaptation](../../mods/instant-collect/) needs the new spawn pickup policy, not present in 0.1.3. Binary inspection indicates all spawned XP, including non-enemy sources, is affected. An isolated Android probe covered combined orbs, single reward and turning the policy off; final launcher import remains untested. |
 | 15 | Start with level 99 Luck Tome | Unknown; no license identified in [source repository](https://github.com/Semibox/MegabonkMod) | [Source](https://github.com/Semibox/MegabonkMod/blob/main/MegabonkMod.LuckyMan/Core.cs) inserts a tome with +10,000 Luck and 98 Legendary upgrades; Lua cannot insert tomes and stat additions are capped at 1,000. |
 | 16 | Toggle unlocked weapons, tomes and items | Unknown | Needs item-pool and inventory controls, plus configuration UI. |
 | 17 | Mod menu for refreshes, resources and runtime patches | Unknown | Needs live resource mutation and menu controls beyond existing Lua hooks. |
@@ -94,7 +94,13 @@ These are broad requirements, not a promise that one hook would make every
 mod compatible. In each case the original package's timing, numerical rules,
 reset behavior and compatibility still require comparison and device tests.
 
-None of these packages has been ported and bundled as part of this research. The existing experimental API does not expose general save/unlock, spawn, UI, per-kill pickup, network or Steamworks APIs. A Lua script cannot by itself implement these without new host functionality. Multiplayer additionally needs a networking and synchronization design. Models, animations and audio need Android-compatible assets.
+No adaptation from this inventory has been published in the remote catalog.
+Development source contains experimental Unlock Everything and instant-XP
+adaptations requiring hooks absent from 0.1.3. It does not expose general
+save/unlock mutation, spawn, UI, arbitrary pickup, network or Steamworks APIs.
+A Lua script cannot by itself implement these without new host functionality.
+Multiplayer additionally needs a networking and synchronization design. Models,
+animations and audio need Android-compatible assets.
 
 Multiplayer is excluded from the requested work. For the remaining candidates,
 the beta 0.1.2 API must be checked before publishing a catalog entry: a remote

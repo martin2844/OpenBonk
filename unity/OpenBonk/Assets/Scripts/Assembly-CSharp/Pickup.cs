@@ -97,7 +97,7 @@ public class Pickup : MonoBehaviour
 		collider.enabled = false;
 	}
 
-	private void ApplyPickup()
+	internal void ApplyPickup()
 	{
 		if (ePickup == EPickup.Xp)
 		{

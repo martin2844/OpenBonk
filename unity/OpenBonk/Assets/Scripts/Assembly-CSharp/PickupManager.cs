@@ -138,9 +138,15 @@ public class PickupManager : MonoBehaviour
 			if (powerup != null) powerup.Set(pos, value, pickupDelay);
 			return powerup;
 		}
-		if (CheckOverlap(ePickup, pos, out Pickup existing)) { existing.AddValue(value); return ePickup == EPickup.Xp ? existing : null; }
+		if (CheckOverlap(ePickup, pos, out Pickup existing)) { existing.AddValue(value); return ePickup == EPickup.Xp ? FinishXpSpawn(existing) : null; }
 		Pickup pickup = (ePickup == EPickup.Xp ? xpList : goldList).AddPickup(pos);
 		if (pickup != null) pickup.Set(pos, value, pickupDelay);
+		return ePickup == EPickup.Xp ? FinishXpSpawn(pickup) : pickup;
+	}
+
+	private static Pickup FinishXpSpawn(Pickup pickup)
+	{
+		if (pickup != null && OpenBonkPickupPolicy.CollectXpImmediately) pickup.ApplyPickup();
 		return pickup;
 	}
 

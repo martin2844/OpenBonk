@@ -356,6 +356,14 @@ normal queries; gameplay and purchases can still change progression. Multiple
 enabled packages combine by OR. Invalid scripts do not enable the policy.
 This hook is not supported by beta 0.1.3 and its launcher cannot import it.
 
+The development runtime also accepts API 1 `"hook": "collect_spawned_xp"`.
+Its chunk likewise runs at startup and returns `0` or `1`. When enabled, each
+new or merged XP pickup immediately takes the normal collection path; other
+pickup types are unaffected. Multiple enabled packages combine by OR. Disable
+the package and restart to restore normal pickup behavior. See the independent
+[Instant XP collection adaptation](../../mods/instant-collect/). This hook is
+also absent from beta 0.1.3.
+
 ### Experimental global stat modifiers
 
 API 1 and 2 also accept `stat_add:<EStat>` and `stat_mul:<EStat>` hooks,

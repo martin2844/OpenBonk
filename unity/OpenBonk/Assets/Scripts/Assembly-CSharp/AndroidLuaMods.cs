@@ -86,7 +86,7 @@ internal static class AndroidLuaMods
                     string file = Path.Combine(folders[i], "manifest.json");
                     if (!File.Exists(file) || new FileInfo(file).Length > FileLimit) continue;
                     var manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(file));
-                    if (manifest == null || !ValidRefresh(manifest) || manifest.id != Path.GetFileName(folders[i]) || (!UnlockManifest(manifest) && !AndroidModHooks.TryGetStats(manifest.api, manifest.hook, manifest.hooks, out _))) continue;
+                    if (manifest == null || !ValidRefresh(manifest) || manifest.id != Path.GetFileName(folders[i]) || (!StartupPolicyManifest(manifest) && !AndroidModHooks.TryGetStats(manifest.api, manifest.hook, manifest.hooks, out _))) continue;
                     result.Add(new ModInfo { id = manifest.id, enabled = Enabled(manifest) });
                 }
                 catch (Exception e) { Debug.LogWarning("Lua mods: cannot read manifest: " + e.Message); }
@@ -99,16 +99,17 @@ internal static class AndroidLuaMods
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Install()
     {
-        LoadUnlockPolicies();
+        LoadStartupPolicies();
         MyPlayer.A_PlayerInventoryInitialized -= Apply;
         MyPlayer.A_PlayerInventoryInitialized += Apply;
     }
 
-    private static bool UnlockManifest(Manifest manifest) => manifest != null && manifest.api == 1 && manifest.hook == "unlock_all" && ValidRefresh(manifest);
+    private static bool StartupPolicyManifest(Manifest manifest) => manifest != null && manifest.api == 1 && (manifest.hook == "unlock_all" || manifest.hook == "collect_spawned_xp") && ValidRefresh(manifest);
 
-    private static void LoadUnlockPolicies()
+    private static void LoadStartupPolicies()
     {
         OpenBonkUnlockPolicy.SetEnabled(false);
+        OpenBonkPickupPolicy.SetCollectXpImmediately(false);
         string root = Path.Combine(Application.persistentDataPath, "Mods");
         if (!Directory.Exists(root)) return;
         try
@@ -122,21 +123,22 @@ internal static class AndroidLuaMods
                     string path = Path.Combine(folder, "manifest.json");
                     if (!File.Exists(path) || new FileInfo(path).Length > FileLimit) continue;
                     var manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(path));
-                    if (!UnlockManifest(manifest) || manifest.id != Path.GetFileName(folder) || !Enabled(manifest)) continue;
+                    if (!StartupPolicyManifest(manifest) || manifest.id != Path.GetFileName(folder) || !Enabled(manifest)) continue;
                     path = Path.Combine(folder, "main.lua");
                     if (!File.Exists(path) || new FileInfo(path).Length > FileLimit) throw new InvalidDataException("missing or oversized main.lua");
                     string source = File.ReadAllText(path);
                     if (source.IndexOf('\0') >= 0) throw new InvalidDataException("NUL in script");
                     var error = new byte[256];
                     int status = megabonk_lua_eval(Encoding.UTF8.GetBytes(source + "\0"), out double result, error, (UIntPtr)error.Length);
-                    if (status != 0 || (result != 0 && result != 1)) throw new InvalidDataException("unlock_all must return 0 or 1");
-                    if (result == 1) OpenBonkUnlockPolicy.SetEnabled(true);
-                    Debug.Log($"Lua unlock policy loaded: {manifest.id} enabled={result == 1}");
+                    if (status != 0 || (result != 0 && result != 1)) throw new InvalidDataException("startup policy must return 0 or 1");
+                    if (result == 1 && manifest.hook == "unlock_all") OpenBonkUnlockPolicy.SetEnabled(true);
+                    if (result == 1 && manifest.hook == "collect_spawned_xp") OpenBonkPickupPolicy.SetCollectXpImmediately(true);
+                    Debug.Log($"Lua startup policy loaded: {manifest.id} hook={manifest.hook} enabled={result == 1}");
                 }
-                catch (Exception e) { Debug.LogWarning($"Lua unlock policy skipped: {Path.GetFileName(folder)}: {e.Message}"); }
+                catch (Exception e) { Debug.LogWarning($"Lua startup policy skipped: {Path.GetFileName(folder)}: {e.Message}"); }
             }
         }
-        catch (Exception e) { Debug.LogWarning("Lua unlock policies: cannot read mod directory: " + e.Message); }
+        catch (Exception e) { Debug.LogWarning("Lua startup policies: cannot read mod directory: " + e.Message); }
     }
 
     private static void Apply(PlayerInventory inventory)
@@ -200,7 +202,7 @@ internal static class AndroidLuaMods
             if (!File.Exists(manifestPath) || new FileInfo(manifestPath).Length > FileLimit) return;
             Manifest manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(manifestPath));
             if (manifest == null || manifest.id == null || !Enabled(manifest)) return;
-            if (UnlockManifest(manifest)) return; // Evaluated before the first scene.
+            if (StartupPolicyManifest(manifest)) return; // Evaluated before the first scene.
             if (manifest.api == 3) return; // Registered separately at data-load time.
             if (!ValidRefresh(manifest) || !AndroidModHooks.TryGetStats(manifest.api, manifest.hook, manifest.hooks, out EStat[] stats) || manifest.id != name)
                 throw new InvalidDataException("invalid id, API version, or hook");

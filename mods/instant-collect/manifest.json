@@ -1,0 +1,6 @@
+{
+  "id": "instant-collect",
+  "api": 1,
+  "enabled": false,
+  "hook": "collect_spawned_xp"
+}

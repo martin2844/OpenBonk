@@ -12,6 +12,7 @@ public final class UnlockImportCheck {
         require(LauncherModHookValidation.validModHooks(manifest), "unlock hook accepted");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","unlock_all_bad")), "unknown hook rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hooks",new org.json.JSONArray().put("unlock_all"))), "wrong API rejected");
+        require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","collect_spawned_xp")), "XP pickup hook accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","damage_multiplier")), "legacy hook still accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hooks",new org.json.JSONArray().put("stat_add:Luck"))), "stat hook still accepted");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hooks",new org.json.JSONArray().put("stat_add:Luck").put("stat_add:Luck"))), "duplicate stat hooks rejected");
@@ -32,7 +33,16 @@ public final class UnlockImportCheck {
             require(prefs.getBoolean("unlock-everything", false), "enable choice");
             prefs.edit().putBoolean("unlock-everything", false).commit();
             require(!prefs.getBoolean("unlock-everything", true), "disable choice");
-            System.out.println("PASS unlock hook validation, ZIP import and enable/disable preferences");
+            Path instant = Paths.get(args[1]);
+            ByteArrayOutputStream instantBuffer = new ByteArrayOutputStream();
+            try (ZipOutputStream instantZip = new ZipOutputStream(instantBuffer)) {
+                for (String name : new String[]{"manifest.json", "main.lua"}) {
+                    instantZip.putNextEntry(new ZipEntry(name)); instantZip.write(Files.readAllBytes(instant.resolve(name))); instantZip.closeEntry();
+                }
+            }
+            require(LauncherModImporter.install(new ByteArrayInputStream(instantBuffer.toByteArray()), root.toFile(), prefs).equals("instant-collect"), "instant XP package install");
+            require(!prefs.getBoolean("instant-collect", true), "instant XP import defaults disabled");
+            System.out.println("PASS startup hook validation, ZIP imports and enable/disable preferences");
         } finally {
             try (var paths = Files.walk(temporary)) {
                 for (Path path : (Iterable<Path>) paths.sorted(java.util.Comparator.reverseOrder())::iterator) Files.deleteIfExists(path);
