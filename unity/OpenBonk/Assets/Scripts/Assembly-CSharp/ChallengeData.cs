@@ -44,6 +44,7 @@ public class ChallengeData : MyAchievement
 
 	public bool CanShow()
 	{
+		if (OpenBonkUnlockPolicy.Enabled) return true;
 		if (prerequisiteChallenge != null && (SaveManager.Instance == null || SaveManager.Instance.progression == null || !MyAchievements.IsUnlocked(prerequisiteChallenge))) return false;
 		if (requiresNumChallengesCompleted <= 0) return true;
 		return SaveManager.Instance != null && SaveManager.Instance.stats != null &&

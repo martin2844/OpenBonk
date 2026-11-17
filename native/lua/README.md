@@ -344,6 +344,18 @@ explicitly enabled; the version it replaces becomes the saved previous version.
 Restoration is manual: the launcher cannot inspect animation clips inside a
 Unity AssetBundle before the game loads it.
 
+### Experimental unlock query policy
+
+The development runtime accepts an API 1 package with `"hook": "unlock_all"`.
+Its Lua chunk runs once before the first scene and must return the number `0`
+or `1`. An enabled package returning `1` overrides the same unlock,
+availability, purchase-eligibility and visibility queries used by the
+[Unlock Everything adaptation](../../mods/unlock-everything/). The policy
+does not itself modify progression. Disable the package and restart to restore
+normal queries; gameplay and purchases can still change progression. Multiple
+enabled packages combine by OR. Invalid scripts do not enable the policy.
+This hook is not supported by beta 0.1.3 and its launcher cannot import it.
+
 ### Experimental global stat modifiers
 
 API 1 and 2 also accept `stat_add:<EStat>` and `stat_mul:<EStat>` hooks,

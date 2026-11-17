@@ -2,7 +2,7 @@
 
 Snapshot: 2026-11-17. The [Thunderstore Megabonk API](https://thunderstore.io/c/megabonk/api/v1/package/) returned 155 packages; the complete metadata snapshot is [here](thunderstore-2026-11-17.json). Downloads are summed across versions. This is a Thunderstore ranking, not a ranking across Nexus or an inventory of every mod.
 
-The table excludes deprecated packages and the three platform-wide loaders/managers r2modman, BepInExPack IL2CPP and Gale. Other tools and libraries are included where they rank in the top 20. Counts can include repeat downloads and are not unique players.
+The table excludes deprecated packages and the three platform-wide loaders/managers r2modman, BepInExPack IL2CPP and Gale. It includes the first 20 single-player candidates plus the excluded multiplayer entry for context. Other tools and libraries are included. Counts can include repeat downloads and are not unique players.
 
 | Rank | Package | Downloads | Source |
 | ---: | --- | ---: | --- |
@@ -26,13 +26,14 @@ The table excludes deprecated packages and the three platform-wide loaders/manag
 | 18 | [Maskoliver-Potomatic](https://thunderstore.io/c/megabonk/p/Maskoliver/Potomatic/) | 14,167 | Not identified |
 | 19 | [LethalM-Megabonk_Save_Editor_Unlock_All](https://thunderstore.io/c/megabonk/p/LethalM/Megabonk_Save_Editor_Unlock_All/) | 14,164 | Not identified |
 | 20 | [timjobs-GothKittySiella](https://thunderstore.io/c/megabonk/p/timjobs/GothKittySiella/) | 13,980 | [Author site](https://twitch.tv/Timjobs) |
+| 21 | [Helix128-StatHUD](https://thunderstore.io/c/megabonk/p/Helix128/StatHUD/) | 13,032 | [Author site](https://github.com/Helix128/StatHUD/) |
 
 ## Porting status
 
 ### Compatibility inventory for beta 0.1.3
 
 The rank, download counts and package links in the table above identify these
-20 candidates. This is a feasibility review, not a device test of these mods.
+20 single-player candidates and the excluded multiplayer entry. This is a feasibility review, not a device test of these mods.
 “Unknown” means no license was established for the package; GitHub's detected
 source-code license does not establish rights to third-party models or audio.
 Multiplayer is excluded by request.
@@ -40,7 +41,7 @@ Multiplayer is excluded by request.
 | Rank | Function | Source license evidence | Missing capability / result |
 | ---: | --- | --- | --- |
 | 1 | Load custom characters | [MIT source](https://github.com/PeterMoras/MEGABONK_CustomCharacterLoader/blob/main/LICENSE) | Existing API 3 supports a subset; PC bundles, weapons and arbitrary character behavior need conversion and more runtime APIs. |
-| 2 | Unlock characters, skins and items | [MIT source](https://github.com/lukeod/megabonk_unlockEverything/blob/main/LICENSE) | Lua has no save/unlock API. |
+| 2 | Unlock characters, skins and items | [MIT source](https://github.com/lukeod/megabonk_unlockEverything/blob/main/LICENSE) | [Experimental Lua port](../../mods/unlock-everything/) needs the new unlock query hook, not present in 0.1.3. Android menu, restart and short run tested; final launcher import remains untested. |
 | 3 | Multiplayer | Unknown | Excluded. |
 | 4 | Add selected items through a menu | Unknown | Needs inventory insertion and in-game UI. |
 | 5 | Goth Witch Noelle character | Unknown; model rights unverified | Windows bundle, custom character/weapon behavior and asset rights need review. |
@@ -59,6 +60,7 @@ Multiplayer is excluded by request.
 | 18 | Automatically open nearby pots | Unknown | Needs proximity queries and object interaction. |
 | 19 | Offline save editor and unlock-all tool | Unknown | Standalone save editing, not an in-game Lua hook; APK has no mod-facing save API. |
 | 20 | Goth Kitty Siella character | Unknown; model rights unverified | Custom character assets and behavior require Android conversion and fidelity/rights review. |
+| 21 | In-game DPS, XP and gold rate display | Unknown | Requires live rate data and an in-game overlay API; current Lua hooks cannot create the HUD. |
 
 Lower-ranked [StatMod](https://thunderstore.io/c/megabonk/p/anro/StatMod/)
 is also not equivalent to the current global stat hook: it offers an interactive
@@ -80,7 +82,7 @@ The smallest groups of missing host capabilities are:
    kill callback supplies no orb handle and does not prevent duplicate rewards.
 3. **Interactive UI and live game state:** display mod panels, controls and
    map overlays, inspect/change game state, and persist configuration. Ranks
-   4, 9–13, 16 and 17 need some combination. Fixed stat hooks do not implement
+   4, 9–13, 16, 17 and 21 need some combination. Fixed stat hooks do not implement
    an interactive editor or a dashboard.
 4. **Characters and weapons:** load Android-compatible models, materials,
    animation and sounds with suitable attribution/permissions; define weapon

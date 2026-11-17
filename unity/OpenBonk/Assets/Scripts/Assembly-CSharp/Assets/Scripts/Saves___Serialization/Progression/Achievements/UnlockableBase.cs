@@ -74,6 +74,7 @@ namespace Assets.Scripts.Saves___Serialization.Progression.Achievements
 
 		public bool CanBuy()
 		{
+			if (OpenBonkUnlockPolicy.Enabled) return true;
 			return SaveManager.Instance.progression.silver >= GetPrice();
 		}
 

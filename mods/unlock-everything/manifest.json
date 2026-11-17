@@ -1,0 +1,6 @@
+{
+  "id": "unlock-everything",
+  "api": 1,
+  "enabled": false,
+  "hook": "unlock_all"
+}

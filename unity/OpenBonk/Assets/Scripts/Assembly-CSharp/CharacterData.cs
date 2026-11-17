@@ -68,6 +68,7 @@ public class CharacterData : UnlockableBase
 
 	public bool IsBlackedOutInCharacterSelectionScreen()
 	{
+		if (OpenBonkUnlockPolicy.Enabled) return false;
 		if (achievementRequirement != null && achievementRequirement.IsUnlocked()) return false;
 		return Assets.Scripts.Saves___Serialization.Progression.Stats.MyStats.GetStat(Assets.Scripts.Saves___Serialization.Progression.Stats.EMyStat.questsCompleted.ToString()) < numQuestsRequiredForVisibilityInCharacterSelection;
 	}

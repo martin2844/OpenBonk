@@ -123,6 +123,7 @@ namespace Assets.Scripts.Saves___Serialization.Progression.Unlocks
 
 		public static bool IsAchievementDone(string achName)
 		{
+			if (OpenBonkUnlockPolicy.Enabled) return true;
 			return SaveManager.Instance.progression.achievements.Contains(achName);
 		}
 
@@ -184,6 +185,7 @@ namespace Assets.Scripts.Saves___Serialization.Progression.Unlocks
 
 		public static bool IsUnlocked(MyAchievement myAchievement)
 		{
+			if (OpenBonkUnlockPolicy.Enabled) return true;
 			return myAchievement == null || !myAchievement.isEnabled || IsUnlocked(myAchievement.internalName);
 		}
 
@@ -199,11 +201,13 @@ namespace Assets.Scripts.Saves___Serialization.Progression.Unlocks
 
 		public static bool IsPurchased(UnlockableBase unlockable)
 		{
+			if (OpenBonkUnlockPolicy.Enabled) return true;
 			return unlockable != null && (unlockable.GetPrice() <= 0 || SaveManager.Instance.progression.purchases.Contains(unlockable.GetInternalName()));
 		}
 
 		public static bool IsAvailable(UnlockableBase unlockable)
 		{
+			if (OpenBonkUnlockPolicy.Enabled) return true;
 			return IsPurchased(unlockable) && IsActivated(unlockable) && IsUnlocked(unlockable, out _);
 		}
 
