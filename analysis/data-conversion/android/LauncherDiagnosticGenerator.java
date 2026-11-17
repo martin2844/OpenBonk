@@ -9,6 +9,7 @@ import com.openbonk.dataprep.SteamPackedAudio;
 import com.openbonk.dataprep.SteamPlannedTextures;
 import com.openbonk.dataprep.SteamPlannedMeshes;
 import com.openbonk.dataprep.SteamResearchPlatform;
+import com.openbonk.dataprep.SteamLocalizationObb;
 import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -47,7 +48,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
     }
     String mode;
     try(InputStream in=context.getAssets().open(researchRoot+"generated-audio-mode")){mode=smallAscii(in,64);}
-    if(!"OPENBONK_GENERATED_AUDIO_RESEARCH_V1".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V2".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V3".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V4".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V5".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V6".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V7".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V8".equals(mode))throw new IOException("invalid generated audio mode");
+    if(!"OPENBONK_GENERATED_AUDIO_RESEARCH_V1".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V2".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V3".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V4".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V5".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V6".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V7".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V8".equals(mode)&&!"OPENBONK_GENERATED_AUDIO_RESEARCH_V9".equals(mode))throw new IOException("invalid generated audio mode");
     String expected;
     try(InputStream in=context.getAssets().open(researchRoot+"generated-audio-plan.sha256")){expected=smallAscii(in,64);}
     if(!expected.matches("[0-9a-f]{64}"))throw new IOException("invalid generated audio checksum");
@@ -58,8 +59,18 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
     if(compact==legacy)throw new IOException("missing or ambiguous research template");
     try(InputStream in=context.getAssets().open(researchRoot+(compact?"generated-audio-template.openbonk":"generated-audio-template.obb"))){copy(in,template,512L*1024*1024);}
     try(InputStream in=context.getAssets().open(researchRoot+"generated-audio-plan.json")){copy(in,plan,1024L*1024);}
-    File objectTemplate=template,animationTemplate=template,cubeTemplate=template,meshTemplate=template,textureTemplate=template,packedTemplate=template;
-    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
+    File partialTemplate=template,objectTemplate=template,animationTemplate=template,cubeTemplate=template,meshTemplate=template,textureTemplate=template,packedTemplate=template;
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V9")){
+     String localizationExpected;
+     try(InputStream in=context.getAssets().open(researchRoot+"localization-plan.sha256")){localizationExpected=smallAscii(in,64);}
+     if(!localizationExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid localization checksum");
+     File localizationPlan=temp.resolve("localization-plan.json").toFile();partialTemplate=temp.resolve("localization-intermediate.obb").toFile();
+     try(InputStream in=context.getAssets().open(researchRoot+"localization-plan.json")){copy(in,localizationPlan,4L*1024*1024);}
+     if(progress!=null)progress.accept("Preparando idiomas");
+     SteamLocalizationObb.restore(template,steam,localizationPlan,localizationExpected,partialTemplate);
+     Files.delete(template.toPath());
+    }
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V9")){
      String partialExpected;
      try(InputStream in=context.getAssets().open(researchRoot+"partial-rgba-plan.sha256")){partialExpected=smallAscii(in,64);}
      if(!partialExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid partial texture checksum");
@@ -67,10 +78,10 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      try(InputStream in=context.getAssets().open(researchRoot+"partial-rgba-plan.json")){copy(in,partialPlan,2L*1024*1024);}
      try{System.loadLibrary("openbonk_texture");}catch(UnsatisfiedLinkError e){throw new IOException("cannot load texture converter",e);}
      if(progress!=null)progress.accept("Preparando texturas");
-     SteamPlannedTextures.restorePartialRgba(template,steam,partialPlan,partialExpected,objectTemplate);
-     Files.delete(template.toPath());
+     SteamPlannedTextures.restorePartialRgba(partialTemplate,steam,partialPlan,partialExpected,objectTemplate);
+     Files.delete(partialTemplate.toPath());
     }
-    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V9")){
      String objectExpected;
      try(InputStream in=context.getAssets().open(researchRoot+"object-plan.sha256")){objectExpected=smallAscii(in,64);}
      if(!objectExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid object checksum");
@@ -80,7 +91,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      SteamPlannedMeshes.restoreExactObjects(objectTemplate,steam,objectPlan,objectExpected,animationTemplate);
      Files.delete(objectTemplate.toPath());
     }
-    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V9")){
      String animationExpected;
      try(InputStream in=context.getAssets().open(researchRoot+"animation-plan.sha256")){animationExpected=smallAscii(in,64);}
      if(!animationExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid animation checksum");
@@ -90,7 +101,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      SteamPlannedMeshes.restoreAnimations(animationTemplate,steam,animationPlan,animationExpected,cubeTemplate);
      Files.delete(animationTemplate.toPath());
     }
-    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V9")){
      String cubeExpected;
      try(InputStream in=context.getAssets().open(researchRoot+"cubemap-plan.sha256")){cubeExpected=smallAscii(in,64);}
      if(!cubeExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid cubemap checksum");
@@ -101,7 +112,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      SteamPlannedTextures.restoreCubemaps(cubeTemplate,steam,cubePlan,cubeExpected,meshTemplate);
      Files.delete(cubeTemplate.toPath());
     }
-    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V4")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V4")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V9")){
      String meshExpected;
      try(InputStream in=context.getAssets().open(researchRoot+"mesh-plan.sha256")){meshExpected=smallAscii(in,64);}
      if(!meshExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid mesh checksum");
@@ -111,7 +122,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      SteamPlannedMeshes.restore(meshTemplate,steam,meshPlan,meshExpected,textureTemplate);
      Files.delete(meshTemplate.toPath());
     }
-    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V3")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V4")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V3")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V4")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V9")){
      String textureExpected;
      try(InputStream in=context.getAssets().open(researchRoot+"texture-plan.sha256")){textureExpected=smallAscii(in,64);}
      if(!textureExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid texture checksum");
@@ -123,7 +134,7 @@ final class LauncherDiagnosticGenerator implements LauncherPreparedSteamImport.G
      Files.delete(textureTemplate.toPath());
     }
     if(progress!=null)progress.accept("Preparando audio");
-    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V2")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V3")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V4")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")){
+    if(mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V2")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V3")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V4")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V5")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V6")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V7")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V8")||mode.equals("OPENBONK_GENERATED_AUDIO_RESEARCH_V9")){
      String packedExpected;
      try(InputStream in=context.getAssets().open(researchRoot+"packed-audio-plan.sha256")){packedExpected=smallAscii(in,64);}
      if(!packedExpected.matches("[0-9a-f]{64}"))throw new IOException("invalid packed audio checksum");
