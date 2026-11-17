@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import struct
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,6 +26,9 @@ spec2.loader.exec_module(study)
 spec3 = importlib.util.spec_from_file_location('object_plan', ROOT / 'tools/experimental-exact-object-plan.py')
 objects_plan = importlib.util.module_from_spec(spec3)
 spec3.loader.exec_module(objects_plan)
+spec4 = importlib.util.spec_from_file_location('animation_binding_reorder', ROOT / 'tools/animation_binding_reorder.py')
+reorder = importlib.util.module_from_spec(spec4)
+spec4.loader.exec_module(reorder)
 ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:[0-9a-f]{32}|(?:sharedassets\d+\.assets|level\d+|resources\.assets)(?:\.split(?:0|[1-9]\d*))?)\Z')
 FRAGMENT_TYPES = frozenset(('ParticleSystem', 'Material', 'MonoBehaviour', 'AnimatorController', 'TerrainData'))
 SHARED0_FONT_NAME = re.compile(r'(?:NotoSans(?:SC|TC|KR|JP|Thai_Condensed)?-Bold|alagard) SDF\Z')
@@ -46,6 +50,47 @@ def make_fragments(parts, target_offset, target, source_name, source_offset, sou
                              'mask': base64.b64encode(bits).decode('ascii'), 'masked_bytes': count})
         base += info.file_size
     if target_offset + len(target) > base: raise ValueError('animation exceeds splits')
+    return rows
+
+
+def reordered_fragments(parts, target_offset, target_obj, source_name, source_offset, source_obj):
+    """Use matching bytes from reordered transform curves, without changing either clip."""
+    target, source = target_obj.get_raw_data(), source_obj.get_raw_data()
+    if len(target) != len(source): raise ValueError('animation object sizes differ')
+    lt, rt = target_obj.read_typetree(), source_obj.read_typetree()
+    mapping = reorder.binding_map(lt, rt)
+    lw = lt['m_MuscleClip']['m_Clip']['data']['m_StreamedClip']['data']
+    rw = rt['m_MuscleClip']['m_Clip']['data']['m_StreamedClip']['data']
+    lb = struct.pack('<%dI' % len(lw), *lw); rb = struct.pack('<%dI' % len(rw), *rw)
+    if not lb or target.count(lb) != 1 or source.count(rb) != 1:
+        raise ValueError('animation stream location is ambiguous')
+    lo, ro = target.index(lb), source.index(rb)
+    substitutions = []
+    for _, _, target_word, source_word in reorder.coefficient_pairs(lw, rw, mapping):
+        start, src = lo + target_word * 4, ro + source_word * 4
+        current = target[start:start + 16]
+        old, new = source[start:start + 16], source[src:src + 16]
+        if len(current) != 16 or len(old) != 16 or len(new) != 16:
+            raise ValueError('animation coefficient range exceeds object')
+        score = lambda data: sum(a != 0 and a == b for a, b in zip(current, data))
+        if score(new) > score(old): substitutions.append((start, src, 16))
+    substitutions.sort()
+    ranges, end = [], 0
+    for start, src, size in substitutions:
+        if start < end: raise ValueError('overlapping animation coefficients')
+        if end < start: ranges.append((end, end, start - end))
+        ranges.append((start, src, size)); end = start + size
+    if end < len(target): ranges.append((end, end, len(target) - end))
+    # Coalesce adjacent ranges with the same target/source displacement.
+    merged = []
+    for start, src, size in ranges:
+        if merged and merged[-1][0] + merged[-1][2] == start and merged[-1][1] + merged[-1][2] == src:
+            a, b, n = merged[-1]; merged[-1] = (a, b, n + size)
+        else: merged.append((start, src, size))
+    rows = []
+    for start, src, size in merged:
+        rows.extend(make_fragments(parts, target_offset + start, target[start:start + size],
+                                   source_name, source_offset + src, source[src:src + size]))
     return rows
 
 
@@ -114,6 +159,12 @@ def generate(args):
     index = animation.source_index(base_sources); fragments_index = fragment_index(base_sources)
     font_index = shared0_font_index(sources['sharedassets0.assets']) if 'sharedassets0.assets' in sources else {}
     rows = []; outcomes = Counter(); output.mkdir(mode=0o700)
+    source_objects = {}
+    if getattr(args, 'reordered_bindings', False):
+        for name, raw in base_sources.items():
+            env = UnityPy.load(raw)
+            source_objects[name] = (env, {obj.path_id: obj for obj in env.objects if obj.type.name == 'AnimationClip'})
+    extra_rows = 0
     try:
         with zipfile.ZipFile(original) as zin:
             infos = animation.zip_entries(zin)
@@ -145,9 +196,21 @@ def generate(args):
                         selected = sorted(matches, key=lambda c: (c[0], c[1]))[0]
                     source_name, source_id, source_offset, src = selected
                     fragments = make_fragments(parts, offset, target, source_name, source_offset, src)
+                    if getattr(args, 'reordered_bindings', False) and obj.type.name == 'AnimationClip':
+                        try:
+                            candidate = reordered_fragments(parts, offset, obj, source_name, source_offset,
+                                                            source_objects[source_name][1][source_id])
+                            additional = len(candidate) - len(fragments)
+                            if (additional <= 800 - extra_rows and
+                                    sum(row['masked_bytes'] for row in candidate) > sum(row['masked_bytes'] for row in fragments)):
+                                fragments = candidate; extra_rows += additional
+                                outcomes['reordered_binding_matched'] += 1
+                        except (ValueError, TypeError, KeyError, AttributeError, OverflowError, struct.error):
+                            outcomes['reordered_binding_incompatible'] += 1
                     if not fragments: outcomes['no_matching_bytes'] += 1; continue
                     rows.extend(fragments); outcomes[obj.type.name + '_matched'] += 1
             if not rows: raise ValueError('no matching animation bytes')
+            if len(rows) > 5000: raise ValueError('too many animation fragments')
             grouped = defaultdict(list)
             for row in rows: grouped[row['entry']].append(row)
             with zipfile.ZipFile(output / 'template.obb', 'x') as zout:
@@ -205,6 +268,7 @@ def main():
         if command == 'generate':
             p.add_argument('--obb', type=Path, required=True)
             p.add_argument('--shared0-fonts', action='store_true', help='experimentally match sharedassets0 SDF font metadata')
+            p.add_argument('--reordered-bindings', action='store_true', help='experimentally match equal bytes in reordered Transform curves')
         else: p.add_argument('--template', type=Path, required=True); p.add_argument('--plan', type=Path, required=True)
     args = parser.parse_args(); (generate if args.command == 'generate' else restore)(args)
 

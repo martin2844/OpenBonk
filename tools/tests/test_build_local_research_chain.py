@@ -14,6 +14,13 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_reordered_bindings_reach_animation_plan_only_when_enabled(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp))
+            self.assertNotIn('--reordered-bindings', dict(module.commands(args))['animation plan'])
+            args.reordered_animation_bindings = True
+            self.assertIn('--reordered-bindings', dict(module.commands(args))['animation plan'])
+
     def test_tiny_etc2_reaches_partial_plan(self):
         with tempfile.TemporaryDirectory() as temp:
             args = self.args(Path(temp)); args.partial_rgba = True; args.partial_etc2_tiny = True; args.partial_normal_rgba = True; args.partial_etc2_aliases = True
@@ -45,6 +52,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn(expected, commands['individual audio plan'])
             self.assertIn(expected, commands['restore and verify individual audio'])
             self.assertIn(str(args.host_library), commands['bounded normal blocks'])
+            args.normal_block_extra = True
+            self.assertIn('--extra-etc2', dict(module.commands(args))['bounded normal blocks'])
 
     def test_localization_stage_precedes_partial_and_binds_packager_inputs(self):
         with tempfile.TemporaryDirectory() as temp:

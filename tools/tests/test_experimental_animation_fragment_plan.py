@@ -1,6 +1,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import struct
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -13,6 +14,30 @@ spec.loader.exec_module(module)
 
 
 class AnimationFragmentTests(unittest.TestCase):
+    def test_reordered_curve_fragments_restore_exact_original_bytes(self):
+        def binding(path):
+            return {'path': path, 'attribute': 1, 'typeID': 4, 'customType': 0,
+                    'isPPtrCurve': 0, 'isIntCurve': 0, 'isSerializeReferenceCurve': 0}
+        def obj(order, values):
+            words = [0, 2, 0, *values[0], 3, *values[1]]
+            raw = b'HEADER' + struct.pack('<%dI' % len(words), *words) + b'TAIL'
+            delta = [0, 1, 2, 3, 4, 5] if order == [1, 2] else [3, 4, 5, 0, 1, 2]
+            tree = {'m_ClipBindingConstant': {'genericBindings': [binding(x) for x in order]},
+                    'm_MuscleClip': {'m_ValueArrayDelta': delta,
+                                     'm_Clip': {'data': {'m_StreamedClip': {'data': words}}}}}
+            return SimpleNamespace(get_raw_data=lambda: raw, read_typetree=lambda: tree)
+        a, b = [0x11111111] * 4, [0x22222222] * 4
+        target, source = obj([1, 2], [a, b]), obj([2, 1], [b, a])
+        raw, source_raw = target.get_raw_data(), source.get_raw_data()
+        part = SimpleNamespace(filename='entry', file_size=len(raw))
+        regular = module.make_fragments([part], 0, raw, 'source', 0, source_raw)
+        rows = module.reordered_fragments([part], 0, target, 'source', 0, source)
+        self.assertGreater(sum(row['masked_bytes'] for row in rows), sum(row['masked_bytes'] for row in regular))
+        masked = module.apply(raw, rows, {'source': source_raw})
+        self.assertEqual(module.apply(masked, rows, {'source': source_raw}, restore=True), raw)
+        changed = bytearray(source_raw); changed[18] ^= 1
+        with self.assertRaises(ValueError): module.apply(masked, rows, {'source': bytes(changed)}, restore=True)
+
     def test_shared0_font_index_is_scoped_to_named_sdf_metadata(self):
         import UnityPy
         def obj(kind, name, offset, payload):

@@ -17,6 +17,15 @@ spec.loader.exec_module(module)
 
 class SteamResearchBuildTests(unittest.TestCase):
     @patch.object(module.subprocess, 'run')
+    def test_reordered_animation_option_reaches_both_chains(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--reordered-animation-bindings')
+        chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
+        self.assertEqual(len(chains), 2)
+        self.assertTrue(all('--reordered-animation-bindings' in command for command in chains))
+
+    @patch.object(module.subprocess, 'run')
     def test_normal_block_option_requires_partial_byte_mode_and_reaches_both_chains(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         with self.assertRaises(SystemExit): self.invoke('--normal-block-fallback')
@@ -33,6 +42,16 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertTrue(all('--color-block-fallback' in chain for chain in chains))
         self.assertTrue(all('--emission-block-fallback' in chain for chain in chains))
         self.assertTrue(all('--bullseye-block-fallback' in chain for chain in chains))
+
+    @patch.object(module.subprocess, 'run')
+    def test_extra_normal_blocks_require_dependencies_and_reach_both_chains(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        with self.assertRaises(SystemExit): self.invoke('--normal-block-extra')
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--quality-textures', '--normal-fallback', '--normal-block-fallback', '--normal-block-extra', '--partial-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-tiny', '--partial-etc2-aliases', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte', '--partial-etc2-rgba', '--partial-etc2-extra')
+        chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
+        self.assertEqual(len(chains), 2)
+        self.assertTrue(all('--normal-block-extra' in chain for chain in chains))
 
     @patch.object(module.subprocess, 'run')
     def test_localization_option_reaches_both_chains_and_requires_partial(self, run):

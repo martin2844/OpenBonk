@@ -128,7 +128,7 @@ def commands(a):
         py('transparent atlas scrub', 'experimental-transparent-atlas-scrub.py', '--steam-data', steam, '--obb', converted, '--output', out / 'transparent-atlas-study')
         converted = out / 'transparent-atlas-study/converted.obb'
     if getattr(a, 'normal_block_fallback', False):
-        py('bounded normal blocks', 'experimental-normal-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'normal-block-study')
+        py('bounded normal blocks', 'experimental-normal-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'normal-block-study', *(['--extra-etc2'] if getattr(a, 'normal_block_extra', False) else []))
         converted = out / 'normal-block-study/converted.obb'
     if getattr(a, 'color_block_fallback', False):
         py('bounded color blocks', 'experimental-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'color-block-study', *(['--emission-alias'] if getattr(a, 'emission_block_fallback', False) else []), *(['--bullseye-alias'] if getattr(a, 'bullseye_block_fallback', False) else []), *(['--extra-etc2'] if getattr(a, 'color_block_extra', False) else []))
@@ -138,7 +138,7 @@ def commands(a):
     toolplan('texture plan', 'experimental-converted-texture-plan.py', plans / 'packed/template.obb', plans / 'texture', '--manifest', out / 'texture-study/report.json', *(['--quality-library', hostlib] if quality else []))
     toolplan('mesh plan', 'experimental-mesh-buffer-plan.py', plans / 'texture/template.obb', plans / 'mesh')
     toolplan('cubemap plan', 'experimental-cubemap-plan.py', plans / 'mesh/template.obb', plans / 'cubemap', '--manifest', out / 'cubemap-study/report.json', '--decoder', decoder, *wrapped)
-    toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation', *(['--shared0-fonts'] if getattr(a, 'shared0_fonts', False) else []))
+    toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation', *(['--shared0-fonts'] if getattr(a, 'shared0_fonts', False) else []), *(['--reordered-bindings'] if getattr(a, 'reordered_animation_bindings', False) else []))
     toolplan('exact object plan', 'experimental-exact-object-plan.py', plans / 'animation/template.obb', plans / 'objects', *(['--font-payloads', '--shared0-cubemap'] if getattr(a, 'shared0_fonts', False) else []))
     partial = getattr(a, 'partial_rgba', False)
     if partial:
@@ -223,6 +223,7 @@ def main():
     p.add_argument('--quality-textures', action='store_true', help='experimentally use the high-quality ETC2 encoder for selected textures')
     p.add_argument('--normal-fallback', action='store_true', help='experimentally recover RGB normal maps that pass every mip direction check')
     p.add_argument('--normal-block-fallback', action='store_true', help='experimentally substitute individually bounded normal-map blocks; requires --normal-fallback and --partial-etc2-byte')
+    p.add_argument('--normal-block-extra', action='store_true', help='try extra ETC2 metrics for bounded normal blocks; requires --normal-block-fallback and --partial-etc2-extra')
     p.add_argument('--color-block-fallback', action='store_true', help='experimentally substitute bounded blocks in eight color textures; requires --partial-etc2-byte')
     p.add_argument('--emission-block-fallback', action='store_true', help='also substitute bounded emission blocks; requires --color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--bullseye-block-fallback', action='store_true', help='also substitute bounded bullseye blocks; requires --color-block-fallback and --partial-etc2-small')
@@ -230,6 +231,7 @@ def main():
     p.add_argument('--animation-curve-relaxed', action='store_true', help='use a 1e-4 curve bound; requires --animation-curve-fallback')
     p.add_argument('--animation-curve-extended', action='store_true', help='use a 1e-3 curve bound; requires --animation-curve-fallback')
     p.add_argument('--animation-curve-hybrid', action='store_true', help='also try per-curve substitutions; requires --animation-curve-fallback')
+    p.add_argument('--reordered-animation-bindings', action='store_true', help='match exact bytes in reordered Transform animation curves')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--nodraw-fallback', action='store_true', help='also reconstruct the NoDraw debug grid; requires --resource-fallback')
@@ -264,6 +266,7 @@ def main():
     if a.partial_normal_rgba and not a.partial_rgba: p.error('--partial-normal-rgba requires --partial-rgba')
     if a.localization_small and not a.localization_cab: p.error('--localization-small requires --localization-cab')
     if a.normal_block_fallback and (not a.normal_fallback or not a.partial_etc2_byte): p.error('--normal-block-fallback requires --normal-fallback and --partial-etc2-byte')
+    if a.normal_block_extra and not (a.normal_block_fallback and a.partial_etc2_extra): p.error('--normal-block-extra requires --normal-block-fallback and --partial-etc2-extra')
     if a.color_block_fallback and not a.partial_etc2_byte: p.error('--color-block-fallback requires --partial-etc2-byte')
     if a.emission_block_fallback and (not a.color_block_fallback or not a.partial_etc2_aliases): p.error('--emission-block-fallback requires --color-block-fallback and --partial-etc2-aliases')
     if a.bullseye_block_fallback and (not a.color_block_fallback or not a.partial_etc2_small): p.error('--bullseye-block-fallback requires --color-block-fallback and --partial-etc2-small')

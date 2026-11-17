@@ -43,11 +43,36 @@ def blend_mip(old, fast, quality, original_image, fast_image, quality_image, acc
     return bytes(result),safe,unchanged,changed
 
 
+def fill_safe_extra_blocks(old, selected, fast, quality, original_image, variants, acceptable):
+    """Try additional encodings only on blocks retained by the existing pass."""
+    width, height = original_image.size
+    expected = ((width + 3) // 4) * ((height + 3) // 4) * 8
+    if (width < 1 or height < 1 or any(len(payload) != expected for payload in (old, selected, fast, quality)) or
+            any(len(payload) != expected or image.size != (width, height) for payload, image in variants)):
+        raise ValueError('invalid additional normal blocks')
+    result = bytearray(selected); added = changed = pos = 0
+    for y in range(0, height, 4):
+        for x in range(0, width, 4):
+            original = old[pos:pos + 8]
+            if selected[pos:pos + 8] == original and original not in (fast[pos:pos + 8], quality[pos:pos + 8]):
+                box = (x, y, min(x + 4, width), min(y + 4, height))
+                reference = original_image.crop(box)
+                candidates = [payload[pos:pos + 8] for payload, image in variants
+                              if payload[pos:pos + 8] != original and acceptable(reference, image.crop(box))]
+                if candidates:
+                    chosen = max(candidates, key=lambda block: sum(a == b for a, b in zip(original, block)))
+                    result[pos:pos + 8] = chosen; added += 1
+                    changed += sum(a != b for a, b in zip(original, chosen))
+            pos += 8
+    return bytes(result), added, changed
+
+
 def generate(a):
     import UnityPy
     from UnityPy.export import Texture2DConverter as converter
     steam=a.steam_data.resolve(strict=True);obb=a.obb.resolve(strict=True)
     output=partial.masker.regular_output(a.output,(steam,obb));encoder=partial.study.load_quality_encoder(a.quality_library)
+    extras = [encoder.rgba_variant(), *(encoder.extra_variant(i) for i in (1, 2, 3))] if getattr(a, 'extra_etc2', False) else []
     index,_=partial.sources(steam);changes={};records=[];seen=set()
     with zipfile.ZipFile(obb) as archive:
         infos=partial.masker.zip_entries(archive);groups=partial.objects.asset_groups(archive)
@@ -66,11 +91,16 @@ def generate(a):
                 if not old or body.count(old)!=1:raise ValueError('normal payload ambiguous')
                 fast=partial.converted(source,target.m_Width,target.m_Height,target.m_MipCount,45,encoder,True)
                 quality=partial.converted(source,target.m_Width,target.m_Height,target.m_MipCount,45,encoder)
-                levels=[partial.study.mip_slices(data,45,target.m_Width,target.m_Height,target.m_MipCount) for data in (old,fast,quality)]
+                variants = [partial.converted(source,target.m_Width,target.m_Height,target.m_MipCount,45,extra) for extra in extras]
+                levels=[partial.study.mip_slices(data,45,target.m_Width,target.m_Height,target.m_MipCount) for data in (old,fast,quality,*variants)]
                 chunks=[];safe=unsafe=changed=0
-                for base,fast_mip,quality_mip in zip(*levels):
-                    w,h,old_data=base; images=[converter.parse_image_data(item[2],w,h,45,target.object_reader.version,target.object_reader.platform).convert('RGB') for item in (base,fast_mip,quality_mip)]
-                    block,s,u,c=blend_mip(old_data,fast_mip[2],quality_mip[2],*images,partial.study.acceptable_normal_image)
+                for mips in zip(*levels):
+                    base,fast_mip,quality_mip = mips[:3]
+                    w,h,old_data=base; images=[converter.parse_image_data(item[2],w,h,45,target.object_reader.version,target.object_reader.platform).convert('RGB') for item in mips]
+                    block,s,u,c=blend_mip(old_data,fast_mip[2],quality_mip[2],*images[:3],partial.study.acceptable_normal_image)
+                    if variants:
+                        block,added,extra_changed=fill_safe_extra_blocks(old_data,block,fast_mip[2],quality_mip[2],images[0],[(mip[2],image) for mip,image in zip(mips[3:],images[3:])],partial.study.acceptable_normal_image)
+                        s+=added; u-=added; c+=extra_changed
                     chunks.append(block);safe+=s;unsafe+=u;changed+=c
                 replacement=b''.join(chunks);offset=obj.byte_start+body.index(old)
                 if len(replacement)!=len(old) or raw[offset:offset+len(old)]!=old or modified[offset:offset+len(old)]!=old:raise ValueError('normal range differs or overlaps')
@@ -97,6 +127,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--steam-data',required=True,type=Path);p.add_argument('--obb',required=True,type=Path)
     p.add_argument('--quality-library',required=True,type=Path);p.add_argument('--output',required=True,type=Path)
+    p.add_argument('--extra-etc2',action='store_true',help='try additional encoders on otherwise unsafe normal blocks')
     generate(p.parse_args())
 
 if __name__=='__main__':main()
