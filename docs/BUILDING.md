@@ -182,8 +182,18 @@ also matches byte-identical fragments down to 12 bytes. In an isolated study,
 Linux and Windows templates each masked 969,444 nonzero CAB bytes, 40,100 more
 than the previous 32-byte minimum. Both platform plans restored all 1,072 OBB
 entries on the host and a Retroid Pocket 5; the packager verifier accepted
-both, and their converted OBB hashes matched. This did not build a launcher or
-test first-import duration with the larger plans; other assets remain.
+both, and their converted OBB hashes matched. A private dual launcher was then
+assembled using these plans and existing intermediates. An independent host
+check restored the expected OBB from both ZIPs using the packaged plans. On a
+Retroid, the launcher imported the Linux ZIP, produced the expected OBB hash
+and entered a brief Forest run with Fox defeating enemies. The temporary app
+and copied ZIP were removed. This did not exercise Windows import through that
+APK, measure first-import duration or test all gameplay; other assets remain.
+
+The corresponding dual APK's Addressables inventory found 46,241 and 68,009
+nonzero bytes in Linux and Windows bundle entries, 40,100 fewer per platform
+than the earlier dual V9 templates. These totals include UnityFS metadata and
+do not measure other asset types or establish ownership.
 
 Those two local chains were subsequently combined into a private dual-platform
 APK. The independent packaged-plan checker selected each platform and restored
