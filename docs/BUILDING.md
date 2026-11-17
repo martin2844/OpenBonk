@@ -313,6 +313,10 @@ threshold. Linux and Windows sources produced identical masked templates, both
 Android plans restored all 1,072 expected entries on a Retroid Pocket 5, and
 the additional source identities also appeared in a second clean export. This
 does not verify a complete launcher or the remaining game data.
+In a fresh clone of GitHub commit `07ef337`, 70 focused tests for the partial
+texture plan, color-block selection and both research build drivers passed
+using the local conversion environment. This does not constitute a full
+fresh-clone build or a distribution check.
 An earlier 38-stage Linux chain reused the existing runtime and Gradle export
 and built a launcher using the original 50% alias criterion. Its packaged template retained 81,405
 nonzero bytes in 1,157 identified inline texture payloads, with seven empty
@@ -349,7 +353,16 @@ seven were preserved, and 2,724 encoded bytes changed. The target retained 14
 nonzero bytes after partial masking, compared with 2,728 before substitution.
 Both plans restored all 1,072 focused-input entries on a Retroid Pocket 5; a
 second clean export with a different path ID reported the same block counts.
-This second texture has not been tested in a full launcher or visually in game.
+The focused check did not exercise a full launcher or review it in game.
+An ensuing 38-stage Linux chain, reusing the local runtime and Gradle export,
+included both emission textures, the bullseye option and the 128-byte alias
+criterion. The packaged template retained 56,768 nonzero bytes in 1,157
+identified inline texture payloads, with seven empty textures and no streams
+or skips. That audit does not measure other asset categories. On a Retroid
+Pocket 5, the isolated APK imported the Linux ZIP, generated the expected OBB
+hash and entered a short Forest run with an enemy defeat. The affected textures
+were not individually reviewed in game, the Windows launcher was not tested,
+and the APK still contains game data and remains private.
 
 The opt-in `--bullseye-block-fallback` requires `--color-block-fallback` and
 `--partial-etc2-small`. It scans readable hashed Unity groups for exactly one
