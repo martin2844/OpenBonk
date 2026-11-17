@@ -30,3 +30,10 @@ disable/restart were not tested on Android. The JVM harness separately tested
 package import and the initial disabled preference. The temporary installation
 was removed. This short controlled test does not establish all XP sources,
 pool exhaustion, interactions with every item, or long-run fidelity.
+
+Reproducible local packages for both examples can be generated with
+`python tools/package-example-mods.py --output /path/to/output`. An integrated
+Xiaomi build imported the packages through the launcher and loaded both hooks
+when enabled; after disabling both and restarting, neither hook loaded.
+The generated ZIPs contain exactly two files because the API 1 importer rejects
+additional files. Attribution and any applicable license notice are in `main.lua`.

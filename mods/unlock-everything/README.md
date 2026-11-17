@@ -20,3 +20,10 @@ brief run. This test manually staged the mod and its enabled preference; ZIP
 import and preference updates were exercised separately in the JVM harness,
 not in the final Android launcher. It does not establish every unlock path,
 purchase or long-run behavior.
+
+Reproducible local packages for both examples can be generated with
+`python tools/package-example-mods.py --output /path/to/output`. An integrated
+Xiaomi build imported the packages through the launcher and loaded both hooks
+when enabled; after disabling both and restarting, neither hook loaded.
+The generated ZIPs contain exactly two files because the API 1 importer rejects
+additional files. Attribution and any applicable license notice are in `main.lua`.
