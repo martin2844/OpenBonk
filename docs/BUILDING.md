@@ -189,6 +189,13 @@ The selected images are approximations, not byte-identical reconstructions.
 The measured angle bound does not prove equivalent in-game shading; the stage
 and any resulting APK must remain private pending further validation.
 
+In a focused partial-texture study of those three maps, the bounded-block
+output let the byte-granularity plan mask 84,405 nonzero bytes, compared with
+55,076 before substitution. Plans generated from Linux and Windows source
+data each restored all 1,072 expected OBB entries on the host and a Retroid
+Pocket 5. This comparison covers only those three textures and reused existing
+intermediates; it does not measure an entire APK or verify visual appearance.
+
 The opt-in `--localization-small` option (requiring `--localization-cab`)
 also matches byte-identical fragments down to 12 bytes. In an isolated study,
 Linux and Windows templates each masked 969,444 nonzero CAB bytes, 40,100 more
