@@ -290,6 +290,14 @@ Steam inputs produced identical masked templates, and both exported plans
 restored all 1,072 expected archive entries on a Retroid Pocket 5. This is a
 focused reconstruction check, not a complete launcher or visual test. Other
 game data remains in the templates, which must stay private.
+An ensuing 38-stage Linux chain reused the existing runtime and Gradle export
+and built a launcher with this option. Its packaged template retained 81,405
+nonzero bytes in 1,157 identified inline texture payloads, with seven empty
+textures and no streamed references or skips; other asset categories were not
+measured. On a Retroid Pocket 5, the isolated APK imported the Linux ZIP,
+generated the expected OBB hash and entered a short Forest run with enemy
+defeats. This does not test the Windows launcher or establish full gameplay
+or visual parity; the APK still contains game data.
 
 The opt-in `--emission-block-fallback` additionally requires
 `--color-block-fallback` and `--partial-etc2-aliases`. It identifies the
