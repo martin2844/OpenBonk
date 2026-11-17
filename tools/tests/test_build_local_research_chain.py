@@ -52,6 +52,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn('--bullseye-alias', commands['bounded color blocks'])
             args.color_block_extra = True
             self.assertIn('--extra-etc2', dict(module.commands(args))['bounded color blocks'])
+            args.barrel_block_bounded = True
+            self.assertIn('--barrel-bounded', dict(module.commands(args))['bounded color blocks'])
             self.assertIn(str(args.output/'color-block-study/converted.obb'), commands['individual audio plan'])
             self.assertIn(str(args.output/'color-block-study/converted.obb'), commands['restore and verify individual audio'])
 

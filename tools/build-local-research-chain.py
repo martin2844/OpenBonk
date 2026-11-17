@@ -131,7 +131,7 @@ def commands(a):
         py('bounded normal blocks', 'experimental-normal-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'normal-block-study', *(['--extra-etc2'] if getattr(a, 'normal_block_extra', False) else []))
         converted = out / 'normal-block-study/converted.obb'
     if getattr(a, 'color_block_fallback', False):
-        py('bounded color blocks', 'experimental-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'color-block-study', *(['--emission-alias'] if getattr(a, 'emission_block_fallback', False) else []), *(['--bullseye-alias'] if getattr(a, 'bullseye_block_fallback', False) else []), *(['--extra-etc2'] if getattr(a, 'color_block_extra', False) else []))
+        py('bounded color blocks', 'experimental-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'color-block-study', *(['--emission-alias'] if getattr(a, 'emission_block_fallback', False) else []), *(['--bullseye-alias'] if getattr(a, 'bullseye_block_fallback', False) else []), *(['--extra-etc2'] if getattr(a, 'color_block_extra', False) else []), *(['--barrel-bounded'] if getattr(a, 'barrel_block_bounded', False) else []))
         converted = out / 'color-block-study/converted.obb'
     if getattr(a, 'small_color_block_fallback', False):
         py('bounded small color blocks', 'experimental-small-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'small-color-block-study', *(['--aliases'] if getattr(a, 'small_color_block_aliases', False) else []), *(['--lightmaps'] if getattr(a, 'lightmap_block_fallback', False) else []))
@@ -263,6 +263,7 @@ def main():
     p.add_argument('--partial-etc2-rgba', action='store_true', help='also use RGBA error metric to recover exact ETC2 bytes; requires --partial-etc2-byte')
     p.add_argument('--partial-etc2-extra', action='store_true', help='try additional ETC2 metrics; requires --partial-etc2-rgba')
     p.add_argument('--color-block-extra', action='store_true', help='try extra ETC2 metrics for bounded color blocks; requires --color-block-fallback and --partial-etc2-extra')
+    p.add_argument('--barrel-block-bounded', action='store_true', help='use bounded pixel limits for two barrel textures; requires --color-block-extra and --partial-etc2-aliases')
     p.add_argument('--small-color-block-fallback', action='store_true', help='experimentally substitute bounded small color blocks; requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
     p.add_argument('--small-color-block-aliases', action='store_true', help='also reconstruct unambiguous renamed small colors; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--lightmap-block-fallback', action='store_true', help='experimentally replace bounded blocks in two LDR lightmaps; requires --small-color-block-fallback and --partial-etc2-aliases')
@@ -307,6 +308,7 @@ def main():
     if a.partial_etc2_rgba and not a.partial_etc2_byte: p.error('--partial-etc2-rgba requires --partial-etc2-byte')
     if a.partial_etc2_extra and not a.partial_etc2_rgba: p.error('--partial-etc2-extra requires --partial-etc2-rgba')
     if a.color_block_extra and not (a.color_block_fallback and a.partial_etc2_extra): p.error('--color-block-extra requires --color-block-fallback and --partial-etc2-extra')
+    if a.barrel_block_bounded and not (a.color_block_extra and a.partial_etc2_aliases): p.error('--barrel-block-bounded requires --color-block-extra and --partial-etc2-aliases')
     if a.small_color_block_fallback and not (a.quality_textures and a.partial_etc2_tiny and a.partial_etc2_extra): p.error('--small-color-block-fallback requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
     if a.small_color_block_aliases and not (a.small_color_block_fallback and a.partial_etc2_aliases): p.error('--small-color-block-aliases requires --small-color-block-fallback and --partial-etc2-aliases')
     if a.lightmap_block_fallback and not (a.small_color_block_fallback and a.partial_etc2_aliases): p.error('--lightmap-block-fallback requires --small-color-block-fallback and --partial-etc2-aliases')

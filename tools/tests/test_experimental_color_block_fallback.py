@@ -12,6 +12,21 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class ColorBlockTests(unittest.TestCase):
+    def test_barrel_uses_existing_bounded_mip_limit(self):
+        key = ('sharedassets1.assets', 'FBX_Barrel_Color')
+        self.assertTrue(module.use_bounded_barrel(True, key, 3))
+        self.assertFalse(module.use_bounded_barrel(True, key, 4))
+        self.assertFalse(module.use_bounded_barrel(True, ('sharedassets1.assets', 't_birdo_blue'), 0))
+        self.assertFalse(module.use_bounded_barrel(False, key, 0))
+        original = Image.new('RGBA', (4, 4), (100, 100, 100, 255))
+        close = original.copy(); close.putpixel((0, 0), (124, 100, 100, 255))
+        self.assertFalse(module.acceptable_block(original, close, 0))
+        self.assertTrue(module.acceptable_block(original, close, 0, barrel_bounded=True))
+        unsafe = original.copy(); unsafe.putpixel((0, 0), (149, 100, 100, 255))
+        self.assertFalse(module.acceptable_block(original, unsafe, 0, barrel_bounded=True))
+        alpha = original.copy(); alpha.putpixel((0, 0), (100, 100, 100, 245))
+        self.assertFalse(module.acceptable_block(original, alpha, 0, barrel_bounded=True))
+
     def test_bullseye_discovery_requires_unique_hashed_target(self):
         target = SimpleNamespace(m_Name='Bullseye_0', m_Width=128, m_Height=128,
                                  m_MipCount=1, m_ImageCount=1, m_TextureFormat=47)

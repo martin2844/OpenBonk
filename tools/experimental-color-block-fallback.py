@@ -66,6 +66,17 @@ def acceptable_color(reference, candidate, level):
             partial.study.acceptable_bounded_mip(reference, candidate, level))
 
 
+def acceptable_block(reference, candidate, level, barrel_bounded=False):
+    if barrel_bounded:
+        return partial.study.acceptable_bounded_mip(reference, candidate, level)
+    return acceptable_color(reference, candidate, level)
+
+
+def use_bounded_barrel(enabled, key, level):
+    return bool(enabled and 0 <= level < 4 and key in (('sharedassets1.assets', 'FBX_Barrel_Color'),
+                                                       ('sharedassets1.assets', 'FBX_Barrel_Color_0')))
+
+
 def fill_safe_extra_blocks(old, selected, fast, quality, original_image, variants, acceptable, block_bytes):
     """Try more encoders only where both existing choices left the block unchanged."""
     width, height = original_image.size
@@ -123,6 +134,10 @@ def generate(args):
     output = partial.masker.regular_output(args.output, (steam, obb))
     encoder = partial.study.load_quality_encoder(args.quality_library)
     extras = [encoder.rgba_variant(), *(encoder.extra_variant(i) for i in (1, 2, 3))] if getattr(args, 'extra_etc2', False) else []
+    barrel_aliases = None
+    if getattr(args, 'barrel_bounded', False):
+        spec = importlib.util.spec_from_file_location('barrel_aliases', ROOT / 'tools/experimental-small-color-block-fallback.py')
+        barrel_aliases = importlib.util.module_from_spec(spec); spec.loader.exec_module(barrel_aliases)
     index, _ = partial.sources(steam, True)
     targets = dict(TARGETS)
     if getattr(args, 'emission_alias', False):
@@ -161,15 +176,25 @@ def generate(args):
                     w, h = mips[0][:2]
                     images = [partial.decode_block_image(converter, mip[2], w, h, fmt, target.object_reader.version,
                                                          target.object_reader.platform, 'RGBA') for mip in mips]
+                    # Preserve the stricter preexisting gate on the smallest
+                    # mips: a 4x4 barrel mip visibly shifted tint under the
+                    # broader limits in the local study.
+                    is_barrel = use_bounded_barrel(barrel_aliases, key, level)
+                    acceptable = lambda a, b: acceptable_block(a, b, level, is_barrel)
                     chunk, s, u, c = normal.blend_mip(*(mip[2] for mip in mips[:3]), *images[:3],
-                                                     lambda a, b: acceptable_color(a, b, level),
+                                                     acceptable,
                                                      8 if fmt == 45 else 16)
                     if variants:
                         chunk, added, additional_changed = fill_safe_extra_blocks(mips[0][2], chunk, mips[1][2], mips[2][2], images[0],
-                            [(mip[2], image) for mip, image in zip(mips[3:], images[3:])], lambda a, b: acceptable_color(a, b, level), 8 if fmt == 45 else 16)
+                            [(mip[2], image) for mip, image in zip(mips[3:], images[3:])], acceptable, 8 if fmt == 45 else 16)
                         s += added; u -= added; c += additional_changed
                     chunks.append(chunk); safe += s; unsafe += u; changed += c
                 replacement = b''.join(chunks)
+                if barrel_aliases and key in (('sharedassets1.assets', 'FBX_Barrel_Color'), ('sharedassets1.assets', 'FBX_Barrel_Color_0')):
+                    stable = barrel_aliases.stable_alias_source(target, old, replacement, index, group, encoder)
+                    if stable is None or stable[:2] != item[:2]:
+                        seen.add(key)
+                        continue
                 offset = obj.byte_start + body.index(old)
                 if len(replacement) != len(old) or raw[offset:offset+len(old)] != old or modified[offset:offset+len(old)] != old:
                     raise ValueError('texture range differs or overlaps')
@@ -205,6 +230,7 @@ def main():
     parser.add_argument('--emission-alias', action='store_true', help='also reconstruct bounded blocks of a uniquely matched emission alias')
     parser.add_argument('--bullseye-alias', action='store_true', help='also reconstruct bounded blocks of a uniquely identified bullseye alias')
     parser.add_argument('--extra-etc2', action='store_true', help='try additional encoders for blocks rejected by the existing choices')
+    parser.add_argument('--barrel-bounded', action='store_true', help='use bounded visible-pixel limits for the two identified barrel colors')
     generate(parser.parse_args())
 
 

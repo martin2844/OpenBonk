@@ -72,6 +72,16 @@ hash matched the previous combined build. These are limited checks, not
 proof of an asset-free APK or an uninterrupted clean build; the APK
 remains private.
 
+A separate opt-in `--barrel-block-bounded` study applies existing bounded
+visible-pixel checks to mip levels 0–3 of two barrel textures. Levels 4–7
+remained byte-identical to the input in the tested study, after a broader
+option visibly changed a distant mip. Its Linux and Windows templates
+retained 34,744 nonzero inline texture bytes, versus 36,962 before this
+study; desktop Java restored all 1,072 archive entries exactly from each
+ZIP and 63 focused tests passed. A magnified mip 2 difference was visible;
+this has not been validated on Android or in gameplay and is not proof of
+visual parity or asset-free distribution.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
