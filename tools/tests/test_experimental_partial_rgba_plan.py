@@ -6,12 +6,32 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
+from PIL import Image
 
 spec = importlib.util.spec_from_file_location('partial_rgba', Path(__file__).resolve().parents[1] / 'experimental-partial-rgba-plan.py')
 module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_emission1_alias_requires_one_visually_matching_source(self):
+        image = Image.new('RGBA', (128, 128), (100, 100, 100, 255))
+        target = SimpleNamespace(m_Name='Emission_1', m_Width=128, m_Height=128, m_MipCount=8,
+                                 m_ImageCount=1, m_ColorSpace=1, m_TextureFormat=45, image=image)
+        good = SimpleNamespace(m_MipCount=8, m_ImageCount=1, m_ColorSpace=1, m_TextureFormat=4, image=image.copy())
+        other = SimpleNamespace(m_MipCount=8, m_ImageCount=1, m_ColorSpace=1, m_TextureFormat=4,
+                                image=Image.new('RGBA', (128, 128), (0, 0, 0, 255)))
+        candidate = ('sharedassets1', 1, good)
+        index = {('Emission', 128, 128): [candidate, ('sharedassets1', 2, other)]}
+        self.assertEqual(module.emission1_alias(target, b'x'*10936, index, 'sharedassets1.assets'), candidate)
+        self.assertIsNone(module.emission1_alias(target, b'x'*10936, index, 'sharedassets2.assets'))
+        self.assertIsNone(module.emission1_alias(target, b'x'*10935, index, 'sharedassets1.assets'))
+        index[('Emission', 128, 128)].append(('sharedassets1', 3, good))
+        self.assertIsNone(module.emission1_alias(target, b'x'*10936, index, 'sharedassets1.assets'))
+
+    def test_emission1_alias_cli_requires_existing_alias_mode(self):
+        args = ['tool', 'generate', '--steam-data', '/unused', '--obb', '/unused', '--output', '/unused', '--emission1-alias']
+        with patch.object(sys, 'argv', args), self.assertRaises(SystemExit): module.main()
+
     def test_scored_alias_tries_exact_name_before_export_suffix(self):
         target = SimpleNamespace(m_Name='0_7', m_Width=32, m_Height=32)
         exact = ('sharedassets1', 1, object()); stripped = ('sharedassets1', 2, object())

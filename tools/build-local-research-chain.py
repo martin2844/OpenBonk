@@ -149,13 +149,14 @@ def commands(a):
         small = ['--include-small-etc2'] if getattr(a, 'partial_etc2_small', False) else []
         tiny = ['--include-tiny-etc2'] if getattr(a, 'partial_etc2_tiny', False) else []
         aliases = ['--include-etc2-aliases'] if getattr(a, 'partial_etc2_aliases', False) else []
+        emission1_alias = ['--emission1-alias'] if getattr(a, 'partial_emission1_alias', False) else []
         normal_rgba = ['--normal-rgba'] if getattr(a, 'partial_normal_rgba', False) else []
         fast = ['--fast-etc2'] if getattr(a, 'partial_etc2_fast', False) else []
         blend = ['--blend-etc2'] if getattr(a, 'partial_etc2_blend', False) else []
         byte = ['--byte-etc2'] if getattr(a, 'partial_etc2_byte', False) else []
         rgba = ['--rgba-etc2'] if getattr(a, 'partial_etc2_rgba', False) else []
         extra = ['--extra-etc2'] if getattr(a, 'partial_etc2_extra', False) else []
-        py('partial RGBA plan', 'experimental-partial-rgba-plan.py', 'generate', '--steam-data', steam, '--obb', plans / 'objects/template.obb', '--output', plans / 'partial-rgba', *etc2, *small, *tiny, *aliases, *normal_rgba, *fast, *blend, *byte, *rgba, *extra)
+        py('partial RGBA plan', 'experimental-partial-rgba-plan.py', 'generate', '--steam-data', steam, '--obb', plans / 'objects/template.obb', '--output', plans / 'partial-rgba', *etc2, *small, *tiny, *aliases, *emission1_alias, *normal_rgba, *fast, *blend, *byte, *rgba, *extra)
         py('bind Android partial RGBA plan', 'experimental-partial-rgba-plan.py', 'export-android', '--steam-data', steam, '--template', plans / 'partial-rgba/template.obb', '--plan', plans / 'partial-rgba/plan.json', '--output', plans / 'partial-rgba/android-plan.json', *etc2)
         if localization:
             py('localization plan', 'experimental-localization-obb-plan.py', '--steam-data', steam, '--obb', plans / 'partial-rgba/template.obb', '--platform', a.platform, '--output', plans / 'localization', *small_localization)
@@ -255,6 +256,7 @@ def main():
     p.add_argument('--partial-etc2-small', action='store_true', help='also attempt smaller ETC2 textures; requires --partial-etc2')
     p.add_argument('--partial-etc2-tiny', action='store_true', help='also match exact bytes in tiny ETC2 textures; requires --partial-etc2-small and --partial-etc2-byte')
     p.add_argument('--partial-etc2-aliases', action='store_true', help='also match unambiguous ETC2 aliases; requires --partial-etc2-tiny')
+    p.add_argument('--partial-emission1-alias', action='store_true', help='match the unique Emission_1 Steam source; requires --partial-etc2-aliases')
     p.add_argument('--partial-etc2-fast', action='store_true', help='experimentally select the fast encoder where it recovers more exact bytes; requires --partial-etc2')
     p.add_argument('--partial-etc2-blend', action='store_true', help='experimentally choose the encoder per output block; requires --partial-etc2-fast')
     p.add_argument('--partial-etc2-byte', action='store_true', help='experimentally choose the encoder per output byte; requires --partial-etc2-blend')
@@ -298,6 +300,7 @@ def main():
     if a.partial_etc2_small and not a.partial_etc2: p.error('--partial-etc2-small requires --partial-etc2')
     if a.partial_etc2_tiny and (not a.partial_etc2_small or not a.partial_etc2_byte): p.error('--partial-etc2-tiny requires --partial-etc2-small and --partial-etc2-byte')
     if a.partial_etc2_aliases and not a.partial_etc2_tiny: p.error('--partial-etc2-aliases requires --partial-etc2-tiny')
+    if a.partial_emission1_alias and not a.partial_etc2_aliases: p.error('--partial-emission1-alias requires --partial-etc2-aliases')
     if a.partial_etc2_fast and not a.partial_etc2: p.error('--partial-etc2-fast requires --partial-etc2')
     if a.partial_etc2_blend and not a.partial_etc2_fast: p.error('--partial-etc2-blend requires --partial-etc2-fast')
     if a.partial_etc2_byte and not a.partial_etc2_blend: p.error('--partial-etc2-byte requires --partial-etc2-blend')

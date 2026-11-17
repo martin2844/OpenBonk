@@ -293,6 +293,30 @@ def scored_etc2_alias(target, payload, index, group, encoder):
     return None
 
 
+def emission1_alias(target, payload, index, group):
+    """Find the unique Steam Emission image matching this known color alias.
+
+    This identifies a source only: fragment masking still removes solely
+    byte-identical data and verifies the complete texture during restoration.
+    """
+    if (group != 'sharedassets1.assets' or target.m_Name != 'Emission_1' or
+            (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount,
+             int(target.m_TextureFormat), len(payload)) != (128, 128, 8, 1, 45, 10936)):
+        return None
+    matches = []
+    for item in candidate_sources(index, target, group, 'Emission'):
+        src = item[2]
+        if (int(src.m_TextureFormat) not in (1, 3, 4, 10, 12, 25) or
+                (src.m_MipCount, src.m_ImageCount, src.m_ColorSpace) !=
+                (target.m_MipCount, target.m_ImageCount, target.m_ColorSpace)):
+            continue
+        try:
+            if study.acceptable_bounded_mip(target.image, src.image, 0): matches.append(item)
+        except (ValueError, OSError, TypeError, NotImplementedError, RuntimeError):
+            continue
+    return matches[0] if len(matches) == 1 else None
+
+
 def generate(args):
     import UnityPy
     source = args.steam_data.resolve(strict=True); obb = args.obb.resolve(strict=True)
@@ -321,6 +345,8 @@ def generate(args):
                 if not payload or pos < 0 or body.count(payload) != 1: continue
                 item = study.select_source(target, candidate_sources(index, target, group, target.m_Name), texture=lambda x: x[2])
                 output = None
+                if item is None and getattr(args, 'emission1_alias', False):
+                    item = emission1_alias(target, payload, index, group)
                 if item is None and target.m_Name.endswith('_0'):
                     candidates = candidate_sources(index, target, group, target.m_Name[:-2])
                     alias = (rgba_alias(target, payload, candidates) if target_format == 4 else
@@ -492,6 +518,7 @@ def main():
     g.add_argument('--include-small-etc2', action='store_true', help='also attempt partial matching for smaller ETC2 textures (experimental)')
     g.add_argument('--include-tiny-etc2', action='store_true', help='also match exact bytes in small uniquely sourced ETC2 textures')
     g.add_argument('--include-etc2-aliases', action='store_true', help='also match unambiguous small ETC2 aliases by encoded bytes')
+    g.add_argument('--emission1-alias', action='store_true', help='match the uniquely identified Emission_1 source; requires --include-etc2-aliases')
     g.add_argument('--normal-rgba', action='store_true', help='match exact bytes in the unpacked WaterNormal RGBA texture')
     g.add_argument('--rgba-etc2', action='store_true', help='also match exact ETC2 bytes using the RGBA error metric; requires --byte-etc2')
     g.add_argument('--extra-etc2', action='store_true', help='also match exact ETC2 bytes using three additional metrics; requires --rgba-etc2')
@@ -508,6 +535,8 @@ def main():
         p.error('--include-tiny-etc2 requires --include-small-etc2 and --byte-etc2')
     if a.action == 'generate' and a.include_etc2_aliases and not a.include_tiny_etc2:
         p.error('--include-etc2-aliases requires --include-tiny-etc2')
+    if a.action == 'generate' and a.emission1_alias and not a.include_etc2_aliases:
+        p.error('--emission1-alias requires --include-etc2-aliases')
     if a.action == 'generate' and a.rgba_etc2 and not a.byte_etc2:
         p.error('--rgba-etc2 requires --byte-etc2')
     if a.action == 'generate' and a.extra_etc2 and not a.rgba_etc2:

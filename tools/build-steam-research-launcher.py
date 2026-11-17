@@ -133,6 +133,7 @@ def commands(a):
     if getattr(a, 'partial_etc2_small', False): chain += ['--partial-etc2-small']
     if getattr(a, 'partial_etc2_tiny', False): chain += ['--partial-etc2-tiny']
     if getattr(a, 'partial_etc2_aliases', False): chain += ['--partial-etc2-aliases']
+    if getattr(a, 'partial_emission1_alias', False): chain += ['--partial-emission1-alias']
     if getattr(a, 'partial_etc2_fast', False): chain += ['--partial-etc2-fast']
     if getattr(a, 'partial_etc2_blend', False): chain += ['--partial-etc2-blend']
     if getattr(a, 'partial_etc2_byte', False): chain += ['--partial-etc2-byte']
@@ -200,6 +201,7 @@ def commands(a):
         if getattr(a, 'partial_etc2_small', False): windows_chain += ['--partial-etc2-small']
         if getattr(a, 'partial_etc2_tiny', False): windows_chain += ['--partial-etc2-tiny']
         if getattr(a, 'partial_etc2_aliases', False): windows_chain += ['--partial-etc2-aliases']
+        if getattr(a, 'partial_emission1_alias', False): windows_chain += ['--partial-emission1-alias']
         if getattr(a, 'partial_etc2_fast', False): windows_chain += ['--partial-etc2-fast']
         if getattr(a, 'partial_etc2_blend', False): windows_chain += ['--partial-etc2-blend']
         if getattr(a, 'partial_etc2_byte', False): windows_chain += ['--partial-etc2-byte']
@@ -273,6 +275,7 @@ def main():
     p.add_argument('--partial-etc2-small', action='store_true', help='also attempt smaller ETC2 textures; requires --partial-etc2')
     p.add_argument('--partial-etc2-tiny', action='store_true', help='also match exact bytes in tiny ETC2 textures; requires --partial-etc2-small and --partial-etc2-byte')
     p.add_argument('--partial-etc2-aliases', action='store_true', help='also match unambiguous ETC2 aliases; requires --partial-etc2-tiny')
+    p.add_argument('--partial-emission1-alias', action='store_true', help='match the unique Emission_1 Steam source; requires --partial-etc2-aliases')
     p.add_argument('--partial-etc2-fast', action='store_true', help='experimentally select the fast encoder where it recovers more exact bytes; requires --partial-etc2')
     p.add_argument('--partial-etc2-blend', action='store_true', help='experimentally choose the encoder per output block; requires --partial-etc2-fast')
     p.add_argument('--partial-etc2-byte', action='store_true', help='experimentally choose the encoder per output byte; requires --partial-etc2-blend')
@@ -314,6 +317,7 @@ def main():
     if a.partial_etc2_small and not a.partial_etc2: p.error('--partial-etc2-small requires --partial-etc2')
     if a.partial_etc2_tiny and (not a.partial_etc2_small or not a.partial_etc2_byte): p.error('--partial-etc2-tiny requires --partial-etc2-small and --partial-etc2-byte')
     if a.partial_etc2_aliases and not a.partial_etc2_tiny: p.error('--partial-etc2-aliases requires --partial-etc2-tiny')
+    if a.partial_emission1_alias and not a.partial_etc2_aliases: p.error('--partial-emission1-alias requires --partial-etc2-aliases')
     if a.partial_etc2_fast and not a.partial_etc2: p.error('--partial-etc2-fast requires --partial-etc2')
     if a.partial_etc2_blend and not a.partial_etc2_fast: p.error('--partial-etc2-blend requires --partial-etc2-fast')
     if a.partial_etc2_byte and not a.partial_etc2_blend: p.error('--partial-etc2-byte requires --partial-etc2-blend')

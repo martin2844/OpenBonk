@@ -35,6 +35,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn('--include-tiny-etc2', dict(module.commands(args))['partial RGBA plan'])
             self.assertIn('--normal-rgba', dict(module.commands(args))['partial RGBA plan'])
             self.assertIn('--include-etc2-aliases', dict(module.commands(args))['partial RGBA plan'])
+            args.partial_emission1_alias = True
+            self.assertIn('--emission1-alias', dict(module.commands(args))['partial RGBA plan'])
 
     def test_conversion_preflight_reports_missing_native_library(self):
         with patch.object(module.importlib, 'import_module', side_effect=OSError('missing libstdc++')):

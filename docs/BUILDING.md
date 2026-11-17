@@ -24,6 +24,16 @@ from each Steam ZIP.
 Four decoded texture samples were inspected, but lighting and the full game
 have not been visually compared. Other asset types remain outside this audit.
 
+For an unrecognized `sharedassets1.assets`, the Android launcher now shows its
+size and a short SHA-256 prefix when the ZIP entry can be read and passes its
+CRC check. This diagnostic is local, bounded to 128 MiB, and does not relax the
+full validation or upload files. A Java check covered mismatched and corrupted
+synthetic entries, and the current validator still accepted the two generated
+Steam ZIPs. A private Android test on a Xiaomi 22126RN91Y selected a synthetic
+incompatible ZIP and displayed its expected three-byte size and hash prefix;
+the temporary app and ZIP were removed. This makes reports possible without a
+PC, but does not add support for a different game version.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.

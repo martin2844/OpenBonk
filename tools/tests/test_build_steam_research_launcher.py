@@ -74,12 +74,14 @@ class SteamResearchBuildTests(unittest.TestCase):
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
         with self.assertRaises(SystemExit): self.invoke('--small-color-block-aliases')
         with self.assertRaises(SystemExit): self.invoke('--lightmap-block-fallback')
-        self.invoke('--windows-game', str(windows), '--quality-textures', '--small-color-block-fallback', '--small-color-block-aliases', '--lightmap-block-fallback', '--partial-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-tiny', '--partial-etc2-aliases', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte', '--partial-etc2-rgba', '--partial-etc2-extra')
+        with self.assertRaises(SystemExit): self.invoke('--partial-emission1-alias')
+        self.invoke('--windows-game', str(windows), '--quality-textures', '--small-color-block-fallback', '--small-color-block-aliases', '--lightmap-block-fallback', '--partial-emission1-alias', '--partial-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-tiny', '--partial-etc2-aliases', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte', '--partial-etc2-rgba', '--partial-etc2-extra')
         chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
         self.assertEqual(len(chains), 2)
         self.assertTrue(all('--small-color-block-fallback' in chain for chain in chains))
         self.assertTrue(all('--small-color-block-aliases' in chain for chain in chains))
         self.assertTrue(all('--lightmap-block-fallback' in chain for chain in chains))
+        self.assertTrue(all('--partial-emission1-alias' in chain for chain in chains))
 
     @patch.object(module.subprocess, 'run')
     def test_localization_option_reaches_both_chains_and_requires_partial(self, run):
