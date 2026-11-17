@@ -2,8 +2,8 @@
 """Inventory serialized Unity objects stored directly in a local APK.
 
 This is a classification aid, not an asset, provenance or rights audit. It
-does not inspect nested archives, Unity builtin resource containers, managed
-resources, native libraries, other APK entries or object contents. Keep the
+does not inspect nested archives, managed resources, native libraries, other
+APK entries or object contents. Keep the
 report local because names and paths can be game-derived.
 """
 import argparse
@@ -21,7 +21,8 @@ BASE = r'(?:globalgamemanagers(?:\.assets)?|level[0-9]+|resources\.assets|shared
 SINGLE = re.compile(BASE + r'\Z')
 SPLIT = re.compile('(' + BASE + r')\.split(0|[1-9][0-9]*)\Z')
 MEDIA = frozenset(('Texture2D', 'Texture3D', 'Cubemap', 'AudioClip', 'VideoClip',
-                   'Sprite', 'Mesh', 'TextAsset', 'Shader', 'Font', 'MovieTexture'))
+                   'Sprite', 'Mesh', 'TextAsset', 'Shader', 'ComputeShader', 'Font', 'MovieTexture'))
+BUILTIN = frozenset(('Resources/unity default resources', 'Resources/unity_builtin_extra'))
 MAX_GROUP = 256 * 1024 * 1024
 
 
@@ -34,7 +35,7 @@ def group_entries(archive):
         name = info.filename[len(PREFIX):]
         match = SPLIT.fullmatch(name)
         if match: groups[match.group(1)].append((int(match.group(2)), info, True))
-        elif SINGLE.fullmatch(name): groups[name].append((0, info, False))
+        elif SINGLE.fullmatch(name) or name in BUILTIN: groups[name].append((0, info, False))
         else: other.append({'name': name, 'size': info.file_size})
     result = {}
     for name, parts in groups.items():
@@ -61,7 +62,11 @@ def inventory(archive):
                 if kind in MEDIA:
                     try:
                         value = obj.read()
-                        media.append({'type': kind, 'name': getattr(value, 'm_Name', ''),
+                        asset_name = getattr(value, 'm_Name', '')
+                        if kind == 'Shader' and not asset_name:
+                            asset_name = obj.read_typetree()['m_ParsedForm']['m_Name']
+                        if not isinstance(asset_name, str): raise ValueError('invalid object name')
+                        media.append({'type': kind, 'name': asset_name,
                                       'path_id': obj.path_id, 'serialized_bytes': obj.byte_size})
                     except Exception as error:
                         problems.append({'group': name, 'path_id': obj.path_id, 'reason': type(error).__name__})

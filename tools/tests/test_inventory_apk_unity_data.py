@@ -24,12 +24,12 @@ class InventoryTests(unittest.TestCase):
         obj = SimpleNamespace(type=SimpleNamespace(name='Texture2D'), path_id=9, byte_size=4,
                               read=lambda: SimpleNamespace(m_Name='sample'))
         with archive([('globalgamemanagers.assets.split1', b'cd'), ('globalgamemanagers.assets.split0', b'ab'),
-                      ('Resources/unity default resources', b'opaque')]) as data, \
+                      ('Managed/Metadata/global-metadata.dat', b'opaque')]) as data, \
              patch.object(module.UnityPy, 'load', return_value=SimpleNamespace(objects=[obj])) as load:
             report = module.inventory(data)
         load.assert_called_once_with(b'abcd')
         self.assertEqual(report['serialized_groups'][0]['media'][0]['name'], 'sample')
-        self.assertEqual(report['other_data_entries'][0]['name'], 'Resources/unity default resources')
+        self.assertEqual(report['other_data_entries'][0]['name'], 'Managed/Metadata/global-metadata.dat')
         self.assertEqual(report['problems'], [])
 
     def test_rejects_missing_or_conflicting_splits(self):
@@ -43,6 +43,22 @@ class InventoryTests(unittest.TestCase):
              patch.object(module.UnityPy, 'load', side_effect=ValueError('bad data')):
             report = module.inventory(data)
         self.assertEqual(report['problems'], [{'group': 'level0', 'reason': 'ValueError'}])
+
+    def test_builtin_resource_containers_are_classified(self):
+        with archive([('Resources/unity_builtin_extra', b'a'), ('Resources/unity default resources', b'b')]) as data:
+            groups, other = module.group_entries(data)
+        self.assertEqual(set(groups), module.BUILTIN)
+        self.assertEqual(other, [])
+
+    def test_shader_name_is_read_from_parsed_form(self):
+        shader = SimpleNamespace(type=SimpleNamespace(name='Shader'), path_id=2, byte_size=3,
+                                 read=lambda: SimpleNamespace(m_Name=''),
+                                 read_typetree=lambda: {'m_ParsedForm': {'m_Name': 'Hidden/Test'}})
+        with archive([('level0', b'xyz')]) as data, \
+             patch.object(module.UnityPy, 'load', return_value=SimpleNamespace(objects=[shader])):
+            report = module.inventory(data)
+        self.assertEqual(report['serialized_groups'][0]['media'][0]['name'], 'Hidden/Test')
+        self.assertEqual(report['problems'], [])
 
 
 if __name__ == '__main__': unittest.main()
