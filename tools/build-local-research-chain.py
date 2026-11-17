@@ -145,10 +145,11 @@ def commands(a):
         etc2 = ['--etc2-quality-library', hostlib] if getattr(a, 'partial_etc2', False) else []
         small = ['--include-small-etc2'] if getattr(a, 'partial_etc2_small', False) else []
         tiny = ['--include-tiny-etc2'] if getattr(a, 'partial_etc2_tiny', False) else []
+        normal_rgba = ['--normal-rgba'] if getattr(a, 'partial_normal_rgba', False) else []
         fast = ['--fast-etc2'] if getattr(a, 'partial_etc2_fast', False) else []
         blend = ['--blend-etc2'] if getattr(a, 'partial_etc2_blend', False) else []
         byte = ['--byte-etc2'] if getattr(a, 'partial_etc2_byte', False) else []
-        py('partial RGBA plan', 'experimental-partial-rgba-plan.py', 'generate', '--steam-data', steam, '--obb', plans / 'objects/template.obb', '--output', plans / 'partial-rgba', *etc2, *small, *tiny, *fast, *blend, *byte)
+        py('partial RGBA plan', 'experimental-partial-rgba-plan.py', 'generate', '--steam-data', steam, '--obb', plans / 'objects/template.obb', '--output', plans / 'partial-rgba', *etc2, *small, *tiny, *normal_rgba, *fast, *blend, *byte)
         py('bind Android partial RGBA plan', 'experimental-partial-rgba-plan.py', 'export-android', '--steam-data', steam, '--template', plans / 'partial-rgba/template.obb', '--plan', plans / 'partial-rgba/plan.json', '--output', plans / 'partial-rgba/android-plan.json', *etc2)
         if localization:
             py('localization plan', 'experimental-localization-obb-plan.py', '--steam-data', steam, '--obb', plans / 'partial-rgba/template.obb', '--platform', a.platform, '--output', plans / 'localization', *small_localization)
@@ -235,6 +236,7 @@ def main():
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally select a unique shadow texture; requires --quality-textures')
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
+    p.add_argument('--partial-normal-rgba', action='store_true', help='match exact bytes in WaterNormal using DXT5nm unpacking; requires --partial-rgba')
     p.add_argument('--localization-cab', action='store_true', help='experimentally reconstruct Android localization bundles; requires --partial-rgba')
     p.add_argument('--localization-small', action='store_true', help='also match 12-byte localization fragments; requires --localization-cab')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
@@ -250,6 +252,7 @@ def main():
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()
     if a.localization_cab and not a.partial_rgba: p.error('--localization-cab requires --partial-rgba')
+    if a.partial_normal_rgba and not a.partial_rgba: p.error('--partial-normal-rgba requires --partial-rgba')
     if a.localization_small and not a.localization_cab: p.error('--localization-small requires --localization-cab')
     if a.normal_block_fallback and (not a.normal_fallback or not a.partial_etc2_byte): p.error('--normal-block-fallback requires --normal-fallback and --partial-etc2-byte')
     if a.color_block_fallback and not a.partial_etc2_byte: p.error('--color-block-fallback requires --partial-etc2-byte')

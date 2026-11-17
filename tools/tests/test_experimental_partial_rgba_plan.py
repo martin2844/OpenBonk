@@ -12,6 +12,14 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_rgba_normal_mode_is_validated_and_applied(self):
+        item = {'target_format': 4, 'source_format': 12, 'normal_rgba': True,
+                'width': 1, 'height': 1, 'mips': 1}
+        with patch.object(module, 'converted', return_value=bytes((0, 128, 0, 128))):
+            self.assertEqual(module.converted_plan_texture(None, item, None), bytes((128, 128, 254, 255)))
+        for update in ({'source_format': 4}, {'target_format': 45}, {'normal_rgba': 'yes'}, {'blend': 'AA=='}):
+            with self.assertRaises(ValueError): module.normal_rgba_mode(dict(item, **update))
+
     def test_tiny_etc2_cli_requires_small_and_byte_modes(self):
         base = ['tool', 'generate', '--steam-data', '/unused', '--obb', '/unused', '--output', '/unused',
                 '--etc2-quality-library', '/unused', '--include-tiny-etc2']

@@ -14,7 +14,7 @@ public final class SteamPlannedTextures {
     private static final String PREFIX = "assets/bin/Data/";
     private static final class Texture {
         String source, inputHash, outputHash, decodedHash; long inputOffset, convertedOffset;
-        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat, blendUnit = 16; boolean normal, quality; byte[] blend;
+        int inputSize, outputSize, width, height, mips, sourceFormat, targetFormat, blendUnit = 16; boolean normal, normalRgba, quality; byte[] blend;
     }
     private static final class Fragment {
         Texture texture; String entry, maskedHash, originalHash; byte[] mask; int targetOffset, convertedOffset, size;
@@ -71,6 +71,20 @@ public final class SteamPlannedTextures {
         else throw new IOException("unsupported texture format");
         if (n <= 0 || n > MAX_CLIP) throw new IOException("invalid mip size"); return (int)n;
     }
+    /** Unpack DXT5nm X/Y into an RGBA candidate; only plan-matched bytes are used. */
+    public static void unpackNormalRgba(byte[] pixels) throws IOException {
+        if (pixels == null || pixels.length == 0 || pixels.length % 4 != 0) throw new IOException("invalid RGBA normal pixels");
+        for (int i = 0; i < pixels.length; i += 4) {
+            int green = pixels[i + 1] & 255, alpha = pixels[i + 3] & 255;
+            int x = 2 * alpha - 255, y = 2 * green - 255;
+            int value = Math.max(0, 65025 - x*x - y*y);
+            int z = (int)Math.sqrt(value);
+            while ((z + 1) * (z + 1) <= value) z++;
+            while (z * z > value) z--;
+            pixels[i] = (byte)alpha; pixels[i + 1] = (byte)green;
+            pixels[i + 2] = (byte)((255 + z) / 2); pixels[i + 3] = (byte)255;
+        }
+    }
     public static void restore(File templateFile, File steamFile, File planFile, String expectedPlanHash, File output) throws IOException {
         restoreInternal(templateFile, steamFile, planFile, expectedPlanHash, output, false, false);
     }
@@ -107,6 +121,8 @@ public final class SteamPlannedTextures {
                     t.width = row.getInt("width"); t.height = row.getInt("height"); t.mips = row.getInt("mips"); t.targetFormat = row.getInt("target_format");
                     if (row.has("normal") && !(row.get("normal") instanceof Boolean)) throw new IOException("invalid normal flag");
                     t.normal = row.has("normal") && row.getBoolean("normal");
+                    if (row.has("normal_rgba") && !(row.get("normal_rgba") instanceof Boolean)) throw new IOException("invalid RGBA normal flag");
+                    t.normalRgba = row.has("normal_rgba") && row.getBoolean("normal_rgba");
                     if (row.has("quality") && !(row.get("quality") instanceof Boolean)) throw new IOException("invalid quality flag");
                     t.quality = row.has("quality") && row.getBoolean("quality");
                 }
@@ -117,6 +133,7 @@ public final class SteamPlannedTextures {
                 if (cubemaps && (!t.source.equals("sharedassets1.assets.resS") || t.inputSize > 4 * 1024 * 1024 || t.outputSize != 6 * 131072)) throw new IOException("invalid cubemap metadata");
                 if (t.quality && (cubemaps || t.normal || (t.targetFormat != 47 && t.targetFormat != 45) || t.width > 2048 || t.height > 2048)) throw new IOException("invalid quality texture metadata");
                 if (partial && (t.normal || (t.targetFormat == 4 && t.quality))) throw new IOException("invalid partial texture metadata");
+                if (t.normalRgba && (!partial || cubemaps || t.normal || t.quality || t.sourceFormat != 12 || t.targetFormat != 4 || row.has("blend"))) throw new IOException("invalid RGBA normal metadata");
                 if (row.has("blend")) {
                     if (!partial || !t.quality || !(row.get("blend") instanceof String)) throw new IOException("invalid blended texture metadata");
                     if (row.has("blend_unit")) {
@@ -205,6 +222,7 @@ public final class SteamPlannedTextures {
                         byte[] mip;
                         try { byte[] part = Arrays.copyOfRange(input, inputPos, inputPos + n); mip = t.quality ? SteamConvertedTextures.convertQualityMip(part, w, h, sourceFormat) : t.normal ? SteamConvertedTextures.convertNormalMip(part, w, h, t.targetFormat) : SteamConvertedTextures.convertMip(part, w, h, sourceFormat, t.targetFormat); }
                         catch (UnsatisfiedLinkError e) { throw new IOException("texture converter unavailable", e); }
+                        if (t.normalRgba) unpackNormalRgba(mip);
                         if (mip != null && t.quality && t.targetFormat == 45) {
                             if (mip.length != wanted * 2) throw new IOException("invalid quality ETC2 block size");
                             byte[] rgb = new byte[wanted];

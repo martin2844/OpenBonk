@@ -219,6 +219,13 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         del payload['records'][0]['blend_unit']
         del payload['records'][0]['blend']
         payload['records'][0].update(target_format=4, quality=False)
+        payload['records'][0].update(normal_rgba=True, source_format=12)
+        plan.write_text(json.dumps(payload)); MODULE.verify_animations(template, plan, result, partial_rgba=True)
+        for invalid in ({'normal_rgba': 'yes'}, {'source_format': 4}, {'target_format': 45}):
+            record = payload['records'][0]; previous = {key: record.get(key) for key in invalid}
+            record.update(invalid); plan.write_text(json.dumps(payload))
+            with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, result, partial_rgba=True)
+            record.update(previous)
         plan.write_text(json.dumps(payload))
         with zipfile.ZipFile(result, 'w') as z: z.writestr(entry, b'xAXCy')
         with self.assertRaises(ValueError): MODULE.verify_animations(template, plan, result, partial_rgba=True)

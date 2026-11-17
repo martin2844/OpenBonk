@@ -255,6 +255,16 @@ The Windows study used that same Linux input template, not a full Windows
 research chain. This option has not yet been tested in a complete launcher;
 the templates still contain other game data and remain private.
 
+The separate opt-in `--partial-normal-rgba` option requires `--partial-rgba`.
+It derives an RGBA candidate for `IL3DN_WaterNormal` from the Steam DXT5nm
+channels and masks only bytes already equal to the Android texture; it does
+not substitute unmatched pixels. On the same Linux object template, adding
+this option to the tiny ETC2 study masked 261,056 nonzero bytes in total,
+an increase of 3,521. Linux and Windows Steam inputs produced identical
+masked templates. The exported plans restored all 1,072 expected archive
+entries on a Retroid Pocket 5 from each ZIP. This focused check does not
+establish visual parity or remove the other game data in the template.
+
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture
 metadata rather than path ID. A local run against that clone's OBB found both

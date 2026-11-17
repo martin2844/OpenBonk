@@ -23,6 +23,7 @@ def load(name, file):
 study = load('partial_texture_study', 'experimental-converted-textures.py')
 objects = load('partial_texture_objects', 'experimental-exact-object-plan.py')
 masker = load('partial_texture_masker', 'experimental-animation-mask.py')
+normal_rgba = load('partial_normal_rgba', 'normal-rgba-reconstruction.py')
 ENTRY = re.compile(re.escape(objects.PREFIX) + r'(?:[0-9a-f]{32}|sharedassets[0124]\.assets\.split(?:0|[1-9]\d*))\Z')
 
 
@@ -33,6 +34,14 @@ def quality_mode(item):
     value = item.get('quality', item.get('target_format', 4) in (45, 47))
     if type(value) is not bool or (item.get('target_format', 4) == 4 and value):
         raise ValueError('invalid partial texture quality mode')
+    return value
+
+
+def normal_rgba_mode(item):
+    value = item.get('normal_rgba', False)
+    if type(value) is not bool or (value and (item.get('source_format') != 12 or
+            item.get('target_format', 4) != 4 or quality_mode(item) or 'blend' in item)):
+        raise ValueError('invalid RGBA normal mode')
     return value
 
 
@@ -73,9 +82,11 @@ def select_blocks(original, quality, fast, unit=16):
 def converted_plan_texture(source, item, encoder):
     target = item.get('target_format', 4)
     quality = quality_mode(item)
+    normal = normal_rgba_mode(item)
     if 'blend' not in item:
         if 'blend_unit' in item: raise ValueError('blend unit without choices')
-        return converted(source, item['width'], item['height'], item['mips'], target, encoder, not quality and target in (45, 47))
+        output = converted(source, item['width'], item['height'], item['mips'], target, encoder, not quality and target in (45, 47))
+        return normal_rgba.reconstruct(output) if normal else output
     mask = item['blend']
     if not quality or target not in (45, 47) or not isinstance(mask, str): raise ValueError('invalid blended texture mode')
     choices = base64.b64decode(mask, validate=True)
@@ -251,7 +262,7 @@ def generate(args):
     quality_library = getattr(args, 'etc2_quality_library', None)
     encoder = study.load_quality_encoder(quality_library) if quality_library else None
     out = objects.new_output(args.output, (source, obb)); index, _ = sources(source, bool(encoder))
-    rows = []; textures = []; decoded = {}; out.mkdir(mode=0o700)
+    rows = []; textures = []; decoded = {}; normal_seen = False; out.mkdir(mode=0o700)
     with zipfile.ZipFile(obb) as zin:
         infos = masker.zip_entries(zin); groups = objects.asset_groups(zin)
         for group, parts in groups.items():
@@ -288,6 +299,14 @@ def generate(args):
                 if output is None:
                     try: output = converted(src, target.m_Width, target.m_Height, target.m_MipCount, target_format, encoder)
                     except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): continue
+                normal = (getattr(args, 'normal_rgba', False) and group == 'sharedassets1.assets' and
+                          target.m_Name == 'IL3DN_WaterNormal')
+                if normal:
+                    if normal_seen or (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount,
+                                       target_format, int(src.m_TextureFormat)) != (32, 32, 6, 1, 4, 12):
+                        raise ValueError('unexpected or duplicate RGBA normal texture')
+                    normal_seen = True
+                    output = normal_rgba.reconstruct(output)
                 quality = target_format in (45, 47); blend = None
                 if quality and getattr(args, 'fast_etc2', False):
                     try:
@@ -301,17 +320,21 @@ def generate(args):
                                 output = blended; quality = True; blend = base64.b64encode(choices).decode('ascii')
                     except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): pass
                 ident = len(textures); fragments = fragment_rows(parts, obj.byte_start + pos, payload, output, ident)
-                if not fragments: continue
+                if not fragments:
+                    if normal: raise ValueError('RGBA normal has no matching bytes')
+                    continue
                 source_data = bytes(src.get_image_data())
                 texture = {'id': ident, 'source_group': group_name, 'source_id': source_id,
                                  'width': target.m_Width, 'height': target.m_Height, 'mips': target.m_MipCount,
                                  'source_format': int(src.m_TextureFormat), 'target_format': target_format, 'quality': quality, 'source_sha256': sha(source_data),
                                  'converted_sha256': sha(output)}
+                if normal: texture['normal_rgba'] = True
                 if blend is not None:
                     texture['blend'] = blend
                     if getattr(args, 'byte_etc2', False): texture['blend_unit'] = 1
                 textures.append(texture)
                 decoded[ident] = output; rows.extend(fragments)
+        if getattr(args, 'normal_rgba', False) and not normal_seen: raise ValueError('RGBA normal texture missing or unsupported')
         if not rows: raise ValueError('no matching RGBA bytes')
         grouped = defaultdict(list)
         for row in rows: grouped[row['entry']].append(row)
@@ -386,6 +409,7 @@ def export_android(args):
                         'width': item['width'], 'height': item['height'], 'mips': item['mips'], 'source_format': item['source_format'],
                         'target_format': target_format, 'quality': quality,
                         'target_size': len(output), 'target_sha256': sha(output), 'fragments': fragments}
+        if normal_rgba_mode(item): record['normal_rgba'] = True
         if 'blend' in item: record['blend'] = item['blend']
         if 'blend_unit' in item: record['blend_unit'] = item['blend_unit']
         records.append(record)
@@ -400,6 +424,7 @@ def main():
     g = sub.add_parser('generate'); g.add_argument('--steam-data', type=Path, required=True); g.add_argument('--obb', type=Path, required=True); g.add_argument('--output', type=Path, required=True)
     g.add_argument('--include-small-etc2', action='store_true', help='also attempt partial matching for smaller ETC2 textures (experimental)')
     g.add_argument('--include-tiny-etc2', action='store_true', help='also match exact bytes in small uniquely sourced ETC2 textures')
+    g.add_argument('--normal-rgba', action='store_true', help='match exact bytes in the unpacked WaterNormal RGBA texture')
     g.add_argument('--fast-etc2', action='store_true', help='experimentally select the fast ETC2 encoder when it recovers more exact bytes')
     g.add_argument('--blend-etc2', action='store_true', help='experimentally choose an encoder per 16-byte output block; requires --fast-etc2')
     g.add_argument('--byte-etc2', action='store_true', help='experimentally choose an encoder per output byte; requires --blend-etc2')

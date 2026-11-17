@@ -120,6 +120,7 @@ def commands(a):
     if getattr(a, 'shadow_fallback', False): chain += ['--shadow-fallback']
     if getattr(a, 'emoji_fallback', False): chain += ['--emoji-fallback']
     if getattr(a, 'partial_rgba', False): chain += ['--partial-rgba']
+    if getattr(a, 'partial_normal_rgba', False): chain += ['--partial-normal-rgba']
     if getattr(a, 'localization_cab', False): chain += ['--localization-cab']
     if getattr(a, 'localization_small', False): chain += ['--localization-small']
     if getattr(a, 'partial_etc2', False): chain += ['--partial-etc2']
@@ -173,6 +174,7 @@ def commands(a):
         if getattr(a, 'shadow_fallback', False): windows_chain += ['--shadow-fallback']
         if getattr(a, 'emoji_fallback', False): windows_chain += ['--emoji-fallback']
         if getattr(a, 'partial_rgba', False): windows_chain += ['--partial-rgba']
+        if getattr(a, 'partial_normal_rgba', False): windows_chain += ['--partial-normal-rgba']
         if getattr(a, 'localization_cab', False): windows_chain += ['--localization-cab']
         if getattr(a, 'localization_small', False): windows_chain += ['--localization-small']
         if getattr(a, 'partial_etc2', False): windows_chain += ['--partial-etc2']
@@ -232,6 +234,7 @@ def main():
     p.add_argument('--shadow-fallback', action='store_true', help='experimentally reconstruct a uniquely matching shadow; requires --quality-textures')
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
+    p.add_argument('--partial-normal-rgba', action='store_true', help='match exact bytes in WaterNormal using DXT5nm unpacking; requires --partial-rgba')
     p.add_argument('--localization-cab', action='store_true', help='experimentally reconstruct Android localization bundles; requires --partial-rgba')
     p.add_argument('--localization-small', action='store_true', help='also match 12-byte localization fragments; requires --localization-cab')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
@@ -245,6 +248,7 @@ def main():
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if a.localization_cab and not a.partial_rgba: p.error('--localization-cab requires --partial-rgba')
+    if a.partial_normal_rgba and not a.partial_rgba: p.error('--partial-normal-rgba requires --partial-rgba')
     if a.localization_small and not a.localization_cab: p.error('--localization-small requires --localization-cab')
     if a.normal_block_fallback and (not a.normal_fallback or not a.partial_etc2_byte): p.error('--normal-block-fallback requires --normal-fallback and --partial-etc2-byte')
     if a.color_block_fallback and not a.partial_etc2_byte: p.error('--color-block-fallback requires --partial-etc2-byte')
