@@ -115,6 +115,19 @@ each ZIP; the Windows check was rerun after an ADB interruption. This is not
 a gameplay or complete visual comparison, or evidence of an asset-free APK.
 The option remains experimental.
 
+A fresh GitHub clone at `db88b13` completed all seven stages of the
+dual-input Android research build with the corrected-orientation options
+and `--partial-emission1-alias`. It used installed Unity and AssetRipper,
+existing caches and local Steam inputs; Windows data came from a prepared
+copy. Both output OBB hashes matched. An independent desktop check used
+the plans packaged in the combined APK to restore the OBB from each ZIP.
+Workspace source and binary-input checks passed within their documented
+scope. Each packaged template retained 36,962 nonzero bytes in 1,157
+identified inline textures, with none skipped or streamed; other asset
+types were not established by that audit. This APK contains game-derived
+data and remains private; these checks are not a second-machine build,
+complete gameplay test, visual parity check, or distribution approval.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
