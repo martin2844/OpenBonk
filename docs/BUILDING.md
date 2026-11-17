@@ -19,7 +19,8 @@ found no violations in 7,491 normal, 6,515 color and 2,215 small-color/lightmap
 blocks under their respective metrics. Those metrics do not bound hidden RGB
 under transparency or normal-vector magnitude. Each partial template retained
 42,211 nonzero bytes in 1,157 measured inline textures, with none skipped; the
-desktop Java helper restored all 1,072 expected entries from each Steam ZIP.
+desktop Java helper and a Xiaomi 22126RN91Y restored all 1,072 expected entries
+from each Steam ZIP.
 Four decoded texture samples were inspected, but lighting and the full game
 have not been visually compared. Other asset types remain outside this audit.
 
