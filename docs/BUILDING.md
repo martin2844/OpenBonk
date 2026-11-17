@@ -128,6 +128,15 @@ types were not established by that audit. This APK contains game-derived
 data and remains private; these checks are not a second-machine build,
 complete gameplay test, visual parity check, or distribution approval.
 
+On a Xiaomi 22126RN91Y, an isolated installation of the fresh `db88b13`
+APK imported the Linux ZIP through the launcher and produced the expected
+OBB SHA-256. The game reached Forest with Fox and recorded 13 enemy defeats
+in a brief run. The test installation and copied ZIP were removed. This
+does not establish interactive Windows ZIP import, physical controls,
+long-run stability or full gameplay and visual parity. The APK remains
+private because it contains game-derived texture data. Separately, 542
+Python tool tests passed locally at `eae6758`.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
