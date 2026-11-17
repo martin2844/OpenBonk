@@ -8,6 +8,7 @@ report local because names and paths can be game-derived.
 """
 import argparse
 from collections import Counter, defaultdict
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -66,8 +67,11 @@ def inventory(archive):
                         if kind == 'Shader' and not asset_name:
                             asset_name = obj.read_typetree()['m_ParsedForm']['m_Name']
                         if not isinstance(asset_name, str): raise ValueError('invalid object name')
+                        payload = obj.get_raw_data()
+                        if len(payload) != obj.byte_size: raise ValueError('invalid object size')
                         media.append({'type': kind, 'name': asset_name,
-                                      'path_id': obj.path_id, 'serialized_bytes': obj.byte_size})
+                                      'path_id': obj.path_id, 'serialized_bytes': obj.byte_size,
+                                      'serialized_sha256': hashlib.sha256(payload).hexdigest()})
                     except Exception as error:
                         problems.append({'group': name, 'path_id': obj.path_id, 'reason': type(error).__name__})
             output.append({'group': name, 'size': size, 'part_count': len(parts),

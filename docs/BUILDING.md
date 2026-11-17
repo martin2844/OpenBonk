@@ -268,6 +268,12 @@ Unity data entries, including managed metadata, were listed but not inspected.
 One manager object had an unknown type identifier. This
 inventory does not inspect the nested templates or establish ownership,
 contents of every object, or absence of game assets; the report stays local.
+The tool also hashes the serialized bytes of its selected media objects. A
+comparison with the fresh `ca4503e` clone's APK found matching identities and
+hashes for all 109 selected objects in these direct groups, including the
+toon shader and Unity splash texture. Both builds used the same host and local
+inputs. This comparison does not establish where the source material came from,
+whether those objects can be redistributed, or equivalence of other fields.
 
 In a focused partial-texture study of those three maps, the bounded-block
 output let the byte-granularity plan mask 84,405 nonzero bytes, compared with

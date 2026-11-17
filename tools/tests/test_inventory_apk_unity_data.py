@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import io
 from pathlib import Path
 from types import SimpleNamespace
@@ -22,13 +23,14 @@ def archive(entries):
 class InventoryTests(unittest.TestCase):
     def test_splits_classifies_media_and_preserves_other_entries(self):
         obj = SimpleNamespace(type=SimpleNamespace(name='Texture2D'), path_id=9, byte_size=4,
-                              read=lambda: SimpleNamespace(m_Name='sample'))
+                              read=lambda: SimpleNamespace(m_Name='sample'), get_raw_data=lambda: b'abcd')
         with archive([('globalgamemanagers.assets.split1', b'cd'), ('globalgamemanagers.assets.split0', b'ab'),
                       ('Managed/Metadata/global-metadata.dat', b'opaque')]) as data, \
              patch.object(module.UnityPy, 'load', return_value=SimpleNamespace(objects=[obj])) as load:
             report = module.inventory(data)
         load.assert_called_once_with(b'abcd')
         self.assertEqual(report['serialized_groups'][0]['media'][0]['name'], 'sample')
+        self.assertEqual(report['serialized_groups'][0]['media'][0]['serialized_sha256'], hashlib.sha256(b'abcd').hexdigest())
         self.assertEqual(report['other_data_entries'][0]['name'], 'Managed/Metadata/global-metadata.dat')
         self.assertEqual(report['problems'], [])
 
@@ -53,6 +55,7 @@ class InventoryTests(unittest.TestCase):
     def test_shader_name_is_read_from_parsed_form(self):
         shader = SimpleNamespace(type=SimpleNamespace(name='Shader'), path_id=2, byte_size=3,
                                  read=lambda: SimpleNamespace(m_Name=''),
+                                 get_raw_data=lambda: b'xyz',
                                  read_typetree=lambda: {'m_ParsedForm': {'m_Name': 'Hidden/Test'}})
         with archive([('level0', b'xyz')]) as data, \
              patch.object(module.UnityPy, 'load', return_value=SimpleNamespace(objects=[shader])):
