@@ -17,6 +17,7 @@ spec = importlib.util.spec_from_file_location('partial_small_colors', ROOT / 'to
 partial = importlib.util.module_from_spec(spec); spec.loader.exec_module(partial)
 GROUPS = ('sharedassets1.assets', 'sharedassets2.assets', 'sharedassets4.assets')
 EXCLUDED = ('normal', 'bump', 'height', 'metallic', 'roughness', 'specular', 'lightmap', 'mask')
+LIGHTMAPS = {'LDR_LLL1_1_0': 'LDR_LLL1_1', 'LDR_LLL1_2_0': 'LDR_LLL1_2'}
 
 
 def eligible_target(target, payload):
@@ -51,7 +52,7 @@ def stable_alias_source(target, original, replacement, index, group, encoder):
     return before
 
 
-def replace_mip(old, outputs, images, level, block_size):
+def replace_mip(old, outputs, images, level, block_size, lightmap=False):
     """Substitute only bounded blocks which still contain unmatchable bytes."""
     from PIL import ImageChops, ImageStat
     if (block_size not in (8, 16) or level < 0 or not outputs or len(images) != len(outputs) + 1):
@@ -75,7 +76,9 @@ def replace_mip(old, outputs, images, level, block_size):
                 safe = []
                 for candidate, image in zip(choices, images[1:]):
                     crop = image.crop(box)
-                    if partial.study.acceptable_bounded_mip(reference, crop, level):
+                    acceptable = (partial.study.acceptable_lightmap_image(reference, crop) if lightmap else
+                                  partial.study.acceptable_bounded_mip(reference, crop, level))
+                    if acceptable:
                         # Prefer the visually closest bounded candidate; ties
                         # are stable in encoder order.
                         difference = ImageStat.Stat(ImageChops.difference(reference, crop)).sum
@@ -96,7 +99,7 @@ def generate(args):
     encoder = partial.study.load_quality_encoder(args.quality_library)
     encoders = [encoder, encoder.rgba_variant(), *(encoder.extra_variant(i) for i in (1, 2, 3)), None]
     index, _ = partial.sources(steam, True)
-    changes, records = {}, []
+    changes, records, seen_lightmaps = {}, [], set()
     with zipfile.ZipFile(obb) as archive:
         infos = partial.masker.zip_entries(archive); groups = partial.objects.asset_groups(archive)
         for group in GROUPS:
@@ -105,12 +108,21 @@ def generate(args):
             for obj in UnityPy.load(raw).objects:
                 if obj.type.name != 'Texture2D': continue
                 target = obj.read(); old = bytes(target.image_data)
-                if not eligible_target(target, old): continue
+                lightmap = bool(getattr(args, 'lightmaps', False) and group == 'sharedassets1.assets' and target.m_Name in LIGHTMAPS)
+                if lightmap:
+                    if target.m_Name in seen_lightmaps: raise ValueError('duplicate lightmap target')
+                    seen_lightmaps.add(target.m_Name)
+                    if (target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount,
+                            int(target.m_TextureFormat), len(old)) != (64, 64, 1, 1, 47, 4096):
+                        raise ValueError('unexpected lightmap metadata')
+                elif not eligible_target(target, old): continue
                 source = partial.study.select_source(target, partial.candidate_sources(index, target, group, target.m_Name), texture=lambda item: item[2])
                 is_alias = source is None
-                if is_alias and getattr(args, 'aliases', False):
+                if is_alias and (getattr(args, 'aliases', False) or lightmap):
                     source = select_alias_source(target, old, index, group, encoder)
                 if source is None or int(source[2].m_TextureFormat) not in (1, 3, 4, 10, 12, 25): continue
+                if lightmap and (source[0] != 'sharedassets1' or source[2].m_Name != LIGHTMAPS[target.m_Name] or
+                                 int(source[2].m_TextureFormat) != 1): continue
                 body = obj.get_raw_data()
                 if body.count(old) != 1: continue
                 fmt = int(target.m_TextureFormat)
@@ -124,7 +136,7 @@ def generate(args):
                         w, h = mips[0][:2]
                         images = [converter.parse_image_data(mip[2], w, h, fmt, target.object_reader.version,
                                                             target.object_reader.platform).convert('RGBA') for mip in mips]
-                        chunk, n, c = replace_mip(mips[0][2], [m[2] for m in mips[1:]], images, level, 8 if fmt == 45 else 16)
+                        chunk, n, c = replace_mip(mips[0][2], [m[2] for m in mips[1:]], images, level, 8 if fmt == 45 else 16, lightmap=lightmap)
                         chunks.append(chunk); selected += n; changed += c
                 except (ValueError, TypeError, IndexError, OSError, NotImplementedError, RuntimeError):
                     continue
@@ -140,6 +152,8 @@ def generate(args):
             offset = 0
             for part in parts:
                 changes[part.filename] = bytes(modified[offset:offset + part.file_size]); offset += part.file_size
+        if getattr(args, 'lightmaps', False) and seen_lightmaps != set(LIGHTMAPS):
+            raise ValueError('expected lightmap targets missing')
         output.mkdir(mode=0o700)
         try:
             with zipfile.ZipFile(output / 'converted.obb', 'x') as dest:
@@ -160,6 +174,7 @@ def main():
     parser.add_argument('--quality-library', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--aliases', action='store_true', help='allow unambiguous matched names, rechecking the selected source after conversion')
+    parser.add_argument('--lightmaps', action='store_true', help='also process two specified LDR lightmaps with bounded alpha error')
     generate(parser.parse_args())
 
 

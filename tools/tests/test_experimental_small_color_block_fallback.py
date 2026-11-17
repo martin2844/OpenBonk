@@ -11,6 +11,14 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class SmallColorBlockTests(unittest.TestCase):
+    def test_lightmap_uses_its_own_alpha_bounds(self):
+        original = Image.new('RGBA', (4, 4), (255, 255, 255, 128))
+        allowed = original.copy(); allowed.paste((255, 255, 255, 148), (0, 0, 1, 4))
+        self.assertEqual(module.replace_mip(b'A'*16, [b'B'*16], [original, allowed], 0, 16), (b'A'*16, 0, 0))
+        self.assertEqual(module.replace_mip(b'A'*16, [b'B'*16], [original, allowed], 0, 16, lightmap=True), (b'B'*16, 1, 16))
+        disallowed = original.copy(); disallowed.paste((255, 255, 255, 180), (0, 0, 1, 4))
+        self.assertEqual(module.replace_mip(b'A'*16, [b'B'*16], [original, disallowed], 0, 16, lightmap=True), (b'A'*16, 0, 0))
+
     def test_alias_source_must_remain_identical_after_conversion(self):
         first = ('sharedassets1', 1, object())
         second = ('sharedassets1', 2, object())

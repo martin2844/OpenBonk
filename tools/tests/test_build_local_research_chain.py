@@ -71,6 +71,8 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn(str(args.host_library), commands['bounded small color blocks'])
             args.small_color_block_aliases = True
             self.assertIn('--aliases', dict(module.commands(args))['bounded small color blocks'])
+            args.lightmap_block_fallback = True
+            self.assertIn('--lightmaps', dict(module.commands(args))['bounded small color blocks'])
 
     def test_localization_stage_precedes_partial_and_binds_packager_inputs(self):
         with tempfile.TemporaryDirectory() as temp:
