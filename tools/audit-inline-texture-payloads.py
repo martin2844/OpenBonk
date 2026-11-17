@@ -48,7 +48,7 @@ def retained_payload(target, masked, start, body, payload):
 
 def audit(reference, template):
     reference_groups, template_groups = objects.asset_groups(reference), objects.asset_groups(template)
-    rows, skipped, empty = [], [], []
+    rows, skipped, empty, streamed = [], [], [], []
     for name, parts in reference_groups.items():
         other = template_groups.get(name)
         if not other or [(p.filename, p.file_size) for p in parts] != [(p.filename, p.file_size) for p in other]:
@@ -67,8 +67,14 @@ def audit(reference, template):
                 texture = obj.read()
                 payload = bytes(texture.image_data)
                 body = obj.get_raw_data()
+                stream = getattr(texture, 'm_StreamData', None)
+                if stream is not None and (getattr(stream, 'path', None) or getattr(stream, 'size', 0)):
+                    streamed.append({'group': name, 'path_id': obj.path_id, 'name': texture.m_Name,
+                                     'source': str(getattr(stream, 'path', '')),
+                                     'size': getattr(stream, 'size', None)})
+                    skipped.append({'group': name, 'path_id': obj.path_id, 'reason': 'streamed texture not audited'})
+                    continue
                 if not payload:
-                    stream = getattr(texture, 'm_StreamData', None)
                     if (getattr(texture, 'm_Width', None) == 0 and getattr(texture, 'm_Height', None) == 0 and
                             (stream is None or (not stream.path and not stream.size))):
                         empty.append({'group': name, 'path_id': obj.path_id, 'name': texture.m_Name})
@@ -81,7 +87,7 @@ def audit(reference, template):
             except (ValueError, TypeError, EOFError, OSError, AttributeError) as e:
                 skipped.append({'group': name, 'path_id': obj.path_id, 'reason': str(e)})
     return {'inline_texture_count': len(rows), 'retained_nonzero_bytes': sum(r['retained_nonzero_bytes'] for r in rows),
-            'textures': rows, 'empty_textures': empty, 'skipped': skipped,
+            'textures': rows, 'empty_textures': empty, 'streamed_textures': streamed, 'skipped': skipped,
             'limitations': 'Inline Texture2D payloads only; zero bytes do not prove removal or establish ownership.'}
 
 
@@ -109,7 +115,7 @@ def main():
     with output.open('x', encoding='utf-8') as stream:
         json.dump(result, stream, indent=2)
         stream.write('\n')
-    print(f"Inline textures: {result['inline_texture_count']}; retained nonzero payload bytes: {result['retained_nonzero_bytes']}; empty: {len(result['empty_textures'])}; skipped: {len(result['skipped'])}")
+    print(f"Inline textures: {result['inline_texture_count']}; retained nonzero payload bytes: {result['retained_nonzero_bytes']}; empty: {len(result['empty_textures'])}; streamed: {len(result['streamed_textures'])}; skipped: {len(result['skipped'])}")
 
 
 if __name__ == '__main__':

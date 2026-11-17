@@ -245,6 +245,16 @@ from a previously prepared ZIP, and this was not a new clean Unity build or
 an interactive Linux import of this exact combined APK. The approximation,
 all content and long-run behavior remain unverified, and the APK is private.
 
+The inline-texture auditor now separately flags any readable `Texture2D`
+object that references streamed data, even if a cached inline payload is also
+present, and treats it as skipped rather than counting it as fully audited.
+Rechecking both templates of the combined APK above found 1,157 inline
+textures, seven empty textures, no streamed texture references and no skips
+in the serialized OBB groups it reads. Each template retained 110,697 nonzero
+bytes in the identified inline payloads. This does not inspect asset bundles,
+unreferenced resource bytes or other asset types and does not establish that
+the APK is asset-free. Reports remain local.
+
 In a focused partial-texture study of those three maps, the bounded-block
 output let the byte-granularity plan mask 84,405 nonzero bytes, compared with
 55,076 before substitution. Plans generated from Linux and Windows source

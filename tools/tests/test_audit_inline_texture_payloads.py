@@ -41,7 +41,8 @@ class InlineTexturePayloadTest(unittest.TestCase):
                               get_raw_data=lambda: b'abcd',
                               read=lambda: SimpleNamespace(image_data=b'abcd', m_Name='example'))
         streamed = SimpleNamespace(type=SimpleNamespace(name='Texture2D'), path_id=2,
-                                   read=lambda: SimpleNamespace(image_data=b'', m_Name='streamed'),
+                                   read=lambda: SimpleNamespace(image_data=b'cached', m_Name='streamed',
+                                                                m_StreamData=SimpleNamespace(path='x.resS', size=6)),
                                    get_raw_data=lambda: b'')
         empty = SimpleNamespace(type=SimpleNamespace(name='Texture2D'), path_id=3,
                                 read=lambda: SimpleNamespace(image_data=b'', m_Name='empty', m_Width=0, m_Height=0,
@@ -54,7 +55,8 @@ class InlineTexturePayloadTest(unittest.TestCase):
             report = audit.audit(reference, template)
         self.assertEqual(report['retained_nonzero_bytes'], 2)
         self.assertEqual(report['inline_texture_count'], 1)
-        self.assertEqual(report['skipped'][0]['reason'], 'no inline payload')
+        self.assertEqual(report['skipped'][0]['reason'], 'streamed texture not audited')
+        self.assertEqual(report['streamed_textures'][0]['source'], 'x.resS')
         self.assertEqual(report['empty_textures'][0]['path_id'], 3)
 
 
