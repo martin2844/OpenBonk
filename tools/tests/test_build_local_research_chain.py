@@ -14,6 +14,11 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_conversion_preflight_reports_missing_native_library(self):
+        with patch.object(module.importlib, 'import_module', side_effect=OSError('missing libstdc++')):
+            with self.assertRaisesRegex(ValueError, 'cannot load conversion module.*missing libstdc'):
+                module.check_conversion_imports()
+
     def test_color_blocks_follow_normals_and_feed_downstream_plans(self):
         with tempfile.TemporaryDirectory() as temp:
             args = self.args(Path(temp)); args.normal_block_fallback = True; args.color_block_fallback = True

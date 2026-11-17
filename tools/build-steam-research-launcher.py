@@ -38,11 +38,7 @@ def output_allows_execution(parent):
 
 def check_conversion_imports():
     """Load conversion modules now, including their native dependencies."""
-    for name in ('UnityPy.export.Texture2DConverter', 'PIL.Image', 'etcpak', 'texture2ddecoder'):
-        try:
-            importlib.import_module(name)
-        except (ImportError, OSError) as error:
-            raise ValueError(f'cannot load conversion module {name}: {error}') from error
+    research_chain.check_conversion_imports()
 
 
 def check_online_apk(aapt2, apk, application_id, runner=None):

@@ -870,8 +870,10 @@ python3 tools/build-local-research-chain.py \
 The active Python environment needs UnityPy and its texture dependencies; a C++ compiler, the Unity Android NDK and an existing compatible Gradle cache are also required. Add `--runner steam-run` where needed, and run Python within a compatible environment if its native libraries require one. Optional `--steam-zip`, `--host-library`, `--android-library`, `--decoder` and `--gradle-user-home` reuse local inputs; otherwise the script creates the ZIP and builds its native tools. `--check` validates only initial inputs. One local run with supplied ZIP and libraries completed all 26 stages; another generated those inputs and completed all 30 stages. Both seven-stage preparations reproduced the expected OBB on an iPlay. The command does not create the initial Unity workspace, runtime or Gradle export, establish visual/gameplay fidelity, or remove all game content. Its output directory, logs, ZIP and APK must remain private.
 
 On the tested NixOS host, `--runner steam-run` alone did not provide
-`libstdc++.so.6` to Python's UnityPy/FMOD dependency: the chain failed during
-audio conversion even though `--check` passed. Running the Python entry point
+`libstdc++.so.6` to Python's UnityPy/FMOD dependency: an earlier chain failed
+during audio conversion even though `--check` passed. The check now imports
+the conversion modules and reports missing native libraries before creating
+the output directory. Running the Python entry point
 itself inside a compatible environment, for example
 `steam-run /path/to/openbonk-venv/bin/python tools/build-local-research-chain.py ...`,
 provided the needed library on that host. The runner option applies to invoked

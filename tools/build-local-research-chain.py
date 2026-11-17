@@ -8,6 +8,7 @@ Requires UnityPy and its texture dependencies in the active Python environment.
 """
 import argparse
 import hashlib
+import importlib
 import importlib.util
 import json
 import os
@@ -19,6 +20,15 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def check_conversion_imports():
+    """Load conversion modules now, including their native dependencies."""
+    for name in ('UnityPy.export.Texture2DConverter', 'PIL.Image', 'etcpak', 'texture2ddecoder'):
+        try:
+            importlib.import_module(name)
+        except (ImportError, OSError) as error:
+            raise ValueError(f'cannot load conversion module {name}: {error}') from error
 TOOLS = ROOT / 'tools'
 JAVA = ROOT / 'analysis/data-conversion/android'
 FIXTURES = ROOT / 'tools/texture-native-comparison/com/openbonk/dataprep'
@@ -295,7 +305,8 @@ def main():
     except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error: p.error(str(error))
     if not (a.unity_editor / 'Data/PlaybackEngines/AndroidPlayer/OpenJDK/bin/java').is_file(): p.error('Unity Android JDK missing')
     if not (a.unity_editor / 'Data/PlaybackEngines/AndroidPlayer/OpenJDK/bin/javac').is_file(): p.error('Unity Android compiler missing')
-    if importlib.util.find_spec('UnityPy') is None: p.error('UnityPy missing from active Python environment')
+    try: check_conversion_imports()
+    except ValueError as error: p.error(str(error))
     steps = commands(a)
     print(f'Initial inputs checked; {len(steps)} local research stages planned.', flush=True)
     if a.check:
