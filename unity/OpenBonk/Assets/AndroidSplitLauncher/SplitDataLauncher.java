@@ -316,6 +316,7 @@ public final class SplitDataLauncher extends Activity {
                         LauncherDataBundle.recoverTransactions(existing, legacyPendingSteam(), pendingSteam());
                         SplitFileRecovery.recover(existing, this::valid);
                         migrateCompatibleObb(existing);
+                        LauncherObbMigration.migrate(this, existing);
                     }
                     File modRoot = getExternalFilesDir(null);
                     if (modRoot == null) throw new IOException("mod storage unavailable");

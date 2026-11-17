@@ -468,6 +468,7 @@ def main():
     p.add_argument('--localization-intermediate-obb', type=Path, help='canonical localization restoration used by the partial texture plan')
     p.add_argument('--localization-platform', choices=('linux', 'windows'), help='platform of the localization plan; inferred from the plan when omitted')
     p.add_argument('--windows-research', type=Path, help='optional validated Windows seven-stage research output')
+    p.add_argument('--obb-migration-library', type=Path, help='optional ARM64 library built by native/zstd/build.sh')
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
     gradle, project, runtime, template, plan, expected, editor = [x.expanduser().resolve(strict=True) for x in
@@ -560,6 +561,19 @@ def main():
     launcher = source / 'com/megabonk/launcher'
     dataprep = source / 'com/openbonk/dataprep'
     overlay_launcher_sources(ROOT, source)
+    if a.obb_migration_library:
+        migration_library = a.obb_migration_library.expanduser().resolve(strict=True)
+        migration_patch = ROOT / 'updates/migrations/0.1.1-to-0.1.2.zst'
+        if digest(expected) != '9011ea73423c8418db7f7d0895c515b98a23001e947fd227b83c221a04e37475':
+            raise ValueError('the bundled OBB migration applies only to the pinned 0.1.2 game data')
+        if hashlib.sha256(migration_patch.read_bytes()).hexdigest() != '12ad4f8dbd7a6f62a79ddbcf6039f1f73af5d11cb9ed260b0cd424de6646c7c5':
+            raise ValueError('OBB migration patch digest mismatch')
+        native_dir = library / 'src/main/jniLibs/arm64-v8a'
+        native_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(migration_library, native_dir / 'libopenbonk_migration.so')
+        migration_dir = library / 'src/main/assets/openbonk-migrations'
+        migration_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(migration_patch, migration_dir / '0.1.1-to-0.1.2.zst')
     dataprep.mkdir(parents=True, exist_ok=True)
     for file in JAVA.glob('Steam*.java'): shutil.copy2(file, dataprep / file.name)
     shutil.copy2(JAVA / 'LauncherDiagnosticGenerator.java', launcher / 'LauncherDiagnosticGenerator.java')
