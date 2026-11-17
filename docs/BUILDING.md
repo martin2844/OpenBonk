@@ -281,7 +281,7 @@ Windows launcher, all gameplay or visual parity, and the APK remains private.
 The opt-in `--partial-etc2-aliases` option requires `--partial-etc2-tiny`.
 For unresolved ETC2 candidates it also considers a numeric-suffix alias or an
 ambiguous same-name source. It requires either at least 16 equal nonzero bytes
-covering half of the target's nonzero bytes, or at least 1,024 equal bytes
+covering half of the target's nonzero bytes, or at least 512 equal bytes
 covering one quarter. A distinct competitor scoring at least half as well
 makes the match ambiguous. Only
 already identical bytes are masked. On the same Linux object template, adding
@@ -298,6 +298,14 @@ inputs produced identical masked templates, and both Android plans restored
 all 1,072 expected entries on a Retroid Pocket 5. A second clean export also
 selected the additional source. This check does not cover a full launcher or
 other game data.
+Reducing that absolute threshold to 512 in a subsequent focused study selected
+two more textures: 104 textures masked 270,058 nonzero bytes, compared with
+102 and 266,720 previously. The candidate still had to cover at least a
+quarter of the nonzero bytes and have no distinct competitor scoring at least
+half as much. Linux and Windows produced identical masked templates, and both
+Android plans restored all 1,072 expected entries on a Retroid Pocket 5. The
+same additional sources were selected in a second clean export. This does not
+verify a full launcher or remove the other game data.
 An ensuing 38-stage Linux chain reused the existing runtime and Gradle export
 and built a launcher with this option. Its packaged template retained 81,405
 nonzero bytes in 1,157 identified inline texture payloads, with seven empty
