@@ -140,6 +140,10 @@ public class MainMenu : MonoBehaviour
 
 	private void Start()
 	{
+#if UNITY_ANDROID && !UNITY_EDITOR
+		// The menu profile enables a full-screen blur independently of video settings.
+		AndroidPerformanceSettings.DisableMenuDepthOfField(menuCamera != null ? menuCamera.camera : Camera.main);
+#endif
 		if (SaveManager.loaded && SaveManager.Instance != null)
 		{
 			SaveManager.Instance.SaveProgression();
