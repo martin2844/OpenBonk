@@ -1,0 +1,6 @@
+{
+  "id": "item-lab",
+  "api": 1,
+  "enabled": false,
+  "hook": "item_lab"
+}

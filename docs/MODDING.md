@@ -61,6 +61,11 @@ returning `1` enables nearby pot interactions; return `0` to leave them manual.
 It requires a future build, not beta 0.1.4. See the independent
 [Auto Pots example](../mods/auto-pots/) for details and limitations.
 
+The development-only startup hook `item_lab` enables an optional in-run item
+menu. It uses the normal item inventory and may affect achievements or other
+progression. The hook is not in beta 0.1.4; see [Item Lab](../mods/item-lab/)
+for limits and tested behavior.
+
 ## Content packages
 
 Experimental API 3 packages use a `manifest.json` with `api: 3`, `kind: "content"`, an `id`, and a `files` list with each payload's path, size and SHA-256. The package can declare supported character, weapon, item or map content. Exact fields and hooks depend on the content type; use the builders as working examples rather than assuming arbitrary game objects can be created.

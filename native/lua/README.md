@@ -375,6 +375,13 @@ interaction guard. Disable the package and restart to return to manual
 interaction. The policy requires a future APK: beta 0.1.4 cannot import or
 run it. See [Auto Pots](../../mods/auto-pots/).
 
+The development-only API 1 `"hook": "item_lab"` similarly accepts `0` or `1`
+at startup. When enabled, a run's pause menu exposes an item browser and
+bounded requests to the normal inventory path. Multiple enabled packages
+combine by OR; disable and restart to remove the menu. Normal item events may
+change achievements or other progression. This hook is absent from beta
+0.1.4; see [Item Lab](../../mods/item-lab/).
+
 ### Experimental global stat modifiers
 
 API 1 and 2 also accept `stat_add:<EStat>` and `stat_mul:<EStat>` hooks,

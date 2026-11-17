@@ -14,6 +14,8 @@ public final class UnlockImportCheck {
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hooks",new org.json.JSONArray().put("unlock_all"))), "wrong API rejected");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","collect_spawned_xp")), "XP pickup hook accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","auto_open_pots")), "auto pots hook accepted");
+        require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","item_lab")), "item lab hook accepted");
+        require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","item_lab")), "item lab wrong API rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","auto_open_pots")), "auto pots wrong API rejected");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","starting_tome:Luck")), "starting tome accepted");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","starting_tome:13")), "numeric tome rejected");
@@ -74,6 +76,15 @@ public final class UnlockImportCheck {
             require(prefs.getBoolean("auto-pots", false), "auto pots enabled");
             prefs.edit().putBoolean("auto-pots", false).commit();
             require(!prefs.getBoolean("auto-pots", true), "auto pots disabled");
+            Path lab = Paths.get(args[4]);
+            ByteArrayOutputStream labBuffer = new ByteArrayOutputStream();
+            try (ZipOutputStream labZip = new ZipOutputStream(labBuffer)) {
+                for (String name : new String[]{"manifest.json", "main.lua"}) {
+                    labZip.putNextEntry(new ZipEntry(name)); labZip.write(Files.readAllBytes(lab.resolve(name))); labZip.closeEntry();
+                }
+            }
+            require(LauncherModImporter.install(new ByteArrayInputStream(labBuffer.toByteArray()), root.toFile(), prefs).equals("item-lab"), "item lab package import");
+            require(!prefs.getBoolean("item-lab", true), "item lab initially disabled");
             System.out.println("PASS startup hook validation, ZIP imports and enable/disable preferences");
         } finally {
             try (var paths = Files.walk(temporary)) {

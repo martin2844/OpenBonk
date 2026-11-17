@@ -43,14 +43,14 @@ Multiplayer is excluded by request.
 | 1 | Load custom characters | [MIT source](https://github.com/PeterMoras/MEGABONK_CustomCharacterLoader/blob/main/LICENSE) | Existing API 3 supports a subset; PC bundles, weapons and arbitrary character behavior need conversion and more runtime APIs. |
 | 2 | Unlock characters, skins and items | [MIT source](https://github.com/lukeod/megabonk_unlockEverything/blob/main/LICENSE) | [Experimental Lua port](../../mods/unlock-everything/) is available in the 0.1.4 catalog. Remote import, enable/disable, menu and a short run were tested on an isolated Android build. |
 | 3 | Multiplayer | Unknown | Excluded. |
-| 4 | Add selected items through a menu | Unknown | Needs inventory insertion and in-game UI. |
+| 4 | Add selected items through a menu | Unknown | [Independent Item Lab adaptation](../../mods/item-lab/) provides bounded inventory actions and an in-run UI in a diagnostic build. Requires a future APK and integrated launcher test. |
 | 5 | Goth Witch Noelle character | Unknown; model rights unverified | Windows bundle, custom character/weapon behavior and asset rights need review. |
 | 6 | Shared BonkersLib framework | [MIT repository](https://github.com/kss306/MegaBonkPlus) | PC BepInEx library, not a self-contained Lua gameplay mod; each consumer needs equivalent APIs. |
 | 7 | Cow-noichi character | Unknown; model rights unverified | See [study](COW_NOICHI.md): custom projectile, assets and published runtime support remain missing. |
 | 8 | GodOfDeath character | Unknown; model rights unverified | PC bundle, base stats, collider and custom weapon; requires Android conversion and supported weapon behavior. |
 | 9 | Toggle unlocked weapons, tomes and items | Unknown | Needs item-pool and inventory controls, plus configuration UI. |
 | 10 | Minimap resize, zoom and map information | Unknown | Needs map/UI controls and map data unavailable to Lua. |
-| 11 | Search and spawn items, including bulk actions | Unknown | Needs inventory insertion and in-game UI. |
+| 11 | Search and spawn items, including bulk actions | Unknown | [Independent Item Lab adaptation](../../mods/item-lab/) includes search, rarity filtering, rapid quantities and filtered bulk actions. Requires a future APK; parity and physical-controller testing remain incomplete. |
 | 12 | Track chests, shrines and vendors in an overlay | Unknown | Needs world object enumeration/events and overlay UI. |
 | 13 | Web dashboard for stats, inventory and game actions | [MIT repository](https://github.com/kss306/MegaBonkPlus) | Needs live state, inventory, teleport, spawn and UI/network APIs. |
 | 14 | Instantly collect XP orbs when spawned | Unknown; linked source currently unavailable | [Independent experimental adaptation](../../mods/instant-collect/) is available in the 0.1.4 catalog. Remote import and enable/disable were tested on an isolated Android build; a separate probe covered combined orbs and single rewards. |

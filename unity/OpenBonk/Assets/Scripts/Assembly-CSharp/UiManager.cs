@@ -66,6 +66,9 @@ public class UiManager : MonoBehaviour
 	private void Update()
 	{
 #if UNITY_ANDROID && !UNITY_EDITOR
+		if (AndroidItemLab.TryHandleCancel()) return;
+#endif
+#if UNITY_ANDROID && !UNITY_EDITOR
 		if (AndroidGameplayInputProbe.Active && Input.GetKeyDown(KeyCode.JoystickButton10))
 			Debug.Log($"Gameplay input probe UI handler: console={(DebugConsole.Instance != null && DebugConsole.Instance.IsActive())}, abort={MyInputManager.GetButtonDown(MyInputManager.UIAbort)}, before={pause.gameObject.activeInHierarchy}, main={pause.main.activeInHierarchy}");
 #endif

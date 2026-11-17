@@ -104,13 +104,14 @@ internal static class AndroidLuaMods
         MyPlayer.A_PlayerInventoryInitialized += Apply;
     }
 
-    private static bool StartupPolicyManifest(Manifest manifest) => manifest != null && manifest.api == 1 && (manifest.hook == "unlock_all" || manifest.hook == "collect_spawned_xp" || manifest.hook == "auto_open_pots") && ValidRefresh(manifest);
+    private static bool StartupPolicyManifest(Manifest manifest) => manifest != null && manifest.api == 1 && (manifest.hook == "unlock_all" || manifest.hook == "collect_spawned_xp" || manifest.hook == "auto_open_pots" || manifest.hook == "item_lab") && ValidRefresh(manifest);
 
     private static void LoadStartupPolicies()
     {
         OpenBonkUnlockPolicy.SetEnabled(false);
         OpenBonkPickupPolicy.SetCollectXpImmediately(false);
         OpenBonkWorldPolicy.SetAutoOpenPots(false);
+        OpenBonkItemGrantPolicy.SetEnabled(false);
         string root = Path.Combine(Application.persistentDataPath, "Mods");
         if (!Directory.Exists(root)) return;
         try
@@ -135,6 +136,7 @@ internal static class AndroidLuaMods
                     if (result == 1 && manifest.hook == "unlock_all") OpenBonkUnlockPolicy.SetEnabled(true);
                     if (result == 1 && manifest.hook == "collect_spawned_xp") OpenBonkPickupPolicy.SetCollectXpImmediately(true);
                     if (result == 1 && manifest.hook == "auto_open_pots") OpenBonkWorldPolicy.SetAutoOpenPots(true);
+                    if (result == 1 && manifest.hook == "item_lab") OpenBonkItemGrantPolicy.SetEnabled(true);
                     Debug.Log($"Lua startup policy loaded: {manifest.id} hook={manifest.hook} enabled={result == 1}");
                 }
                 catch (Exception e) { Debug.LogWarning($"Lua startup policy skipped: {Path.GetFileName(folder)}: {e.Message}"); }
