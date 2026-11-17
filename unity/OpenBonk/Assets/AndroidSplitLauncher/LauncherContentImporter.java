@@ -156,6 +156,28 @@ final class LauncherContentImporter {
         if (character != null) {
             for (String key : Arrays.asList("idle", "run", "jump", "surf", "surfboard"))
                 if (!optionalText(character, key, 120)) throw new IOException("invalid movement definition: " + key);
+            if (character.has("baseStats") && !character.isNull("baseStats")) {
+                JSONArray baseStats = character.optJSONArray("baseStats");
+                if (baseStats == null || baseStats.length() > 64) throw new IOException("invalid character base stats");
+                Set<String> statModes = new HashSet<>();
+                for (int i = 0; i < baseStats.length(); i++) {
+                    JSONObject baseStat = baseStats.optJSONObject(i);
+                    if (baseStat == null) throw new IOException("invalid character base stat");
+                    String stat = baseStat.optString("stat", ""), mode = baseStat.optString("mode", "");
+                    if (!validItemStat(stat) || "Unused0".equals(stat) ||
+                        !("Flat".equals(mode) || "Addition".equals(mode) || "Multiplication".equals(mode)) ||
+                        !statModes.add(stat + ":" + mode)) throw new IOException("invalid character base stat");
+                    double min = "Multiplication".equals(mode) ? 0 : "Addition".equals(mode) ? -1 : -10000;
+                    double max = "Flat".equals(mode) ? 10000 : 1000;
+                    if (!number(baseStat, "amount", min, max)) throw new IOException("invalid character base stat amount");
+                }
+            }
+            if (character.has("collider") && !character.isNull("collider")) {
+                JSONObject collider = character.optJSONObject("collider");
+                if (collider == null || !number(collider, "height", .1, 20) || !number(collider, "width", .05, 10) ||
+                    collider.optDouble("height") < 2 * collider.optDouble("width"))
+                    throw new IOException("invalid character collider");
+            }
         }
         if (weapon != null) {
             if (!optionalText(weapon, "icon", 120) || !optionalText(weapon, "soundClip", 120) || !optionalText(weapon, "lightningColor", 7))

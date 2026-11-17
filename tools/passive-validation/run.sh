@@ -6,5 +6,6 @@ json=${OPENBONK_JSON_JAR:-/home/your-user/.gradle/caches/modules-2/files-2.1/org
 source="$repo/unity/OpenBonk/Assets/AndroidSplitLauncher"
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
-"$jdk/javac" -cp "$json" -d "$out" "$repo/tools/mod-recovery-check/android/content/SharedPreferences.java" "$source/LauncherContentImporter.java" "$source/LauncherModRecovery.java" "$repo/tools/mod-recovery-check/com/megabonk/launcher/RecoveryCheck.java" "$repo/tools/passive-validation/com/megabonk/launcher/PassiveCheck.java"
+"$jdk/javac" -cp "$json" -d "$out" "$repo/tools/mod-recovery-check/android/content/SharedPreferences.java" "$source/LauncherContentImporter.java" "$source/LauncherModImporter.java" "$source/LauncherModIntegrity.java" "$source/LauncherModRecovery.java" "$repo/tools/mod-recovery-check/com/megabonk/launcher/RecoveryCheck.java" "$repo/tools/passive-validation/com/megabonk/launcher/SplitDataLauncher.java" "$repo/tools/passive-validation/com/megabonk/launcher/PassiveCheck.java" "$repo/tools/passive-validation/com/megabonk/launcher/CharacterBaseCheck.java"
 "$jdk/java" -cp "$out:$json" com.megabonk.launcher.PassiveCheck "$repo/mods/pikachu/study/pikachu-content-local-test.zip"
+"$jdk/java" -cp "$out:$json" com.megabonk.launcher.CharacterBaseCheck "$repo/mods/pikachu/study/pikachu-content-local-test.zip"

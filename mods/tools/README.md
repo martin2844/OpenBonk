@@ -57,3 +57,29 @@ defeated 16 enemies and reached level 1. This checks one input, not this
 converter for all characters or the original gameplay: the projectile was an
 oversized built-in arrow and base stats and collider did not match upstream.
 The temporary installation was removed.
+
+## Experimental character base configuration
+
+The development runtime adds optional `baseStats` and `collider` properties to
+the `character` object of a content manifest. This requires a future Android
+build with that runtime; it is not supported by the published beta 0.1.2.
+For example:
+
+```json
+"baseStats": [
+  {"stat": "ExtraJumps", "mode": "Flat", "amount": 1},
+  {"stat": "MaxHealth", "mode": "Multiplication", "amount": 0.65}
+],
+"collider": {"height": 3.75, "width": 0.7}
+```
+
+Omitted or null properties retain the host's original Fox defaults; an empty
+`baseStats` array removes the inherited base modifiers. Up to 64 distinct
+stat/mode pairs are accepted; names are case-sensitive `EStat` names and modes
+are `Flat`, `Addition`, or `Multiplication`. Finite amounts must be in
+[-10000, 10000], [-1, 1000], or [0, 1000] respectively. Both collider values
+are required: height must be 0.1–20, width 0.05–10, and height must be at
+least twice the width. Width is the capsule radius in game units.
+
+This does not add custom projectile or weapon behavior, nor establish visual
+or gameplay equivalence. Test each character on the target Android build.

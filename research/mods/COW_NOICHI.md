@@ -16,15 +16,16 @@ script reproduces the authoring step from a separately obtained export.
   Evasion 0.2, MoveSpeedMultiplier 0.1, JumpHeight 2, HealthRegen 15,
   PickupRange 4 and EliteDamageMultiplier 0.15, plus a MaxHealth multiplier
   of 0.65. The 0.1.2 character loader copies Fox's stats instead of accepting
-  these values. A global stat mod would affect other characters too, so it is
-  not a faithful substitute.
+  these values. The development runtime now has a character-specific base
+  configuration under test; it is not present in 0.1.2. A global stat mod
+  would affect other characters too, so it is not a faithful substitute.
 - The metadata requests a collider height of 3.75 and width of 0.7. The
   current external-character loader copies Fox's collider. In-game collision,
-  aiming, hats and camera placement must be checked after adding a supported
+  aiming, hats and camera placement must be checked on Android with the new
   character-specific configuration.
 - The passive grants 1% Luck per level. The existing content format can
-  declare per-level stat modifiers, but the value and progression still need
-  a device check against upstream behavior.
+  declare per-level stat modifiers. A short device check showed Luck increasing
+  from 15% to 16% at level 1; more progression checks remain.
 - Kunai is an upstream projectile with its own prefab, audio and upgrade
   options. The current host exposes only existing arrow, fireball and
   lightning effects. The local arrow-based experiment was visibly oversized,
@@ -48,6 +49,15 @@ reached level 1; the Luck statistic showed 16%, versus 15% initially. This is
 consistent with the requested per-level Luck passive in that brief test. The
 weapon and base-stat limitations above remained, and animation fidelity was
 not established. The temporary test installation was removed.
+
+An experimental Android runtime with character-specific base configuration
+subsequently loaded the study package on the same Xiaomi. In Forest it showed
+65/65 HP, 1 extra jump, 1.10x movement speed, 25 HP regeneration and pickup
+range 9, and reached level 1. The package used the eight upstream base modifiers
+and collider 3.75 by 0.7. This confirms loading and several displayed stats in
+IL2CPP; the physical collider was not independently measured on the device.
+The experimental installation was removed. The custom weapon and visual
+fidelity remain incomplete, so this is not a releasable port.
 
 Before publishing, confirm rights and attribution for the source model and
 assets, construct a package matching the installed host's actual capabilities,

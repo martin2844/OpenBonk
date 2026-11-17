@@ -19,7 +19,7 @@ internal static class AndroidContentMods
 {
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class Manifest { public int api; public string kind, id; public FileSpec[] files; public CharacterSpec character; public WeaponSpec weapon; public PassiveSpec passive; public ItemSpec item; public MapSpec map; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class FileSpec { public string path, sha256; public long size; }
-    [Serializable, UnityEngine.Scripting.Preserve] private sealed class CharacterSpec { public string id, name, description, bundle, model, walk, idle, run, jump, surf, surfboard, portrait; public float scale; public HatSpec hat; }
+    [Serializable, UnityEngine.Scripting.Preserve] private sealed class CharacterSpec { public string id, name, description, bundle, model, walk, idle, run, jump, surf, surfboard, portrait; public float scale; public HatSpec hat; public OpenBonkCharacterBaseConfig.StatSpec[] baseStats; public OpenBonkCharacterBaseConfig.ColliderSpec collider; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class HatSpec { public string bone; public float offsetX, offsetY, offsetZ, scale; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class WeaponSpec { public string id, name, description, effect, icon, lightningColor, soundClip; public float damage, cooldown, range, chainRange, chainProc; public int bounces; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class PassiveSpec { public string name, description; public PerLevelSpec[] perLevel; }
@@ -118,6 +118,7 @@ internal static class AndroidContentMods
             throw new InvalidDataException("invalid content definition");
         if ((!string.IsNullOrEmpty(c.idle) && !Text(c.idle, 120)) || (!string.IsNullOrEmpty(c.run) && !Text(c.run, 120)) || (!string.IsNullOrEmpty(c.jump) && !Text(c.jump, 120)) || (!string.IsNullOrEmpty(c.surf) && !Text(c.surf, 120)) || (!string.IsNullOrEmpty(c.surfboard) && !Text(c.surfboard, 120))) throw new InvalidDataException("invalid movement definition");
         if (c.hat != null && (!Text(c.hat.bone, 120) || !Finite(c.hat.offsetX, -20f, 20f) || !Finite(c.hat.offsetY, -20f, 20f) || !Finite(c.hat.offsetZ, -20f, 20f) || !Finite(c.hat.scale, .01f, 10f))) throw new InvalidDataException("invalid hat anchor");
+        var characterBase = OpenBonkCharacterBaseConfig.Validate(c.baseStats, c.collider);
         EStat[] passiveStats = null; float[] passiveValues = null;
         if (manifest.passive != null)
         {
@@ -191,8 +192,7 @@ internal static class AndroidContentMods
                 passive.ePassive = (EPassive)OpenBonkContentIds.Weapon(id, w.id); passive.stats = passiveStats; passive.perLevel = passiveValues;
                 character.passive = passive;
             }
-            character.colliderHeight = baseCharacter.colliderHeight; character.colliderWidth = baseCharacter.colliderWidth;
-            character.statModifiers = baseCharacter.statModifiers == null ? new List<StatModifier>() : new List<StatModifier>(baseCharacter.statModifiers);
+            OpenBonkCharacterBaseConfig.Apply(character, baseCharacter, characterBase);
             character.StatCategoryRatios = baseCharacter.StatCategoryRatios == null ? new List<StatCategoryRatio>() : new List<StatCategoryRatio>(baseCharacter.StatCategoryRatios);
             data.RegisterExternalCharacter(id, c.id, w.id, character, weapon, skin);
             Bundles.Add(bundle); bundle = null; portrait = null; weaponIcon = null;

@@ -17,7 +17,7 @@ public class PassiveCheck {
   }
  }
  static JSONObject passive(String stat, double amount) {return new JSONObject().put("name","Passive").put("description","Per-level bonus").put("perLevel",new JSONArray().put(new JSONObject().put("stat",stat).put("amount",amount)));}
- static void install(Path zip, Path root, RecoveryCheck.Prefs prefs) throws Exception { try(ZipFile z=new ZipFile(zip.toFile())) { LauncherContentImporter.install(z,root.toFile(),prefs); } }
+ static void install(Path zip, Path root, RecoveryCheck.Prefs prefs) throws Exception { try(ZipFile z=new ZipFile(zip.toFile())) { LauncherContentImporter.install(z,root.toFile(),prefs, ""); } }
  static Map<String,String> hashes(Path root) throws Exception {
   Map<String,String> result=new TreeMap<>();
   try(java.util.stream.Stream<Path> paths=Files.walk(root)) {
