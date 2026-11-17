@@ -63,6 +63,15 @@ skipped records in those checks. They do not inspect streamed meshes,
 inline audio, bundles, video, or other asset types and do not establish
 that the APK is free of game assets.
 
+A subsequent combined research APK enabled `--partial-emission1-alias`
+using existing Unity output. Its packaged Linux and Windows plans each
+restored the expected OBB exactly in an independent desktop check. Both
+packaged templates retained 36,962 nonzero bytes in the 1,157 inline
+textures measured, with no skipped or streamed textures. The restored OBB
+hash matched the previous combined build. These are limited checks, not
+proof of an asset-free APK or an uninterrupted clean build; the APK
+remains private.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
