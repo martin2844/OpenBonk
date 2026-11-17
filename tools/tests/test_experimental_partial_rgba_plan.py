@@ -1,4 +1,5 @@
 import importlib.util
+import sys
 import json
 from pathlib import Path
 import tempfile
@@ -11,6 +12,16 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class PartialRgbaPlanTests(unittest.TestCase):
+    def test_tiny_etc2_cli_requires_small_and_byte_modes(self):
+        base = ['tool', 'generate', '--steam-data', '/unused', '--obb', '/unused', '--output', '/unused',
+                '--etc2-quality-library', '/unused', '--include-tiny-etc2']
+        with patch.object(sys, 'argv', base), self.assertRaises(SystemExit): module.main()
+        with patch.object(sys, 'argv', base + ['--include-small-etc2']), self.assertRaises(SystemExit): module.main()
+        with patch.object(sys, 'argv', base + ['--include-small-etc2', '--fast-etc2', '--blend-etc2', '--byte-etc2']), \
+             patch.object(module, 'generate') as generate:
+            module.main()
+        self.assertTrue(generate.call_args.args[0].include_tiny_etc2)
+
     def test_block_blend_chooses_best_encoder_and_validates_mask(self):
         original = b'A' * 16 + b'B' * 16 + b'C' * 3
         quality = b'A' * 16 + b'X' * 16 + b'C' * 3
@@ -45,6 +56,9 @@ class PartialRgbaPlanTests(unittest.TestCase):
         self.assertFalse(module.eligible_etc2_payload(b'A' * 1023 + bytes(3073), True))
         self.assertFalse(module.eligible_etc2_payload(b'A' * 4095, True))
         self.assertTrue(module.eligible_etc2_payload(b'A' * 65536))
+        self.assertFalse(module.eligible_etc2_payload(b'A' * 63, True, True))
+        self.assertFalse(module.eligible_etc2_payload(b'A' * 15 + bytes(49), True, True))
+        self.assertTrue(module.eligible_etc2_payload(b'A' * 16 + bytes(48), True, True))
 
     def test_renamed_etc2_alpha_requires_unique_source_and_matching_bytes(self):
         target = SimpleNamespace(m_Name='light_0', m_TextureFormat=47, m_ImageCount=1,

@@ -14,6 +14,11 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_tiny_etc2_reaches_partial_plan(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp)); args.partial_rgba = True; args.partial_etc2_tiny = True
+            self.assertIn('--include-tiny-etc2', dict(module.commands(args))['partial RGBA plan'])
+
     def test_conversion_preflight_reports_missing_native_library(self):
         with patch.object(module.importlib, 'import_module', side_effect=OSError('missing libstdc++')):
             with self.assertRaisesRegex(ValueError, 'cannot load conversion module.*missing libstdc'):

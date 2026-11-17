@@ -202,8 +202,8 @@ def etc2_alpha_alias(target, payload, candidates, encoder):
     return (item, output) if matched * 2 >= nonzero else None
 
 
-def eligible_etc2_payload(payload, include_small=False):
-    minimum_size, minimum_nonzero = (4096, 1024) if include_small else (65536, 30000)
+def eligible_etc2_payload(payload, include_small=False, include_tiny=False):
+    minimum_size, minimum_nonzero = (64, 16) if include_tiny else (4096, 1024) if include_small else (65536, 30000)
     return len(payload) >= minimum_size and len(payload) - payload.count(0) >= minimum_nonzero
 
 
@@ -284,7 +284,7 @@ def generate(args):
                 if item is None: continue
                 group_name, source_id, src = item
                 if int(src.m_TextureFormat) not in (1, 3, 4, 10, 12, 25): continue
-                if target_format != 4 and not eligible_etc2_payload(payload, getattr(args, 'include_small_etc2', False)): continue
+                if target_format != 4 and not eligible_etc2_payload(payload, getattr(args, 'include_small_etc2', False), getattr(args, 'include_tiny_etc2', False)): continue
                 if output is None:
                     try: output = converted(src, target.m_Width, target.m_Height, target.m_MipCount, target_format, encoder)
                     except (ValueError, TypeError, IndexError, NotImplementedError, RuntimeError): continue
@@ -399,6 +399,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__); sub = p.add_subparsers(dest='action', required=True)
     g = sub.add_parser('generate'); g.add_argument('--steam-data', type=Path, required=True); g.add_argument('--obb', type=Path, required=True); g.add_argument('--output', type=Path, required=True)
     g.add_argument('--include-small-etc2', action='store_true', help='also attempt partial matching for smaller ETC2 textures (experimental)')
+    g.add_argument('--include-tiny-etc2', action='store_true', help='also match exact bytes in small uniquely sourced ETC2 textures')
     g.add_argument('--fast-etc2', action='store_true', help='experimentally select the fast ETC2 encoder when it recovers more exact bytes')
     g.add_argument('--blend-etc2', action='store_true', help='experimentally choose an encoder per 16-byte output block; requires --fast-etc2')
     g.add_argument('--byte-etc2', action='store_true', help='experimentally choose an encoder per output byte; requires --blend-etc2')
@@ -408,6 +409,8 @@ def main():
     a = p.parse_args()
     if a.action == 'generate' and a.include_small_etc2 and not a.etc2_quality_library:
         p.error('--include-small-etc2 requires --etc2-quality-library')
+    if a.action == 'generate' and a.include_tiny_etc2 and (not a.include_small_etc2 or not a.byte_etc2):
+        p.error('--include-tiny-etc2 requires --include-small-etc2 and --byte-etc2')
     if a.action == 'generate' and a.fast_etc2 and not a.etc2_quality_library:
         p.error('--fast-etc2 requires --etc2-quality-library')
     if a.action == 'generate' and a.blend_etc2 and not a.fast_etc2:

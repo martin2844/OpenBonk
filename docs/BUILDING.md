@@ -241,6 +241,20 @@ Forest run with enemy defeats. This did not visually inspect the affected
 ghost variants or barrel, test a complete Windows launcher with the eight
 targets, or establish gameplay parity. The APK still contains game data.
 
+The opt-in `--partial-etc2-tiny` option requires `--partial-etc2-small` and
+`--partial-etc2-byte`. It includes ETC2 payloads of at least 64 bytes with at
+least 16 nonzero bytes when the existing same-name metadata check selects an
+unambiguous Steam source. It masks only bytes already identical to one of the
+two Steam-derived encodings; it does not alter texture pixels or relax the
+existing matching rule for ambiguous aliases. A focused study of the earlier
+Linux object template selected 93 textures and masked 257,535 nonzero bytes,
+compared with 19 textures and 247,128 bytes without the option. The Linux and
+Windows source inputs produced identical masked templates, and their exported
+Android plans each restored all 1,072 expected entries on a Retroid Pocket 5.
+The Windows study used that same Linux input template, not a full Windows
+research chain. This option has not yet been tested in a complete launcher;
+the templates still contain other game data and remain private.
+
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture
 metadata rather than path ID. A local run against that clone's OBB found both
