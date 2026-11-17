@@ -145,6 +145,7 @@ def commands(a):
     if getattr(a, 'small_color_block_fallback', False): chain += ['--small-color-block-fallback']
     if getattr(a, 'steam_chest_rgba', False): chain += ['--steam-chest-rgba']
     if getattr(a, 'steam_water_rgba', False): chain += ['--steam-water-rgba']
+    if getattr(a, 'steam_ghost_rgba', False): chain += ['--steam-ghost-rgba']
     if getattr(a, 'small_color_block_aliases', False): chain += ['--small-color-block-aliases']
     if getattr(a, 'lightmap_block_fallback', False): chain += ['--lightmap-block-fallback']
     if getattr(a, 'transparent_atlas_scrub', False): chain += ['--transparent-atlas-scrub']
@@ -217,6 +218,7 @@ def commands(a):
         if getattr(a, 'small_color_block_fallback', False): windows_chain += ['--small-color-block-fallback']
         if getattr(a, 'steam_chest_rgba', False): windows_chain += ['--steam-chest-rgba']
         if getattr(a, 'steam_water_rgba', False): windows_chain += ['--steam-water-rgba']
+        if getattr(a, 'steam_ghost_rgba', False): windows_chain += ['--steam-ghost-rgba']
         if getattr(a, 'small_color_block_aliases', False): windows_chain += ['--small-color-block-aliases']
         if getattr(a, 'lightmap_block_fallback', False): windows_chain += ['--lightmap-block-fallback']
         if getattr(a, 'transparent_atlas_scrub', False): windows_chain += ['--transparent-atlas-scrub']
@@ -295,6 +297,7 @@ def main():
     p.add_argument('--small-color-block-fallback', action='store_true', help='experimentally substitute bounded small color blocks; requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
     p.add_argument('--steam-chest-rgba', action='store_true', help='experimentally reserialize one Steam-derived chest normal to RGBA before all plans; Unity Android loading is unverified')
     p.add_argument('--steam-water-rgba', action='store_true', help='also reconstruct the water normal from Steam; requires --steam-chest-rgba; experimental and unverified in Android')
+    p.add_argument('--steam-ghost-rgba', action='store_true', help='also reconstruct the black ghost from Steam; requires --steam-chest-rgba; experimental and unverified in Android')
     p.add_argument('--small-color-block-aliases', action='store_true', help='also reconstruct unambiguous renamed small colors; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--lightmap-block-fallback', action='store_true', help='experimentally replace bounded blocks in two LDR lightmaps; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')
@@ -302,6 +305,7 @@ def main():
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if a.steam_water_rgba and not a.steam_chest_rgba: p.error('--steam-water-rgba requires --steam-chest-rgba')
+    if a.steam_ghost_rgba and not a.steam_chest_rgba: p.error('--steam-ghost-rgba requires --steam-chest-rgba')
     if a.localization_cab and not a.partial_rgba: p.error('--localization-cab requires --partial-rgba')
     if a.partial_normal_rgba and not a.partial_rgba: p.error('--partial-normal-rgba requires --partial-rgba')
     if a.localization_small and not a.localization_cab: p.error('--localization-small requires --localization-cab')

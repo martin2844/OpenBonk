@@ -21,6 +21,7 @@ GROUP = 'sharedassets1.assets'
 NAME = 't_chest_normal'
 CHUNK = 1024 * 1024
 RGBA_SIZE = 349524
+GHOST_SOURCE_SHA256 = '4558c1c764a48bcf2abe5492838cc4edc3992f94c14edbac5bfa90bb69507968'
 
 
 def split_serialized(data, parts):
@@ -33,7 +34,7 @@ def split_serialized(data, parts):
     return {part.filename: data[i * CHUNK:(i + 1) * CHUNK] for i, part in enumerate(parts)}
 
 
-def augmented_manifest(report, path_id, water_id=None):
+def augmented_manifest(report, path_id, water_id=None, ghost_id=None):
     if (not isinstance(report, dict) or report.get('schema') != 1 or
             not isinstance(report.get('textures'), list) or type(path_id) is not int):
         raise ValueError('invalid texture study manifest')
@@ -49,6 +50,13 @@ def augmented_manifest(report, path_id, water_id=None):
         result['textures'].append({'group': 'sharedassets1', 'target_id': water_id, 'name': 'IL3DN_WaterNormal',
                                    'source_format': 12, 'target_format': 4, 'normal': False, 'quality': False,
                                    'direct_normal': False, 'normal_rgba': True, 'bytes': 5460})
+    if ghost_id is not None:
+        if type(ghost_id) is not int or ghost_id == path_id or any(row.get('group') == 'sharedassets1' and row.get('target_id') == ghost_id for row in result['textures']):
+            raise ValueError('black ghost already appears in texture study manifest')
+        result['textures'].append({'group': 'sharedassets1', 'target_id': ghost_id, 'name': 't_ghost_black_0',
+                                   'source_name': 't_ghost_black', 'source_sha256': GHOST_SOURCE_SHA256,
+                                   'ghost_rgba': True, 'source_format': 4, 'target_format': 4,
+                                   'normal': False, 'quality': False, 'direct_normal': False, 'bytes': 87380})
     return result
 
 
@@ -110,6 +118,35 @@ def water_payload(target, tree, index):
     return source, rgba
 
 
+def ghost_payload(target, tree, index):
+    from UnityPy.export import Texture2DConverter as cv
+    stream = getattr(target, 'm_StreamData', None)
+    original = bytes(target.image_data)
+    if ((target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount,
+         target.m_TextureDimension, int(target.m_TextureFormat), len(original)) != (128, 128, 8, 1, 2, 45, 10936) or
+            tree.get('m_CompleteImageSize') != 10936 or tree.get('m_MipsStripped') != 0 or
+            tree.get('image data') != original or
+            (stream and (getattr(stream, 'path', '') or getattr(stream, 'size', 0)))):
+        raise ValueError('unexpected black ghost metadata')
+    candidates = partial.candidate_sources(index, target, GROUP, 't_ghost_black')
+    matches = [item for item in candidates if item[0] == 'sharedassets1' and int(item[2].m_TextureFormat) == 4 and
+               all(getattr(item[2], k, None) == getattr(target, k, None) for k in ('m_MipCount', 'm_ImageCount', 'm_ColorSpace')) and
+               hashlib.sha256(bytes(item[2].get_image_data())).hexdigest() == GHOST_SOURCE_SHA256]
+    if len(matches) != 1: raise ValueError('black ghost Steam source missing or ambiguous')
+    source = matches[0]; rgba = partial.converted(source[2], 128, 128, 8, 4)
+    if len(rgba) != 87380: raise ValueError('unexpected black ghost payload size')
+    old_mips = partial.study.mip_slices(original, 45, 128, 128, 8)
+    new_mips = partial.study.mip_slices(rgba, 4, 128, 128, 8)
+    if len(old_mips) != 8 or len(new_mips) != 8: raise ValueError('invalid black ghost mipmaps')
+    for level, ((width, height, old), (new_width, new_height, new)) in enumerate(zip(old_mips, new_mips)):
+        if (width, height) != (new_width, new_height): raise ValueError('black ghost mip dimensions differ')
+        a = partial.decode_block_image(cv, old, width, height, 45, target.object_reader.version, target.object_reader.platform, 'RGBA')
+        b = partial.decode_block_image(cv, new, width, height, 4, target.object_reader.version, target.object_reader.platform, 'RGBA')
+        if a.getchannel('A').tobytes() != b.getchannel('A').tobytes() or not partial.study.acceptable_bounded_mip(a, b, level):
+            raise ValueError('black ghost alpha or color fidelity differs')
+    return source, rgba
+
+
 def generate(args):
     import UnityPy
     if (args.obb.is_symlink() or args.manifest.is_symlink() or
@@ -140,7 +177,16 @@ def generate(args):
             water_source, water_rgba = water_payload(water.read(), water_tree, index)
             water_old_tree = {k: v for k, v in water_tree.items() if k != 'image data'}
             water_tree['image data'] = water_rgba; water.save_typetree(water_tree)
-        updated_manifest = augmented_manifest(report, obj.path_id, water.path_id if water else None)
+        ghost = None
+        if getattr(args, 'ghost_black', False):
+            matches = [item for item in env.objects if item.type.name == 'Texture2D' and item.read().m_Name == 't_ghost_black_0']
+            if len(matches) != 1: raise ValueError('black ghost missing or ambiguous')
+            ghost = matches[0]; ghost_tree = ghost.read_typetree()
+            ghost_source, ghost_rgba = ghost_payload(ghost.read(), ghost_tree, index)
+            ghost_old_tree = {k: v for k, v in ghost_tree.items() if k != 'image data'}
+            ghost_tree['m_TextureFormat'] = 4; ghost_tree['m_CompleteImageSize'] = len(ghost_rgba); ghost_tree['image data'] = ghost_rgba
+            ghost.save_typetree(ghost_tree)
+        updated_manifest = augmented_manifest(report, obj.path_id, water.path_id if water else None, ghost.path_id if ghost else None)
         old_tree = {k: v for k, v in tree.items() if k != 'image data'}
         tree['m_TextureFormat'] = 4; tree['m_CompleteImageSize'] = len(rgba); tree['image data'] = rgba
         obj.save_typetree(tree); encoded = asset.save()
@@ -149,13 +195,20 @@ def generate(args):
         if len(reread.files) != 1 or externals(next(iter(reread.files.values()))) != before_externals:
             raise ValueError('serialized external references differ')
         after = object_fingerprints(reread)
-        expected_changed = {obj.path_id} | ({water.path_id} if water else set())
+        expected_changed = {obj.path_id} | ({water.path_id} if water else set()) | ({ghost.path_id} if ghost else set())
         if set(before) != set(after) or {key for key in before if before[key] != after[key]} != expected_changed:
             raise ValueError('unrelated serialized object changed')
         if water:
             verified_water = next(item for item in reread.objects if item.path_id == water.path_id).read_typetree()
             if verified_water['image data'] != water_rgba or {k: v for k, v in verified_water.items() if k != 'image data'} != water_old_tree:
                 raise ValueError('rewritten water normal payload or metadata differs')
+        if ghost:
+            verified_ghost = next(item for item in reread.objects if item.path_id == ghost.path_id).read_typetree()
+            new_ghost = {k: v for k, v in verified_ghost.items() if k != 'image data'}
+            changes = {k for k in set(ghost_old_tree) | set(new_ghost) if ghost_old_tree.get(k) != new_ghost.get(k)}
+            if (verified_ghost['image data'] != ghost_rgba or changes != {'m_TextureFormat', 'm_CompleteImageSize'} or
+                    new_ghost['m_TextureFormat'] != 4 or new_ghost['m_CompleteImageSize'] != len(ghost_rgba)):
+                raise ValueError('rewritten black ghost payload or metadata differs')
         verified = next(item for item in reread.objects if item.path_id == obj.path_id).read_typetree()
         if verified['image data'] != rgba: raise ValueError('rewritten RGBA payload differs')
         new_tree = {k: v for k, v in verified.items() if k != 'image data'}
@@ -177,6 +230,10 @@ def generate(args):
                 summary['water_normal'] = {'target_path_id': water.path_id, 'source_group': water_source[0],
                                            'source_path_id': water_source[1], 'payload_bytes': len(water_rgba),
                                            'validation': 'identical alpha and per-pixel normal direction within 10 degrees on every mip'}
+            if ghost:
+                summary['black_ghost'] = {'target_path_id': ghost.path_id, 'source_group': ghost_source[0],
+                                          'source_path_id': ghost_source[1], 'payload_bytes': len(ghost_rgba),
+                                          'validation': 'identical alpha and bounded RGB error on every mip'}
             (output / 'report.json').write_text(json.dumps(summary, indent=2) + '\n')
         except BaseException:
             shutil.rmtree(output); raise
@@ -188,6 +245,7 @@ def main():
     p.add_argument('--steam-data', required=True, type=Path); p.add_argument('--obb', required=True, type=Path)
     p.add_argument('--manifest', required=True, type=Path); p.add_argument('--output', required=True, type=Path)
     p.add_argument('--water-normal', action='store_true', help='also reconstruct the experimental water normal from Steam')
+    p.add_argument('--ghost-black', action='store_true', help='also reconstruct the experimental black ghost from Steam')
     generate(p.parse_args())
 
 

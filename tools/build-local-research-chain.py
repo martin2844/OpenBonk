@@ -139,7 +139,8 @@ def commands(a):
     texture_manifest = out / 'texture-study/report.json'
     if getattr(a, 'steam_chest_rgba', False):
         water = ['--water-normal'] if getattr(a, 'steam_water_rgba', False) else []
-        py('experimental Steam chest RGBA', 'experimental-steam-chest-rgba.py', '--steam-data', steam, '--obb', converted, '--manifest', texture_manifest, '--output', out / 'steam-chest-rgba', *water)
+        ghost = ['--ghost-black'] if getattr(a, 'steam_ghost_rgba', False) else []
+        py('experimental Steam chest RGBA', 'experimental-steam-chest-rgba.py', '--steam-data', steam, '--obb', converted, '--manifest', texture_manifest, '--output', out / 'steam-chest-rgba', *water, *ghost)
         converted = out / 'steam-chest-rgba/converted.obb'
         texture_manifest = out / 'steam-chest-rgba/manifest.json'
     toolplan('individual audio plan', 'experimental-steam-audio-plan.py', converted, plans / 'audio')
@@ -274,6 +275,7 @@ def main():
     p.add_argument('--small-color-block-fallback', action='store_true', help='experimentally substitute bounded small color blocks; requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
     p.add_argument('--steam-chest-rgba', action='store_true', help='experimentally reserialize one Steam-derived chest normal to RGBA before all plans; Unity Android loading is unverified')
     p.add_argument('--steam-water-rgba', action='store_true', help='also reconstruct the water normal from Steam; requires --steam-chest-rgba; experimental and unverified in Android')
+    p.add_argument('--steam-ghost-rgba', action='store_true', help='also reconstruct the black ghost from Steam; requires --steam-chest-rgba; experimental and unverified in Android')
     p.add_argument('--small-color-block-aliases', action='store_true', help='also reconstruct unambiguous renamed small colors; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--lightmap-block-fallback', action='store_true', help='experimentally replace bounded blocks in two LDR lightmaps; requires --small-color-block-fallback and --partial-etc2-aliases')
     p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')
@@ -283,6 +285,7 @@ def main():
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()
     if a.steam_water_rgba and not a.steam_chest_rgba: p.error('--steam-water-rgba requires --steam-chest-rgba')
+    if a.steam_ghost_rgba and not a.steam_chest_rgba: p.error('--steam-ghost-rgba requires --steam-chest-rgba')
     if a.localization_cab and not a.partial_rgba: p.error('--localization-cab requires --partial-rgba')
     if a.partial_normal_rgba and not a.partial_rgba: p.error('--partial-normal-rgba requires --partial-rgba')
     if a.localization_small and not a.localization_cab: p.error('--localization-small requires --localization-cab')

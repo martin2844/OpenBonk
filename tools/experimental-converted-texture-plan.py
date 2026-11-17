@@ -23,6 +23,7 @@ normal_spec = importlib.util.spec_from_file_location('full_normal_rgba', ROOT / 
 normal_rgba = importlib.util.module_from_spec(normal_spec); normal_spec.loader.exec_module(normal_rgba)
 SOURCE = re.compile(r'(?:sharedassets[012]|resources)\.assets(?:\.resS)?\Z')
 ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:sharedassets[012]\.assets\.split(?:0|[1-9]\d*)|[0-9a-f]{32})\Z')
+GHOST_SOURCE_SHA256 = '4558c1c764a48bcf2abe5492838cc4edc3992f94c14edbac5bfa90bb69507968'
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
@@ -35,6 +36,22 @@ def valid_normal_rgba_record(row):
             row.get('normal') is False and row.get('quality') is False and row.get('direct_normal') is False and
             not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'forest_source',
                                         'lightmap_alias', 'emission_source', 'alias_group', 'alias_target_id', 'source_name')))
+
+
+def valid_ghost_rgba_record(row):
+    return (row.get('ghost_rgba') is True and row.get('group') == 'sharedassets1' and
+            row.get('name') == 't_ghost_black_0' and row.get('source_name') == 't_ghost_black' and
+            row.get('source_sha256') == GHOST_SOURCE_SHA256 and row.get('source_format') == 4 and
+            row.get('target_format') == 4 and row.get('bytes') == 87380 and
+            row.get('normal') is False and row.get('quality') is False and row.get('direct_normal') is False and
+            not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'forest_source',
+                                        'lightmap_alias', 'emission_source', 'normal_rgba', 'alias_group', 'alias_target_id')))
+
+
+def select_ghost_source(found):
+    matches = [item for item in found if item[0] == 'sharedassets1' and int(item[2].m_TextureFormat) == 4 and
+               sha(bytes(item[2].get_image_data())) == GHOST_SOURCE_SHA256]
+    return matches[0] if len(matches) == 1 else None
 
 
 def normal_rgba_mode(row):
@@ -201,7 +218,8 @@ def generate(args):
         if 'lightmap_alias' in row and not valid_lightmap_record(row): raise ValueError('invalid lightmap mapping')
         if 'emission_source' in row and not valid_emission_record(row): raise ValueError('invalid emission mapping')
         if 'normal_rgba' in row and not valid_normal_rgba_record(row): raise ValueError('invalid full RGBA normal mapping')
-        if group in study.GROUPS and 'source_name' in row and row.get('collision_alias') is not True and row.get('forest_source') is not True and row.get('lightmap_alias') is not True and row.get('emission_source') is not True:
+        if 'ghost_rgba' in row and not valid_ghost_rgba_record(row): raise ValueError('invalid black ghost mapping')
+        if group in study.GROUPS and 'source_name' in row and row.get('collision_alias') is not True and row.get('forest_source') is not True and row.get('lightmap_alias') is not True and row.get('emission_source') is not True and row.get('ghost_rgba') is not True:
             raise ValueError('unexpected source name in shared texture')
         if group not in (*study.GROUPS, 'sharedassets0') and not re.fullmatch(r'[0-9a-f]{32}', group): raise ValueError('invalid texture group')
         if group in study.GROUPS and ('font' in row or 'resource' in row): raise ValueError('resource markers require a standalone texture')
@@ -250,7 +268,8 @@ def generate(args):
                     obj = objects[key]; tex = obj.read()
                     source_name = 'DropShadow' if prior.get('shadow') is True else prior.get('source_name', tex.m_Name)
                     found = (shared0_index if prior.get('shared0_sdf') is True or prior.get('shared0_fox') is True else resources_index if prior.get('font') is True or prior.get('resource') is True else index)[(source_name, tex.m_Width, tex.m_Height)]
-                    chosen_source = (next((item for item in found if item[0] == 'sharedassets1' and sha(bytes(item[2].get_image_data())) == prior['source_sha256']), None)
+                    chosen_source = (select_ghost_source(found) if prior.get('ghost_rgba') is True else
+                                     next((item for item in found if item[0] == 'sharedassets1' and sha(bytes(item[2].get_image_data())) == prior['source_sha256']), None)
                                      if prior.get('forest_source') is True or prior.get('emission_source') is True else
                                      study.select_shadow_source(tex, found, texture=lambda item: item[2]) if prior.get('shadow') is True
                                      else study.select_source(tex, found, texture=lambda item: item[2]))
@@ -275,6 +294,8 @@ def generate(args):
                         raise ValueError('emission texture metadata differs')
                     if prior.get('normal_rgba') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (32, 32, 6)):
                         raise ValueError('full RGBA normal texture metadata differs')
+                    if prior.get('ghost_rgba') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (128, 128, 8)):
+                        raise ValueError('black ghost texture metadata differs')
                     if prior.get('font') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (1024, 1024, 1)):
                         raise ValueError('font texture metadata differs')
                     expected_mips = 1 if prior.get('name') in study.EMOJI_TEXTURES else 10

@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 import zipfile
 
 spec = importlib.util.spec_from_file_location('converted_plan', Path(__file__).resolve().parents[1] / 'experimental-converted-texture-plan.py')
@@ -12,6 +13,23 @@ spec.loader.exec_module(module)
 
 
 class ConvertedTexturePlanTests(unittest.TestCase):
+    def test_ghost_mapping_and_source_are_unambiguous(self):
+        row = {'ghost_rgba': True, 'group': 'sharedassets1', 'name': 't_ghost_black_0',
+               'source_name': 't_ghost_black', 'source_sha256': module.GHOST_SOURCE_SHA256,
+               'source_format': 4, 'target_format': 4, 'bytes': 87380,
+               'normal': False, 'quality': False, 'direct_normal': False}
+        self.assertTrue(module.valid_ghost_rgba_record(row))
+        for change in ({'name': 't_ghost_red_0'}, {'source_name': 't_ghost_red'}, {'source_sha256': 'bad'},
+                       {'group': 'sharedassets2'}, {'bytes': 1}, {'quality': True}, {'normal_rgba': True}):
+            with self.subTest(change=change): self.assertFalse(module.valid_ghost_rgba_record(dict(row, **change)))
+        def item(group, data): return (group, None, SimpleNamespace(m_TextureFormat=4, get_image_data=lambda: data))
+        matching, other = item('sharedassets1', b'match'), item('sharedassets1', b'other')
+        with patch.object(module, 'GHOST_SOURCE_SHA256', module.sha(b'match')):
+            self.assertIs(module.select_ghost_source([other, matching]), matching)
+            self.assertIsNone(module.select_ghost_source([other]))
+            self.assertIsNone(module.select_ghost_source([matching, matching]))
+            self.assertIsNone(module.select_ghost_source([item('sharedassets2', b'match')]))
+
     def test_full_water_normal_mapping_is_strictly_scoped(self):
         row = {'normal_rgba': True, 'group': 'sharedassets1', 'name': 'IL3DN_WaterNormal',
                'source_format': 12, 'target_format': 4, 'bytes': 5460,

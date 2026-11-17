@@ -21,11 +21,13 @@ class SteamResearchBuildTests(unittest.TestCase):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
         with self.assertRaises(SystemExit): self.invoke('--steam-water-rgba')
-        self.invoke('--windows-game', str(windows), '--steam-chest-rgba', '--steam-water-rgba')
+        with self.assertRaises(SystemExit): self.invoke('--steam-ghost-rgba')
+        self.invoke('--windows-game', str(windows), '--steam-chest-rgba', '--steam-water-rgba', '--steam-ghost-rgba')
         chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
         self.assertEqual(len(chains), 2)
         self.assertTrue(all('--steam-chest-rgba' in chain for chain in chains))
         self.assertTrue(all('--steam-water-rgba' in chain for chain in chains))
+        self.assertTrue(all('--steam-ghost-rgba' in chain for chain in chains))
 
     @patch.object(module.subprocess, 'run')
     def test_reordered_curve_option_requires_binding_plan_and_reaches_both_chains(self, run):

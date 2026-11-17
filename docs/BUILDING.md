@@ -183,6 +183,17 @@ in the recent captured log. The test app was removed. This smoke test
 did not exercise ZIP import, inspect water rendering, compare the scene
 to the original or establish full gameplay parity. It remains private.
 
+An additional opt-in `--steam-ghost-rgba` study reconstructs one black
+ghost texture from a uniquely hash-identified Steam source. It requires
+the chest RGBA option and validates source identity, alpha and every mip.
+Both desktop Java chains restored all 1,072 entries at each of eight
+stages; 557 Python tests passed. The two templates retained 28,310 nonzero
+inline texture bytes across 1,157 textures, with no skips. The converted
+ghost increased its local payload by 76,444 bytes; maximum observed RGB
+difference was 37/255 and maximum per-channel mean on mip 0 was 1.377/255.
+Android loading, visual parity and other game assets remain unverified;
+this is not a distributable APK.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
