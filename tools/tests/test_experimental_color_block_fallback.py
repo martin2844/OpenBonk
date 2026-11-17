@@ -12,6 +12,23 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class ColorBlockTests(unittest.TestCase):
+    def test_bullseye_discovery_requires_unique_hashed_target(self):
+        target = SimpleNamespace(m_Name='Bullseye_0', m_Width=128, m_Height=128,
+                                 m_MipCount=1, m_ImageCount=1, m_TextureFormat=47)
+        obj = SimpleNamespace(type=SimpleNamespace(name='Texture2D'), read=lambda: target)
+        groups = {'a' * 32: ['first'], 'b' * 32: ['second'], 'sharedassets1.assets': ['ignored']}
+        archive = SimpleNamespace(read=lambda part: part.encode())
+        def load(data): return SimpleNamespace(objects=[obj] if data == b'first' else [])
+        with patch('UnityPy.load', side_effect=load):
+            self.assertEqual(module.discover_bullseye(archive, groups), ('a' * 32, 'Bullseye_0'))
+        with patch('UnityPy.load', return_value=SimpleNamespace(objects=[obj])):
+            with self.assertRaisesRegex(ValueError, 'ambiguous'): module.discover_bullseye(archive, groups)
+        with patch('UnityPy.load', side_effect=ValueError('unreadable group')):
+            with self.assertRaisesRegex(ValueError, 'unreadable group'): module.discover_bullseye(archive, groups)
+        target.m_Width = 64
+        with patch('UnityPy.load', side_effect=load):
+            with self.assertRaisesRegex(ValueError, 'metadata'): module.discover_bullseye(archive, groups)
+
     def test_emission_alias_requires_unique_visually_bounded_source(self):
         image = Image.new('RGBA', (4, 4), (120, 80, 40, 255))
         target = SimpleNamespace(m_Name='Emission_1', m_MipCount=1, m_ImageCount=1, m_ColorSpace=0, image=image)

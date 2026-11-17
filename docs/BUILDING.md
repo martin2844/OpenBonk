@@ -313,6 +313,21 @@ focused input on a Retroid Pocket 5. These are bounded approximations, not
 byte-identical pixels: a full launcher and in-game emission appearance have
 not been tested, and remaining game data must stay private.
 
+The opt-in `--bullseye-block-fallback` requires `--color-block-fallback` and
+`--partial-etc2-small`. It scans readable hashed Unity groups for exactly one
+`Bullseye_0` with the expected dimensions and format, rather than relying on a
+group identifier that can change across exports. Parser errors, duplicates or
+unexpected metadata cause the build to fail. The renamed Steam source must
+pass the existing encoded-byte selection, and each substituted block must pass
+the existing per-mip color and alpha limits. A focused Linux and Windows study
+produced identical converted OBBs: 965 blocks passed, 59 were preserved, and
+4,191 encoded bytes changed. With partial plans the target payload retained 405
+nonzero bytes, compared with 4,327 before substitution. Both platform plans
+restored all 1,072 focused-input entries on a Retroid Pocket 5. A second clean
+export with a different group identifier selected the target and reported the
+same block counts. These are bounded approximations; no full launcher or
+in-game appearance was verified, and other game data remains private.
+
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture
 metadata rather than path ID. A local run against that clone's OBB found both

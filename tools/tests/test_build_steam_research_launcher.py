@@ -23,14 +23,16 @@ class SteamResearchBuildTests(unittest.TestCase):
         with self.assertRaises(SystemExit): self.invoke('--color-block-fallback')
         with self.assertRaises(SystemExit): self.invoke('--partial-etc2-aliases')
         with self.assertRaises(SystemExit): self.invoke('--emission-block-fallback')
+        with self.assertRaises(SystemExit): self.invoke('--bullseye-block-fallback')
         windows = self.root/'windows'; (windows/'Megabonk_Data').mkdir(parents=True)
-        self.invoke('--windows-game', str(windows), '--quality-textures', '--normal-fallback', '--normal-block-fallback', '--color-block-fallback', '--emission-block-fallback',
+        self.invoke('--windows-game', str(windows), '--quality-textures', '--normal-fallback', '--normal-block-fallback', '--color-block-fallback', '--emission-block-fallback', '--bullseye-block-fallback',
                     '--partial-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-tiny', '--partial-etc2-aliases', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte')
         chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
         self.assertEqual(len(chains), 2)
         self.assertTrue(all('--normal-block-fallback' in chain for chain in chains))
         self.assertTrue(all('--color-block-fallback' in chain for chain in chains))
         self.assertTrue(all('--emission-block-fallback' in chain for chain in chains))
+        self.assertTrue(all('--bullseye-block-fallback' in chain for chain in chains))
 
     @patch.object(module.subprocess, 'run')
     def test_localization_option_reaches_both_chains_and_requires_partial(self, run):

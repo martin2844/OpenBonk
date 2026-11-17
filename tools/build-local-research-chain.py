@@ -131,7 +131,7 @@ def commands(a):
         py('bounded normal blocks', 'experimental-normal-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'normal-block-study')
         converted = out / 'normal-block-study/converted.obb'
     if getattr(a, 'color_block_fallback', False):
-        py('bounded color blocks', 'experimental-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'color-block-study', *(['--emission-alias'] if getattr(a, 'emission_block_fallback', False) else []))
+        py('bounded color blocks', 'experimental-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'color-block-study', *(['--emission-alias'] if getattr(a, 'emission_block_fallback', False) else []), *(['--bullseye-alias'] if getattr(a, 'bullseye_block_fallback', False) else []))
         converted = out / 'color-block-study/converted.obb'
     toolplan('individual audio plan', 'experimental-steam-audio-plan.py', converted, plans / 'audio')
     toolplan('packed audio plan', 'experimental-packed-audio-plan.py', plans / 'audio/template.obb', plans / 'packed')
@@ -223,6 +223,7 @@ def main():
     p.add_argument('--normal-block-fallback', action='store_true', help='experimentally substitute individually bounded normal-map blocks; requires --normal-fallback and --partial-etc2-byte')
     p.add_argument('--color-block-fallback', action='store_true', help='experimentally substitute bounded blocks in eight color textures; requires --partial-etc2-byte')
     p.add_argument('--emission-block-fallback', action='store_true', help='also substitute bounded emission blocks; requires --color-block-fallback and --partial-etc2-aliases')
+    p.add_argument('--bullseye-block-fallback', action='store_true', help='also substitute bounded bullseye blocks; requires --color-block-fallback and --partial-etc2-small')
     p.add_argument('--animation-curve-fallback', action='store_true', help='experimentally substitute tightly bounded Steam animation curves')
     p.add_argument('--animation-curve-relaxed', action='store_true', help='use a 1e-4 curve bound; requires --animation-curve-fallback')
     p.add_argument('--animation-curve-extended', action='store_true', help='use a 1e-3 curve bound; requires --animation-curve-fallback')
@@ -260,6 +261,7 @@ def main():
     if a.normal_block_fallback and (not a.normal_fallback or not a.partial_etc2_byte): p.error('--normal-block-fallback requires --normal-fallback and --partial-etc2-byte')
     if a.color_block_fallback and not a.partial_etc2_byte: p.error('--color-block-fallback requires --partial-etc2-byte')
     if a.emission_block_fallback and (not a.color_block_fallback or not a.partial_etc2_aliases): p.error('--emission-block-fallback requires --color-block-fallback and --partial-etc2-aliases')
+    if a.bullseye_block_fallback and (not a.color_block_fallback or not a.partial_etc2_small): p.error('--bullseye-block-fallback requires --color-block-fallback and --partial-etc2-small')
     if a.version_code is not None and not 1 <= a.version_code <= 2100000000: p.error('invalid Android version code')
     if a.version_name is not None and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._+\-]{0,99}', a.version_name, re.ASCII): p.error('invalid Android version name')
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')

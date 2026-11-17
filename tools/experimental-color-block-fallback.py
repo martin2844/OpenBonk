@@ -9,6 +9,7 @@ import argparse
 import importlib.util
 import json
 from pathlib import Path
+import re
 import shutil
 import zipfile
 
@@ -27,7 +28,27 @@ TARGETS = {('sharedassets1.assets', 'FBX_Barrel_Color'): (128, 128, 8, 1, 45),
            ('sharedassets4.assets', 'B_Pylon_Color'): (128, 128, 8, 1, 45),
            ('sharedassets4.assets', 'B_Pylon_Emission'): (128, 128, 8, 1, 45)}
 ALIASES = {'FBX_Barrel_Color_0': 'FBX_Barrel_Color', 't_ghost_red_0': 't_ghost_red',
-           't_ghost_purple_0': 't_ghost_purple', 't_ghost_black_0': 't_ghost_black'}
+           't_ghost_purple_0': 't_ghost_purple', 't_ghost_black_0': 't_ghost_black',
+           'Bullseye_0': 'Bullseye'}
+
+
+def discover_bullseye(archive, groups):
+    """Find the unique hashed texture group; its export ID can change."""
+    import UnityPy
+    found = []
+    for group, parts in groups.items():
+        if not re.fullmatch(r'[0-9a-f]{32}', group): continue
+        raw = b''.join(archive.read(part) for part in parts)
+        for obj in UnityPy.load(raw).objects:
+            if obj.type.name != 'Texture2D': continue
+            target = obj.read()
+            if target.m_Name != 'Bullseye_0': continue
+            metadata = (target.m_Width, target.m_Height, target.m_MipCount,
+                        target.m_ImageCount, int(target.m_TextureFormat))
+            if metadata != (128, 128, 1, 1, 47): raise ValueError('unexpected bullseye metadata')
+            found.append((group, target.m_Name))
+    if len(found) != 1: raise ValueError('bullseye target missing or ambiguous')
+    return found[0]
 
 
 def identify_target(group, target, seen, targets=TARGETS):
@@ -86,6 +107,8 @@ def generate(args):
     with zipfile.ZipFile(obb) as archive:
         infos = partial.masker.zip_entries(archive)
         groups = partial.objects.asset_groups(archive)
+        if getattr(args, 'bullseye_alias', False):
+            targets[discover_bullseye(archive, groups)] = (128, 128, 1, 1, 47)
         for group in sorted({key[0] for key in targets}):
             parts = groups[group]
             raw = b''.join(archive.read(part) for part in parts)
@@ -150,6 +173,7 @@ def main():
     parser.add_argument('--quality-library', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--emission-alias', action='store_true', help='also reconstruct bounded blocks of a uniquely matched emission alias')
+    parser.add_argument('--bullseye-alias', action='store_true', help='also reconstruct bounded blocks of a uniquely identified bullseye alias')
     generate(parser.parse_args())
 
 
