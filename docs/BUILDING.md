@@ -56,6 +56,13 @@ no skipped records in those categories. Other data is not covered; the APK
 contains game-derived data and must remain private. The Emission alias
 study above was not enabled in this combined APK.
 
+On that same combined APK, separate audits for each platform found zero
+retained nonzero bytes across 1,460 inline mesh buffers and across the
+resource ranges referenced by 311 AudioClips in 66 resources, with no
+skipped records in those checks. They do not inspect streamed meshes,
+inline audio, bundles, video, or other asset types and do not establish
+that the APK is free of game assets.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
