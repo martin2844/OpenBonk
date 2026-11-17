@@ -16,9 +16,10 @@ spec.loader.exec_module(module)
 class ResearchChainTests(unittest.TestCase):
     def test_tiny_etc2_reaches_partial_plan(self):
         with tempfile.TemporaryDirectory() as temp:
-            args = self.args(Path(temp)); args.partial_rgba = True; args.partial_etc2_tiny = True; args.partial_normal_rgba = True
+            args = self.args(Path(temp)); args.partial_rgba = True; args.partial_etc2_tiny = True; args.partial_normal_rgba = True; args.partial_etc2_aliases = True
             self.assertIn('--include-tiny-etc2', dict(module.commands(args))['partial RGBA plan'])
             self.assertIn('--normal-rgba', dict(module.commands(args))['partial RGBA plan'])
+            self.assertIn('--include-etc2-aliases', dict(module.commands(args))['partial RGBA plan'])
 
     def test_conversion_preflight_reports_missing_native_library(self):
         with patch.object(module.importlib, 'import_module', side_effect=OSError('missing libstdc++')):

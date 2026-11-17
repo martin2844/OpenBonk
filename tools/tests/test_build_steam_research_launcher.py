@@ -21,6 +21,7 @@ class SteamResearchBuildTests(unittest.TestCase):
         run.return_value = subprocess.CompletedProcess([], 0)
         with self.assertRaises(SystemExit): self.invoke('--normal-block-fallback')
         with self.assertRaises(SystemExit): self.invoke('--color-block-fallback')
+        with self.assertRaises(SystemExit): self.invoke('--partial-etc2-aliases')
         windows = self.root/'windows'; (windows/'Megabonk_Data').mkdir(parents=True)
         self.invoke('--windows-game', str(windows), '--quality-textures', '--normal-fallback', '--normal-block-fallback', '--color-block-fallback',
                     '--partial-rgba', '--partial-etc2', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte')
@@ -340,7 +341,7 @@ class SteamResearchBuildTests(unittest.TestCase):
     def test_partial_rgba_reaches_both_platforms_and_dual_packager(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
-        self.invoke('--windows-game', str(windows), '--partial-rgba', '--partial-normal-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-tiny', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte', '--transparent-atlas-scrub', '--quality-textures')
+        self.invoke('--windows-game', str(windows), '--partial-rgba', '--partial-normal-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-tiny', '--partial-etc2-aliases', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte', '--transparent-atlas-scrub', '--quality-textures')
         self.assertIn('--partial-rgba', run.call_args_list[-3].args[0])
         self.assertIn('--partial-rgba', run.call_args_list[-2].args[0])
         self.assertIn('--partial-normal-rgba', run.call_args_list[-3].args[0])
@@ -351,6 +352,8 @@ class SteamResearchBuildTests(unittest.TestCase):
         self.assertIn('--partial-etc2-small', run.call_args_list[-2].args[0])
         self.assertIn('--partial-etc2-tiny', run.call_args_list[-3].args[0])
         self.assertIn('--partial-etc2-tiny', run.call_args_list[-2].args[0])
+        self.assertIn('--partial-etc2-aliases', run.call_args_list[-3].args[0])
+        self.assertIn('--partial-etc2-aliases', run.call_args_list[-2].args[0])
         self.assertIn('--partial-etc2-fast', run.call_args_list[-3].args[0])
         self.assertIn('--partial-etc2-fast', run.call_args_list[-2].args[0])
         self.assertIn('--partial-etc2-blend', run.call_args_list[-3].args[0])

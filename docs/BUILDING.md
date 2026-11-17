@@ -270,6 +270,26 @@ an increase of 3,521. Linux and Windows Steam inputs produced identical
 masked templates. The exported plans restored all 1,072 expected archive
 entries on a Retroid Pocket 5 from each ZIP. This focused check does not
 establish visual parity or remove the other game data in the template.
+The option also passed a 38-stage Linux chain using an existing runtime and
+Gradle export. Its packaged template retained 85,153 nonzero bytes in 1,157
+identified inline texture payloads; seven were empty and none were streamed or
+skipped. Other categories were not measured by that audit. On a Retroid Pocket
+5, the isolated APK imported the Linux ZIP, produced the expected OBB hash and
+entered a short Forest run with an enemy defeat. This does not test the full
+Windows launcher, all gameplay or visual parity, and the APK remains private.
+
+The opt-in `--partial-etc2-aliases` option requires `--partial-etc2-tiny`.
+For unresolved ETC2 candidates it also considers a numeric-suffix alias or an
+ambiguous same-name source. It requires at least 16 equal nonzero bytes and a
+match covering at least half of the target's nonzero bytes; a distinct
+competitor scoring at least half as well makes the match ambiguous. Only
+already identical bytes are masked. On the same Linux object template, adding
+the option to the tiny ETC2 and RGBA normal study selected 101 textures and
+masked 264,804 nonzero bytes, 3,748 more than without it. Linux and Windows
+Steam inputs produced identical masked templates, and both exported plans
+restored all 1,072 expected archive entries on a Retroid Pocket 5. This is a
+focused reconstruction check, not a complete launcher or visual test. Other
+game data remains in the templates, which must stay private.
 
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture

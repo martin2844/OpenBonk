@@ -30,6 +30,31 @@ class PartialRgbaPlanTests(unittest.TestCase):
             module.main()
         self.assertTrue(generate.call_args.args[0].include_tiny_etc2)
 
+    def test_small_alias_requires_clear_half_match_and_rejects_competitors(self):
+        target = SimpleNamespace(m_TextureFormat=45, m_ImageCount=1, m_MipCount=1,
+                                 m_ColorSpace=0, m_Width=8, m_Height=8)
+        def source(ident):
+            return SimpleNamespace(ident=ident, m_TextureFormat=10, m_ImageCount=1,
+                                   m_MipCount=1, m_ColorSpace=0)
+        one, two = ('sharedassets1', 1, source(1)), ('sharedassets1', 2, source(2))
+        payload = b'A' * 64
+        outputs = {1: b'A' * 40 + b'B' * 24, 2: b'A' * 19 + b'C' * 45}
+        with patch.object(module, 'converted', side_effect=lambda src, *args: outputs[src.ident]):
+            self.assertIsNone(module.partial_etc2_source(target, payload, [one, two], object()))
+            self.assertEqual(module.partial_etc2_source(target, payload, [one, two], object(), True)[0], one)
+            outputs[2] = b'A' * 20 + b'C' * 44
+            self.assertIsNone(module.partial_etc2_source(target, payload, [one, two], object(), True))
+            outputs[1] = b'A' * 31 + b'B' * 33
+            self.assertIsNone(module.partial_etc2_source(target, payload, [one], object(), True))
+
+    def test_alias_cli_requires_tiny_mode(self):
+        args = ['tool', 'generate', '--steam-data', '/unused', '--obb', '/unused', '--output', '/unused',
+                '--etc2-quality-library', '/unused', '--include-etc2-aliases']
+        with patch.object(sys, 'argv', args), self.assertRaises(SystemExit): module.main()
+        args += ['--include-tiny-etc2', '--include-small-etc2', '--fast-etc2', '--blend-etc2', '--byte-etc2']
+        with patch.object(sys, 'argv', args), patch.object(module, 'generate') as generate: module.main()
+        self.assertTrue(generate.call_args.args[0].include_etc2_aliases)
+
     def test_block_blend_chooses_best_encoder_and_validates_mask(self):
         original = b'A' * 16 + b'B' * 16 + b'C' * 3
         quality = b'A' * 16 + b'X' * 16 + b'C' * 3

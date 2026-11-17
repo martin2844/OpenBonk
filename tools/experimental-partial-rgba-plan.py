@@ -218,12 +218,12 @@ def eligible_etc2_payload(payload, include_small=False, include_tiny=False):
     return len(payload) >= minimum_size and len(payload) - payload.count(0) >= minimum_nonzero
 
 
-def partial_etc2_source(target, payload, candidates, encoder):
+def partial_etc2_source(target, payload, candidates, encoder, tiny_alias=False):
     """Choose a clearly matching source; restoration copies only equal bytes."""
     if encoder is None or int(target.m_TextureFormat) not in (45, 47) or target.m_ImageCount != 1:
         return None
     nonzero = len(payload) - payload.count(0)
-    if not eligible_etc2_payload(payload, True): return None
+    if not eligible_etc2_payload(payload, True, tiny_alias): return None
     matches = []
     for item in candidates:
         src = item[2]
@@ -242,7 +242,9 @@ def partial_etc2_source(target, payload, candidates, encoder):
     if not matches: return None
     matches.sort(key=lambda match: match[0], reverse=True)
     best, item, output = matches[0]
-    if best < 1024 or best * 4 < nonzero: return None
+    if tiny_alias:
+        if best < 16 or best * 2 < nonzero: return None
+    elif best < 1024 or best * 4 < nonzero: return None
     # Identical outputs are interchangeable; dissimilar close contenders are not.
     if any(other * 2 >= best and data != output for other, _, data in matches[1:]): return None
     return item, output
@@ -291,6 +293,10 @@ def generate(args):
                     source_name = ('Emission' if group == 'sharedassets0.assets' and target.m_Name == 'Emission_2'
                                    else target.m_Name[:-2] if target.m_Name.endswith('_0') else target.m_Name)
                     partial = partial_etc2_source(target, payload, candidate_sources(index, target, group, source_name), encoder)
+                    if partial: item, output = partial
+                if item is None and target_format in (45, 47) and getattr(args, 'include_etc2_aliases', False):
+                    source_name = re.sub(r'_[0-9]+$', '', target.m_Name)
+                    partial = partial_etc2_source(target, payload, candidate_sources(index, target, group, source_name), encoder, tiny_alias=True)
                     if partial: item, output = partial
                 if item is None: continue
                 group_name, source_id, src = item
@@ -424,6 +430,7 @@ def main():
     g = sub.add_parser('generate'); g.add_argument('--steam-data', type=Path, required=True); g.add_argument('--obb', type=Path, required=True); g.add_argument('--output', type=Path, required=True)
     g.add_argument('--include-small-etc2', action='store_true', help='also attempt partial matching for smaller ETC2 textures (experimental)')
     g.add_argument('--include-tiny-etc2', action='store_true', help='also match exact bytes in small uniquely sourced ETC2 textures')
+    g.add_argument('--include-etc2-aliases', action='store_true', help='also match unambiguous small ETC2 aliases by encoded bytes')
     g.add_argument('--normal-rgba', action='store_true', help='match exact bytes in the unpacked WaterNormal RGBA texture')
     g.add_argument('--fast-etc2', action='store_true', help='experimentally select the fast ETC2 encoder when it recovers more exact bytes')
     g.add_argument('--blend-etc2', action='store_true', help='experimentally choose an encoder per 16-byte output block; requires --fast-etc2')
@@ -436,6 +443,8 @@ def main():
         p.error('--include-small-etc2 requires --etc2-quality-library')
     if a.action == 'generate' and a.include_tiny_etc2 and (not a.include_small_etc2 or not a.byte_etc2):
         p.error('--include-tiny-etc2 requires --include-small-etc2 and --byte-etc2')
+    if a.action == 'generate' and a.include_etc2_aliases and not a.include_tiny_etc2:
+        p.error('--include-etc2-aliases requires --include-tiny-etc2')
     if a.action == 'generate' and a.fast_etc2 and not a.etc2_quality_library:
         p.error('--fast-etc2 requires --etc2-quality-library')
     if a.action == 'generate' and a.blend_etc2 and not a.fast_etc2:
