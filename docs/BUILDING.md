@@ -113,6 +113,20 @@ used a private diagnostic APK and directly supplied bundles, not launcher
 import or gameplay; other languages and the uncompressed shared bundle have
 not been tested in Unity. The temporary app and copied data were removed.
 
+The experimental `tools/experimental-localization-obb-plan.py` generates an
+isolated OBB stage for those 18 bundles; `SteamLocalizationObb` restores it
+using a trusted plan hash and a matching Steam ZIP. Local Linux and Windows
+stages produced identical templates and converted OBBs. On both the host and
+a Retroid Pocket 5, each platform's ZIP restored all 1,072 expected OBB entries;
+an incorrect trusted plan hash was rejected. On the host, a ZIP with all 18
+required sources but one modified bundle was rejected without publishing an
+output. The stage changed the 18 bundles to an uncompressed representation,
+so the 929,344 masked nonzero CAB bytes do not represent the APK size saved.
+The separate locales bundle and other asset types remain outside its scope.
+This isolated stage is not yet connected to the multi-stage launcher pipeline,
+and no APK or gameplay run has been built with it. All generated files remain
+private.
+
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
 failed because its validation rejected fast ETC2 records. After updating the

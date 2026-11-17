@@ -45,16 +45,7 @@ def plain_bundle(bundle, name, raw):
     output = header + bytes(header_len-len(header)) + info + raw
     return output, header_len + len(info)
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--android-bundle', required=True, type=Path)
-    parser.add_argument('--steam-bundle', required=True, type=Path)
-    parser.add_argument('--output', required=True, type=Path)
-    a = parser.parse_args()
-    android = a.android_bundle.resolve(strict=True); steam = a.steam_bundle.resolve(strict=True)
-    out = a.output.absolute()
-    if out.exists() or out.is_symlink() or not out.parent.is_dir() or out.resolve().is_relative_to(ROOT) or android.is_relative_to(out.resolve()) or steam.is_relative_to(out.resolve()):
-        parser.error('output must be a new directory outside the checkout and inputs')
+def build(android, steam):
     _, target, name, target_cab = load_bundle(android)
     source_bytes, _, _, source_cab = load_bundle(steam)
     target_bytes, offset = plain_bundle(target, name, target_cab)
@@ -70,10 +61,23 @@ def main():
         template[start:start+len(payload)] = bytes(len(payload))
         records += struct.pack('>III', start, source_pos, len(payload)) + digest(payload)
     plan = b'OBL1' + digest(source_bytes) + digest(template) + digest(target_bytes) + struct.pack('>I', len(rows)) + records
+    return bytes(template), plan, target_bytes, len(rows), removed
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--android-bundle', required=True, type=Path)
+    parser.add_argument('--steam-bundle', required=True, type=Path)
+    parser.add_argument('--output', required=True, type=Path)
+    a = parser.parse_args()
+    android = a.android_bundle.resolve(strict=True); steam = a.steam_bundle.resolve(strict=True)
+    out = a.output.absolute()
+    if out.exists() or out.is_symlink() or not out.parent.is_dir() or out.resolve().is_relative_to(ROOT) or android.is_relative_to(out.resolve()) or steam.is_relative_to(out.resolve()):
+        parser.error('output must be a new directory outside the checkout and inputs')
+    template, plan, target_bytes, count, removed = build(android, steam)
     out.mkdir(mode=0o700)
     (out/'template.bundle').write_bytes(template)
     (out/'plan.bin').write_bytes(plan)
     (out/'expected.bundle').write_bytes(target_bytes)
-    print(f'Private prototype: {len(rows)} fragments; {removed} matching nonzero CAB bytes masked. Output still contains assets.')
+    print(f'Private prototype: {count} fragments; {removed} matching nonzero CAB bytes masked. Output still contains assets.')
 
 if __name__ == '__main__': main()
