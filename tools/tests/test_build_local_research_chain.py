@@ -16,11 +16,13 @@ spec.loader.exec_module(module)
 class ResearchChainTests(unittest.TestCase):
     def test_localization_stage_precedes_partial_and_binds_packager_inputs(self):
         with tempfile.TemporaryDirectory() as temp:
-            args = self.args(Path(temp)); args.partial_rgba = True; args.localization_cab = True
+            args = self.args(Path(temp)); args.partial_rgba = True; args.localization_cab = True; args.localization_small = True
             steps = module.commands(args); labels = [name for name, _ in steps]; commands = dict(steps)
             self.assertLess(labels.index('normalize Android localization'), labels.index('individual Steam audio'))
             self.assertIn(str(args.output/'localization-normalized/converted.obb'), commands['individual Steam audio'])
             self.assertLess(labels.index('localization plan'), labels.index('restore and verify localization'))
+            self.assertIn('--small-fragments', commands['normalize Android localization'])
+            self.assertIn('--small-fragments', commands['localization plan'])
             self.assertLess(labels.index('restore and verify localization'), labels.index('bind partial RGBA plan'))
             self.assertLess(labels.index('bind partial RGBA plan'), labels.index('restore and verify partial RGBA'))
             self.assertIn(str(args.output/'canonical/partial-rgba-plan.json'), commands['restore and verify partial RGBA'])

@@ -14,6 +14,14 @@ spec.loader.exec_module(module)
 
 
 class ExactObjectTests(unittest.TestCase):
+    def test_short_fragments_match_exactly_and_default_stays_strict(self):
+        target = b'AAAA' + b'Hello world!' + b'BBBB'
+        source = b'CCCC' + b'Hello world!' + b'DDDD'
+        self.assertEqual(list(module.common_fragments(target, [('source', 0, source)])), [])
+        self.assertEqual(list(module.common_fragments(target, [('source', 0, source)], minimum=12)), [(4, b'Hello world!', 'source', 4)])
+        self.assertEqual(list(module.common_fragments(bytes(64), [('source', 0, bytes(64))], minimum=12)), [])
+        with self.assertRaises(ValueError): list(module.common_fragments(target, [('source', 0, source)], minimum=4))
+
     def test_default_cubemap_requires_expected_metadata_and_exact_payload(self):
         cube = SimpleNamespace(m_Name='Default-Skybox-Cubemap', m_Width=128, m_Height=128,
                                m_MipCount=8, m_ImageCount=6, m_ColorSpace=0, m_TextureFormat=4)

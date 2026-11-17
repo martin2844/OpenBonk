@@ -123,6 +123,7 @@ def commands(a):
     if getattr(a, 'emoji_fallback', False): chain += ['--emoji-fallback']
     if getattr(a, 'partial_rgba', False): chain += ['--partial-rgba']
     if getattr(a, 'localization_cab', False): chain += ['--localization-cab']
+    if getattr(a, 'localization_small', False): chain += ['--localization-small']
     if getattr(a, 'partial_etc2', False): chain += ['--partial-etc2']
     if getattr(a, 'partial_etc2_small', False): chain += ['--partial-etc2-small']
     if getattr(a, 'partial_etc2_fast', False): chain += ['--partial-etc2-fast']
@@ -172,6 +173,7 @@ def commands(a):
         if getattr(a, 'emoji_fallback', False): windows_chain += ['--emoji-fallback']
         if getattr(a, 'partial_rgba', False): windows_chain += ['--partial-rgba']
         if getattr(a, 'localization_cab', False): windows_chain += ['--localization-cab']
+        if getattr(a, 'localization_small', False): windows_chain += ['--localization-small']
         if getattr(a, 'partial_etc2', False): windows_chain += ['--partial-etc2']
         if getattr(a, 'partial_etc2_small', False): windows_chain += ['--partial-etc2-small']
         if getattr(a, 'partial_etc2_fast', False): windows_chain += ['--partial-etc2-fast']
@@ -227,6 +229,7 @@ def main():
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--localization-cab', action='store_true', help='experimentally reconstruct Android localization bundles; requires --partial-rgba')
+    p.add_argument('--localization-small', action='store_true', help='also match 12-byte localization fragments; requires --localization-cab')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
     p.add_argument('--partial-etc2-small', action='store_true', help='also attempt smaller ETC2 textures; requires --partial-etc2')
     p.add_argument('--partial-etc2-fast', action='store_true', help='experimentally select the fast encoder where it recovers more exact bytes; requires --partial-etc2')
@@ -237,6 +240,7 @@ def main():
     p.add_argument('--check', action='store_true', help='check only initial inputs')
     a = p.parse_args(); output = a.output.expanduser().absolute()
     if a.localization_cab and not a.partial_rgba: p.error('--localization-cab requires --partial-rgba')
+    if a.localization_small and not a.localization_cab: p.error('--localization-small requires --localization-cab')
     if a.version_code is not None and not 1 <= a.version_code <= 2100000000: p.error('invalid Android version code')
     if a.version_name is not None and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._+\-]{0,99}', a.version_name, re.ASCII): p.error('invalid Android version name')
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')

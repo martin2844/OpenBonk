@@ -99,22 +99,23 @@ def fragments(parts, offset, data, source, source_offset):
     return rows
 
 
-def common_fragments(target, sources):
+def common_fragments(target, sources, minimum=32):
     """Yield nonoverlapping exact matches; source and target offsets may differ."""
+    if minimum not in (12, 32): raise ValueError('unsupported fragment minimum')
     index = {}
     for name, source_offset, data in sources:
-        for offset in range(0, len(data) - 31, 4):
-            block = data[offset:offset + 32]
-            if block.count(0) < 24:
+        for offset in range(0, len(data) - minimum + 1, 4):
+            block = data[offset:offset + minimum]
+            if block.count(0) < minimum * 3 // 4:
                 index.setdefault(block, (name, source_offset, data, offset))
     offset = 0
-    while offset + 32 <= len(target):
-        match = index.get(target[offset:offset + 32])
+    while offset + minimum <= len(target):
+        match = index.get(target[offset:offset + minimum])
         if match is None:
             offset += 4
             continue
         name, source_base, data, source_pos = match
-        end = offset + 32
+        end = offset + minimum
         while end < len(target) and source_pos + end - offset < len(data) and target[end] == data[source_pos + end - offset]:
             end += 1
         yield offset, target[offset:end], name, source_base + source_pos

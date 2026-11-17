@@ -45,13 +45,13 @@ def plain_bundle(bundle, name, raw):
     output = header + bytes(header_len-len(header)) + info + raw
     return output, header_len + len(info)
 
-def build(android, steam):
+def build(android, steam, small_fragments=False):
     _, target, name, target_cab = load_bundle(android)
     source_bytes, _, _, source_cab = load_bundle(steam)
     target_bytes, offset = plain_bundle(target, name, target_cab)
     spec = importlib.util.spec_from_file_location('exact_objects', ROOT / 'tools/experimental-exact-object-plan.py')
     matcher = importlib.util.module_from_spec(spec); spec.loader.exec_module(matcher)
-    rows = list(matcher.common_fragments(target_cab, [('source', 0, source_cab)]))
+    rows = list(matcher.common_fragments(target_cab, [('source', 0, source_cab)], minimum=12 if small_fragments else 32))
     if not rows or len(rows) > 10000: raise ValueError('fragment count outside limit')
     template = bytearray(target_bytes); records = bytearray(); removed = 0
     for target_pos, payload, _, source_pos in rows:
@@ -68,12 +68,13 @@ def main():
     parser.add_argument('--android-bundle', required=True, type=Path)
     parser.add_argument('--steam-bundle', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--small-fragments', action='store_true', help='experimentally match exact fragments as small as 12 bytes')
     a = parser.parse_args()
     android = a.android_bundle.resolve(strict=True); steam = a.steam_bundle.resolve(strict=True)
     out = a.output.absolute()
     if out.exists() or out.is_symlink() or not out.parent.is_dir() or out.resolve().is_relative_to(ROOT) or android.is_relative_to(out.resolve()) or steam.is_relative_to(out.resolve()):
         parser.error('output must be a new directory outside the checkout and inputs')
-    template, plan, target_bytes, count, removed = build(android, steam)
+    template, plan, target_bytes, count, removed = build(android, steam, a.small_fragments)
     out.mkdir(mode=0o700)
     (out/'template.bundle').write_bytes(template)
     (out/'plan.bin').write_bytes(plan)

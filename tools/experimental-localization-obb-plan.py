@@ -36,6 +36,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--obb', type=Path, required=True); p.add_argument('--steam-data', type=Path, required=True)
     p.add_argument('--platform', choices=('linux','windows'), required=True); p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--small-fragments', action='store_true', help='experimentally match exact fragments as small as 12 bytes')
     a=p.parse_args(); obb=a.obb.resolve(strict=True); steam=a.steam_data.resolve(strict=True); out=a.output.absolute()
     if not obb.is_file() or not steam.is_dir() or out.exists() or out.is_symlink() or not out.parent.is_dir() or out.resolve().is_relative_to(ROOT) or obb.is_relative_to(out.resolve()) or steam.is_relative_to(out.resolve()) or out.resolve().is_relative_to(steam):
         p.error('output must be new and separate from inputs and checkout')
@@ -62,7 +63,7 @@ def main():
                     source_path=steam/source
                     if not source_path.is_file() or not source_path.resolve().is_relative_to(steam): raise ValueError('missing Steam localization bundle')
                     scratch=Path(temp)/'target.bundle';scratch.write_bytes(raw)
-                    template, plan, target, count, removed=module.build(scratch,source_path)
+                    template, plan, target, count, removed=module.build(scratch,source_path,a.small_fragments)
                     rows.append({'entry':info.filename,'source':source,'plan_sha256':sha(plan),'plan':base64.b64encode(plan).decode('ascii')});total+=removed
                     write_pair(archive,masked,converted,info,template,target)
                 else:

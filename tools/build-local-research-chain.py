@@ -103,8 +103,9 @@ def commands(a):
         else: py('Android texture converter', 'build-android-texture-library.py', '--ndk', android / 'NDK', '--output', armlib, *wrapped)
     if a.decoder is None: py('Crunch decoder', 'build-crunch-decoder.py', decoder)
     localization = getattr(a, 'localization_cab', False)
+    small_localization = ['--small-fragments'] if getattr(a, 'localization_small', False) else []
     if localization:
-        py('normalize Android localization', 'experimental-localization-obb-plan.py', '--steam-data', steam, '--obb', a.runtime_obb, '--platform', a.platform, '--output', out / 'localization-normalized')
+        py('normalize Android localization', 'experimental-localization-obb-plan.py', '--steam-data', steam, '--obb', a.runtime_obb, '--platform', a.platform, '--output', out / 'localization-normalized', *small_localization)
     py('individual Steam audio', 'experimental-steam-audio.py', '--steam-data', steam, '--obb', out / 'localization-normalized/converted.obb' if localization else a.runtime_obb, '--output', out / 'individual-audio.obb')
     py('packed Steam audio', 'experimental-packed-steam-audio.py', '--steam-data', steam, '--obb', out / 'individual-audio.obb', '--output', out / 'packed-audio.obb')
     py('converted textures', 'experimental-converted-textures.py', '--steam-data', steam, '--obb', out / 'packed-audio.obb', '--output', out / 'texture-study', *(['--quality-library', hostlib] if quality else []), *(['--normal-fallback'] if normal_fallback else []), *(['--font-fallback'] if getattr(a, 'font_fallback', False) else []), *(['--resource-fallback'] if getattr(a, 'resource_fallback', False) else []), *(['--nodraw-fallback'] if getattr(a, 'nodraw_fallback', False) else []), *(['--atlas-fallback'] if getattr(a, 'atlas_fallback', False) else []), *(['--lightmap-fallback'] if getattr(a, 'lightmap_fallback', False) else []), *(['--emission-fallback'] if getattr(a, 'emission_fallback', False) else []), *(['--fox-fallback'] if getattr(a, 'fox_fallback', False) else []), *(['--bounded-fallback'] if getattr(a, 'bounded_fallback', False) else []), *(['--shadow-fallback'] if getattr(a, 'shadow_fallback', False) else []), *(['--emoji-fallback'] if getattr(a, 'emoji_fallback', False) else []), *(['--shared0-sdf'] if getattr(a, 'shared0_fonts', False) else []))
@@ -133,7 +134,7 @@ def commands(a):
         py('partial RGBA plan', 'experimental-partial-rgba-plan.py', 'generate', '--steam-data', steam, '--obb', plans / 'objects/template.obb', '--output', plans / 'partial-rgba', *etc2, *small, *fast, *blend, *byte)
         py('bind Android partial RGBA plan', 'experimental-partial-rgba-plan.py', 'export-android', '--steam-data', steam, '--template', plans / 'partial-rgba/template.obb', '--plan', plans / 'partial-rgba/plan.json', '--output', plans / 'partial-rgba/android-plan.json', *etc2)
         if localization:
-            py('localization plan', 'experimental-localization-obb-plan.py', '--steam-data', steam, '--obb', plans / 'partial-rgba/template.obb', '--platform', a.platform, '--output', plans / 'localization')
+            py('localization plan', 'experimental-localization-obb-plan.py', '--steam-data', steam, '--obb', plans / 'partial-rgba/template.obb', '--platform', a.platform, '--output', plans / 'localization', *small_localization)
     classes = ['SteamPlannedMeshes.java', 'SteamPlannedTextures.java', 'SteamPackedAudio.java', 'SteamGeneratedAudio.java',
                'SteamPlannedObjectsCheck.java', 'SteamPlannedAnimationsCheck.java', 'SteamPlannedCubemapsCheck.java',
                'SteamPlannedMeshesCheck.java', 'SteamPlannedTexturesCheck.java', 'SteamPartialRgbaCheck.java', 'SteamPackedAudioCheck.java', 'SteamGeneratedAudioCheck.java']
@@ -216,6 +217,7 @@ def main():
     p.add_argument('--emoji-fallback', action='store_true', help='experimentally reconstruct two emoji atlases; requires --quality-textures')
     p.add_argument('--partial-rgba', action='store_true', help='experimentally reconstruct exact partial RGBA texture bytes')
     p.add_argument('--localization-cab', action='store_true', help='experimentally reconstruct Android localization bundles; requires --partial-rgba')
+    p.add_argument('--localization-small', action='store_true', help='also match 12-byte localization fragments; requires --localization-cab')
     p.add_argument('--partial-etc2', action='store_true', help='also reconstruct exact partial ETC2 bytes; requires --partial-rgba and --quality-textures')
     p.add_argument('--partial-etc2-small', action='store_true', help='also attempt smaller ETC2 textures; requires --partial-etc2')
     p.add_argument('--partial-etc2-fast', action='store_true', help='experimentally select the fast encoder where it recovers more exact bytes; requires --partial-etc2')
@@ -228,6 +230,7 @@ def main():
     p.add_argument('--check', action='store_true', help='validate initial inputs only')
     a = p.parse_args()
     if a.localization_cab and not a.partial_rgba: p.error('--localization-cab requires --partial-rgba')
+    if a.localization_small and not a.localization_cab: p.error('--localization-small requires --localization-cab')
     if a.version_code is not None and not 1 <= a.version_code <= 2100000000: p.error('invalid Android version code')
     if a.version_name is not None and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._+\-]{0,99}', a.version_name, re.ASCII): p.error('invalid Android version name')
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')

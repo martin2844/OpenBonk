@@ -177,6 +177,14 @@ tests do not establish a clean Unity build, Windows import through the
 combined APK, all languages or complete gameplay parity. Outputs remain
 private because they still contain game assets.
 
+The opt-in `--localization-small` option (requiring `--localization-cab`)
+also matches byte-identical fragments down to 12 bytes. In an isolated study,
+Linux and Windows templates each masked 969,444 nonzero CAB bytes, 40,100 more
+than the previous 32-byte minimum. Both platform plans restored all 1,072 OBB
+entries on the host and a Retroid Pocket 5; the packager verifier accepted
+both, and their converted OBB hashes matched. This did not build a launcher or
+test first-import duration with the larger plans; other assets remain.
+
 Those two local chains were subsequently combined into a private dual-platform
 APK. The independent packaged-plan checker selected each platform and restored
 the expected OBB exactly from both local Steam ZIPs. This host check used the
