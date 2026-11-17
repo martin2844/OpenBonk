@@ -147,6 +147,15 @@ def verify_textures(template, plan_path, intermediate, cubemaps=False):
                                                        type(row.get('width')) is not int or type(row.get('height')) is not int or
                                                        not 1 <= row['width'] <= 2048 or not 1 <= row['height'] <= 2048)):
             raise ValueError('invalid quality texture metadata')
+        normal_rgba = row.get('normal_rgba', False)
+        if (type(normal_rgba) is not bool or (normal_rgba and
+                (cubemaps or row.get('source_format') != 12 or row.get('target_format') != 4 or
+                 quality or type(row.get('normal', False)) is not bool or row.get('normal', False) or
+                 type(row.get('direct_normal', False)) is not bool or row.get('direct_normal', False) or
+                 any(key in row for key in ('blend', 'blend_unit', 'blend_rgba', 'blend_extra')) or
+                 row.get('source') not in ('sharedassets1.assets', 'sharedassets1.assets.resS') or
+                 (row.get('width'), row.get('height'), row.get('mips'), row.get('source_size'), size) != (32, 32, 6, 1392, 5460)))):
+            raise ValueError('invalid full RGBA normal metadata')
         if cubemaps and size != 6 * 131072: raise ValueError('invalid cubemap size')
         total += size
         if total > 256 * 1024 * 1024: raise ValueError('texture size limit exceeded')

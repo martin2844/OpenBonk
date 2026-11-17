@@ -19,11 +19,34 @@ ROOT = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location('texture_study', ROOT / 'tools/experimental-converted-textures.py')
 study = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(study)
+normal_spec = importlib.util.spec_from_file_location('full_normal_rgba', ROOT / 'tools/normal-rgba-reconstruction.py')
+normal_rgba = importlib.util.module_from_spec(normal_spec); normal_spec.loader.exec_module(normal_rgba)
 SOURCE = re.compile(r'(?:sharedassets[012]|resources)\.assets(?:\.resS)?\Z')
 ENTRY = re.compile(re.escape(study.PREFIX) + r'(?:sharedassets[012]\.assets\.split(?:0|[1-9]\d*)|[0-9a-f]{32})\Z')
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
+
+
+def valid_normal_rgba_record(row):
+    return (row.get('normal_rgba') is True and row.get('group') == 'sharedassets1' and
+            row.get('name') == 'IL3DN_WaterNormal' and row.get('source_format') == 12 and
+            row.get('target_format') == 4 and row.get('bytes') == 5460 and
+            row.get('normal') is False and row.get('quality') is False and row.get('direct_normal') is False and
+            not any(k in row for k in ('font', 'resource', 'shadow', 'collision_alias', 'forest_source',
+                                        'lightmap_alias', 'emission_source', 'alias_group', 'alias_target_id', 'source_name')))
+
+
+def normal_rgba_mode(row):
+    value = row.get('normal_rgba', False)
+    if (type(value) is not bool or (value and
+            (row.get('source_format') != 12 or row.get('target_format') != 4 or
+             any(type(row.get(k, False)) is not bool or row.get(k, False) for k in ('normal', 'quality', 'direct_normal')) or
+             any(k in row for k in ('blend', 'blend_unit', 'blend_rgba', 'blend_extra')) or
+             row.get('source') not in ('sharedassets1.assets', 'sharedassets1.assets.resS') or
+             (row.get('width'), row.get('height'), row.get('mips'), row.get('source_size'), row.get('target_size')) != (32, 32, 6, 1392, 5460)))):
+        raise ValueError('invalid full RGBA normal metadata')
+    return value
 
 
 def valid_resource_record(row):
@@ -154,6 +177,7 @@ def convert_texture(payload, row, quality=None):
         if int(fmt) != row['target_format'] or len(encoded) != study.mip_size(row['target_format'], w, h): raise ValueError('converted mip differs')
         chunks.append(encoded)
     result = b''.join(chunks)
+    if normal_rgba_mode(row): result = normal_rgba.reconstruct(result)
     if len(result) != row['target_size'] or sha(result) != row['target_sha256']: raise ValueError('converted texture differs from plan')
     return result
 
@@ -176,6 +200,7 @@ def generate(args):
         if 'forest_source' in row and not valid_forest_record(row): raise ValueError('invalid forest texture mapping')
         if 'lightmap_alias' in row and not valid_lightmap_record(row): raise ValueError('invalid lightmap mapping')
         if 'emission_source' in row and not valid_emission_record(row): raise ValueError('invalid emission mapping')
+        if 'normal_rgba' in row and not valid_normal_rgba_record(row): raise ValueError('invalid full RGBA normal mapping')
         if group in study.GROUPS and 'source_name' in row and row.get('collision_alias') is not True and row.get('forest_source') is not True and row.get('lightmap_alias') is not True and row.get('emission_source') is not True:
             raise ValueError('unexpected source name in shared texture')
         if group not in (*study.GROUPS, 'sharedassets0') and not re.fullmatch(r'[0-9a-f]{32}', group): raise ValueError('invalid texture group')
@@ -248,6 +273,8 @@ def generate(args):
                         raise ValueError('lightmap texture metadata differs')
                     if prior.get('emission_source') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (128, 128, 8)):
                         raise ValueError('emission texture metadata differs')
+                    if prior.get('normal_rgba') is True and (src_group != 'sharedassets1' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (32, 32, 6)):
+                        raise ValueError('full RGBA normal texture metadata differs')
                     if prior.get('font') is True and (src_group != 'resources' or (tex.m_Width, tex.m_Height, tex.m_MipCount) != (1024, 1024, 1)):
                         raise ValueError('font texture metadata differs')
                     expected_mips = 1 if prior.get('name') in study.EMOJI_TEXTURES else 10
@@ -278,6 +305,7 @@ def generate(args):
                            'mips': tex.m_MipCount, 'source_format': int(src.m_TextureFormat), 'target_format': int(tex.m_TextureFormat), 'normal': prior.get('normal', False), 'quality': prior.get('quality', False), 'direct_normal': prior.get('direct_normal', False),
                            'target_size': len(target), 'target_sha256': sha(target),
                            'fragments': fragments(parts, obj.byte_start + target_pos, len(target))}
+                    if prior.get('normal_rgba') is True: row['normal_rgba'] = True
                     # Verify the record is actually reproducible before blanking it.
                     if type(row['quality']) is not bool or (row['quality'] and (row['normal'] or row['target_format'] not in (45, 47))):
                         raise ValueError('invalid quality texture metadata')
@@ -330,6 +358,7 @@ def restore(args, convert=convert_texture):
                     (row.get('normal', False) and (row['source_format'], row['target_format']) != (12, 34)) or
                     (not row.get('normal', False) and row['target_format'] not in (4, 45, 47))):
                 raise ValueError('invalid texture conversion metadata')
+            normal_rgba_mode(row)
             total += row['target_size']
             if total > 256 * 1024 * 1024: raise ValueError('texture limit exceeded')
             fragments_list = row.get('fragments')

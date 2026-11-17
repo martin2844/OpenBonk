@@ -140,7 +140,12 @@ public final class SteamPlannedTextures {
                 if (cubemaps && (!t.source.equals("sharedassets1.assets.resS") || t.inputSize > 4 * 1024 * 1024 || t.outputSize != 6 * 131072)) throw new IOException("invalid cubemap metadata");
                 if (t.quality && (cubemaps || t.normal || (t.targetFormat != 47 && t.targetFormat != 45) || t.width > 2048 || t.height > 2048)) throw new IOException("invalid quality texture metadata");
                 if (partial && (t.normal || (t.targetFormat == 4 && t.quality))) throw new IOException("invalid partial texture metadata");
-                if (t.normalRgba && (!partial || cubemaps || t.normal || t.quality || t.sourceFormat != 12 || t.targetFormat != 4 || row.has("blend"))) throw new IOException("invalid RGBA normal metadata");
+                if (t.normalRgba && (cubemaps || t.normal || t.quality || t.sourceFormat != 12 || t.targetFormat != 4 ||
+                    (!partial && (row.has("blend") || row.has("blend_unit") || row.has("blend_rgba") || row.has("blend_extra") ||
+                                  (row.has("direct_normal") && (!(row.get("direct_normal") instanceof Boolean) || row.getBoolean("direct_normal"))) ||
+                                  t.width != 32 || t.height != 32 || t.mips != 6 || t.inputSize != 1392 || t.outputSize != 5460 ||
+                                  !(t.source.equals("sharedassets1.assets") || t.source.equals("sharedassets1.assets.resS"))))))
+                    throw new IOException("invalid RGBA normal metadata");
                 if (row.has("blend")) {
                     if (!partial || !t.quality || !(row.get("blend") instanceof String)) throw new IOException("invalid blended texture metadata");
                     if (row.has("blend_unit")) {

@@ -12,6 +12,33 @@ spec.loader.exec_module(module)
 
 
 class ConvertedTexturePlanTests(unittest.TestCase):
+    def test_full_water_normal_mapping_is_strictly_scoped(self):
+        row = {'normal_rgba': True, 'group': 'sharedassets1', 'name': 'IL3DN_WaterNormal',
+               'source_format': 12, 'target_format': 4, 'bytes': 5460,
+               'normal': False, 'quality': False, 'direct_normal': False}
+        self.assertTrue(module.valid_normal_rgba_record(row))
+        for change in ({'name': 'other'}, {'group': 'sharedassets2'}, {'source_format': 4},
+                       {'target_format': 45}, {'bytes': 5461}, {'normal': True}, {'quality': True},
+                       {'direct_normal': True}, {'source_name': 'other'}, {'normal_rgba': 'yes'}):
+            with self.subTest(change=change):
+                self.assertFalse(module.valid_normal_rgba_record(dict(row, **change)))
+
+    def test_full_water_normal_metadata_and_disabled_compatibility(self):
+        row = {'normal_rgba': True, 'source_format': 12, 'target_format': 4,
+               'source': 'sharedassets1.assets.resS', 'width': 32, 'height': 32,
+               'mips': 6, 'source_size': 1392, 'target_size': 5460}
+        self.assertTrue(module.normal_rgba_mode(row))
+        self.assertTrue(module.normal_rgba_mode(dict(row, source='sharedassets1.assets')))
+        for change in ({'source': 'sharedassets2.assets'}, {'width': 31}, {'height': 31},
+                       {'mips': 5}, {'source_size': 1391}, {'target_size': 5459},
+                       {'source_format': 4}, {'target_format': 45}, {'normal': True},
+                       {'quality': True}, {'direct_normal': 'yes'}, {'blend': 'AA=='},
+                       {'normal_rgba': 'yes'}):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                module.normal_rgba_mode(dict(row, **change))
+        self.assertFalse(module.normal_rgba_mode({'source_format': 4, 'width': 1}))
+        self.assertFalse(module.normal_rgba_mode(dict(row, normal_rgba=False, width=1)))
+
     def test_shared0_fox_record_is_strictly_scoped(self):
         row = {'shared0_fox': True, 'group': 'sharedassets0', 'name': 'Fox_Default', 'source_format': 4,
                'target_format': 45, 'bytes': 43704, 'normal': False, 'quality': True, 'direct_normal': False}

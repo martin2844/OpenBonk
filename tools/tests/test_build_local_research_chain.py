@@ -24,6 +24,11 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn(str(args.output/'steam-chest-rgba/converted.obb'), commands['individual audio plan'])
             self.assertIn(str(args.output/'steam-chest-rgba/manifest.json'), commands['texture plan'])
             self.assertIn(str(args.output/'texture-study/report.json'), commands['experimental Steam chest RGBA'])
+            self.assertNotIn('--water-normal', commands['experimental Steam chest RGBA'])
+            args.steam_water_rgba = True; args.partial_rgba = True; args.partial_normal_rgba = True
+            commands = dict(module.commands(args))
+            self.assertIn('--water-normal', commands['experimental Steam chest RGBA'])
+            self.assertNotIn('--normal-rgba', commands['partial RGBA plan'])
 
     def test_reordered_bindings_reach_animation_plan_only_when_enabled(self):
         with tempfile.TemporaryDirectory() as temp:

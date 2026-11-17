@@ -209,6 +209,32 @@ class GeneratedAudioBuildTest(unittest.TestCase):
                                     'template_sha256': MODULE.digest(template), 'records': [row]}))
         MODULE.verify_textures(template, plan, result)
 
+    def test_full_rgba_normal_checks_metadata_and_payload_integrity(self):
+        template, result, plan = (self.root / n for n in ('water-template.obb', 'water-result.obb', 'water-plan.json'))
+        entry = 'assets/bin/Data/sharedassets1.assets.split0'
+        data = bytes(range(256)) * 21 + bytes(range(84))
+        self.assertEqual(len(data), 5460)
+        with zipfile.ZipFile(template, 'w') as z: z.writestr(entry, b'x' + bytes(len(data)) + b'y')
+        with zipfile.ZipFile(result, 'w') as z: z.writestr(entry, b'x' + data + b'y')
+        row = {'id': 0, 'normal_rgba': True, 'source': 'sharedassets1.assets.resS',
+               'source_format': 12, 'target_format': 4, 'width': 32, 'height': 32, 'mips': 6,
+               'source_size': 1392, 'target_size': len(data), 'target_sha256': hashlib.sha256(data).hexdigest(),
+               'fragments': [{'entry': entry, 'target_offset': 1, 'size': len(data), 'converted_offset': 0}]}
+        payload = {'schema': 1, 'kind': 'experimental-converted-steam-texture-offsets',
+                   'template_sha256': MODULE.digest(template), 'records': [row]}
+        def verify(record):
+            payload['records'] = [record]; plan.write_text(json.dumps(payload))
+            MODULE.verify_textures(template, plan, result)
+        verify(row)
+        for change in ({'source': 'sharedassets2.assets'}, {'width': 31}, {'mips': 5},
+                       {'source_format': 4}, {'target_format': 45}, {'source_size': 1},
+                       {'quality': True}, {'normal': True}, {'direct_normal': 'yes'},
+                       {'blend': 'AA=='}, {'normal_rgba': 'yes'}):
+            with self.subTest(change=change), self.assertRaises(ValueError): verify(dict(row, **change))
+        verify(dict(row, normal_rgba=False, width=1))
+        with zipfile.ZipFile(result, 'w') as z: z.writestr(entry, b'x' + data[:-1] + b'!' + b'y')
+        with self.assertRaises(ValueError): verify(row)
+
     def test_partial_rgba_verifies_exact_mask_and_unchanged_bytes(self):
         template, result, plan = (self.root / n for n in ('partial-template.obb', 'partial-result.obb', 'partial-plan.json'))
         entry = 'assets/bin/Data/sharedassets1.assets.split0'

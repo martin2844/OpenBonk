@@ -33,7 +33,7 @@ def split_serialized(data, parts):
     return {part.filename: data[i * CHUNK:(i + 1) * CHUNK] for i, part in enumerate(parts)}
 
 
-def augmented_manifest(report, path_id):
+def augmented_manifest(report, path_id, water_id=None):
     if (not isinstance(report, dict) or report.get('schema') != 1 or
             not isinstance(report.get('textures'), list) or type(path_id) is not int):
         raise ValueError('invalid texture study manifest')
@@ -43,6 +43,12 @@ def augmented_manifest(report, path_id):
     result['textures'].append({'group': 'sharedassets1', 'target_id': path_id, 'name': NAME,
                                'source_format': 10, 'target_format': 4, 'normal': False,
                                'quality': False, 'direct_normal': False, 'bytes': RGBA_SIZE})
+    if water_id is not None:
+        if type(water_id) is not int or water_id == path_id or any(row.get('group') == 'sharedassets1' and row.get('target_id') == water_id for row in result['textures']):
+            raise ValueError('water normal already appears in texture study manifest')
+        result['textures'].append({'group': 'sharedassets1', 'target_id': water_id, 'name': 'IL3DN_WaterNormal',
+                                   'source_format': 12, 'target_format': 4, 'normal': False, 'quality': False,
+                                   'direct_normal': False, 'normal_rgba': True, 'bytes': 5460})
     return result
 
 
@@ -76,6 +82,34 @@ def select_source(target, index):
     return source
 
 
+def water_payload(target, tree, index):
+    from UnityPy.export import Texture2DConverter as cv
+    stream = getattr(target, 'm_StreamData', None)
+    original = bytes(target.image_data)
+    if ((target.m_Width, target.m_Height, target.m_MipCount, target.m_ImageCount,
+         target.m_TextureDimension, int(target.m_TextureFormat), len(original)) != (32, 32, 6, 1, 2, 4, 5460) or
+            tree.get('m_CompleteImageSize') != 5460 or tree.get('m_MipsStripped') != 0 or
+            tree.get('image data') != original or
+            (stream and (getattr(stream, 'path', '') or getattr(stream, 'size', 0)))):
+        raise ValueError('unexpected water normal metadata')
+    candidates = partial.candidate_sources(index, target, GROUP, 'IL3DN_WaterNormal')
+    source = partial.study.select_source(target, candidates, texture=lambda item: item[2])
+    if source is None or source[0] != 'sharedassets1' or int(source[2].m_TextureFormat) != 12:
+        raise ValueError('water normal Steam source missing or ambiguous')
+    rgba = partial.normal_rgba.reconstruct(partial.converted(source[2], 32, 32, 6, 4))
+    if len(rgba) != 5460: raise ValueError('unexpected water normal payload size')
+    old_mips = partial.study.mip_slices(original, 4, 32, 32, 6)
+    new_mips = partial.study.mip_slices(rgba, 4, 32, 32, 6)
+    if len(old_mips) != 6 or len(new_mips) != 6: raise ValueError('invalid water normal mipmaps')
+    for (width, height, old), (new_width, new_height, new) in zip(old_mips, new_mips):
+        if (width, height) != (new_width, new_height): raise ValueError('water normal mip dimensions differ')
+        a = partial.decode_block_image(cv, old, width, height, 4, target.object_reader.version, target.object_reader.platform, 'RGBA')
+        b = partial.decode_block_image(cv, new, width, height, 4, target.object_reader.version, target.object_reader.platform, 'RGBA')
+        if a.getchannel('A').tobytes() != b.getchannel('A').tobytes() or not partial.study.acceptable_normal_image(a, b):
+            raise ValueError('water normal alpha or angular fidelity differs')
+    return source, rgba
+
+
 def generate(args):
     import UnityPy
     if (args.obb.is_symlink() or args.manifest.is_symlink() or
@@ -98,7 +132,15 @@ def generate(args):
         source = select_source(target, index)
         rgba = partial.converted(source[2], 256, 256, 9, 4)
         if len(rgba) != RGBA_SIZE: raise ValueError('unexpected RGBA texture size')
-        updated_manifest = augmented_manifest(report, obj.path_id)
+        water = None
+        if getattr(args, 'water_normal', False):
+            matches = [item for item in env.objects if item.type.name == 'Texture2D' and item.read().m_Name == 'IL3DN_WaterNormal']
+            if len(matches) != 1: raise ValueError('water normal missing or ambiguous')
+            water = matches[0]; water_tree = water.read_typetree()
+            water_source, water_rgba = water_payload(water.read(), water_tree, index)
+            water_old_tree = {k: v for k, v in water_tree.items() if k != 'image data'}
+            water_tree['image data'] = water_rgba; water.save_typetree(water_tree)
+        updated_manifest = augmented_manifest(report, obj.path_id, water.path_id if water else None)
         old_tree = {k: v for k, v in tree.items() if k != 'image data'}
         tree['m_TextureFormat'] = 4; tree['m_CompleteImageSize'] = len(rgba); tree['image data'] = rgba
         obj.save_typetree(tree); encoded = asset.save()
@@ -107,8 +149,13 @@ def generate(args):
         if len(reread.files) != 1 or externals(next(iter(reread.files.values()))) != before_externals:
             raise ValueError('serialized external references differ')
         after = object_fingerprints(reread)
-        if set(before) != set(after) or [key for key in before if before[key] != after[key]] != [obj.path_id]:
+        expected_changed = {obj.path_id} | ({water.path_id} if water else set())
+        if set(before) != set(after) or {key for key in before if before[key] != after[key]} != expected_changed:
             raise ValueError('unrelated serialized object changed')
+        if water:
+            verified_water = next(item for item in reread.objects if item.path_id == water.path_id).read_typetree()
+            if verified_water['image data'] != water_rgba or {k: v for k, v in verified_water.items() if k != 'image data'} != water_old_tree:
+                raise ValueError('rewritten water normal payload or metadata differs')
         verified = next(item for item in reread.objects if item.path_id == obj.path_id).read_typetree()
         if verified['image data'] != rgba: raise ValueError('rewritten RGBA payload differs')
         new_tree = {k: v for k, v in verified.items() if k != 'image data'}
@@ -123,9 +170,13 @@ def generate(args):
                     dest.writestr(copy.copy(info), data)
             (output / 'manifest.json').write_text(json.dumps(updated_manifest, separators=(',', ':')) + '\n')
             summary = {'schema': 1, 'target_path_id': obj.path_id, 'source_group': source[0], 'source_path_id': source[1],
-                       'old_payload_bytes': 43704, 'rgba_payload_bytes': RGBA_SIZE, 'other_objects_checked': len(before) - 1,
+                       'old_payload_bytes': 43704, 'rgba_payload_bytes': RGBA_SIZE, 'other_objects_checked': len(before) - len(expected_changed),
                        'external_references_checked': len(before_externals), 'split_parts': len(parts),
                        'limitations': ['Private game data remains.', 'Unity Android loading and appearance are unverified.']}
+            if water:
+                summary['water_normal'] = {'target_path_id': water.path_id, 'source_group': water_source[0],
+                                           'source_path_id': water_source[1], 'payload_bytes': len(water_rgba),
+                                           'validation': 'identical alpha and per-pixel normal direction within 10 degrees on every mip'}
             (output / 'report.json').write_text(json.dumps(summary, indent=2) + '\n')
         except BaseException:
             shutil.rmtree(output); raise
@@ -136,6 +187,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--steam-data', required=True, type=Path); p.add_argument('--obb', required=True, type=Path)
     p.add_argument('--manifest', required=True, type=Path); p.add_argument('--output', required=True, type=Path)
+    p.add_argument('--water-normal', action='store_true', help='also reconstruct the experimental water normal from Steam')
     generate(p.parse_args())
 
 

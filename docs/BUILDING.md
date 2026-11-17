@@ -165,6 +165,17 @@ This complements the preloaded-OBB Forest smoke test above; it does not
 verify Windows import on Android, close-up normal-map appearance or full
 gameplay parity.
 
+The additional opt-in `--steam-water-rgba` study reconstructs one water
+normal from Steam with the existing DXT5nm unpacking and requires the
+chest RGBA option. Both desktop Java chains restored all 1,072 entries
+at each of eight stages; six altered plans were rejected. The generated
+templates retain no water-normal pixel bytes or partial pixel mask for
+that texture. Each mip preserved alpha and passed a 10-degree normal
+direction bound (maximum observed 6.841 degrees). Inline texture audits
+reported 29,170 retained nonzero bytes in 1,157 textures with no skips,
+and 554 Python tests passed. This does not establish Android rendering,
+full visual parity or absence of other assets; keep the APK private.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
