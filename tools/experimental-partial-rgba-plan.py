@@ -246,7 +246,7 @@ def partial_etc2_source(target, payload, candidates, encoder, tiny_alias=False):
         # Small aliases need a majority match, or substantial evidence at
         # the same 25% ratio used for larger textures.
         if not ((best >= 16 and best * 2 >= nonzero) or
-                (best >= 512 and best * 4 >= nonzero)): return None
+                (best >= 128 and best * 4 >= nonzero)): return None
     elif best < 1024 or best * 4 < nonzero: return None
     # Identical outputs are interchangeable; dissimilar close contenders are not.
     if any(other * 2 >= best and data != output for other, _, data in matches[1:]): return None

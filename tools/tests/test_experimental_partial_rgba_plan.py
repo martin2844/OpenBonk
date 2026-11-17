@@ -46,11 +46,11 @@ class PartialRgbaPlanTests(unittest.TestCase):
             self.assertIsNone(module.partial_etc2_source(target, payload, [one, two], object(), True))
             outputs[1] = b'A' * 31 + b'B' * 33
             self.assertIsNone(module.partial_etc2_source(target, payload, [one], object(), True))
-            large = b'A' * 2000
-            outputs[1] = b'A' * 512 + b'B' * 1488
-            outputs[2] = b'A' * 255 + b'C' * 1745
+            large = b'A' * 500
+            outputs[1] = b'A' * 128 + b'B' * 372
+            outputs[2] = b'A' * 63 + b'C' * 437
             self.assertEqual(module.partial_etc2_source(target, large, [one, two], object(), True)[0], one)
-            outputs[2] = b'A' * 256 + b'C' * 1744
+            outputs[2] = b'A' * 64 + b'C' * 436
             self.assertIsNone(module.partial_etc2_source(target, large, [one, two], object(), True))
 
     def test_alias_cli_requires_tiny_mode(self):
