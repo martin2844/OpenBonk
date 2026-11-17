@@ -1,9 +1,10 @@
 # Build a local Android research APK
 
-**Texture-quality correction in progress:** earlier experimental block-level
-texture conversions used a mismatched vertical orientation for their visual
-checks. The historical per-block quality bounds and builds using those stages
-require revalidation. Research outputs remain private.
+**Texture-quality correction:** earlier experimental block-level texture
+conversions used a mismatched vertical orientation for their visual checks.
+Corrected plans have passed bounded block checks, but historical builds still
+require revalidation and full visual parity has not been established. Research
+outputs remain private.
 
 This guide is for developers on Linux x86-64. It builds OpenBonk from this checkout and your own compatible Steam game files. **The resulting APK contains game-derived data and is for local research, not redistribution.** It is not a byte-for-byte rebuild of the published beta. For the release installation instructions, see the [tester guide](../BETA_TESTER_GUIDE.md); for detailed build evidence and limitations, see [BUILDING.md](BUILDING.md).
 
@@ -98,6 +99,25 @@ build_args+=(
   --version-code 2 --version-name 0.1.1-beta
 )
 ```
+
+For the later corrected-orientation research configuration, add the following
+options to the same `build_args` array **before** running the check or build:
+
+```sh
+build_args+=(
+  --normal-block-extra --color-block-extra --partial-etc2-extra
+  --small-color-block-fallback --small-color-block-aliases
+  --lightmap-block-fallback --animation-curve-reordered
+  --reordered-animation-bindings --neighboring-animation-keys
+)
+```
+
+The corrected plans were generated from an existing Unity export and
+combined into a local APK; this exact configuration has not been proven
+in an uninterrupted build from a fresh checkout. The combined APK restored
+the expected OBB from both supported ZIPs in a desktop check and reached
+the Android game menu with a preloaded OBB. Its assets are not cleared for
+distribution. See [BUILDING.md](BUILDING.md) for scope and limitations.
 
 This is an experimental configuration, not a redistribution recipe. Bounded
 texture blocks and animation curves can differ from the earlier Android data.
