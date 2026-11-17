@@ -109,9 +109,11 @@ well as the source: 494 changed blocks passed a composite RGB mean limit
 of 1.5/255 and maximum of 16/255; 16 candidates failed the incremental
 limit and were rejected. In this study mips 3–7 of the five affected
 textures remained identical to the previous output. Desktop Java restored
-all 1,072 entries from each ZIP, and 65 focused tests passed. This is not
-a gameplay or complete visual comparison, an Android test, or evidence of
-an asset-free APK. The option remains experimental.
+all 1,072 entries from each ZIP, and 65 focused tests passed. Separate
+Android checks on a Xiaomi 22126RN91Y restored the same 1,072 entries from
+each ZIP; the Windows check was rerun after an ADB interruption. This is not
+a gameplay or complete visual comparison, or evidence of an asset-free APK.
+The option remains experimental.
 
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
