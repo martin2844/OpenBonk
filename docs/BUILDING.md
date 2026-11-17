@@ -58,6 +58,23 @@ the cactus was not visually checked in the Desert. The approximation and these
 checks do not establish visual equivalence, an uninterrupted clean build, or an
 asset-free APK. Keep the APK and inputs private.
 
+A local rerun of the converted-texture stage after adding the quality-encoder
+retry for rejected direct normal maps produced the same report and converted
+OBB hashes as the prior Linux stage; it selected no additional textures on that
+input. The retry is covered by unit tests, but this does not exercise its
+successful path with actual game textures.
+
+For a possible localization reconstruction path, a local exploratory study
+decompressed 19 Android localization bundles and their same-named Linux Steam
+bundles. The existing exact-fragment matcher identified 1,290,138 matching
+bytes out of 1,425,144 Android serialized bytes (933,333 of 1,013,314 nonzero
+bytes). These are decompressed data, not bytes removed from the APK: the
+Android bundles use UnityFS compression, and a device-side decompressor,
+reconstruction and output strategy has not been implemented or validated.
+The 19-source study also included the locales bundle, which is outside the
+existing minimal localization source list; availability on both platforms
+must be checked. This measurement does not establish asset-free distribution.
+
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
 failed because its validation rejected fast ETC2 records. After updating the
