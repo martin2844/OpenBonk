@@ -30,13 +30,13 @@ ALIASES = {'FBX_Barrel_Color_0': 'FBX_Barrel_Color', 't_ghost_red_0': 't_ghost_r
            't_ghost_purple_0': 't_ghost_purple', 't_ghost_black_0': 't_ghost_black'}
 
 
-def identify_target(group, target, seen):
+def identify_target(group, target, seen, targets=TARGETS):
     key = (group, target.m_Name)
-    if key not in TARGETS: return None
+    if key not in targets: return None
     if key in seen: raise ValueError('duplicate color target')
     actual = (target.m_Width, target.m_Height, target.m_MipCount,
               target.m_ImageCount, int(target.m_TextureFormat))
-    if actual != TARGETS[key]: raise ValueError('unexpected target metadata')
+    if actual != targets[key]: raise ValueError('unexpected target metadata')
     return key
 
 
@@ -46,6 +46,19 @@ def acceptable_color(reference, candidate, level):
 
 
 def select_source(target, index, group, encoder):
+    if target.m_Name == 'Emission_1':
+        candidates = partial.candidate_sources(index, target, group, 'Emission')
+        matches = []
+        for item in candidates:
+            src = item[2]
+            if (int(src.m_TextureFormat) not in (1, 3, 4, 10, 12, 25) or
+                    (src.m_MipCount, src.m_ImageCount, src.m_ColorSpace) !=
+                    (target.m_MipCount, target.m_ImageCount, target.m_ColorSpace)):
+                continue
+            try:
+                if partial.study.acceptable_bounded_mip(target.image, src.image, 0): matches.append(item)
+            except (ValueError, OSError, TypeError, NotImplementedError, RuntimeError): continue
+        return matches[0] if len(matches) == 1 else None
     source_name = ALIASES.get(target.m_Name, target.m_Name)
     candidates = partial.candidate_sources(index, target, group, source_name)
     # Renamed targets need an explicit encoded-byte match, even if their
@@ -66,18 +79,21 @@ def generate(args):
     output = partial.masker.regular_output(args.output, (steam, obb))
     encoder = partial.study.load_quality_encoder(args.quality_library)
     index, _ = partial.sources(steam, True)
+    targets = dict(TARGETS)
+    if getattr(args, 'emission_alias', False):
+        targets[('sharedassets1.assets', 'Emission_1')] = (128, 128, 8, 1, 45)
     changes, records, seen = {}, [], set()
     with zipfile.ZipFile(obb) as archive:
         infos = partial.masker.zip_entries(archive)
         groups = partial.objects.asset_groups(archive)
-        for group in sorted({key[0] for key in TARGETS}):
+        for group in sorted({key[0] for key in targets}):
             parts = groups[group]
             raw = b''.join(archive.read(part) for part in parts)
             modified = bytearray(raw)
             for obj in UnityPy.load(raw).objects:
                 if obj.type.name != 'Texture2D': continue
                 target = obj.read()
-                key = identify_target(group, target, seen)
+                key = identify_target(group, target, seen, targets)
                 if key is None: continue
                 fmt = int(target.m_TextureFormat)
                 item = select_source(target, index, group, encoder)
@@ -111,7 +127,7 @@ def generate(args):
             offset = 0
             for part in parts:
                 changes[part.filename] = bytes(modified[offset:offset+part.file_size]); offset += part.file_size
-        if seen != set(TARGETS): raise ValueError('expected textures missing')
+        if seen != set(targets): raise ValueError('expected textures missing')
         output.mkdir(mode=0o700)
         try:
             with zipfile.ZipFile(output / 'converted.obb', 'x') as dest:
@@ -133,6 +149,7 @@ def main():
     parser.add_argument('--obb', required=True, type=Path)
     parser.add_argument('--quality-library', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--emission-alias', action='store_true', help='also reconstruct bounded blocks of a uniquely matched emission alias')
     generate(parser.parse_args())
 
 

@@ -291,6 +291,20 @@ restored all 1,072 expected archive entries on a Retroid Pocket 5. This is a
 focused reconstruction check, not a complete launcher or visual test. Other
 game data remains in the templates, which must stay private.
 
+The opt-in `--emission-block-fallback` additionally requires
+`--color-block-fallback` and `--partial-etc2-aliases`. It identifies the
+`Emission_1` Steam source only when exactly one same-size candidate passes
+the decoded top-mip color and alpha bounds. Each substituted block must also
+pass the existing color limits at its own mip; other blocks are preserved.
+A Linux and Windows study selected the same source and produced identical
+converted OBBs. For this texture, 1,292 blocks passed and 75 were preserved;
+2,702 encoded bytes changed. A focused partial plan masked 5,517 nonzero bytes
+in its resulting payload, leaving 238, compared with 7,294 retained before
+the substitution. Both platform plans restored all 1,072 entries of the
+focused input on a Retroid Pocket 5. These are bounded approximations, not
+byte-identical pixels: a full launcher and in-game emission appearance have
+not been tested, and remaining game data must stay private.
+
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture
 metadata rather than path ID. A local run against that clone's OBB found both

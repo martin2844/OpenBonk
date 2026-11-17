@@ -12,6 +12,19 @@ module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
 
 
 class ColorBlockTests(unittest.TestCase):
+    def test_emission_alias_requires_unique_visually_bounded_source(self):
+        image = Image.new('RGBA', (4, 4), (120, 80, 40, 255))
+        target = SimpleNamespace(m_Name='Emission_1', m_MipCount=1, m_ImageCount=1, m_ColorSpace=0, image=image)
+        good = SimpleNamespace(m_TextureFormat=4, m_MipCount=1, m_ImageCount=1, m_ColorSpace=0, image=image.copy())
+        bad = SimpleNamespace(m_TextureFormat=4, m_MipCount=1, m_ImageCount=1, m_ColorSpace=0, image=Image.new('RGBA', (4, 4), (0, 0, 0, 255)))
+        first, second = ('sharedassets1', 1, good), ('sharedassets1', 2, bad)
+        with patch.object(module.partial, 'candidate_sources', return_value=[first, second]):
+            self.assertEqual(module.select_source(target, {}, 'sharedassets1.assets', object()), first)
+            bad.image = image.copy()
+            self.assertIsNone(module.select_source(target, {}, 'sharedassets1.assets', object()))
+            good.m_MipCount = 2; bad.m_MipCount = 2
+            self.assertIsNone(module.select_source(target, {}, 'sharedassets1.assets', object()))
+
     def test_alias_requires_encoded_byte_match(self):
         target = SimpleNamespace(m_Name='t_ghost_red_0', image_data=b'pixels')
         with patch.object(module.partial, 'candidate_sources', return_value=['candidate']) as candidates, \
