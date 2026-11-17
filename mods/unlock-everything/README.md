@@ -16,9 +16,8 @@ characters and skins without the mod, showed them when enabled, restored the
 locked state after disabling and restarting, and showed them again after
 reenabling and restarting. The progression file remained byte-identical across
 those menu-only checks. Calcium and Desert could be selected and entered in a
-brief run. This test manually staged the mod and its enabled preference; ZIP
-import and preference updates were exercised separately in the JVM harness,
-not in the final Android launcher. It does not establish every unlock path,
+brief run. That test manually staged the mod and its enabled preference; ZIP import and
+preference updates were also exercised separately in the JVM harness. It does not establish every unlock path,
 purchase or long-run behavior.
 
 Reproducible local packages for both examples can be generated with

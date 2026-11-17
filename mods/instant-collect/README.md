@@ -25,10 +25,9 @@ another 7 XP at the same location merged and collected the resulting 12 XP
 with one pickup event and no duplicate after two seconds. Turning the policy
 off in the same process restored ordinary collection: a 3-XP orb remained
 active until collected and produced exactly one additional event and 3 XP.
-The mod and enabled preference were staged manually; launcher import and
-disable/restart were not tested on Android. The JVM harness separately tested
-package import and the initial disabled preference. The temporary installation
-was removed. This short controlled test does not establish all XP sources,
+That controlled probe staged the mod and enabled preference manually. The JVM
+harness separately tested package import and the initial disabled preference.
+The temporary installation was removed. This short controlled test does not establish all XP sources,
 pool exhaustion, interactions with every item, or long-run fidelity.
 
 Reproducible local packages for both examples can be generated with
