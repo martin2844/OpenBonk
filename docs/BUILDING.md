@@ -194,8 +194,8 @@ It handles the specifically identified `FBX_Barrel_Color` and `t_birdo_blue`
 textures, selecting a Steam source only when it is unambiguous under the
 existing metadata or partial-byte checks. For every substituted 4×4 block,
 the decoded candidate must satisfy both the quality and alpha/visible-pixel
-limits; unsafe blocks stay byte-identical. The option rejects unexpected
-object identities and is not a general color-texture conversion. In local
+limits; unsafe blocks stay byte-identical. The option rejects missing,
+duplicate or incompatible named textures and is not a general color-texture conversion. In local
 Linux and Windows studies, both produced the same converted OBB; focused
 partial plans recovered 14,443 nonzero bytes in those textures, 2,906 more
 than before substitution. On a Retroid Pocket 5, each focused plan restored
@@ -203,6 +203,12 @@ all 1,072 expected entries from its respective Steam ZIP. These are bounded
 approximations, not pixel-identical textures; the complete launcher, rendering
 and all game content were not tested with this option. The output remains
 private and still contains game data.
+
+Unity assigned different path IDs to both named targets in a separate fresh
+clone's OBB. The selection now uses group, unique name and exact texture
+metadata rather than path ID. A local run against that clone's OBB found both
+targets and reported the same numbers of changed and preserved blocks as the
+earlier study; this is not a complete rebuild or visual comparison.
 
 A subsequent 38-stage Linux chain reused the existing runtime and Gradle
 export and combined this color option with bounded normal blocks, extended

@@ -17,9 +17,19 @@ spec = importlib.util.spec_from_file_location('normal_blocks', ROOT / 'tools/exp
 normal = importlib.util.module_from_spec(spec); spec.loader.exec_module(normal)
 partial = normal.partial
 
-# Fixed identities prevent an unrelated similarly named texture being replaced.
-TARGETS = {('sharedassets1.assets', 565): 'FBX_Barrel_Color',
-           ('sharedassets1.assets', 1115): 't_birdo_blue'}
+# Unity can assign different path IDs across otherwise equivalent exports.
+TARGETS = {('sharedassets1.assets', 'FBX_Barrel_Color'): (128, 128, 8, 1, 45),
+           ('sharedassets1.assets', 't_birdo_blue'): (128, 128, 8, 1, 45)}
+
+
+def identify_target(group, target, seen):
+    key = (group, target.m_Name)
+    if key not in TARGETS: return None
+    if key in seen: raise ValueError('duplicate color target')
+    actual = (target.m_Width, target.m_Height, target.m_MipCount,
+              target.m_ImageCount, int(target.m_TextureFormat))
+    if actual != TARGETS[key]: raise ValueError('unexpected target metadata')
+    return key
 
 
 def acceptable_color(reference, candidate, level):
@@ -44,12 +54,11 @@ def generate(args):
             raw = b''.join(archive.read(part) for part in parts)
             modified = bytearray(raw)
             for obj in UnityPy.load(raw).objects:
-                key = (group, obj.path_id)
-                if key not in TARGETS: continue
+                if obj.type.name != 'Texture2D': continue
                 target = obj.read()
+                key = identify_target(group, target, seen)
+                if key is None: continue
                 fmt = int(target.m_TextureFormat)
-                if obj.type.name != 'Texture2D' or target.m_Name != TARGETS[key] or fmt not in (45, 47):
-                    raise ValueError('unexpected target identity or format')
                 candidates = partial.candidate_sources(index, target, group, target.m_Name)
                 item = partial.study.select_source(target, candidates, texture=lambda x: x[2])
                 if item is None:
