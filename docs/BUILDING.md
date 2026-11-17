@@ -341,6 +341,18 @@ for Linux and 67,915 for Windows, including metadata. This classification does
 not inspect every MonoBehaviour field or other APK assets, and it does not
 establish ownership or asset-free distribution.
 
+For the same combined APK, the audio-range auditor checked the 311 readable
+OBB AudioClip references across 66 resource files for each platform template.
+It found zero retained nonzero bytes in those referenced ranges and no skipped
+clips. It does not cover inline audio, bundles, unreferenced resource bytes,
+video or audible fidelity.
+
+Both platform templates also had zero retained nonzero bytes in 1,460
+identified inline mesh buffers, and 2,551 in 229 identified inline animation
+sample arrays; those checks reported no skipped records and one empty
+animation clip. They exclude streamed meshes, other animation fields and
+other asset categories, so they do not establish an asset-free APK.
+
 For an additional packaging check, the clone's generated dual Gradle project
 was copied and built online with an initially empty `GRADLE_USER_HOME`, using
 the installed Unity JDK, Gradle and Android SDK. Gradle reported success with
