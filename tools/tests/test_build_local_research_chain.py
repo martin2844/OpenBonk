@@ -14,6 +14,14 @@ spec.loader.exec_module(module)
 
 
 class ResearchChainTests(unittest.TestCase):
+    def test_color_blocks_follow_normals_and_feed_downstream_plans(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp)); args.normal_block_fallback = True; args.color_block_fallback = True
+            commands = dict(module.commands(args))
+            self.assertIn(str(args.output/'normal-block-study/converted.obb'), commands['bounded color blocks'])
+            self.assertIn(str(args.output/'color-block-study/converted.obb'), commands['individual audio plan'])
+            self.assertIn(str(args.output/'color-block-study/converted.obb'), commands['restore and verify individual audio'])
+
     def test_normal_block_stage_feeds_all_downstream_plans(self):
         with tempfile.TemporaryDirectory() as temp:
             args = self.args(Path(temp)); args.normal_block_fallback = True

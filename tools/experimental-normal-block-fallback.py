@@ -19,11 +19,11 @@ partial = importlib.util.module_from_spec(spec); spec.loader.exec_module(partial
 TARGETS = {'t_chest_normal': (256, 256, 9), 'FBX_Log0_Color_Normal': (128, 128, 8), 'BossPortalNormal': (256, 256, 9)}
 
 
-def blend_mip(old, fast, quality, original_image, fast_image, quality_image, acceptable):
+def blend_mip(old, fast, quality, original_image, fast_image, quality_image, acceptable, block_bytes=8):
     """Keep unsafe blocks; select a safe encoding with the most original bytes."""
     width, height = original_image.size
-    expected = ((width+3)//4)*((height+3)//4)*8
-    if width < 1 or height < 1 or any(len(x) != expected for x in (old,fast,quality)) or fast_image.size != (width,height) or quality_image.size != (width,height):
+    expected = ((width+3)//4)*((height+3)//4)*block_bytes
+    if block_bytes not in (8,16) or width < 1 or height < 1 or any(len(x) != expected for x in (old,fast,quality)) or fast_image.size != (width,height) or quality_image.size != (width,height):
         raise ValueError('invalid normal block mip')
     result=bytearray(old); changed=safe=unchanged=0; pos=0
     for y in range(0,height,4):
@@ -31,15 +31,15 @@ def blend_mip(old, fast, quality, original_image, fast_image, quality_image, acc
             box=(x,y,min(x+4,width),min(y+4,height)); reference=original_image.crop(box)
             candidates=[]
             for payload,image in ((quality,quality_image),(fast,fast_image)):
-                block=payload[pos:pos+8]
-                if block == old[pos:pos+8] or acceptable(reference,image.crop(box)):
-                    candidates.append((sum(a==b for a,b in zip(old[pos:pos+8],block)),block))
+                block=payload[pos:pos+block_bytes]
+                if block == old[pos:pos+block_bytes] or acceptable(reference,image.crop(box)):
+                    candidates.append((sum(a==b for a,b in zip(old[pos:pos+block_bytes],block)),block))
             if candidates:
                 chosen=max(candidates,key=lambda item:item[0])[1];safe+=1
-                changed += sum(a!=b for a,b in zip(old[pos:pos+8],chosen))
-                result[pos:pos+8]=chosen
+                changed += sum(a!=b for a,b in zip(old[pos:pos+block_bytes],chosen))
+                result[pos:pos+block_bytes]=chosen
             else: unchanged+=1
-            pos+=8
+            pos+=block_bytes
     return bytes(result),safe,unchanged,changed
 
 

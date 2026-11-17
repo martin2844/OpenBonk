@@ -17,4 +17,15 @@ class NormalBlockTests(unittest.TestCase):
         self.assertEqual((safe,unsafe,changed),(1,1,8))
         with self.assertRaises(ValueError):module.blend_mip(b'A',b'F'*16,b'Q'*16,original,fast,quality,module.partial.study.acceptable_normal_image)
 
+    def test_sixteen_byte_blocks_are_not_split(self):
+        original=Image.new('RGBA',(8,4),(100,100,100,255))
+        fast=Image.new('RGBA',(8,4),(255,255,255,255))
+        quality=fast.copy();quality.paste((100,100,100,255),(0,0,4,4))
+        result,safe,unsafe,changed=module.blend_mip(b'A'*32,b'F'*32,b'Q'*32,original,fast,quality,
+                                                   lambda a,b:a.tobytes()==b.tobytes(),16)
+        self.assertEqual(result,b'Q'*16+b'A'*16)
+        self.assertEqual((safe,unsafe,changed),(1,1,16))
+        with self.assertRaises(ValueError):
+            module.blend_mip(b'A'*32,b'F'*32,b'Q'*32,original,fast,quality,lambda a,b:True,12)
+
 if __name__=='__main__':unittest.main()

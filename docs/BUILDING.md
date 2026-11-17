@@ -189,6 +189,21 @@ The selected images are approximations, not byte-identical reconstructions.
 The measured angle bound does not prove equivalent in-game shading; the stage
 and any resulting APK must remain private pending further validation.
 
+The experimental `--color-block-fallback` option requires `--partial-etc2-byte`.
+It handles the specifically identified `FBX_Barrel_Color` and `t_birdo_blue`
+textures, selecting a Steam source only when it is unambiguous under the
+existing metadata or partial-byte checks. For every substituted 4×4 block,
+the decoded candidate must satisfy both the quality and alpha/visible-pixel
+limits; unsafe blocks stay byte-identical. The option rejects unexpected
+object identities and is not a general color-texture conversion. In local
+Linux and Windows studies, both produced the same converted OBB; focused
+partial plans recovered 14,443 nonzero bytes in those textures, 2,906 more
+than before substitution. On a Retroid Pocket 5, each focused plan restored
+all 1,072 expected entries from its respective Steam ZIP. These are bounded
+approximations, not pixel-identical textures; the complete launcher, rendering
+and all game content were not tested with this option. The output remains
+private and still contains game data.
+
 In a focused partial-texture study of those three maps, the bounded-block
 output let the byte-granularity plan mask 84,405 nonzero bytes, compared with
 55,076 before substitution. Plans generated from Linux and Windows source
