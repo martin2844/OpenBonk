@@ -333,6 +333,14 @@ files in the Linux template were classified by object type. These are
 whole-entry counts and do not say which bytes are game assets or establish
 ownership; the reports remain local.
 
+The Addressables bundle inventory classified 38 bundles in each platform
+template without problems. Their reference objects comprised 38 AssetBundles,
+1,870 MonoBehaviours and 38 MonoScripts, with Locale, SharedTableData and
+StringTable identities. Those template entries retained 46,147 nonzero bytes
+for Linux and 67,915 for Windows, including metadata. This classification does
+not inspect every MonoBehaviour field or other APK assets, and it does not
+establish ownership or asset-free distribution.
+
 For an additional packaging check, the clone's generated dual Gradle project
 was copied and built online with an initially empty `GRADLE_USER_HOME`, using
 the installed Unity JDK, Gradle and Android SDK. Gradle reported success with
