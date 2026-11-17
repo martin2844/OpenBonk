@@ -23,7 +23,7 @@ final class OriginalGameDataValidator {
         if (problem.missing) return (spanish ? "Falta el archivo " : "Missing file ") + problem.file;
         if (problem.size < 0) return (spanish ? "Archivo incompatible o dañado: " : "Unsupported or damaged file: ") + problem.file;
         String info = problem.size + " bytes";
-        if (problem.hashPrefix != null) info += ", SHA-256 " + problem.hashPrefix;
+        if (problem.hashPrefix != null) info += (spanish ? ", inicio SHA-256 " : ", SHA-256 prefix ") + problem.hashPrefix;
         return (spanish ? "Archivo no reconocido: " : "Unrecognized file: ") + problem.file + " (" + info + "). " +
                 (spanish ? "Puede ser otra versión, estar modificado o dañado. Compartí esta pantalla, no el ZIP."
                          : "It may be a different version, modified or damaged. Share this screen, not the ZIP.");
