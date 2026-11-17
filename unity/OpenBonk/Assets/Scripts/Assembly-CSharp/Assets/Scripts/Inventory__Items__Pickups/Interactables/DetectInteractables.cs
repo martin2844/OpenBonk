@@ -29,6 +29,10 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Interactables
 
 		private float animateOverTime = 0.3f;
 
+#if UNITY_ANDROID && !UNITY_EDITOR
+		private float nextAutoPotCheck;
+#endif
+
 		private Vector3 fromScale;
 
 		private Vector3 toScale;
@@ -40,6 +44,14 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Interactables
 
 		private void FixedUpdate()
 		{
+#if UNITY_ANDROID && !UNITY_EDITOR
+			if (OpenBonkWorldPolicy.AutoOpenPots && !MyTime.paused && GameManager.Instance != null &&
+				GameManager.Instance.IsPlaying() && Time.time >= nextAutoPotCheck && CanInteract())
+			{
+				nextAutoPotCheck = Time.time + 0.2f;
+				OpenBonkWorldPolicy.OpenPotsNear(transform.position);
+			}
+#endif
 			BaseInteractable nearest = null;
 			float distance = float.PositiveInfinity;
 			Vector3 position = transform.position;

@@ -13,6 +13,8 @@ public final class UnlockImportCheck {
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","unlock_all_bad")), "unknown hook rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hooks",new org.json.JSONArray().put("unlock_all"))), "wrong API rejected");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","collect_spawned_xp")), "XP pickup hook accepted");
+        require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","auto_open_pots")), "auto pots hook accepted");
+        require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","auto_open_pots")), "auto pots wrong API rejected");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","starting_tome:Luck")), "starting tome accepted");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","starting_tome:13")), "numeric tome rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","starting_tome:luck")), "wrong case rejected");
@@ -59,6 +61,19 @@ public final class UnlockImportCheck {
             require(prefs.getBoolean("lucky-tome", false), "starting tome enabled");
             prefs.edit().putBoolean("lucky-tome", false).commit();
             require(!prefs.getBoolean("lucky-tome", true), "starting tome disabled");
+            Path pots = Paths.get(args[3]);
+            ByteArrayOutputStream potsBuffer = new ByteArrayOutputStream();
+            try (ZipOutputStream potsZip = new ZipOutputStream(potsBuffer)) {
+                for (String name : new String[]{"manifest.json", "main.lua"}) {
+                    potsZip.putNextEntry(new ZipEntry(name)); potsZip.write(Files.readAllBytes(pots.resolve(name))); potsZip.closeEntry();
+                }
+            }
+            require(LauncherModImporter.install(new ByteArrayInputStream(potsBuffer.toByteArray()), root.toFile(), prefs).equals("auto-pots"), "auto pots package import");
+            require(!prefs.getBoolean("auto-pots", true), "auto pots initially disabled");
+            prefs.edit().putBoolean("auto-pots", true).commit();
+            require(prefs.getBoolean("auto-pots", false), "auto pots enabled");
+            prefs.edit().putBoolean("auto-pots", false).commit();
+            require(!prefs.getBoolean("auto-pots", true), "auto pots disabled");
             System.out.println("PASS startup hook validation, ZIP imports and enable/disable preferences");
         } finally {
             try (var paths = Files.walk(temporary)) {

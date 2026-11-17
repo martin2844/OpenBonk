@@ -57,7 +57,7 @@ Multiplayer is excluded by request.
 | 15 | Start with level 99 Luck Tome | Unknown; no license identified in [source repository](https://github.com/Semibox/MegabonkMod) | [Source](https://github.com/Semibox/MegabonkMod/blob/main/MegabonkMod.LuckyMan/Core.cs) inserts a tome with +10,000 Luck and 98 Legendary upgrades. The [independent experimental Lucky Tome implementation](../../mods/lucky-tome/) uses a new starting-tome hook tested in an isolated Android runtime; the published 0.1.4 APK does not support it. Repeated spawns on one inventory are intentionally guarded, unlike the observed original. |
 | 16 | Toggle unlocked weapons, tomes and items | Unknown | Needs item-pool and inventory controls, plus configuration UI. |
 | 17 | Mod menu for refreshes, resources and runtime patches | Unknown | Needs live resource mutation and menu controls beyond existing Lua hooks. |
-| 18 | Automatically open nearby pots | Unknown | Needs proximity queries and object interaction. |
+| 18 | Automatically open nearby pots | Unknown | [Independent Auto Pots adaptation](../../mods/auto-pots/) uses a new startup policy and the normal pot interaction. An isolated Android probe covered range, pause and duplicate prevention. It is not in the 0.1.4 catalog; integrated launcher testing is pending. |
 | 19 | Offline save editor and unlock-all tool | Unknown | Standalone save editing, not an in-game Lua hook; APK has no mod-facing save API. |
 | 20 | Goth Kitty Siella character | Unknown; model rights unverified | Custom character assets and behavior require Android conversion and fidelity/rights review. |
 | 21 | In-game DPS, XP and gold rate display | Unknown | Requires live rate data and an in-game overlay API; current Lua hooks cannot create the HUD. |

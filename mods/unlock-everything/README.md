@@ -7,8 +7,8 @@ the profile. Actual gameplay and purchase actions can still modify progression,
 so keep a profile backup. Disable it in the launcher and restart the game to
 restore normal queries.
 
-This package requires a future OpenBonk build with the `unlock_all` hook; beta
-0.1.3 cannot import or run it. It is not in the public catalog. Package only
+This package requires OpenBonk beta 0.1.4 or newer and is available in the
+launcher catalog. Beta 0.1.3 cannot import or run it. Package only
 `manifest.json` and `main.lua` at the root of a ZIP for testing.
 
 On a Xiaomi 22126RN91Y, an isolated experimental IL2CPP build showed locked

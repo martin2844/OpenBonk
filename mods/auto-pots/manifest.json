@@ -1,0 +1,6 @@
+{
+  "id": "auto-pots",
+  "api": 1,
+  "enabled": false,
+  "hook": "auto_open_pots"
+}

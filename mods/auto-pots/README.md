@@ -1,0 +1,9 @@
+# Auto Pots (experimental)
+
+An independently written Lua policy inspired by [Potomatic by Maskoliver](https://thunderstore.io/c/megabonk/p/Maskoliver/Potomatic/). No original code, icon or assets are included, and no upstream license was identified.
+
+While enabled, the game periodically opens active, interactable pots within six world units of the player, using the normal pot interaction and its existing rewards. It checks every 0.2 seconds while a run is active and unpaused, and pauses the automatic check during encounter windows and teleportation. Disable the package and restart to restore manual interaction. The periodic interval and interaction guard are deliberate differences from the observed original behavior; the original Windows mod has not been run for an end-to-end comparison.
+
+Requires a future OpenBonk APK with the `auto_open_pots` hook; beta 0.1.4 does not support it. The package is not in the public catalog. Package only `manifest.json` and `main.lua` at the root of a ZIP. The JVM import test covers validation and the disabled/enable/disable preference flow. A Unity Editor test covers disabled behavior, range boundary, successful interaction event counts, lifecycle changes, isolated interaction failure and no duplicate openings.
+
+An isolated IL2CPP diagnostic build on a Xiaomi 22126RN91Y loaded the Lua policy in Forest and tested real silver-pot interactions: a nearby pot opened once, a distant pot remained intact, a pot stayed intact while paused and opened after resuming, and after disabling the policy a new pot remained intact until opened manually. The test configured enablement through a diagnostic manifest; import, activation and restart through a future integrated Android launcher remain untested. This short probe does not establish performance on large maps, every pot type, or long-run behavior.

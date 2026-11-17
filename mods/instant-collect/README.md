@@ -13,10 +13,10 @@ modifiers, events and pooling. It does not affect gold or other pickups.
 The original Windows mod was not executed in this study, so full equivalence
 with its runtime behavior is not established.
 
-Requires a future OpenBonk APK with `collect_spawned_xp`; beta 0.1.3 does not
-support it. The mod is disabled on import; enable it in the launcher and start
-the game. Disable and restart to restore normal pickup behavior. It is not in
-the public catalog. To create a local test ZIP, include only `manifest.json`
+Requires OpenBonk beta 0.1.4 or newer; beta 0.1.3 does not support it. The mod
+is available in the launcher catalog and disabled on import; enable it in the
+launcher and start the game. Disable and restart to restore normal pickup
+behavior. To create a local test ZIP, include only `manifest.json`
 and `main.lua` at its root.
 
 On a Xiaomi 22126RN91Y, an isolated IL2CPP test build loaded the Lua policy.

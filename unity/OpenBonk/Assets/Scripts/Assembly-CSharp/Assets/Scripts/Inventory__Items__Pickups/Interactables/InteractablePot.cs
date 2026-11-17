@@ -143,8 +143,14 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Interactables
 			return MapController.currentMap != null && MapController.currentMap.eMap == Assets.Scripts._Data.MapsAndStages.EMap.Graveyard ? debugGraveyardName : debugName;
 		}
 
+		private void OnEnable()
+		{
+			OpenBonkWorldPolicy.RegisterPot(this);
+		}
+
 		private void OnDisable()
 		{
+			OpenBonkWorldPolicy.UnregisterPot(this);
 			if (ShowInDebug() && !broken) A_DebugDisable?.Invoke(GetDebugName());
 		}
 	}

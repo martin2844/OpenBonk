@@ -346,7 +346,7 @@ Unity AssetBundle before the game loads it.
 
 ### Experimental unlock query policy
 
-The development runtime accepts an API 1 package with `"hook": "unlock_all"`.
+OpenBonk 0.1.4 and newer accept an API 1 package with `"hook": "unlock_all"`.
 Its Lua chunk runs once before the first scene and must return the number `0`
 or `1`. An enabled package returning `1` overrides the same unlock,
 availability, purchase-eligibility and visibility queries used by the
@@ -356,13 +356,24 @@ normal queries; gameplay and purchases can still change progression. Multiple
 enabled packages combine by OR. Invalid scripts do not enable the policy.
 This hook is not supported by beta 0.1.3 and its launcher cannot import it.
 
-The development runtime also accepts API 1 `"hook": "collect_spawned_xp"`.
+OpenBonk 0.1.4 and newer also accept API 1 `"hook": "collect_spawned_xp"`.
 Its chunk likewise runs at startup and returns `0` or `1`. When enabled, each
 new or merged XP pickup immediately takes the normal collection path; other
 pickup types are unaffected. Multiple enabled packages combine by OR. Disable
 the package and restart to restore normal pickup behavior. See the independent
 [Instant XP collection adaptation](../../mods/instant-collect/). This hook is
 also absent from beta 0.1.3.
+
+### Experimental automatic pot interaction (source builds only)
+
+The development runtime accepts API 1 `"hook": "auto_open_pots"` with a Lua
+chunk returning `0` or `1` at startup. Multiple enabled packages combine by
+OR. When enabled, the game checks active pots every 0.2 seconds within six
+world units of the player during an active, unpaused run and invokes the game's
+existing interaction once per successful opening. The check respects the game's encounter and teleport
+interaction guard. Disable the package and restart to return to manual
+interaction. The policy requires a future APK: beta 0.1.4 cannot import or
+run it. See [Auto Pots](../../mods/auto-pots/).
 
 ### Experimental global stat modifiers
 
