@@ -38,6 +38,17 @@ and reached Forest using prepared data. The fresh-clone build separately
 imported a compatible Linux ZIP and reached Forest on that device; Windows
 restoration was checked on the desktop. These are limited smoke tests.
 
+For the native build-path replacement performed on the 0.1.2 candidate,
+`tools/replace-apk-native-path.py` accepts the input APK, a new unsigned output
+path, and `--source-prefix` and `--replacement-prefix` values of the same UTF-8
+byte length. It only changes native `.so` entries and strips old signature
+files. On the original candidate it replaced 60 occurrences; all non-signature
+entries then matched those in the published APK. Different builds may embed
+paths elsewhere, or use paths at runtime, so audit and test each result. The
+tool does not establish that other private data is absent. Use
+`tools/sign-beta-candidate.sh` to align and sign after changes; updates of the
+published app require its existing signing key, which is not in the repository.
+
 The asset-free distribution requirement applies to the post-beta release.
 Beta 0.1.2 contains game-derived data, and distribution rights for individual
 components have not been fully established.
