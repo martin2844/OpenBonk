@@ -27,6 +27,8 @@ environment. The output contains a generated Unity project, a log and
 keep it separate from the source repository. Imported C# sources and native
 plugins from the foreign export are excluded. AssetRipper exports can still
 contain missing components or incomplete references; inspect the editor log.
+The log reports missing transform paths in ordinary animation curves; object
+reference curves and runtime retargeting are not covered by that count.
 
 This is a visual study: it substitutes a basic opaque, unlit shader for all
 materials. It does not replicate original shaders, transparent surfaces,
@@ -36,6 +38,10 @@ result in the target APK before treating it as compatible.
 
 In one local Cow-noichi study, Unity 2023.2.22f1 generated a bundle targeting
 Android with one skinned renderer, five textures and the five selected clips.
-An earlier manually generated bundle of the same study was loaded in beta
-0.1.2 on a Xiaomi; that partial test does not prove this general converter or
-the character's original gameplay works end to end.
+An editor check found no missing transform paths across the five clips (but
+does not assess how they look). That bundle was manually staged in beta 0.1.2
+on a Xiaomi; the character appeared textured in the menu, entered Forest,
+defeated 16 enemies and reached level 1. This checks one input, not this
+converter for all characters or the original gameplay: the projectile was an
+oversized built-in arrow and base stats and collider did not match upstream.
+The temporary installation was removed.

@@ -37,8 +37,15 @@ public static class OpenBonkCharacterStudy {
         AssetDatabase.SaveAssets();
         var paths = new List<string> { prefabPath };
         foreach (var clip in clips) {
-            if (AssetDatabase.LoadAssetAtPath<AnimationClip>(clip) == null)
+            var animation = AssetDatabase.LoadAssetAtPath<AnimationClip>(clip);
+            if (animation == null)
                 throw new InvalidDataException("Missing animation: " + clip);
+            int missing = 0, total = 0;
+            foreach (var binding in AnimationUtility.GetCurveBindings(animation)) {
+                total++;
+                if (!String.IsNullOrEmpty(binding.path) && prefab.transform.Find(binding.path) == null) missing++;
+            }
+            Debug.Log("Character study animation " + clip + ": " + total + " curves, " + missing + " missing transform paths");
             paths.Add(clip);
         }
         Directory.CreateDirectory(output);
@@ -82,7 +89,8 @@ def asset_path(root, text):
 def omit_foreign_code(directory, names):
     """Do not import executable content from a third-party Unity export."""
     return [n for n in names if n.lower() in ('scripts', 'editor', 'plugins') or
-            n.lower().endswith(('.cs', '.dll', '.asmdef', '.rsp'))]
+            n.lower().endswith(('.cs', '.dll', '.asmdef', '.rsp', '.so', '.a',
+                                '.dylib', '.bundle', '.aar', '.jar', '.jslib'))]
 
 
 def main():

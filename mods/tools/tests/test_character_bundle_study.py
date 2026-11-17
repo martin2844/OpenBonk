@@ -25,7 +25,8 @@ class CharacterStudyInputs(unittest.TestCase):
 
     def test_third_party_code_and_plugins_are_not_imported(self):
         names = ['Model.prefab', 'Run.anim', 'Scripts', 'plugins', 'Editor',
-                 'Injected.CS', 'Native.DLL', 'assembly.asmdef', 'compiler.rsp']
+                 'Injected.CS', 'Native.DLL', 'assembly.asmdef', 'compiler.rsp',
+                 'libforeign.so', 'external.aar', 'native.bundle', 'code.jslib']
         ignored = set(study.omit_foreign_code('/unused', names))
         self.assertEqual(ignored, set(names) - {'Model.prefab', 'Run.anim'})
 

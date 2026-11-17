@@ -41,8 +41,13 @@ On a Xiaomi 22126RN91Y, a manually staged prototype appeared in character
 selection and reached Forest, defeating eight enemies. Its base stats, collider
 and weapon were substitutes; this was not a faithful port or a catalog import
 test. The test installation was removed. The generic converter produced a
-second Android bundle with the five selected clips and five textures; that
-specific output has not yet been loaded on Android.
+second Android bundle with the five selected clips and five textures. This
+particular bundle was subsequently staged in beta 0.1.2 on the Xiaomi. The
+character appeared with textures, entered Forest, defeated 16 enemies and
+reached level 1; the Luck statistic showed 16%, versus 15% initially. This is
+consistent with the requested per-level Luck passive in that brief test. The
+weapon and base-stat limitations above remained, and animation fidelity was
+not established. The temporary test installation was removed.
 
 Before publishing, confirm rights and attribution for the source model and
 assets, construct a package matching the installed host's actual capabilities,
