@@ -1,5 +1,12 @@
 # Source and build status
 
+**Texture-quality correction in progress:** earlier block-level normal, color,
+small-color and lightmap studies compared vertically flipped decoded images
+against blocks in storage order. Their reported per-block error bounds are not
+established, and APKs built using those stages need renewed visual validation.
+The historical reconstruction and byte-count results below remain observations
+about those private outputs; they do not demonstrate visual fidelity.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.

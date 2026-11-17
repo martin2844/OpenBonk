@@ -1,5 +1,10 @@
 # Build a local Android research APK
 
+**Texture-quality correction in progress:** earlier experimental block-level
+texture conversions used a mismatched vertical orientation for their visual
+checks. The historical per-block quality bounds and builds using those stages
+require revalidation. Research outputs remain private.
+
 This guide is for developers on Linux x86-64. It builds OpenBonk from this checkout and your own compatible Steam game files. **The resulting APK contains game-derived data and is for local research, not redistribution.** It is not a byte-for-byte rebuild of the published beta. For the release installation instructions, see the [tester guide](../BETA_TESTER_GUIDE.md); for detailed build evidence and limitations, see [BUILDING.md](BUILDING.md).
 
 ## Prerequisites
