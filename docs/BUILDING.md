@@ -82,6 +82,15 @@ ZIP and 63 focused tests passed. A magnified mip 2 difference was visible;
 this has not been validated on Android or in gameplay and is not proof of
 visual parity or asset-free distribution.
 
+On a Xiaomi 22126RN91Y, an isolated installation of that combined APK
+imported the compatible Linux ZIP through the launcher. The resulting OBB
+matched the expected SHA-256; the game reached Forest with Fox, defeated
+12 enemies and displayed level-one upgrades. The test installation and
+copied ZIP were removed. This short run does not verify Windows ZIP import
+on the device, all controls, long-run stability, full visual parity or
+distribution readiness. The experimental barrel option was not enabled
+in this APK.
+
 The experimental `tools/prepare-partial-fast-comparison.py` prepares private
 per-mip fixtures for `tools/run-texture-native-comparison.py`, using named
 textures in a local partial-conversion template and compatible Steam data.
