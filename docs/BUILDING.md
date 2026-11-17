@@ -177,6 +177,13 @@ tests do not establish a clean Unity build, Windows import through the
 combined APK, all languages or complete gameplay parity. Outputs remain
 private because they still contain game assets.
 
+Those two local chains were subsequently combined into a private dual-platform
+APK. The independent packaged-plan checker selected each platform and restored
+the expected OBB exactly from both local Steam ZIPs. This host check used the
+previously generated runtime and build intermediates and did not itself test
+the Android picker, controls or gameplay. The Windows ZIP was prepared from
+previously extracted data, not a new Windows installation.
+
 A local clone at `2b80f2e` built the Unity runtime and generated a Linux
 research chain with `--partial-etc2-fast`. The launcher packaging step then
 failed because its validation rejected fast ETC2 records. After updating the
