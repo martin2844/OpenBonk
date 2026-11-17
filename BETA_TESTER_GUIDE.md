@@ -1,67 +1,67 @@
-# OpenBonk: guía de instalación para testers
+# OpenBonk Beta Tester Guide
 
-> OpenBonk es un port comunitario no oficial en fase de prueba. Cada tester necesita su propia copia compatible de Megabonk de Steam.
+> OpenBonk is an unofficial community port in beta. Each tester needs their own compatible Steam copy of Megabonk.
 
-## Qué necesitás
+## What you need
 
-- Un dispositivo Android de 64 bits con Android 8 o posterior. Se hicieron pruebas en Retroid Pocket 5 y en una iPlay 70 mini Pro con Android 15; la compatibilidad con otros dispositivos todavía es limitada.
-- Una copia propia de Megabonk instalada desde Steam en una PC. El launcher reconoce únicamente las versiones de archivos que se probaron; una actualización diferente puede no ser compatible.
-- Espacio libre adicional para el ZIP, la preparación y los datos del juego. La cantidad exacta depende del dispositivo; la preparación puede tardar varios minutos (alrededor de cuatro en una prueba con iPlay 70 mini Pro).
-- La APK `OpenBonk.apk` incluida en este paquete. Si ya tenés una instalación de prueba con progreso, conservá un respaldo antes de reemplazarla: una APK con otra firma puede requerir una instalación separada.
+- A 64-bit Android device running Android 8 or later. OpenBonk has been tested on a Retroid Pocket 5 and an iPlay 70 mini Pro running Android 15; compatibility with other devices remains limited.
+- Your own Steam installation of Megabonk on a PC. The launcher recognizes only tested file versions; other updates may not be compatible.
+- Additional free storage for the ZIP, preparation and game data. The amount depends on the device. Preparation can take several minutes; it took about four minutes in one iPlay 70 mini Pro test.
+- The `OpenBonk.apk` included in this package. If you already have a test installation with progress, back it up before replacing it: an APK signed with a different key may require a separate installation.
 
-## Preparar los archivos de OpenBonk
+## Prepare the OpenBonk files
 
-En la PC, descomprimí el paquete de la beta en una carpeta. Adentro están `OpenBonk.apk`, esta guía y la carpeta `tools`. Dejá `tools` completa si necesitás usar el asistente de ZIP. La APK es el instalador; todavía falta crear por separado el ZIP privado de tu copia de Steam.
+On your PC, extract the beta package to a folder. It contains `OpenBonk.apk`, this guide and a `tools` folder. Keep the entire `tools` folder if you need the ZIP helper. The APK is the installer; you still need to create a separate private ZIP from your Steam game files.
 
-## Preparar el ZIP del juego
+## Prepare the game ZIP
 
-1. En Steam, abrí las propiedades de Megabonk y elegí **Archivos instalados → Explorar**.
-2. En la carpeta del juego, ubicá `Megabonk_Data`. En Windows, hacé clic derecho sobre esa carpeta y elegí **Enviar a → Carpeta comprimida (en zip)**; en Windows 11 puede estar dentro de **Mostrar más opciones**. En Linux, usá la opción de comprimir del administrador de archivos y elegí ZIP. Comprimí la carpeta completa, no solo su contenido: al abrir el ZIP debe verse una carpeta `Megabonk_Data` con sus subcarpetas. [Ayuda de Microsoft para crear un ZIP](https://support.microsoft.com/es-es/windows/experience/storage-filemanagement/zip-and-unzip-files).
-3. Verificá que el ZIP no supere **1 GiB**. Conectá y desbloqueá el Android; en la notificación USB elegí **Transferencia de archivos** y copiá a Descargas tanto el ZIP de Steam como `OpenBonk.apk` de la carpeta de la beta. Conservá el ZIP de Steam para uso personal: contiene archivos de tu copia del juego. [Ayuda de Android para transferir archivos por USB](https://support.google.com/android/answer/9064445?hl=es).
+1. In Steam, open Megabonk's properties and select **Installed Files → Browse**.
+2. Find `Megabonk_Data` in the game folder. On Windows, right-click that folder and choose **Send to → Compressed (zipped) folder**; on Windows 11, this may be under **Show more options**. On Linux, use your file manager's compress option and select ZIP. Compress the entire folder, not just its contents: when you open the ZIP, it should contain a `Megabonk_Data` folder with its subfolders. [Microsoft's ZIP instructions](https://support.microsoft.com/en-us/windows/experience/storage-filemanagement/zip-and-unzip-files).
+3. Make sure the ZIP is no larger than **1 GiB**. Connect and unlock your Android device, select **File transfer** in the USB notification, and copy both the Steam ZIP and the beta package's `OpenBonk.apk` to Downloads. Keep the Steam ZIP for personal use: it contains files from your game copy. [Android USB file transfer instructions](https://support.google.com/android/answer/9064445?hl=en).
 
-Se verificó el flujo con un ZIP de instalación Linux completa en Retroid y en iPlay. En iPlay también se importó un ZIP reducido con los 39 archivos Windows compatibles y se inició Forest; la preparación desde una PC Windows real y un ZIP de carpeta Windows completa todavía no se verificó.
+A ZIP of a complete Linux installation was tested on Retroid and iPlay. A smaller ZIP containing the 39 compatible Windows files was also imported on iPlay and reached Forest. Preparation on a native Windows PC and import of a full Windows game folder ZIP have not yet been tested.
 
-Si el ZIP completo supera 1 GiB, la carpeta `tools` de este paquete incluye un asistente que valida los 39 archivos necesarios y crea un ZIP reducido. En Windows, abrí PowerShell en la carpeta que contiene `tools` y ejecutá el siguiente comando, reemplazando la primera ruta por la carpeta real del juego:
+If the full ZIP exceeds 1 GiB, the package's `tools` folder includes a helper that validates the 39 required files and creates a smaller ZIP. On Windows, open PowerShell in the folder containing `tools` and run the following command, replacing the first path with your actual game folder:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\create-launcher-steam-zip.ps1 "C:\ruta\a\Megabonk\Megabonk_Data" "$env:USERPROFILE\Desktop\OpenBonk-Steam.zip"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\create-launcher-steam-zip.ps1 "C:\path\to\Megabonk\Megabonk_Data" "$env:USERPROFILE\Desktop\OpenBonk-Steam.zip"
 ```
 
-En Linux, desde esa misma carpeta y con Python 3.9 o posterior:
+On Linux, from that same folder and with Python 3.9 or later:
 
 ```sh
-python3 tools/create-launcher-steam-zip.py "/ruta/a/Megabonk/Megabonk_Data" "$HOME/OpenBonk-Steam.zip"
+python3 tools/create-launcher-steam-zip.py "/path/to/Megabonk/Megabonk_Data" "$HOME/OpenBonk-Steam.zip"
 ```
 
-En Windows, si ya tenés Python 3.9 o posterior, también podés usar el asistente Python desde PowerShell:
+On Windows, if you already have Python 3.9 or later, you can also run the Python helper from PowerShell:
 
 ```powershell
-py -3 .\tools\create-launcher-steam-zip.py "C:\ruta\a\Megabonk\Megabonk_Data" "$env:USERPROFILE\Desktop\OpenBonk-Steam.zip"
+py -3 .\tools\create-launcher-steam-zip.py "C:\path\to\Megabonk\Megabonk_Data" "$env:USERPROFILE\Desktop\OpenBonk-Steam.zip"
 ```
 
-Copiá el ZIP reducido que creó el asistente a Descargas en Android y seleccionalo en lugar del ZIP completo. Los asistentes no reemplazan un ZIP que ya exista y rechazan archivos de versiones no reconocidas. El asistente Python se ejecutó con Python de Windows bajo Wine y el ZIP resultante se importó en iPlay. La herramienta PowerShell se probó en Linux con PowerShell 7. Ninguna de las dos se probó todavía en una PC Windows nativa.
+Copy the smaller ZIP created by the helper to Downloads on Android and select it instead of the full ZIP. The helpers do not overwrite an existing ZIP and reject files from unrecognized versions. The Python helper was run using Windows Python under Wine, and its ZIP was imported on iPlay. The PowerShell helper was tested on Linux with PowerShell 7. Neither helper has yet been tested on a native Windows PC.
 
-## Instalar y jugar
+## Install and play
 
-1. Abrí `OpenBonk.apk` desde la aplicación de archivos de Android; si se muestran detalles del archivo, buscá **Abrir con → Instalador de paquetes**. Si el sistema pide permiso para instalar desde esa aplicación, revisá el aviso y seguí las instrucciones de Android. Podés volver a desactivar el permiso después de instalar.
-2. Abrí OpenBonk. En el launcher elegí **Controller** o **Touch** según el control que quieras usar.
-3. Tocá **Megabonk game files ZIP**, buscá el ZIP en Descargas y seleccionalo. El botón **Import prepared Android data** es para un paquete Android previamente preparado, no para el ZIP de Steam. Esperá a que aparezca **Data ready**; mantené la app abierta durante la preparación. El texto cambia al pasar de una etapa a otra, pero no muestra un porcentaje.
-4. Tocá **Play**. La primera vez se importan textos y texturas antes de llegar al menú.
+1. Open `OpenBonk.apk` from your Android file manager. If file details are displayed, look for **Open with → Package installer**. If Android asks for permission to install from that app, review the prompt and follow its instructions. You can disable the permission again after installation.
+2. Open OpenBonk. In the launcher, choose **Controller** or **Touch**, depending on how you want to play.
+3. Tap **Megabonk game files ZIP**, find the ZIP in Downloads and select it. **Import prepared Android data** is for a previously prepared Android data package, not a Steam ZIP. Keep the app open and wait for **Data ready**. The status text changes between stages, but it does not show a percentage.
+4. Tap **Play**. On the first launch, text and textures are imported before the menu appears.
 
-El perfil de Steam es opcional. Para importarlo, cerrá el juego en la PC y conservá un respaldo. Buscá la carpeta de la cuenta dentro de `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` en Linux o, en Windows, intentá `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\` (ruta todavía no verificada en Windows). Comprimí juntos `progression.json` y `stats.json` de la misma cuenta, copialos como ZIP al Android y elegí **Import profile ZIP**. Al iniciar el juego se reemplaza el progreso de la cuenta Android actual; conservá el respaldo original. La importación es puntual y no sincroniza PC y Android. El ZIP del perfil es privado: no lo envíes con un reporte.
+A Steam profile is optional. To import one, close the game on your PC and keep a backup. Find your account folder under `~/.config/unity3d/Ved/Megabonk/Saves/CloudDir/` on Linux or try `%USERPROFILE%\AppData\LocalLow\Ved\Megabonk\Saves\CloudDir\` on Windows (the Windows path has not yet been verified). ZIP `progression.json` and `stats.json` together from the same account, copy the ZIP to Android and choose **Import profile ZIP**. When the game starts, it replaces the current Android account's progress, so keep your original backup. Import is a one-time operation and does not synchronize PC and Android. The profile ZIP is private: do not include it in a report.
 
-Para respaldar el progreso de Android, cerrá completamente el juego, abrí el launcher y elegí **Export profile**. Seleccioná el perfil y guardá el ZIP en un lugar privado. Podés volver a aplicarlo con **Import profile ZIP**; contiene progreso y estadísticas, pero no los controles ni los mods. La exportación se probó en iPlay con un perfil de prueba; no reemplaza el respaldo original de Steam.
+To back up Android progress, close the game completely, open the launcher and choose **Export profile**. Select the profile and save the ZIP somewhere private. You can restore it with **Import profile ZIP**. It contains progress and statistics, but not controls or mods. Export was tested on iPlay with a test profile; it does not replace your original Steam backup.
 
-**Copias de seguridad de Android:** esta versión no desactiva Auto Backup. Según la configuración de tu dispositivo, Android puede incluir datos de la aplicación, como partidas o un perfil pendiente de importar, en la copia de seguridad de tu cuenta y en transferencias entre dispositivos. El launcher usa Internet para las actualizaciones y el catálogo de mods. Si no querés usar ese respaldo, revisá la configuración de copias de seguridad de Android. Al desinstalar la aplicación se pueden borrar sus datos locales: conservá una copia de tu progreso antes de hacerlo. [Cómo funciona Auto Backup](https://developer.android.com/identity/data/autobackup).
+**Android backups:** this version does not disable Auto Backup. Depending on your device settings, Android may include app data, such as saves or a profile pending import, in your account backup and device-to-device transfers. The launcher uses the internet for updates and the mod catalog. If you do not want to use that backup, review your Android backup settings. Uninstalling the app may delete its local data, so back up your progress first. [How Auto Backup works](https://developer.android.com/identity/data/autobackup).
 
-## Si algo falla
+## Troubleshooting
 
-- **ZIP incompatible o archivo `sharedassets1.assets` no reconocido:** el archivo del ZIP no coincide con los datos que admite esta beta. Puede tratarse de otra versión del juego, archivos modificados o un ZIP dañado. Si tenés acceso a la instalación de Steam, verificá sus archivos y creá un ZIP nuevo desde su carpeta `Megabonk_Data`; si usás mods en la PC, respaldalos antes de verificar. El asistente de ZIP reducido de este documento también valida los archivos antes de copiarlos al teléfono. Si solo tenés Android o el error continúa, indicá la versión del juego, si la copia es de Windows o Linux y cómo obtuviste el ZIP; no compartas el ZIP ni tu partida.
-- **Falta de espacio:** liberá espacio e intentá de nuevo. El launcher todavía no calcula por adelantado el espacio total necesario.
-- **Falla la importación de textos al iniciar:** volvé a abrir el juego para reintentar mientras el ZIP pendiente siga en la caché. Si Android limpió esa caché, seleccioná de nuevo tu ZIP.
-- **La APK no se instala sobre otra versión:** la firma o el identificador pueden diferir. No desinstales una app con progreso que quieras conservar sin haber hecho primero un respaldo.
-- **Play Protect pide analizar la APK:** en una iPlay, Android ofreció enviar el archivo a Google para un análisis antes de instalarlo. Leé el aviso y decidí si querés enviarlo; todavía no se verificó el resultado de ese análisis ni la instalación completa desde el instalador del sistema.
+- **Incompatible ZIP or unrecognized `sharedassets1.assets`:** the file in the ZIP does not match the data supported by this beta. It may be a different game version, modified files or a damaged ZIP. If you can access the Steam installation, verify its files and create a new ZIP from its `Megabonk_Data` folder; back up any PC mods before verification. The smaller ZIP helper in this guide also validates files before you copy them to your phone. If you only have Android or the error persists, report the game version, whether the copy is for Windows or Linux, and how you obtained the ZIP. Do not share the ZIP or your save.
+- **Not enough storage:** free up space and try again. The launcher does not yet calculate the total space needed in advance.
+- **Text import fails at startup:** reopen the game to retry while the pending ZIP remains in the cache. If Android has cleared the cache, select your ZIP again.
+- **The APK will not install over another version:** the signature or application ID may differ. Do not uninstall an app containing progress you want to keep without backing it up first.
+- **Play Protect asks to scan the APK:** on an iPlay, Android offered to send the file to Google for analysis before installation. Read the prompt and decide whether to send it. The scan result and complete installation through the system installer have not yet been verified.
 
-## Cómo reportar un problema
+## Report a problem
 
-Indicá el modelo de dispositivo, versión de Android, si usabas mando o controles táctiles, qué hiciste, qué esperabas y qué pasó. Si sirve, adjuntá una captura del error. No hace falta compartir tu ZIP de Steam, tu perfil ni datos de cuenta para un reporte ordinario.
+Include your device model, Android version, whether you used a controller or touch controls, what you did, what you expected and what happened. Attach a screenshot of the error if helpful. You do not need to share your Steam ZIP, profile or account information for an ordinary report.
