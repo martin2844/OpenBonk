@@ -1,5 +1,17 @@
 # Character bundle study
 
+To inspect the metadata in a PC custom-character ZIP before conversion:
+
+```sh
+python3 mods/tools/audit_pc_character.py /path/to/character-mod.zip
+```
+
+The audit reads one bounded `.custom.json` entry without extracting its
+contents and lists features for manual review. It does not establish whether
+the bundle runs on Android or whether the character is compatible with the
+current host. Local checks on Cow-noichi, GodOfDeath and Goth Kitty Siella
+each identified character-specific stats and custom weapon definitions.
+
 `character_bundle_study.py` rebuilds a prefab and selected animation clips from
 a local AssetRipper Unity project into an Android AssetBundle. The script does
 not download a mod, package an OpenBonk mod ZIP, copy files to Android, or
