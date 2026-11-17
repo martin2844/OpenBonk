@@ -325,6 +325,14 @@ with seven empty textures, no streams and no skips. These checks do not prove
 complete gameplay, rendering, metadata or asset parity. The output remains
 private and still contains game data.
 
+An inventory of the clone's combined APK found 1,072 readable template entries
+per platform, containing 5,495,401 nonzero bytes for Linux and 6,380,160 for
+Windows, including metadata and headers. For each template it found no
+whole-entry exact match to its corresponding Steam ZIP. All 694 hashed Unity
+files in the Linux template were classified by object type. These are
+whole-entry counts and do not say which bytes are game assets or establish
+ownership; the reports remain local.
+
 For an additional packaging check, the clone's generated dual Gradle project
 was copied and built online with an initially empty `GRADLE_USER_HOME`, using
 the installed Unity JDK, Gradle and Android SDK. Gradle reported success with
