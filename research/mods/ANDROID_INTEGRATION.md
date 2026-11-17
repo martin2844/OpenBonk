@@ -37,7 +37,21 @@ mixed-artifact combinations are unsuitable for release. The standalone hook
 probes used a separate newly generated OBB and did run; that is not evidence
 of update compatibility. A candidate needs the full reconstruction pipeline,
 matching runtime and game data, an audited update path from 0.1.3 (including a
-verified delta if the OBB changes), and device tests before release. Launcher
-import, enable/disable and gameplay for the two mods remain untested in a
-working integrated APK. The temporary test app and its copied files were
-removed from the device.
+verified delta if the OBB changes), and device tests before release. Later
+tests of a complete integrated APK verified migration, a brief Forest run,
+and importing, enabling and disabling both mods through the launcher. The
+temporary test app and its copied files were removed from the device.
+
+## Clean import follow-up for 0.1.4
+
+On the Xiaomi 22126RN91Y, an isolated Android package built from the same
+0.1.4 integration project imported the generated Linux Steam ZIP from the
+system file picker. The launcher reached `Data ready` and produced an OBB
+with SHA-256 `c3a42cbb1b38bdf89ee0e8175b81f2f70da4206e9a4862a67b11cda7cf3adf34`,
+matching the expected OBB. Preparing the ZIP took approximately 12 minutes
+on this device. The game opened and entered a brief Forest run; this is not
+a long-run, Windows ZIP, or full visual compatibility test. The isolated
+app and copied ZIP were removed afterward. The production APK has a
+different application ID and signing key; its exact bytes were not the
+ones installed for this test.
+
