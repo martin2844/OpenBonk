@@ -3,10 +3,9 @@
 **Texture-quality correction:** earlier experimental block-level texture
 conversions used a mismatched vertical orientation for their visual checks.
 Corrected plans have passed bounded block checks, but historical builds still
-require revalidation and full visual parity has not been established. Research
-outputs remain private.
+require revalidation and full visual parity has not been established.
 
-This guide is for developers on Linux x86-64. It builds OpenBonk from this checkout and your own compatible Steam game files. **The resulting APK contains game-derived data and is for local research, not redistribution.** It is not a byte-for-byte rebuild of the published beta. For the release installation instructions, see the [tester guide](../BETA_TESTER_GUIDE.md); for detailed build evidence and limitations, see [BUILDING.md](BUILDING.md).
+This guide is for developers on Linux x86-64. It builds OpenBonk from this checkout and your own compatible Steam game files. The resulting APK contains game-derived data and is not a byte-for-byte rebuild of the published beta. Beta 0.1.2 was published with game-derived data; the asset-free goal applies after beta, and rights for individual components have not been fully established. For the beta 0.1.2 build preset, see [BUILDING.md](BUILDING.md#android-beta-012-build-preset); for installation, see the [tester guide](../BETA_TESTER_GUIDE.md).
 
 ## Prerequisites
 
