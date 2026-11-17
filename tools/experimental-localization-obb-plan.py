@@ -6,6 +6,7 @@ research stage, not yet integrated into a launcher or release build.
 """
 import argparse
 import base64
+import copy
 import hashlib
 import importlib.util
 import json
@@ -20,6 +21,16 @@ INPUTS = ROOT / 'tools/launcher-steam-inputs.json'
 PATTERN = re.compile(r'localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\.bundle\Z')
 
 def sha(data): return hashlib.sha256(data).hexdigest()
+
+def write_pair(archive, masked, converted, info, left=None, right=None):
+    # ZipFile mutates ZipInfo while writing (including CRC and sizes). Each
+    # output must own its copy or the second write corrupts the first index.
+    if left is not None and right is not None:
+        masked.writestr(copy.copy(info), left); converted.writestr(copy.copy(info), right)
+    elif left is None and right is None:
+        with archive.open(info) as inp, masked.open(copy.copy(info), 'w') as dst1, converted.open(copy.copy(info), 'w') as dst2:
+            while block := inp.read(1024*1024): dst1.write(block); dst2.write(block)
+    else: raise ValueError('both replacement payloads are required')
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
@@ -53,10 +64,9 @@ def main():
                     scratch=Path(temp)/'target.bundle';scratch.write_bytes(raw)
                     template, plan, target, count, removed=module.build(scratch,source_path)
                     rows.append({'entry':info.filename,'source':source,'plan_sha256':sha(plan),'plan':base64.b64encode(plan).decode('ascii')});total+=removed
-                    masked.writestr(info,template);converted.writestr(info,target)
+                    write_pair(archive,masked,converted,info,template,target)
                 else:
-                    with archive.open(info) as inp, masked.open(info,'w') as dst1, converted.open(info,'w') as dst2:
-                        while block:=inp.read(1024*1024): dst1.write(block); dst2.write(block)
+                    write_pair(archive,masked,converted,info)
         with (out/'template.obb').open('rb') as stream:
             template_hash=hashlib.file_digest(stream,'sha256').hexdigest()
         plan={'schema':1,'kind':'experimental-localization-cab-obb','platform':a.platform,'template_sha256':template_hash,'records':rows}

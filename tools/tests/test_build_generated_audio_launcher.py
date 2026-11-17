@@ -2,6 +2,7 @@ import base64
 import hashlib
 import importlib.util
 import json
+import struct
 from pathlib import Path
 import tempfile
 import unittest
@@ -14,6 +15,29 @@ SPEC.loader.exec_module(MODULE)
 
 
 class GeneratedAudioBuildTest(unittest.TestCase):
+    def test_localization_checks_fragments_sources_and_unrelated_entries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); template = root/'a.obb'; result = root/'b.obb'; plan = root/'plan.json'
+            inventory = json.loads((MODULE.ROOT/'tools/launcher-steam-inputs.json').read_text())['platforms']['linux']
+            prefix = 'StreamingAssets/aa/StandaloneLinux64/'
+            sources = sorted(n for n in inventory if n.startswith(prefix) and n[len(prefix):].startswith(('localization-string-tables-', 'localization-assets-shared_assets_all')))
+            self.assertEqual(len(sources), 18)
+            rows = []
+            with zipfile.ZipFile(template,'w') as a, zipfile.ZipFile(result,'w') as b:
+                a.writestr('untouched', b'same'); b.writestr('untouched', b'same')
+                for source in sources:
+                    entry = 'assets/aa/Android/' + source[len(prefix):]; masked = b'pre\x00\x00post'; actual = b'preABpost'
+                    a.writestr(entry, masked); b.writestr(entry, actual)
+                    raw = (b'OBL1' + bytes.fromhex(inventory[source]['sha256']) + hashlib.sha256(masked).digest() +
+                           hashlib.sha256(actual).digest() + struct.pack('>I',1) + struct.pack('>III',3,0,2) + hashlib.sha256(b'AB').digest())
+                    rows.append({'entry':entry,'source':source,'plan':base64.b64encode(raw).decode(),'plan_sha256':hashlib.sha256(raw).hexdigest()})
+            obj = {'schema':1,'kind':'experimental-localization-cab-obb','platform':'linux','template_sha256':MODULE.digest(template),'records':rows}
+            plan.write_text(json.dumps(obj)); MODULE.verify_localization(template,plan,result,'linux')
+            obj['records'][0]['plan_sha256'] = '0'*64; plan.write_text(json.dumps(obj))
+            with self.assertRaises(ValueError): MODULE.verify_localization(template,plan,result,'linux')
+            obj['records'][0] = obj['records'][1]; plan.write_text(json.dumps(obj))
+            with self.assertRaises(ValueError): MODULE.verify_localization(template,plan,result,'linux')
+
     def test_package_version_override_is_validated_and_changes_only_version(self):
         with tempfile.TemporaryDirectory() as tmp:
             gradle = Path(tmp) / 'build.gradle'

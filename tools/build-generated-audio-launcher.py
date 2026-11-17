@@ -196,6 +196,56 @@ def verify_meshes(template, plan_path, intermediate, objects=False):
             if a[end:] != b[end:]: raise ValueError('unrelated mesh split bytes differ')
 
 
+def verify_localization(template, plan_path, intermediate, platform):
+    """Check the private OBB stage before packaging without embedding Steam data."""
+    plan = json.loads(plan_path.read_text(encoding='utf-8'))
+    if (plan.get('schema') != 1 or plan.get('kind') != 'experimental-localization-cab-obb' or
+            plan.get('platform') != platform or plan.get('template_sha256') != digest(template)):
+        raise ValueError('localization plan or template differs')
+    inventory = json.loads((ROOT / 'tools/launcher-steam-inputs.json').read_text())['platforms'][platform]
+    folder = 'StandaloneLinux64' if platform == 'linux' else 'StandaloneWindows64'
+    prefix = 'StreamingAssets/aa/' + folder + '/'
+    pattern = r'localization-(?:assets-shared_assets_all|string-tables-[a-z0-9()_-]+_assets_all)\.bundle'
+    sources = {name for name in inventory if name.startswith(prefix) and re.fullmatch(pattern, name[len(prefix):])}
+    rows = plan.get('records')
+    if not isinstance(rows, list) or len(rows) != 18 or len(sources) != 18: raise ValueError('invalid localization record count')
+    grouped = {}
+    for row in rows:
+        source, entry = row.get('source'), row.get('entry')
+        if source not in sources or entry != 'assets/aa/Android/' + source[len(prefix):] or entry in grouped:
+            raise ValueError('invalid localization mapping')
+        try: encoded = base64.b64decode(row.get('plan', ''), validate=True)
+        except (ValueError, TypeError) as e: raise ValueError('invalid localization encoding') from e
+        if (len(encoded) < 104 or len(encoded) > 1024*1024 or encoded[:4] != b'OBL1' or
+                hashlib.sha256(encoded).hexdigest() != row.get('plan_sha256') or encoded[4:36].hex() != inventory[source]['sha256']):
+            raise ValueError('localization plan checksum differs')
+        count = struct.unpack_from('>I', encoded, 100)[0]
+        if not 0 < count <= 10000 or len(encoded) != 104 + count*44: raise ValueError('invalid localization fragments')
+        grouped[entry] = encoded
+    if {row['source'] for row in rows} != sources: raise ValueError('localization sources differ')
+    with zipfile.ZipFile(template) as base, zipfile.ZipFile(intermediate) as result:
+        names = base.namelist()
+        if len(names) != len(set(names)) or names != result.namelist() or not set(grouped).issubset(names): raise ValueError('localization archive entries differ')
+        for name in names:
+            if name not in grouped:
+                if entry_digest(base, name) != entry_digest(result, name): raise ValueError('unrelated localization archive entry differs')
+                continue
+            if base.getinfo(name).file_size > 32*1024*1024 or result.getinfo(name).file_size > 32*1024*1024: raise ValueError('localization bundle too large')
+            masked, restored, encoded = base.read(name), result.read(name), grouped[name]
+            if (len(masked) != len(restored) or hashlib.sha256(masked).digest() != encoded[36:68] or
+                    hashlib.sha256(restored).digest() != encoded[68:100]): raise ValueError('localization bundle checksum differs')
+            end = 0
+            for i in range(struct.unpack_from('>I', encoded, 100)[0]):
+                start, source_offset, size = struct.unpack_from('>III', encoded, 104 + i*44)
+                fragment_hash = encoded[116+i*44:148+i*44]
+                if (start < end or size <= 0 or start + size > len(masked) or source_offset + size > 32*1024*1024 or
+                        masked[end:start] != restored[end:start] or any(masked[start:start+size]) or
+                        hashlib.sha256(restored[start:start+size]).digest() != fragment_hash):
+                    raise ValueError('invalid localization fragment')
+                end = start + size
+            if masked[end:] != restored[end:]: raise ValueError('unrelated localization bytes differ')
+
+
 def verify_animations(template, plan_path, intermediate, partial_rgba=False):
     plan = json.loads(plan_path.read_text())
     kind = 'experimental-partial-rgba-texture-offsets' if partial_rgba else 'experimental-animation-fragment-mask'
@@ -359,6 +409,8 @@ def main():
     p.add_argument('--object-intermediate-obb', type=Path, help='canonical object restoration used by the animation plan')
     p.add_argument('--partial-rgba-plan', type=Path, help='optional partial RGBA restoration plan')
     p.add_argument('--partial-rgba-intermediate-obb', type=Path, help='canonical partial RGBA restoration used by the object plan')
+    p.add_argument('--localization-plan', type=Path, help='optional experimental localization OBB restoration plan')
+    p.add_argument('--localization-intermediate-obb', type=Path, help='canonical localization restoration used by the partial texture plan')
     p.add_argument('--windows-research', type=Path, help='optional validated Windows seven-stage research output')
     p.add_argument('--check', action='store_true')
     a = p.parse_args()
@@ -385,12 +437,16 @@ def main():
     if bool(a.partial_rgba_plan) != bool(a.partial_rgba_intermediate_obb) or (a.partial_rgba_plan and not object_plan): p.error('partial RGBA mode requires both inputs and object mode')
     partial_plan = a.partial_rgba_plan.expanduser().resolve(strict=True) if a.partial_rgba_plan else None
     partial_intermediate = a.partial_rgba_intermediate_obb.expanduser().resolve(strict=True) if a.partial_rgba_intermediate_obb else None
+    if bool(a.localization_plan) != bool(a.localization_intermediate_obb) or (a.localization_plan and not partial_plan): p.error('localization mode requires both inputs and partial RGBA mode')
+    localization_plan = a.localization_plan.expanduser().resolve(strict=True) if a.localization_plan else None
+    localization_intermediate = a.localization_intermediate_obb.expanduser().resolve(strict=True) if a.localization_intermediate_obb else None
     windows_research = a.windows_research.expanduser().resolve(strict=True) if a.windows_research else None
+    if localization_plan and windows_research: p.error('localization mode does not yet support dual-platform packaging')
     if windows_research and (not windows_research.is_dir() or not object_plan): p.error('Windows research requires a directory and complete seven-stage Linux inputs')
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be a new directory')
     output = output.parent.resolve() / output.name
-    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []), *([cubemap_plan, cubemap_intermediate] if cubemap_plan else []), *([animation_plan, animation_intermediate] if animation_plan else []), *([object_plan, object_intermediate] if object_plan else []), *([partial_plan, partial_intermediate] if partial_plan else []), *([windows_research] if windows_research else []))):
+    if any(output.is_relative_to(x) or x.is_relative_to(output) for x in (ROOT, gradle, project, runtime, template, plan, expected, *([packed, intermediate] if packed else []), *([texture_plan, texture_intermediate, texture_library] if texture_plan else []), *([mesh_plan, mesh_intermediate] if mesh_plan else []), *([cubemap_plan, cubemap_intermediate] if cubemap_plan else []), *([animation_plan, animation_intermediate] if animation_plan else []), *([object_plan, object_intermediate] if object_plan else []), *([partial_plan, partial_intermediate] if partial_plan else []), *([localization_plan, localization_intermediate] if localization_plan else []), *([windows_research] if windows_research else []))):
         p.error('output must be separate from source and inputs')
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+', a.application_id, re.ASCII): p.error('invalid application ID')
     if a.version_code is not None and not 1 <= a.version_code <= 2100000000: p.error('invalid Android version code')
@@ -409,7 +465,8 @@ def main():
     if a.gradle_user_home and not a.gradle_user_home.expanduser().resolve(strict=True).is_dir(): p.error('Gradle cache must be a directory')
     for path in gradle.rglob('*'):
         if path.is_symlink(): p.error('Gradle project must not contain symbolic links')
-    if partial_plan: verify_animations(template, partial_plan, partial_intermediate, partial_rgba=True)
+    if localization_plan: verify_localization(template, localization_plan, localization_intermediate, 'linux')
+    if partial_plan: verify_animations(localization_intermediate or template, partial_plan, partial_intermediate, partial_rgba=True)
     if object_plan:
         verify_meshes(partial_intermediate or template, object_plan, object_intermediate, objects=True)
     if animation_plan:
@@ -450,7 +507,7 @@ def main():
     assets = library / 'src/main/assets/openbonk-diagnostic'
     assets.mkdir()
     (assets / 'marker').write_bytes(b'OPENBONK_PRIVATE_DIAGNOSTIC_V1')
-    mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8' if partial_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7' if object_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V6' if animation_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V5' if cubemap_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V4' if mesh_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
+    mode = b'OPENBONK_GENERATED_AUDIO_RESEARCH_V9' if localization_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V8' if partial_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V7' if object_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V6' if animation_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V5' if cubemap_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V4' if mesh_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V3' if texture_plan else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V2' if packed else b'OPENBONK_GENERATED_AUDIO_RESEARCH_V1'
     (assets / 'generated-audio-mode').write_bytes(mode)
     # Gradle leaves .obb files uncompressed; this launcher reads the template
     # through AssetManager rather than mounting it, so allow APK compression.
@@ -481,6 +538,9 @@ def main():
     if partial_plan:
         shutil.copyfile(partial_plan, assets / 'partial-rgba-plan.json')
         (assets / 'partial-rgba-plan.sha256').write_text(digest(partial_plan), encoding='ascii')
+    if localization_plan:
+        shutil.copyfile(localization_plan, assets / 'localization-plan.json')
+        (assets / 'localization-plan.sha256').write_text(digest(localization_plan), encoding='ascii')
     if windows:
         win_template, win_object, win_plans = windows
         dest = assets / 'windows'; dest.mkdir()
