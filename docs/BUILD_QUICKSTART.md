@@ -37,6 +37,14 @@ The current suite also passed all 454 tests locally at `1216f8e` using the exist
 
 A fresh GitHub clone at `a69124b` passed all 501 tests with the existing local conversion environment. This test run does not itself build an APK or verify game behavior.
 
+At `9158d93`, another fresh GitHub clone passed all 502 tests in a new Python
+3.13 virtual environment after installing the pinned requirements with pip's
+cache disabled. The full build's initial `--check` also passed. Using the same
+local game data, object template and native converter as the previous study,
+the new environment generated a byte-identical partial-texture plan and
+template. These checks were on the same Linux host with Unity and other tools
+already installed; they are not a full rebuild or a test on another machine.
+
 In Bash, replace the example paths below. `OPENBONK_OUTPUT` must be a new path outside the checkout and game installations. The optional Windows directory must contain `Megabonk_Data`; omit the `--windows-game` line for a Linux-only research APK.
 
 ```sh
