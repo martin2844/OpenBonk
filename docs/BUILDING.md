@@ -79,8 +79,9 @@ option visibly changed a distant mip. Its Linux and Windows templates
 retained 34,744 nonzero inline texture bytes, versus 36,962 before this
 study; desktop Java restored all 1,072 archive entries exactly from each
 ZIP and 63 focused tests passed. A magnified mip 2 difference was visible;
-this has not been validated on Android or in gameplay and is not proof of
-visual parity or asset-free distribution.
+the Android restoration check on a Xiaomi 22126RN91Y reproduced all 1,072
+entries with each ZIP, and temporary files were removed. This isolated check
+does not establish gameplay or visual parity or asset-free distribution.
 
 On a Xiaomi 22126RN91Y, an isolated installation of that combined APK
 imported the compatible Linux ZIP through the launcher. The resulting OBB
