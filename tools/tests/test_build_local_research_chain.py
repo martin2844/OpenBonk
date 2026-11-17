@@ -20,6 +20,14 @@ class ResearchChainTests(unittest.TestCase):
             self.assertNotIn('--reordered-bindings', dict(module.commands(args))['animation plan'])
             args.reordered_animation_bindings = True
             self.assertIn('--reordered-bindings', dict(module.commands(args))['animation plan'])
+            args.neighboring_animation_keys = True
+            self.assertIn('--neighboring-animation-keys', dict(module.commands(args))['animation plan'])
+
+    def test_reordered_curves_reach_conversion_stage(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp)); args.animation_curve_fallback = True
+            args.animation_curve_hybrid = True; args.animation_curve_reordered = True
+            self.assertIn('--reordered-hybrid', dict(module.commands(args))['compatible Steam animation curves'])
 
     def test_tiny_etc2_reaches_partial_plan(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -54,6 +62,13 @@ class ResearchChainTests(unittest.TestCase):
             self.assertIn(str(args.host_library), commands['bounded normal blocks'])
             args.normal_block_extra = True
             self.assertIn('--extra-etc2', dict(module.commands(args))['bounded normal blocks'])
+
+    def test_small_color_blocks_feed_downstream_plans(self):
+        with tempfile.TemporaryDirectory() as temp:
+            args = self.args(Path(temp)); args.small_color_block_fallback = True
+            commands = dict(module.commands(args))
+            self.assertIn(str(args.output/'small-color-block-study/converted.obb'), commands['individual audio plan'])
+            self.assertIn(str(args.host_library), commands['bounded small color blocks'])
 
     def test_localization_stage_precedes_partial_and_binds_packager_inputs(self):
         with tempfile.TemporaryDirectory() as temp:

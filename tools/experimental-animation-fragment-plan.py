@@ -10,6 +10,7 @@ import base64
 from collections import Counter, defaultdict
 import importlib.util
 import json
+import math
 from pathlib import Path
 import re
 import shutil
@@ -53,7 +54,7 @@ def make_fragments(parts, target_offset, target, source_name, source_offset, sou
     return rows
 
 
-def reordered_fragments(parts, target_offset, target_obj, source_name, source_offset, source_obj):
+def reordered_fragments(parts, target_offset, target_obj, source_name, source_offset, source_obj, neighboring_keys=False):
     """Use matching bytes from reordered transform curves, without changing either clip."""
     target, source = target_obj.get_raw_data(), source_obj.get_raw_data()
     if len(target) != len(source): raise ValueError('animation object sizes differ')
@@ -66,14 +67,30 @@ def reordered_fragments(parts, target_offset, target_obj, source_name, source_of
         raise ValueError('animation stream location is ambiguous')
     lo, ro = target.index(lb), source.index(rb)
     substitutions = []
-    for _, _, target_word, source_word in reorder.coefficient_pairs(lw, rw, mapping):
+    pairs = reorder.coefficient_pairs(lw, rw, mapping)
+    neighbors = {}
+    if neighboring_keys:
+        by_curve = defaultdict(list)
+        for key, time, target_word, source_word in pairs:
+            by_curve[key].append((time, target_word, source_word))
+        for entries in by_curve.values():
+            for index, (time, target_word, _) in enumerate(entries):
+                if not math.isfinite(time) or time < 0: continue
+                for adjacent in (index - 1, index + 1):
+                    if not 0 <= adjacent < len(entries): continue
+                    other_time, _, other_source = entries[adjacent]
+                    if math.isfinite(other_time) and 0 <= other_time and 0 < abs(other_time - time) <= 1:
+                        neighbors.setdefault(target_word, []).append(other_source)
+    for _, _, target_word, source_word in pairs:
         start, src = lo + target_word * 4, ro + source_word * 4
         current = target[start:start + 16]
-        old, new = source[start:start + 16], source[src:src + 16]
-        if len(current) != 16 or len(old) != 16 or len(new) != 16:
+        old = source[start:start + 16]
+        candidates = [src, *(ro + position * 4 for position in neighbors.get(target_word, []))]
+        if len(current) != 16 or len(old) != 16 or any(len(source[offset:offset + 16]) != 16 for offset in candidates):
             raise ValueError('animation coefficient range exceeds object')
         score = lambda data: sum(a != 0 and a == b for a, b in zip(current, data))
-        if score(new) > score(old): substitutions.append((start, src, 16))
+        best = max(candidates, key=lambda offset: score(source[offset:offset + 16]))
+        if score(source[best:best + 16]) > score(old): substitutions.append((start, best, 16))
     substitutions.sort()
     ranges, end = [], 0
     for start, src, size in substitutions:
@@ -199,7 +216,8 @@ def generate(args):
                     if getattr(args, 'reordered_bindings', False) and obj.type.name == 'AnimationClip':
                         try:
                             candidate = reordered_fragments(parts, offset, obj, source_name, source_offset,
-                                                            source_objects[source_name][1][source_id])
+                                                            source_objects[source_name][1][source_id],
+                                                            neighboring_keys=getattr(args, 'neighboring_animation_keys', False))
                             additional = len(candidate) - len(fragments)
                             if (additional <= 800 - extra_rows and
                                     sum(row['masked_bytes'] for row in candidate) > sum(row['masked_bytes'] for row in fragments)):
@@ -269,8 +287,12 @@ def main():
             p.add_argument('--obb', type=Path, required=True)
             p.add_argument('--shared0-fonts', action='store_true', help='experimentally match sharedassets0 SDF font metadata')
             p.add_argument('--reordered-bindings', action='store_true', help='experimentally match equal bytes in reordered Transform curves')
+            p.add_argument('--neighboring-animation-keys', action='store_true', help='also match exact bytes from adjacent keys of the same Transform channel')
         else: p.add_argument('--template', type=Path, required=True); p.add_argument('--plan', type=Path, required=True)
-    args = parser.parse_args(); (generate if args.command == 'generate' else restore)(args)
+    args = parser.parse_args()
+    if args.command == 'generate' and args.neighboring_animation_keys and not args.reordered_bindings:
+        parser.error('--neighboring-animation-keys requires --reordered-bindings')
+    (generate if args.command == 'generate' else restore)(args)
 
 
 if __name__ == '__main__': main()

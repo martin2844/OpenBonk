@@ -86,6 +86,34 @@ class AnimationCurveTest(unittest.TestCase):
         self.assertEqual(frames[1][1][0][1][3], 1.0)
         self.assertIsNone(study.hybrid_candidate(obj(1, 1, duplicate=True), source, limit=0.001))
 
+    def test_reordered_hybrid_uses_matching_channels_and_preserves_unbounded_keys(self):
+        def binding(path):
+            return {'path': path, 'attribute': 1, 'typeID': 4, 'customType': 0,
+                    'isPPtrCurve': 0, 'isIntCurve': 0, 'isSerializeReferenceCurve': 0}
+        def word(value): return struct.unpack('<I', struct.pack('<f', value))[0]
+        def obj(order, first, second, metadata='same'):
+            words = [word(0), 2, 0, word(0), word(0), word(0), word(first),
+                     3, word(0), word(0), word(0), word(second),
+                     word(1), 2, 0, word(0), word(0), word(0), word(1),
+                     3, word(0), word(0), word(0), word(1)]
+            delta = list(range(6)) if order == [1, 2] else [3, 4, 5, 0, 1, 2]
+            tree = {'label': metadata, 'm_ClipBindingConstant': {'genericBindings': [binding(x) for x in order]},
+                    'm_MuscleClip': {'m_ValueArrayDelta': delta,
+                                     'm_Clip': {'data': {'m_StreamedClip': {'data': words}}}}}
+            raw = b'HEAD' + struct.pack('<%dI' % len(words), *words) + b'TAIL'
+            return SimpleNamespace(read_typetree=lambda: tree, get_raw_data=lambda: raw)
+        target = obj([1, 2], 1, 1)
+        # Source key 3 maps to target key 0; key 0 maps to target key 3.
+        source = obj([2, 1], 1.5, 1.0002)
+        result = study.reordered_hybrid_candidate(target, source, limit=0.001)
+        self.assertIsNotNone(result)
+        words = struct.unpack('<%dI' % (len(result[2]) // 4), result[2])
+        frames = study.curve.frames(words)
+        self.assertAlmostEqual(frames[0][1][0][1][3], 1.0002, places=5)
+        self.assertEqual(frames[0][1][1][1][3], 1)
+        self.assertEqual(frames[1][1][0][1][3], 1)
+        self.assertIsNone(study.reordered_hybrid_candidate(target, obj([2, 1], 1.5, 1.0002, 'different'), limit=0.001))
+
     def test_rejects_unchecked_or_nonfinite_intervals(self):
         coeff = (0.0, 0.0, 0.0, 1.0)
         self.assertIsNone(study.compatible_frames([(0.0, [(1, coeff)])], [(0.0, [(1, coeff)])]))

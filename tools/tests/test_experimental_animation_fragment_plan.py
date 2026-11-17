@@ -14,6 +14,26 @@ spec.loader.exec_module(module)
 
 
 class AnimationFragmentTests(unittest.TestCase):
+    def test_neighboring_keys_recover_only_identical_source_bytes(self):
+        def word(value): return struct.unpack('<I', struct.pack('<f', value))[0]
+        binding = {'path': 1, 'attribute': 1, 'typeID': 4, 'customType': 0,
+                   'isPPtrCurve': 0, 'isIntCurve': 0, 'isSerializeReferenceCurve': 0}
+        def obj(first, second):
+            words = [word(0), 1, 0, 0, 0, 0, first, word(0.5), 1, 0, 0, 0, 0, second]
+            raw = b'HEAD' + struct.pack('<%dI' % len(words), *words) + b'TAIL'
+            tree = {'m_ClipBindingConstant': {'genericBindings': [binding]},
+                    'm_MuscleClip': {'m_ValueArrayDelta': [0, 0, 0],
+                                     'm_Clip': {'data': {'m_StreamedClip': {'data': words}}}}}
+            return SimpleNamespace(get_raw_data=lambda: raw, read_typetree=lambda: tree)
+        target, source = obj(0x11223344, 0x55667788), obj(0x01020304, 0x11223344)
+        raw, source_raw = target.get_raw_data(), source.get_raw_data()
+        part = SimpleNamespace(filename='entry', file_size=len(raw))
+        ordinary = module.reordered_fragments([part], 0, target, 'source', 0, source)
+        rows = module.reordered_fragments([part], 0, target, 'source', 0, source, neighboring_keys=True)
+        self.assertGreater(sum(row['masked_bytes'] for row in rows), sum(row['masked_bytes'] for row in ordinary))
+        masked = module.apply(raw, rows, {'source': source_raw})
+        self.assertEqual(module.apply(masked, rows, {'source': source_raw}, restore=True), raw)
+
     def test_reordered_curve_fragments_restore_exact_original_bytes(self):
         def binding(path):
             return {'path': path, 'attribute': 1, 'typeID': 4, 'customType': 0,

@@ -17,13 +17,27 @@ spec.loader.exec_module(module)
 
 class SteamResearchBuildTests(unittest.TestCase):
     @patch.object(module.subprocess, 'run')
+    def test_reordered_curve_option_requires_binding_plan_and_reaches_both_chains(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        with self.assertRaises(SystemExit): self.invoke('--animation-curve-reordered')
+        with self.assertRaises(SystemExit): self.invoke('--animation-curve-fallback', '--animation-curve-hybrid', '--animation-curve-reordered')
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--animation-curve-fallback', '--animation-curve-hybrid',
+                    '--animation-curve-reordered', '--reordered-animation-bindings')
+        chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
+        self.assertEqual(len(chains), 2)
+        self.assertTrue(all('--animation-curve-reordered' in command for command in chains))
+
+    @patch.object(module.subprocess, 'run')
     def test_reordered_animation_option_reaches_both_chains(self, run):
         run.return_value = subprocess.CompletedProcess([], 0)
+        with self.assertRaises(SystemExit): self.invoke('--neighboring-animation-keys')
         windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
-        self.invoke('--windows-game', str(windows), '--reordered-animation-bindings')
+        self.invoke('--windows-game', str(windows), '--reordered-animation-bindings', '--neighboring-animation-keys')
         chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
         self.assertEqual(len(chains), 2)
         self.assertTrue(all('--reordered-animation-bindings' in command for command in chains))
+        self.assertTrue(all('--neighboring-animation-keys' in command for command in chains))
 
     @patch.object(module.subprocess, 'run')
     def test_normal_block_option_requires_partial_byte_mode_and_reaches_both_chains(self, run):
@@ -52,6 +66,16 @@ class SteamResearchBuildTests(unittest.TestCase):
         chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
         self.assertEqual(len(chains), 2)
         self.assertTrue(all('--normal-block-extra' in chain for chain in chains))
+
+    @patch.object(module.subprocess, 'run')
+    def test_small_color_blocks_require_dependencies_and_reach_both_chains(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0)
+        with self.assertRaises(SystemExit): self.invoke('--small-color-block-fallback')
+        windows = self.root / 'windows'; (windows / 'Megabonk_Data').mkdir(parents=True)
+        self.invoke('--windows-game', str(windows), '--quality-textures', '--small-color-block-fallback', '--partial-rgba', '--partial-etc2', '--partial-etc2-small', '--partial-etc2-tiny', '--partial-etc2-fast', '--partial-etc2-blend', '--partial-etc2-byte', '--partial-etc2-rgba', '--partial-etc2-extra')
+        chains = [call.args[0] for call in run.call_args_list if any(str(x).endswith('build-local-research-chain.py') for x in call.args[0])]
+        self.assertEqual(len(chains), 2)
+        self.assertTrue(all('--small-color-block-fallback' in chain for chain in chains))
 
     @patch.object(module.subprocess, 'run')
     def test_localization_option_reaches_both_chains_and_requires_partial(self, run):

@@ -32,6 +32,7 @@ animation = load('animation_mask', ROOT / 'tools/experimental-animation-mask.py'
 objects = load('animation_objects', ROOT / 'tools/experimental-exact-object-plan.py')
 curve = load('animation_curves', ROOT / 'analysis/data-conversion/analyze-shared2-animation-streams.py')
 extrema = load('animation_extrema', ROOT / 'analysis/data-conversion/verify-hybrid-animation-extrema.py').extrema
+reorder = load('animation_binding_reorder', ROOT / 'tools/animation_binding_reorder.py')
 LIMIT = 1e-6
 RELAXED_LIMIT = 1e-4
 EXTENDED_LIMIT = 1e-3
@@ -141,6 +142,53 @@ def hybrid_candidate(target, source, limit=LIMIT):
     return raw.index(before), before, after, max(worst, verified)
 
 
+def reordered_hybrid_candidate(target, source, limit=LIMIT):
+    """Substitute bounded curve coefficients when transform bindings reorder.
+
+    Metadata is checked by binding identity and channel, and unchecked sentinel
+    keys are preserved. This changes only the target stream's coefficient words;
+    its frame ordering, curve indices and serialized metadata remain untouched.
+    """
+    left, right = target.read_typetree(), source.read_typetree()
+    lw, rw = stream(left), stream(right)
+    if not lw or not rw:
+        return None
+    try:
+        mapping = reorder.binding_map(left, right)
+        if mapping == list(range(len(mapping))):
+            return None
+        pairs = reorder.coefficient_pairs(lw, rw, mapping)
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError, struct.error):
+        return None
+    result, next_key_time, worst = list(lw), {}, 0.0
+    for key, time, target_offset, source_offset in reversed(pairs):
+        next_time = next_key_time.get(key)
+        next_key_time[key] = time
+        dt = next_time - time if next_time is not None else float('nan')
+        if time < 0 or not math.isfinite(dt) or dt <= 0 or dt > 60:
+            continue
+        target_coeff = tuple(curve.floating(x) for x in lw[target_offset:target_offset + 4])
+        source_coeff = tuple(curve.floating(x) for x in rw[source_offset:source_offset + 4])
+        if not all(math.isfinite(value) for value in (*target_coeff, *source_coeff)):
+            return None
+        difference, _ = extrema(target_coeff, source_coeff, dt)
+        if not math.isfinite(difference) or difference > limit:
+            continue
+        result[target_offset:target_offset + 4] = rw[source_offset:source_offset + 4]
+        worst = max(worst, difference)
+    before = struct.pack('<%dI' % len(lw), *lw)
+    after = struct.pack('<%dI' % len(result), *result)
+    if before == after:
+        return None
+    verified = compatible_frames(curve.frames(lw), curve.frames(result), limit=limit)
+    if verified is None:
+        return None
+    raw = target.get_raw_data()
+    if raw.count(before) != 1:
+        return None
+    return raw.index(before), before, after, max(worst, verified)
+
+
 def generate(args):
     if getattr(args, 'extended', False) and getattr(args, 'relaxed', False):
         raise ValueError('animation curve bounds cannot be combined')
@@ -181,6 +229,8 @@ def generate(args):
                         item = candidate(obj, source_obj, limit=limit)
                         if item is None and getattr(args, 'hybrid', False):
                             item = hybrid_candidate(obj, source_obj, limit=limit)
+                        if item is None and getattr(args, 'reordered_hybrid', False):
+                            item = reordered_hybrid_candidate(obj, source_obj, limit=limit)
                         if item is not None:
                             found.append((source_name, item))
                     fingerprints = {hashlib.sha256(item[2]).digest() for _, item in found}
@@ -225,6 +275,7 @@ def main():
     mode.add_argument('--relaxed', action='store_true', help='use an experimental 1e-4 per-segment curve bound')
     mode.add_argument('--extended', action='store_true', help='use an experimental 1e-3 per-segment curve bound')
     p.add_argument('--hybrid', action='store_true', help='also try bounded per-curve partial substitution')
+    p.add_argument('--reordered-hybrid', action='store_true', help='also try bounded coefficients in reordered Transform curves')
     generate(p.parse_args())
 
 

@@ -122,7 +122,7 @@ def commands(a):
     py('converted cubemaps', 'experimental-converted-cubemaps.py', '--steam-data', steam, '--obb', out / 'texture-study/converted.obb', '--decoder', decoder, '--output', out / 'cubemap-study', *wrapped)
     converted = out / 'cubemap-study/converted.obb'
     if getattr(a, 'animation_curve_fallback', False):
-        py('compatible Steam animation curves', 'experimental-steam-animation-curves.py', '--steam-data', steam, '--obb', converted, '--output', out / 'animation-curve-study', *(['--relaxed'] if getattr(a, 'animation_curve_relaxed', False) else []), *(['--extended'] if getattr(a, 'animation_curve_extended', False) else []), *(['--hybrid'] if getattr(a, 'animation_curve_hybrid', False) else []))
+        py('compatible Steam animation curves', 'experimental-steam-animation-curves.py', '--steam-data', steam, '--obb', converted, '--output', out / 'animation-curve-study', *(['--relaxed'] if getattr(a, 'animation_curve_relaxed', False) else []), *(['--extended'] if getattr(a, 'animation_curve_extended', False) else []), *(['--hybrid'] if getattr(a, 'animation_curve_hybrid', False) else []), *(['--reordered-hybrid'] if getattr(a, 'animation_curve_reordered', False) else []))
         converted = out / 'animation-curve-study/converted.obb'
     if getattr(a, 'transparent_atlas_scrub', False):
         py('transparent atlas scrub', 'experimental-transparent-atlas-scrub.py', '--steam-data', steam, '--obb', converted, '--output', out / 'transparent-atlas-study')
@@ -133,12 +133,15 @@ def commands(a):
     if getattr(a, 'color_block_fallback', False):
         py('bounded color blocks', 'experimental-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'color-block-study', *(['--emission-alias'] if getattr(a, 'emission_block_fallback', False) else []), *(['--bullseye-alias'] if getattr(a, 'bullseye_block_fallback', False) else []), *(['--extra-etc2'] if getattr(a, 'color_block_extra', False) else []))
         converted = out / 'color-block-study/converted.obb'
+    if getattr(a, 'small_color_block_fallback', False):
+        py('bounded small color blocks', 'experimental-small-color-block-fallback.py', '--steam-data', steam, '--obb', converted, '--quality-library', hostlib, '--output', out / 'small-color-block-study')
+        converted = out / 'small-color-block-study/converted.obb'
     toolplan('individual audio plan', 'experimental-steam-audio-plan.py', converted, plans / 'audio')
     toolplan('packed audio plan', 'experimental-packed-audio-plan.py', plans / 'audio/template.obb', plans / 'packed')
     toolplan('texture plan', 'experimental-converted-texture-plan.py', plans / 'packed/template.obb', plans / 'texture', '--manifest', out / 'texture-study/report.json', *(['--quality-library', hostlib] if quality else []))
     toolplan('mesh plan', 'experimental-mesh-buffer-plan.py', plans / 'texture/template.obb', plans / 'mesh')
     toolplan('cubemap plan', 'experimental-cubemap-plan.py', plans / 'mesh/template.obb', plans / 'cubemap', '--manifest', out / 'cubemap-study/report.json', '--decoder', decoder, *wrapped)
-    toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation', *(['--shared0-fonts'] if getattr(a, 'shared0_fonts', False) else []), *(['--reordered-bindings'] if getattr(a, 'reordered_animation_bindings', False) else []))
+    toolplan('animation plan', 'experimental-animation-fragment-plan.py', plans / 'cubemap/template.obb', plans / 'animation', *(['--shared0-fonts'] if getattr(a, 'shared0_fonts', False) else []), *(['--reordered-bindings'] if getattr(a, 'reordered_animation_bindings', False) else []), *(['--neighboring-animation-keys'] if getattr(a, 'neighboring_animation_keys', False) else []))
     toolplan('exact object plan', 'experimental-exact-object-plan.py', plans / 'animation/template.obb', plans / 'objects', *(['--font-payloads', '--shared0-cubemap'] if getattr(a, 'shared0_fonts', False) else []))
     partial = getattr(a, 'partial_rgba', False)
     if partial:
@@ -231,7 +234,9 @@ def main():
     p.add_argument('--animation-curve-relaxed', action='store_true', help='use a 1e-4 curve bound; requires --animation-curve-fallback')
     p.add_argument('--animation-curve-extended', action='store_true', help='use a 1e-3 curve bound; requires --animation-curve-fallback')
     p.add_argument('--animation-curve-hybrid', action='store_true', help='also try per-curve substitutions; requires --animation-curve-fallback')
+    p.add_argument('--animation-curve-reordered', action='store_true', help='also substitute bounded reordered curves; requires --animation-curve-hybrid and --reordered-animation-bindings')
     p.add_argument('--reordered-animation-bindings', action='store_true', help='match exact bytes in reordered Transform animation curves')
+    p.add_argument('--neighboring-animation-keys', action='store_true', help='match exact bytes from adjacent keys in the same Transform channel; requires --reordered-animation-bindings')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--nodraw-fallback', action='store_true', help='also reconstruct the NoDraw debug grid; requires --resource-fallback')
@@ -256,6 +261,7 @@ def main():
     p.add_argument('--partial-etc2-rgba', action='store_true', help='also use RGBA error metric to recover exact ETC2 bytes; requires --partial-etc2-byte')
     p.add_argument('--partial-etc2-extra', action='store_true', help='try additional ETC2 metrics; requires --partial-etc2-rgba')
     p.add_argument('--color-block-extra', action='store_true', help='try extra ETC2 metrics for bounded color blocks; requires --color-block-fallback and --partial-etc2-extra')
+    p.add_argument('--small-color-block-fallback', action='store_true', help='experimentally substitute bounded small color blocks; requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
     p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally reconstruct selected fonts and the default skybox from a relocated sharedassets0')
     p.add_argument('--runner', help='optional wrapper for Unity JDK and native tools')
@@ -275,6 +281,8 @@ def main():
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')
     if a.animation_curve_extended and (not a.animation_curve_fallback or a.animation_curve_relaxed): p.error('--animation-curve-extended requires --animation-curve-fallback and excludes --animation-curve-relaxed')
     if a.animation_curve_hybrid and not a.animation_curve_fallback: p.error('--animation-curve-hybrid requires --animation-curve-fallback')
+    if a.animation_curve_reordered and not (a.animation_curve_hybrid and a.reordered_animation_bindings): p.error('--animation-curve-reordered requires --animation-curve-hybrid and --reordered-animation-bindings')
+    if a.neighboring_animation_keys and not a.reordered_animation_bindings: p.error('--neighboring-animation-keys requires --reordered-animation-bindings')
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')
     if a.resource_fallback and not a.quality_textures: p.error('--resource-fallback requires --quality-textures')
     if a.nodraw_fallback and not a.resource_fallback: p.error('--nodraw-fallback requires --resource-fallback')
@@ -294,6 +302,7 @@ def main():
     if a.partial_etc2_rgba and not a.partial_etc2_byte: p.error('--partial-etc2-rgba requires --partial-etc2-byte')
     if a.partial_etc2_extra and not a.partial_etc2_rgba: p.error('--partial-etc2-extra requires --partial-etc2-rgba')
     if a.color_block_extra and not (a.color_block_fallback and a.partial_etc2_extra): p.error('--color-block-extra requires --color-block-fallback and --partial-etc2-extra')
+    if a.small_color_block_fallback and not (a.quality_textures and a.partial_etc2_tiny and a.partial_etc2_extra): p.error('--small-color-block-fallback requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
     output = a.output.expanduser().absolute()
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')
     a.output = output.parent.resolve() / output.name

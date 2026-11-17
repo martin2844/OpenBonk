@@ -112,7 +112,9 @@ def commands(a):
     if getattr(a, 'animation_curve_relaxed', False): chain += ['--animation-curve-relaxed']
     if getattr(a, 'animation_curve_extended', False): chain += ['--animation-curve-extended']
     if getattr(a, 'animation_curve_hybrid', False): chain += ['--animation-curve-hybrid']
+    if getattr(a, 'animation_curve_reordered', False): chain += ['--animation-curve-reordered']
     if getattr(a, 'reordered_animation_bindings', False): chain += ['--reordered-animation-bindings']
+    if getattr(a, 'neighboring_animation_keys', False): chain += ['--neighboring-animation-keys']
     if a.font_fallback: chain += ['--font-fallback']
     if a.resource_fallback: chain += ['--resource-fallback']
     if getattr(a, 'nodraw_fallback', False): chain += ['--nodraw-fallback']
@@ -137,6 +139,7 @@ def commands(a):
     if getattr(a, 'partial_etc2_rgba', False): chain += ['--partial-etc2-rgba']
     if getattr(a, 'partial_etc2_extra', False): chain += ['--partial-etc2-extra']
     if getattr(a, 'color_block_extra', False): chain += ['--color-block-extra']
+    if getattr(a, 'small_color_block_fallback', False): chain += ['--small-color-block-fallback']
     if getattr(a, 'transparent_atlas_scrub', False): chain += ['--transparent-atlas-scrub']
     if shared0: chain += ['--shared0-fonts']
     if getattr(a, 'gradle_online', False): chain += ['--gradle-online']
@@ -174,7 +177,9 @@ def commands(a):
         if getattr(a, 'animation_curve_relaxed', False): windows_chain += ['--animation-curve-relaxed']
         if getattr(a, 'animation_curve_extended', False): windows_chain += ['--animation-curve-extended']
         if getattr(a, 'animation_curve_hybrid', False): windows_chain += ['--animation-curve-hybrid']
+        if getattr(a, 'animation_curve_reordered', False): windows_chain += ['--animation-curve-reordered']
         if getattr(a, 'reordered_animation_bindings', False): windows_chain += ['--reordered-animation-bindings']
+        if getattr(a, 'neighboring_animation_keys', False): windows_chain += ['--neighboring-animation-keys']
         if a.font_fallback: windows_chain += ['--font-fallback']
         if a.resource_fallback: windows_chain += ['--resource-fallback']
         if getattr(a, 'nodraw_fallback', False): windows_chain += ['--nodraw-fallback']
@@ -199,6 +204,7 @@ def commands(a):
         if getattr(a, 'partial_etc2_rgba', False): windows_chain += ['--partial-etc2-rgba']
         if getattr(a, 'partial_etc2_extra', False): windows_chain += ['--partial-etc2-extra']
         if getattr(a, 'color_block_extra', False): windows_chain += ['--color-block-extra']
+        if getattr(a, 'small_color_block_fallback', False): windows_chain += ['--small-color-block-fallback']
         if getattr(a, 'transparent_atlas_scrub', False): windows_chain += ['--transparent-atlas-scrub']
         if shared0: windows_chain += ['--shared0-fonts']
         if getattr(a, 'gradle_online', False): windows_chain += ['--gradle-online']
@@ -242,7 +248,9 @@ def main():
     p.add_argument('--animation-curve-relaxed', action='store_true', help='use a 1e-4 curve bound; requires --animation-curve-fallback')
     p.add_argument('--animation-curve-extended', action='store_true', help='use a 1e-3 curve bound; requires --animation-curve-fallback')
     p.add_argument('--animation-curve-hybrid', action='store_true', help='also try per-curve substitutions; requires --animation-curve-fallback')
+    p.add_argument('--animation-curve-reordered', action='store_true', help='also substitute bounded reordered curves; requires --animation-curve-hybrid and --reordered-animation-bindings')
     p.add_argument('--reordered-animation-bindings', action='store_true', help='match exact bytes in reordered Transform animation curves')
+    p.add_argument('--neighboring-animation-keys', action='store_true', help='match exact bytes from adjacent keys in the same Transform channel; requires --reordered-animation-bindings')
     p.add_argument('--font-fallback', action='store_true', help='experimentally reconstruct a font atlas; requires --quality-textures')
     p.add_argument('--resource-fallback', action='store_true', help='experimentally reconstruct selected resource textures; requires --quality-textures')
     p.add_argument('--nodraw-fallback', action='store_true', help='also reconstruct the NoDraw debug grid; requires --resource-fallback')
@@ -267,6 +275,7 @@ def main():
     p.add_argument('--partial-etc2-rgba', action='store_true', help='also use RGBA error metric to recover exact ETC2 bytes; requires --partial-etc2-byte')
     p.add_argument('--partial-etc2-extra', action='store_true', help='try additional ETC2 metrics; requires --partial-etc2-rgba')
     p.add_argument('--color-block-extra', action='store_true', help='try extra ETC2 metrics for bounded color blocks; requires --color-block-fallback and --partial-etc2-extra')
+    p.add_argument('--small-color-block-fallback', action='store_true', help='experimentally substitute bounded small color blocks; requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
     p.add_argument('--transparent-atlas-scrub', action='store_true', help='experimentally clear RGB in fully transparent atlas interiors')
     p.add_argument('--shared0-fonts', action='store_true', help='experimentally relocate sharedassets0 and reconstruct selected fonts and the default skybox')
     p.add_argument('--check', action='store_true', help='check only initial inputs')
@@ -284,6 +293,8 @@ def main():
     if a.animation_curve_relaxed and not a.animation_curve_fallback: p.error('--animation-curve-relaxed requires --animation-curve-fallback')
     if a.animation_curve_extended and (not a.animation_curve_fallback or a.animation_curve_relaxed): p.error('--animation-curve-extended requires --animation-curve-fallback and excludes --animation-curve-relaxed')
     if a.animation_curve_hybrid and not a.animation_curve_fallback: p.error('--animation-curve-hybrid requires --animation-curve-fallback')
+    if a.animation_curve_reordered and not (a.animation_curve_hybrid and a.reordered_animation_bindings): p.error('--animation-curve-reordered requires --animation-curve-hybrid and --reordered-animation-bindings')
+    if a.neighboring_animation_keys and not a.reordered_animation_bindings: p.error('--neighboring-animation-keys requires --reordered-animation-bindings')
     if a.font_fallback and not a.quality_textures: p.error('--font-fallback requires --quality-textures')
     if a.resource_fallback and not a.quality_textures: p.error('--resource-fallback requires --quality-textures')
     if a.nodraw_fallback and not a.resource_fallback: p.error('--nodraw-fallback requires --resource-fallback')
@@ -303,6 +314,7 @@ def main():
     if a.partial_etc2_rgba and not a.partial_etc2_byte: p.error('--partial-etc2-rgba requires --partial-etc2-byte')
     if a.partial_etc2_extra and not a.partial_etc2_rgba: p.error('--partial-etc2-extra requires --partial-etc2-rgba')
     if a.color_block_extra and not (a.color_block_fallback and a.partial_etc2_extra): p.error('--color-block-extra requires --color-block-fallback and --partial-etc2-extra')
+    if a.small_color_block_fallback and not (a.quality_textures and a.partial_etc2_tiny and a.partial_etc2_extra): p.error('--small-color-block-fallback requires --quality-textures, --partial-etc2-tiny and --partial-etc2-extra')
     if output.exists() or output.is_symlink() or not output.parent.is_dir(): p.error('output must be new')
     a.output = output.parent.resolve() / output.name
     try:
