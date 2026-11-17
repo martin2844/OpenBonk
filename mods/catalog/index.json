@@ -9,6 +9,24 @@
       "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.0-beta/Pikachu-mod.zip",
       "size": 411262,
       "sha256": "200bcd95347c695b75f464aa0f824d8d2e2fb21d069fb0c713eb5d6d67bc611c"
+    },
+    {
+      "id": "unlock-everything",
+      "name": "Unlock Everything",
+      "description": "Temporarily unlock content without changing your saved progress. Requires OpenBonk 0.1.4 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.4-beta/unlock-everything.zip",
+      "size": 1515,
+      "sha256": "f98418b9e6951d270ed2e6e971e85834e8aa0b147016e950586c8274f41fb36e"
+    },
+    {
+      "id": "instant-collect",
+      "name": "Instant Collect",
+      "description": "Automatically collect newly spawned XP. Requires OpenBonk 0.1.4 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.4-beta/instant-collect.zip",
+      "size": 509,
+      "sha256": "4adc5d73b28766fbd91d63d1eaa6c042341c100f66728f15fee46e399dcb0113"
     }
   ]
 }
