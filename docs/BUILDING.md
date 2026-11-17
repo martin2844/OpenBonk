@@ -288,6 +288,11 @@ game assets. The `unity_builtin_extra` files differed; 27 of 43 selected
 shader name-and-object-hash tuples matched between the two. These comparisons
 apply to the two tested outputs and do not establish the provenance of the
 remaining shaders or prove the APK is asset-free.
+The same inventory lists other `assets/` entries by name and size without
+reading their contents. In this combined APK it listed 44 diagnostic entries,
+including the nested templates, and three others: two dex optimization
+profiles and the Unity OBB GUID. This is a file listing, not an inspection of
+those entries or of APK resources outside `assets/`.
 
 In a focused partial-texture study of those three maps, the bounded-block
 output let the byte-granularity plan mask 84,405 nonzero bytes, compared with

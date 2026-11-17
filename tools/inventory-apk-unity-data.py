@@ -2,9 +2,10 @@
 """Inventory serialized Unity objects stored directly in a local APK.
 
 This is a classification aid, not an asset, provenance or rights audit. It
-does not inspect nested archives, managed resources, native libraries, other
-APK entries or object contents. Keep the
-report local because names and paths can be game-derived.
+lists other assets by name and size without inspecting their contents. It does
+not inspect nested archives, managed resources, native libraries, other APK
+entries or object contents. Keep the report local because names and paths can
+be game-derived.
 """
 import argparse
 from collections import Counter, defaultdict
@@ -51,6 +52,10 @@ def group_entries(archive):
 
 def inventory(archive):
     groups, other = group_entries(archive)
+    outer_assets = [{'name': info.filename, 'size': info.file_size}
+                    for info in archive.infolist()
+                    if not info.is_dir() and info.filename.startswith('assets/')
+                    and not info.filename.startswith(PREFIX)]
     output, problems = [], []
     for name, parts in sorted(groups.items()):
         size = sum(info.file_size for info in parts)
@@ -81,8 +86,9 @@ def inventory(archive):
         except Exception as error:
             problems.append({'group': name, 'reason': type(error).__name__})
     return {'serialized_groups': output, 'other_data_entries': sorted(other, key=lambda x: x['name']),
+            'other_asset_entries': sorted(outer_assets, key=lambda x: x['name']),
             'problems': problems,
-            'limitations': 'Direct assets/bin/Data only; object inventory is not a content, ownership or asset-free audit. Nested archives and other APK entries are not covered.'}
+            'limitations': 'Object inventory covers direct assets/bin/Data only; other assets are listed without inspection. Nested archives and non-asset APK entries are not covered. This is not an ownership or asset-free audit.'}
 
 
 def main():
@@ -97,7 +103,7 @@ def main():
     if output.is_relative_to(ROOT) or output == args.apk.resolve(): parser.error('output must be outside the checkout and input')
     with zipfile.ZipFile(args.apk) as archive: result = inventory(archive)
     with output.open('x', encoding='utf-8') as stream: json.dump(result, stream, indent=2); stream.write('\n')
-    print(f"Serialized groups: {len(result['serialized_groups'])}; other Unity data entries: {len(result['other_data_entries'])}; problems: {len(result['problems'])}")
+    print(f"Serialized groups: {len(result['serialized_groups'])}; other Unity data entries: {len(result['other_data_entries'])}; other asset entries: {len(result['other_asset_entries'])}; problems: {len(result['problems'])}")
 
 
 if __name__ == '__main__': main()

@@ -47,6 +47,16 @@ class InventoryTests(unittest.TestCase):
             report = module.inventory(data)
         self.assertEqual(report['problems'], [{'group': 'level0', 'reason': 'ValueError'}])
 
+    def test_lists_other_apk_assets_without_inspecting_them(self):
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, 'w') as out:
+            out.writestr('assets/example.bin', b'abc')
+            out.writestr('res/example.bin', b'ignored')
+        stream.seek(0)
+        with zipfile.ZipFile(stream) as data:
+            report = module.inventory(data)
+        self.assertEqual(report['other_asset_entries'], [{'name': 'assets/example.bin', 'size': 3}])
+
     def test_builtin_resource_containers_are_classified(self):
         with archive([('Resources/unity_builtin_extra', b'a'), ('Resources/unity default resources', b'b')]) as data:
             groups, other = module.group_entries(data)
