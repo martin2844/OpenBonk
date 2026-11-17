@@ -1,0 +1,1753 @@
+{
+  "source": "https://thunderstore.io/c/megabonk/api/v1/package/",
+  "retrieved_utc": "2026-11-17",
+  "method": "Sum downloads across versions; includes deprecated packages and tools; not a cross-site ranking.",
+  "packages": [
+    {
+      "id": "ebkr-r2modman",
+      "url": "https://thunderstore.io/c/megabonk/p/ebkr/r2modman/",
+      "downloads": 10849520,
+      "deprecated": false,
+      "categories": [
+        "Tools"
+      ],
+      "version": "3.2.21",
+      "source": "https://github.com/ebkr/r2modmanPlus"
+    },
+    {
+      "id": "BepInEx-BepInExPack_IL2CPP",
+      "url": "https://thunderstore.io/c/megabonk/p/BepInEx/BepInExPack_IL2CPP/",
+      "downloads": 897758,
+      "deprecated": false,
+      "categories": [],
+      "version": "6.0.788",
+      "source": "https://github.com/BepInEx/BepInEx"
+    },
+    {
+      "id": "Kesomannen-GaleModManager",
+      "url": "https://thunderstore.io/c/megabonk/p/Kesomannen/GaleModManager/",
+      "downloads": 599429,
+      "deprecated": false,
+      "categories": [],
+      "version": "1.24.0",
+      "source": "https://github.com/Kesomannen/gale"
+    },
+    {
+      "id": "MegabonkModders-CustomCharacterCreator",
+      "url": "https://thunderstore.io/c/megabonk/p/MegabonkModders/CustomCharacterCreator/",
+      "downloads": 49176,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.4.0",
+      "source": "https://github.com/PeterMoras/MEGABONK_CustomCharacterLoader"
+    },
+    {
+      "id": "lukeod-UnlockEverything",
+      "url": "https://thunderstore.io/c/megabonk/p/lukeod/UnlockEverything/",
+      "downloads": 41433,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/lukeod/megabonk_unlockEverything"
+    },
+    {
+      "id": "BonkWithFriends-BonkWithFriends",
+      "url": "https://thunderstore.io/c/megabonk/p/BonkWithFriends/BonkWithFriends/",
+      "downloads": 39570,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.5.5",
+      "source": ""
+    },
+    {
+      "id": "AutoBans-ItemSpawner",
+      "url": "https://thunderstore.io/c/megabonk/p/AutoBans/ItemSpawner/",
+      "downloads": 32725,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.1.3",
+      "source": ""
+    },
+    {
+      "id": "Vegasx-Goth_Witch_Noelle",
+      "url": "https://thunderstore.io/c/megabonk/p/Vegasx/Goth_Witch_Noelle/",
+      "downloads": 26669,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.1.0",
+      "source": "https://github.com/Vegasx"
+    },
+    {
+      "id": "kss-BonkersLib",
+      "url": "https://thunderstore.io/c/megabonk/p/kss/BonkersLib/",
+      "downloads": 22620,
+      "deprecated": false,
+      "categories": [
+        "Libraries",
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.4",
+      "source": "https://github.com/kss306/MegaBonkPlus/tree/master/BonkersLib"
+    },
+    {
+      "id": "Vegasx-Cownoichi",
+      "url": "https://thunderstore.io/c/megabonk/p/Vegasx/Cownoichi/",
+      "downloads": 21166,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods"
+      ],
+      "version": "1.1.1",
+      "source": "https://github.com/Vegasx"
+    },
+    {
+      "id": "ChrispyNi-GodOfDeath",
+      "url": "https://thunderstore.io/c/megabonk/p/ChrispyNi/GodOfDeath/",
+      "downloads": 20279,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.4.0",
+      "source": "https://www.twitch.tv/chrispyni"
+    },
+    {
+      "id": "Intancote-ToggleEverythingForBepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/Intancote/ToggleEverythingForBepInEx/",
+      "downloads": 20038,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/Intancote/ToggleEverything-BepInEx"
+    },
+    {
+      "id": "wafuruns-MegabonkBetterMinimap",
+      "url": "https://thunderstore.io/c/megabonk/p/wafuruns/MegabonkBetterMinimap/",
+      "downloads": 18783,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.4.1",
+      "source": "https://github.com/WafuRuns/MegabonkBetterMinimap"
+    },
+    {
+      "id": "anro-ItemGiver",
+      "url": "https://thunderstore.io/c/megabonk/p/anro/ItemGiver/",
+      "downloads": 18651,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "2.0.4",
+      "source": "https://github.com/anro772/ItemGiverMod"
+    },
+    {
+      "id": "Antiparty-SpawnTracker",
+      "url": "https://thunderstore.io/c/megabonk/p/Antiparty/SpawnTracker/",
+      "downloads": 18437,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "0.5.6",
+      "source": ""
+    },
+    {
+      "id": "kss-MegaBonkPlus",
+      "url": "https://thunderstore.io/c/megabonk/p/kss/MegaBonkPlus/",
+      "downloads": 18184,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "0.9.4",
+      "source": "https://github.com/kss306/MegaBonkPlus/tree/master/MegaBonkPlusMod"
+    },
+    {
+      "id": "China1-InstantCollect",
+      "url": "https://thunderstore.io/c/megabonk/p/China1/InstantCollect/",
+      "downloads": 17277,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/bluejaysFay420/InstantCollect"
+    },
+    {
+      "id": "Semibox-LuckyMan",
+      "url": "https://thunderstore.io/c/megabonk/p/Semibox/LuckyMan/",
+      "downloads": 15942,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.7",
+      "source": "https://github.com/Semibox/MegabonkMod"
+    },
+    {
+      "id": "Semibox-ToggleEverything",
+      "url": "https://thunderstore.io/c/megabonk/p/Semibox/ToggleEverything/",
+      "downloads": 15522,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/Semibox/ToggleEverything"
+    },
+    {
+      "id": "Celllnside-SimpleModMenu",
+      "url": "https://thunderstore.io/c/megabonk/p/Celllnside/SimpleModMenu/",
+      "downloads": 15094,
+      "deprecated": false,
+      "categories": [],
+      "version": "1.6.7",
+      "source": "https://github.com/Celllnside/SimpleModMenu"
+    },
+    {
+      "id": "Maskoliver-Potomatic",
+      "url": "https://thunderstore.io/c/megabonk/p/Maskoliver/Potomatic/",
+      "downloads": 14167,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "LethalM-Megabonk_Save_Editor_Unlock_All",
+      "url": "https://thunderstore.io/c/megabonk/p/LethalM/Megabonk_Save_Editor_Unlock_All/",
+      "downloads": 14164,
+      "deprecated": false,
+      "categories": [
+        "Tools"
+      ],
+      "version": "1.0.0",
+      "source": "https://example.com/megabonk-save-editor"
+    },
+    {
+      "id": "timjobs-GothKittySiella",
+      "url": "https://thunderstore.io/c/megabonk/p/timjobs/GothKittySiella/",
+      "downloads": 13980,
+      "deprecated": false,
+      "categories": [],
+      "version": "1.0.0",
+      "source": "https://twitch.tv/Timjobs"
+    },
+    {
+      "id": "Phlamingos-XP_Pickup_All",
+      "url": "https://thunderstore.io/c/megabonk/p/Phlamingos/XP_Pickup_All/",
+      "downloads": 13075,
+      "deprecated": true,
+      "categories": [
+        "Misc",
+        "Mods"
+      ],
+      "version": "1.2.2",
+      "source": ""
+    },
+    {
+      "id": "Helix128-StatHUD",
+      "url": "https://thunderstore.io/c/megabonk/p/Helix128/StatHUD/",
+      "downloads": 13032,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.2.1",
+      "source": "https://github.com/Helix128/StatHUD/"
+    },
+    {
+      "id": "sharaj00-Miku",
+      "url": "https://thunderstore.io/c/megabonk/p/sharaj00/Miku/",
+      "downloads": 12141,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.5.0",
+      "source": "https://steamcommunity.com/id/sharaj00/"
+    },
+    {
+      "id": "SkeletonCrew-Sonic",
+      "url": "https://thunderstore.io/c/megabonk/p/SkeletonCrew/Sonic/",
+      "downloads": 11594,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.2",
+      "source": "https://twitch.tv/joer_uu"
+    },
+    {
+      "id": "mike9k1-InGame_Achievements_and_Unlocks",
+      "url": "https://thunderstore.io/c/megabonk/p/mike9k1/InGame_Achievements_and_Unlocks/",
+      "downloads": 11479,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.0.3",
+      "source": ""
+    },
+    {
+      "id": "anro-BHop",
+      "url": "https://thunderstore.io/c/megabonk/p/anro/BHop/",
+      "downloads": 11400,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/anro772/BHop"
+    },
+    {
+      "id": "waynethepro250-FreeChests",
+      "url": "https://thunderstore.io/c/megabonk/p/waynethepro250/FreeChests/",
+      "downloads": 11245,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "mike9k1-Slower_Timer",
+      "url": "https://thunderstore.io/c/megabonk/p/mike9k1/Slower_Timer/",
+      "downloads": 11016,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.0.5",
+      "source": ""
+    },
+    {
+      "id": "Woooosh-InstantChests",
+      "url": "https://thunderstore.io/c/megabonk/p/Woooosh/InstantChests/",
+      "downloads": 10824,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/Wooshibou/Megabonk-InstantChests-MelonLoader"
+    },
+    {
+      "id": "anro-StatMod",
+      "url": "https://thunderstore.io/c/megabonk/p/anro/StatMod/",
+      "downloads": 9843,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.4",
+      "source": "https://github.com/anro772/StatMod"
+    },
+    {
+      "id": "Semibox-SuperOldMan",
+      "url": "https://thunderstore.io/c/megabonk/p/Semibox/SuperOldMan/",
+      "downloads": 9769,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/Semibox/SuperOldMan"
+    },
+    {
+      "id": "Shadowth117-CustomCharacterCreator_Shadowth117Fix",
+      "url": "https://thunderstore.io/c/megabonk/p/Shadowth117/CustomCharacterCreator_Shadowth117Fix/",
+      "downloads": 9158,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.4.1",
+      "source": "https://github.com/Shadowth117/MEGABONK_CustomCharacterLoader"
+    },
+    {
+      "id": "Celllnside-InfRefreshes",
+      "url": "https://thunderstore.io/c/megabonk/p/Celllnside/InfRefreshes/",
+      "downloads": 9084,
+      "deprecated": false,
+      "categories": [],
+      "version": "1.0.3",
+      "source": "https://github.com/Celllnside/InfRefreshes"
+    },
+    {
+      "id": "Woooosh-InstantChestsBepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/Woooosh/InstantChestsBepInEx/",
+      "downloads": 9060,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/Wooshibou/Megabonk-InstantChests-BepInEx"
+    },
+    {
+      "id": "Maskoliver-ShowEnemyHP",
+      "url": "https://thunderstore.io/c/megabonk/p/Maskoliver/ShowEnemyHP/",
+      "downloads": 8894,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.5",
+      "source": ""
+    },
+    {
+      "id": "ZeusesNeckMeat-AutoInteract",
+      "url": "https://thunderstore.io/c/megabonk/p/ZeusesNeckMeat/AutoInteract/",
+      "downloads": 8697,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/ZeusesNeckMeat/AutoInteract"
+    },
+    {
+      "id": "Semibox-InstantChargeShrine",
+      "url": "https://thunderstore.io/c/megabonk/p/Semibox/InstantChargeShrine/",
+      "downloads": 8638,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.4",
+      "source": "https://github.com/Semibox/InstantChargeShrine"
+    },
+    {
+      "id": "bedlesssleeper-Shrine_Counter",
+      "url": "https://thunderstore.io/c/megabonk/p/bedlesssleeper/Shrine_Counter/",
+      "downloads": 8602,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.5",
+      "source": "https://github.com/BedlessSleeper/Shrine_Counter"
+    },
+    {
+      "id": "mike9k1-Better_Banishes_and_Skips",
+      "url": "https://thunderstore.io/c/megabonk/p/mike9k1/Better_Banishes_and_Skips/",
+      "downloads": 8564,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.0.4",
+      "source": ""
+    },
+    {
+      "id": "OnionJam-MegaIdol",
+      "url": "https://thunderstore.io/c/megabonk/p/OnionJam/MegaIdol/",
+      "downloads": 8322,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://x.com/0nion_jam"
+    },
+    {
+      "id": "Rizzotto-Megamod",
+      "url": "https://thunderstore.io/c/megabonk/p/Rizzotto/Megamod/",
+      "downloads": 8041,
+      "deprecated": false,
+      "categories": [
+        "Modpacks",
+        "Mods"
+      ],
+      "version": "0.5.3",
+      "source": ""
+    },
+    {
+      "id": "rangermikefps-XpTomeOnLevel1",
+      "url": "https://thunderstore.io/c/megabonk/p/rangermikefps/XpTomeOnLevel1/",
+      "downloads": 7984,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.1.1",
+      "source": "https://thunderstore.io/c/megabonk/p/rangermikefps/XpTomeOnLevel1/"
+    },
+    {
+      "id": "GUNGGA-MetaBonk",
+      "url": "https://thunderstore.io/c/megabonk/p/GUNGGA/MetaBonk/",
+      "downloads": 7772,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "Woooosh-ItemAddMenu",
+      "url": "https://thunderstore.io/c/megabonk/p/Woooosh/ItemAddMenu/",
+      "downloads": 7758,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/Wooshibou/Megabonk-ItemAddMenu-BepInEx"
+    },
+    {
+      "id": "waynethepro250-GodMode",
+      "url": "https://thunderstore.io/c/megabonk/p/waynethepro250/GodMode/",
+      "downloads": 7616,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "ZeusesNeckMeat-AutoSkipChestAnimations",
+      "url": "https://thunderstore.io/c/megabonk/p/ZeusesNeckMeat/AutoSkipChestAnimations/",
+      "downloads": 7493,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/ZeusesNeckMeat/AutoSkipChestAnimations"
+    },
+    {
+      "id": "mike9k1-Personal_Leaderboard",
+      "url": "https://thunderstore.io/c/megabonk/p/mike9k1/Personal_Leaderboard/",
+      "downloads": 7248,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.0.3",
+      "source": ""
+    },
+    {
+      "id": "mike9k1-Swap_Starting_Weapon",
+      "url": "https://thunderstore.io/c/megabonk/p/mike9k1/Swap_Starting_Weapon/",
+      "downloads": 7219,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.0.2",
+      "source": ""
+    },
+    {
+      "id": "ZeusesNeckMeat-BonkTuner",
+      "url": "https://thunderstore.io/c/megabonk/p/ZeusesNeckMeat/BonkTuner/",
+      "downloads": 6986,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.1.1",
+      "source": "https://github.com/ZeusesNeckMeat/BonkTuner"
+    },
+    {
+      "id": "ArvieTabz-AlwaysShowBossArrow_BepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/ArvieTabz/AlwaysShowBossArrow_BepInEx/",
+      "downloads": 6964,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "0.1.0",
+      "source": "https://www.nexusmods.com/megabonk/mods/13"
+    },
+    {
+      "id": "Shadowth117-Yuzu",
+      "url": "https://thunderstore.io/c/megabonk/p/Shadowth117/Yuzu/",
+      "downloads": 6864,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://twitch.tv/yuzu"
+    },
+    {
+      "id": "idontcareaboutteams-EnemyHealthBarMod",
+      "url": "https://thunderstore.io/c/megabonk/p/idontcareaboutteams/EnemyHealthBarMod/",
+      "downloads": 6790,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.0",
+      "source": ""
+    },
+    {
+      "id": "turnipthebeet-Megabonk_Community_Patch",
+      "url": "https://thunderstore.io/c/megabonk/p/turnipthebeet/Megabonk_Community_Patch/",
+      "downloads": 6752,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.5.3",
+      "source": "https://github.com/TurnipTheBeet/Megabonk---Community-Patch"
+    },
+    {
+      "id": "ArvieTabz-IntuitiveKeys_BepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/ArvieTabz/IntuitiveKeys_BepInEx/",
+      "downloads": 6008,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.0",
+      "source": "https://www.nexusmods.com/megabonk/mods/101"
+    },
+    {
+      "id": "Helix128-ShadowFix",
+      "url": "https://thunderstore.io/c/megabonk/p/Helix128/ShadowFix/",
+      "downloads": 5958,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.1.2",
+      "source": "https://github.com/Helix128/ShadowFix/"
+    },
+    {
+      "id": "gogurt-MegabonkModMenu",
+      "url": "https://thunderstore.io/c/megabonk/p/gogurt/MegabonkModMenu/",
+      "downloads": 5878,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "0.2.1",
+      "source": "https://discord.gg/UMMJ7pkkRP"
+    },
+    {
+      "id": "Compton-GoblinLab",
+      "url": "https://thunderstore.io/c/megabonk/p/Compton/GoblinLab/",
+      "downloads": 5671,
+      "deprecated": false,
+      "categories": [
+        "Tools"
+      ],
+      "version": "1.0.3",
+      "source": ""
+    },
+    {
+      "id": "bihop-FreeChestsPlus",
+      "url": "https://thunderstore.io/c/megabonk/p/bihop/FreeChestsPlus/",
+      "downloads": 5486,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.3",
+      "source": "https://github.com/worldspawn-web/freechests_plus"
+    },
+    {
+      "id": "mike9k1-More_Refreshes_on_Level_Up",
+      "url": "https://thunderstore.io/c/megabonk/p/mike9k1/More_Refreshes_on_Level_Up/",
+      "downloads": 5463,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.0.3",
+      "source": ""
+    },
+    {
+      "id": "ArvieTabz-InstantChargeShrine_BepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/ArvieTabz/InstantChargeShrine_BepInEx/",
+      "downloads": 5361,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.2",
+      "source": "https://github.com/arvietabz/InstantChargeShrine-BepInEx"
+    },
+    {
+      "id": "Semibox-FreeShadyGuy",
+      "url": "https://thunderstore.io/c/megabonk/p/Semibox/FreeShadyGuy/",
+      "downloads": 5359,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/Semibox/FreeShadyGuy"
+    },
+    {
+      "id": "mike9k1-Simple_Sprint_Key",
+      "url": "https://thunderstore.io/c/megabonk/p/mike9k1/Simple_Sprint_Key/",
+      "downloads": 5329,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.0.6",
+      "source": ""
+    },
+    {
+      "id": "mike9k1-Save_and_Load_All_Weapons_Items_and_Stats",
+      "url": "https://thunderstore.io/c/megabonk/p/mike9k1/Save_and_Load_All_Weapons_Items_and_Stats/",
+      "downloads": 5280,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.0.7",
+      "source": ""
+    },
+    {
+      "id": "ZeusesNeckMeat-LoadoutPresets",
+      "url": "https://thunderstore.io/c/megabonk/p/ZeusesNeckMeat/LoadoutPresets/",
+      "downloads": 5235,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/ZeusesNeckMeat/LoadoutPresets"
+    },
+    {
+      "id": "China1-megaHOP",
+      "url": "https://thunderstore.io/c/megabonk/p/China1/megaHOP/",
+      "downloads": 5233,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.1.0",
+      "source": "https://github.com/bluejaysFay420/MegaHOP"
+    },
+    {
+      "id": "bedlesssleeper-ForceItemRarity",
+      "url": "https://thunderstore.io/c/megabonk/p/bedlesssleeper/ForceItemRarity/",
+      "downloads": 5125,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.0",
+      "source": ""
+    },
+    {
+      "id": "maanu113-DetailedRunStats",
+      "url": "https://thunderstore.io/c/megabonk/p/maanu113/DetailedRunStats/",
+      "downloads": 5110,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods"
+      ],
+      "version": "1.1.0",
+      "source": ""
+    },
+    {
+      "id": "Caioreix-PluginReloader",
+      "url": "https://thunderstore.io/c/megabonk/p/Caioreix/PluginReloader/",
+      "downloads": 5087,
+      "deprecated": false,
+      "categories": [],
+      "version": "1.0.1",
+      "source": "https://github.com/caioreix/PluginReloader"
+    },
+    {
+      "id": "tahaaydn-megabonkDpsMeter",
+      "url": "https://thunderstore.io/c/megabonk/p/tahaaydn/megabonkDpsMeter/",
+      "downloads": 5031,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/tahaaydn/megabonkDpsMeter"
+    },
+    {
+      "id": "Maskoliver-UsefullInfoUI",
+      "url": "https://thunderstore.io/c/megabonk/p/Maskoliver/UsefullInfoUI/",
+      "downloads": 5026,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.2.0",
+      "source": ""
+    },
+    {
+      "id": "svindler-MegabonkMinimap",
+      "url": "https://thunderstore.io/c/megabonk/p/svindler/MegabonkMinimap/",
+      "downloads": 4898,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "0.3.0",
+      "source": "https://github.com/svind1er/MegabonkMinimap"
+    },
+    {
+      "id": "gogurt-BhopFixed",
+      "url": "https://thunderstore.io/c/megabonk/p/gogurt/BhopFixed/",
+      "downloads": 4331,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods"
+      ],
+      "version": "0.0.1",
+      "source": "https://discord.gg/UMMJ7pkkRP"
+    },
+    {
+      "id": "Chesh-BikiniArmorGirl",
+      "url": "https://thunderstore.io/c/megabonk/p/Chesh/BikiniArmorGirl/",
+      "downloads": 4236,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "Chesh-BigHitboxFox",
+      "url": "https://thunderstore.io/c/megabonk/p/Chesh/BigHitboxFox/",
+      "downloads": 4149,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "ArvieTabz-FirstChestCreditCard_BepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/ArvieTabz/FirstChestCreditCard_BepInEx/",
+      "downloads": 4146,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.1.0",
+      "source": "https://www.nexusmods.com/megabonk/mods/98"
+    },
+    {
+      "id": "EdgeMods-AutoUpgradeForked",
+      "url": "https://thunderstore.io/c/megabonk/p/EdgeMods/AutoUpgradeForked/",
+      "downloads": 4078,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.4.0",
+      "source": "https://github.com/sebastianbruu/AutoUpgrade"
+    },
+    {
+      "id": "bedlesssleeper-Silver_Pot_Icon",
+      "url": "https://thunderstore.io/c/megabonk/p/bedlesssleeper/Silver_Pot_Icon/",
+      "downloads": 4073,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.0",
+      "source": "https://github.com/GITHUB_OWNER/GITHUB_REPO_NAME"
+    },
+    {
+      "id": "guarnecessities-SpacebarBlock",
+      "url": "https://thunderstore.io/c/megabonk/p/guarnecessities/SpacebarBlock/",
+      "downloads": 4006,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods"
+      ],
+      "version": "3.0.1",
+      "source": ""
+    },
+    {
+      "id": "Celllnside-megaHOPBepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/Celllnside/megaHOPBepInEx/",
+      "downloads": 3999,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.2",
+      "source": "https://github.com/Celllnside/MegaHOP-BepInEx"
+    },
+    {
+      "id": "wafuruns-MegabonkBetterMinimapMelonLoader",
+      "url": "https://thunderstore.io/c/megabonk/p/wafuruns/MegabonkBetterMinimapMelonLoader/",
+      "downloads": 3987,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.4.1",
+      "source": "https://github.com/WafuRuns/MegabonkBetterMinimapMelonLoader"
+    },
+    {
+      "id": "NanobotZ-ToggleEverything_BepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/NanobotZ/ToggleEverything_BepInEx/",
+      "downloads": 3974,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.2.0",
+      "source": ""
+    },
+    {
+      "id": "Maskoliver-Map_Nap",
+      "url": "https://thunderstore.io/c/megabonk/p/Maskoliver/Map_Nap/",
+      "downloads": 3655,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "bedlesssleeper-BetterPotPowerUp",
+      "url": "https://thunderstore.io/c/megabonk/p/bedlesssleeper/BetterPotPowerUp/",
+      "downloads": 3638,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.0",
+      "source": ""
+    },
+    {
+      "id": "ArvieTabz-FreeShadyGuy_BepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/ArvieTabz/FreeShadyGuy_BepInEx/",
+      "downloads": 3569,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/arvietabz/FreeShadyGuy-BepInEx"
+    },
+    {
+      "id": "Rofliex-ChestLootOverride",
+      "url": "https://thunderstore.io/c/megabonk/p/Rofliex/ChestLootOverride/",
+      "downloads": 3472,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.2",
+      "source": ""
+    },
+    {
+      "id": "ZeusesNeckMeat-UnlocksSearch",
+      "url": "https://thunderstore.io/c/megabonk/p/ZeusesNeckMeat/UnlocksSearch/",
+      "downloads": 3438,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/ZeusesNeckMeat/UnlocksSearch"
+    },
+    {
+      "id": "oric-ActualSizeStat",
+      "url": "https://thunderstore.io/c/megabonk/p/oric/ActualSizeStat/",
+      "downloads": 3374,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/Pokefan5/ActualSizeStat"
+    },
+    {
+      "id": "Semibox-Untouchable",
+      "url": "https://thunderstore.io/c/megabonk/p/Semibox/Untouchable/",
+      "downloads": 3373,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/Semibox/Untouchable"
+    },
+    {
+      "id": "ArvieTabz-SuperOldMan_BepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/ArvieTabz/SuperOldMan_BepInEx/",
+      "downloads": 3139,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/arvietabz/SuperOldMan-BepInEx"
+    },
+    {
+      "id": "bihop-RarityForce",
+      "url": "https://thunderstore.io/c/megabonk/p/bihop/RarityForce/",
+      "downloads": 3118,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.1.0",
+      "source": "https://github.com/worldspawn-web/rarity_force"
+    },
+    {
+      "id": "a_person_who_thinks_all_the_time-Easyrestart",
+      "url": "https://thunderstore.io/c/megabonk/p/a_person_who_thinks_all_the_time/Easyrestart/",
+      "downloads": 3048,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "MegabonkModders-TinyCowboyCl4nk",
+      "url": "https://thunderstore.io/c/megabonk/p/MegabonkModders/TinyCowboyCl4nk/",
+      "downloads": 2927,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/PeterMoras/MEGABONK_CustomCharacterMaker"
+    },
+    {
+      "id": "Flowseal-TwitchIntegration",
+      "url": "https://thunderstore.io/c/megabonk/p/Flowseal/TwitchIntegration/",
+      "downloads": 2901,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/Flowseal/MegabonkTwitchIntegration"
+    },
+    {
+      "id": "RealYoshicomix-Splint",
+      "url": "https://thunderstore.io/c/megabonk/p/RealYoshicomix/Splint/",
+      "downloads": 2856,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://x.com/RealYoshicomix"
+    },
+    {
+      "id": "PlutoEnjoyers-BetterAmog",
+      "url": "https://thunderstore.io/c/megabonk/p/PlutoEnjoyers/BetterAmog/",
+      "downloads": 2855,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "Wohou-ChaosLogs",
+      "url": "https://thunderstore.io/c/megabonk/p/Wohou/ChaosLogs/",
+      "downloads": 2577,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "0.9.1",
+      "source": "https://github.com/Wohou/ChaosLogs"
+    },
+    {
+      "id": "Intancote-BalanceShrineForBepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/Intancote/BalanceShrineForBepInEx/",
+      "downloads": 2503,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.2",
+      "source": "https://github.com/Intancote/BalanceShrine-BepInEx"
+    },
+    {
+      "id": "ArvieTabz-IntuitiveItems_BepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/ArvieTabz/IntuitiveItems_BepInEx/",
+      "downloads": 2485,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.8.2",
+      "source": "https://github.com/arvietabz/IntuitiveItems-BepInEx"
+    },
+    {
+      "id": "NanobotZ-AlwaysShowBossArrow",
+      "url": "https://thunderstore.io/c/megabonk/p/NanobotZ/AlwaysShowBossArrow/",
+      "downloads": 2449,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.0",
+      "source": ""
+    },
+    {
+      "id": "Lart_Iste-EnhancedMegabonk",
+      "url": "https://thunderstore.io/c/megabonk/p/Lart_Iste/EnhancedMegabonk/",
+      "downloads": 2393,
+      "deprecated": false,
+      "categories": [
+        "Libraries",
+        "Misc",
+        "Modpacks",
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.1.3",
+      "source": ""
+    },
+    {
+      "id": "Maskoliver-SimpleUITweaks",
+      "url": "https://thunderstore.io/c/megabonk/p/Maskoliver/SimpleUITweaks/",
+      "downloads": 2380,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.1.1",
+      "source": ""
+    },
+    {
+      "id": "ArvieTabz-ShrineHunt_BepInEx",
+      "url": "https://thunderstore.io/c/megabonk/p/ArvieTabz/ShrineHunt_BepInEx/",
+      "downloads": 2035,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "0.2.0",
+      "source": "https://www.nexusmods.com/megabonk/mods/12"
+    },
+    {
+      "id": "Semibox-CrazyFox",
+      "url": "https://thunderstore.io/c/megabonk/p/Semibox/CrazyFox/",
+      "downloads": 1992,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.2",
+      "source": "https://github.com/Semibox/CrazyFox"
+    },
+    {
+      "id": "NanobotZ-ToggleEverything",
+      "url": "https://thunderstore.io/c/megabonk/p/NanobotZ/ToggleEverything/",
+      "downloads": 1945,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.2.0",
+      "source": ""
+    },
+    {
+      "id": "BonkCoop-BonkCoop",
+      "url": "https://thunderstore.io/c/megabonk/p/BonkCoop/BonkCoop/",
+      "downloads": 1815,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.4.0",
+      "source": "https://github.com/lanterndevv/BonkCoop"
+    },
+    {
+      "id": "CubicCreates-ShioriNovella",
+      "url": "https://thunderstore.io/c/megabonk/p/CubicCreates/ShioriNovella/",
+      "downloads": 1721,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "WackyWahooPizzaMan-Vergil",
+      "url": "https://thunderstore.io/c/megabonk/p/WackyWahooPizzaMan/Vergil/",
+      "downloads": 1565,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/TheWackyWahooPizzaMan"
+    },
+    {
+      "id": "WackyWahooPizzaMan-Dante",
+      "url": "https://thunderstore.io/c/megabonk/p/WackyWahooPizzaMan/Dante/",
+      "downloads": 1546,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/TheWackyWahooPizzaMan"
+    },
+    {
+      "id": "NanobotZ-ShrineHunt",
+      "url": "https://thunderstore.io/c/megabonk/p/NanobotZ/ShrineHunt/",
+      "downloads": 1529,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.2.0",
+      "source": ""
+    },
+    {
+      "id": "Guibas-Minebonk",
+      "url": "https://thunderstore.io/c/megabonk/p/Guibas/Minebonk/",
+      "downloads": 1409,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.2.0",
+      "source": "https://github.com/MGuibas/Minebonk"
+    },
+    {
+      "id": "Maskoliver-Clean_Start",
+      "url": "https://thunderstore.io/c/megabonk/p/Maskoliver/Clean_Start/",
+      "downloads": 1385,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": ""
+    },
+    {
+      "id": "China1-MegaHopFirstPerson",
+      "url": "https://thunderstore.io/c/megabonk/p/China1/MegaHopFirstPerson/",
+      "downloads": 1291,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://github.com/fackord/MegaHopFirstPerson"
+    },
+    {
+      "id": "wobblegobble-MoreShopUpgrades",
+      "url": "https://thunderstore.io/c/megabonk/p/wobblegobble/MoreShopUpgrades/",
+      "downloads": 1287,
+      "deprecated": false,
+      "categories": [
+        "Modpacks",
+        "Mods"
+      ],
+      "version": "1.4.2",
+      "source": ""
+    },
+    {
+      "id": "CrowdControl-CrowdControl_Megabonk",
+      "url": "https://thunderstore.io/c/megabonk/p/CrowdControl/CrowdControl_Megabonk/",
+      "downloads": 1221,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.3.1",
+      "source": "https://crowdcontrol.live/"
+    },
+    {
+      "id": "BigBrainBois-Modders_Logger_UI",
+      "url": "https://thunderstore.io/c/megabonk/p/BigBrainBois/Modders_Logger_UI/",
+      "downloads": 1024,
+      "deprecated": false,
+      "categories": [],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "bedlesssleeper-WildSands",
+      "url": "https://thunderstore.io/c/megabonk/p/bedlesssleeper/WildSands/",
+      "downloads": 991,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.1",
+      "source": ""
+    },
+    {
+      "id": "StudioTennitus-BeeBlocker",
+      "url": "https://thunderstore.io/c/megabonk/p/StudioTennitus/BeeBlocker/",
+      "downloads": 984,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/Dsiman/BeeBlocker"
+    },
+    {
+      "id": "methamphetaminelab-ModMenu",
+      "url": "https://thunderstore.io/c/megabonk/p/methamphetaminelab/ModMenu/",
+      "downloads": 943,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/methamphetaminelab/MBModMenu"
+    },
+    {
+      "id": "bedlesssleeper-MoreKeybinds",
+      "url": "https://thunderstore.io/c/megabonk/p/bedlesssleeper/MoreKeybinds/",
+      "downloads": 889,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.1",
+      "source": "https://DontClickMeImNotARealLink.com"
+    },
+    {
+      "id": "svindler-MegabonkRailsBuilder",
+      "url": "https://thunderstore.io/c/megabonk/p/svindler/MegabonkRailsBuilder/",
+      "downloads": 851,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/svind1er/MegabonkRailsBuilder"
+    },
+    {
+      "id": "Semibox-StartWeaponMaxLevel",
+      "url": "https://thunderstore.io/c/megabonk/p/Semibox/StartWeaponMaxLevel/",
+      "downloads": 834,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/Semibox/StartWeaponMaxLevel"
+    },
+    {
+      "id": "TheBestBonkCOOP-BonkCoop",
+      "url": "https://thunderstore.io/c/megabonk/p/TheBestBonkCOOP/BonkCoop/",
+      "downloads": 802,
+      "deprecated": false,
+      "categories": [
+        "Misc",
+        "Modpacks",
+        "Mods",
+        "Tools"
+      ],
+      "version": "0.2.6",
+      "source": ""
+    },
+    {
+      "id": "GuzTeam-Guz",
+      "url": "https://thunderstore.io/c/megabonk/p/GuzTeam/Guz/",
+      "downloads": 777,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.3.0",
+      "source": ""
+    },
+    {
+      "id": "ignah1-TargetToggleandBosstargetting",
+      "url": "https://thunderstore.io/c/megabonk/p/ignah1/TargetToggleandBosstargetting/",
+      "downloads": 718,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.2",
+      "source": ""
+    },
+    {
+      "id": "AhmedHus21-QuestTracker",
+      "url": "https://thunderstore.io/c/megabonk/p/AhmedHus21/QuestTracker/",
+      "downloads": 671,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.3.2",
+      "source": "https://www.nexusmods.com/megabonk/mods/192"
+    },
+    {
+      "id": "rytiss78-Megabonk_Wildforge_Mod",
+      "url": "https://thunderstore.io/c/megabonk/p/rytiss78/Megabonk_Wildforge_Mod/",
+      "downloads": 642,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.3.0",
+      "source": "https://github.com/rytiss78/wildforge/tree/main/mods/megabonk-wildforge"
+    },
+    {
+      "id": "anro-AutoUpgrade",
+      "url": "https://thunderstore.io/c/megabonk/p/anro/AutoUpgrade/",
+      "downloads": 594,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.2.0",
+      "source": "https://github.com/anro772/AutoUpgrade"
+    },
+    {
+      "id": "ignah1-TargetToggle",
+      "url": "https://thunderstore.io/c/megabonk/p/ignah1/TargetToggle/",
+      "downloads": 538,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.1",
+      "source": ""
+    },
+    {
+      "id": "JustaMea-MegabonkInput",
+      "url": "https://thunderstore.io/c/megabonk/p/JustaMea/MegabonkInput/",
+      "downloads": 513,
+      "deprecated": false,
+      "categories": [
+        "Libraries"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/Rivinwin10/MegabonkInput"
+    },
+    {
+      "id": "TeamAvi-Multibonk",
+      "url": "https://thunderstore.io/c/megabonk/p/TeamAvi/Multibonk/",
+      "downloads": 479,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.2.7",
+      "source": "https://multibonk.ludix.gg"
+    },
+    {
+      "id": "Hydroxy-IHateRNG",
+      "url": "https://thunderstore.io/c/megabonk/p/Hydroxy/IHateRNG/",
+      "downloads": 456,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.13",
+      "source": ""
+    },
+    {
+      "id": "DatInc-BonkSquad",
+      "url": "https://thunderstore.io/c/megabonk/p/DatInc/BonkSquad/",
+      "downloads": 400,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.2.13",
+      "source": ""
+    },
+    {
+      "id": "GangTroll-all_passives",
+      "url": "https://thunderstore.io/c/megabonk/p/GangTroll/all_passives/",
+      "downloads": 399,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.2.0",
+      "source": "https://github.com/GITHUB_OWNER/GITHUB_REPO_NAME"
+    },
+    {
+      "id": "Rofliex-ChestLootOverride_MegaLadder",
+      "url": "https://thunderstore.io/c/megabonk/p/Rofliex/ChestLootOverride_MegaLadder/",
+      "downloads": 363,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": "https://megabonk.su/"
+    },
+    {
+      "id": "1TimeMod-CustomCharacterTranslationFix",
+      "url": "https://thunderstore.io/c/megabonk/p/1TimeMod/CustomCharacterTranslationFix/",
+      "downloads": 309,
+      "deprecated": false,
+      "categories": [
+        "Misc"
+      ],
+      "version": "1.0.1",
+      "source": ""
+    },
+    {
+      "id": "methamphetaminelab-AutoBanish",
+      "url": "https://thunderstore.io/c/megabonk/p/methamphetaminelab/AutoBanish/",
+      "downloads": 302,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/methamphetaminelab/MBAutoBanish"
+    },
+    {
+      "id": "StudioRedLantern-OmniBonk",
+      "url": "https://thunderstore.io/c/megabonk/p/StudioRedLantern/OmniBonk/",
+      "downloads": 218,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "svindler-TonyBonksMegarailBuilder",
+      "url": "https://thunderstore.io/c/megabonk/p/svindler/TonyBonksMegarailBuilder/",
+      "downloads": 167,
+      "deprecated": true,
+      "categories": [
+        "Misc",
+        "Mods",
+        "Tools"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/svind1er/Megabonk-Megarail"
+    },
+    {
+      "id": "pythoninthegrass-Megabonk_Level_Editor",
+      "url": "https://thunderstore.io/c/megabonk/p/pythoninthegrass/Megabonk_Level_Editor/",
+      "downloads": 166,
+      "deprecated": false,
+      "categories": [
+        "Mods",
+        "Tools"
+      ],
+      "version": "0.2.0",
+      "source": "https://megabonkmod.party"
+    },
+    {
+      "id": "PizzaMan-CleanText",
+      "url": "https://thunderstore.io/c/megabonk/p/PizzaMan/CleanText/",
+      "downloads": 142,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "AhmedHus21-MegabonkArabic",
+      "url": "https://thunderstore.io/c/megabonk/p/AhmedHus21/MegabonkArabic/",
+      "downloads": 137,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.2.0",
+      "source": "https://www.nexusmods.com/megabonk/mods/193"
+    },
+    {
+      "id": "PizzaMan-Arachnophobia",
+      "url": "https://thunderstore.io/c/megabonk/p/PizzaMan/Arachnophobia/",
+      "downloads": 114,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "IdeaAttempts-MegabonkMultiplayer",
+      "url": "https://thunderstore.io/c/megabonk/p/IdeaAttempts/MegabonkMultiplayer/",
+      "downloads": 102,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/yourusername/Multi-bonk"
+    },
+    {
+      "id": "China1-EndlessMode",
+      "url": "https://thunderstore.io/c/megabonk/p/China1/EndlessMode/",
+      "downloads": 50,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/fackord/EndlessMode"
+    },
+    {
+      "id": "guarnecessities-NoSpacebarSelection",
+      "url": "https://thunderstore.io/c/megabonk/p/guarnecessities/NoSpacebarSelection/",
+      "downloads": 47,
+      "deprecated": true,
+      "categories": [
+        "Misc",
+        "Mods"
+      ],
+      "version": "1.0.1",
+      "source": ""
+    },
+    {
+      "id": "divinemamma-MEGABONK_SIMPLE_MOD",
+      "url": "https://thunderstore.io/c/megabonk/p/divinemamma/MEGABONK_SIMPLE_MOD/",
+      "downloads": 34,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.0",
+      "source": "https://github.com/GITHUB_OWNER/GITHUB_REPO_NAME"
+    },
+    {
+      "id": "SkeletonCrew-SonicTheHedgehog",
+      "url": "https://thunderstore.io/c/megabonk/p/SkeletonCrew/SonicTheHedgehog/",
+      "downloads": 30,
+      "deprecated": true,
+      "categories": [
+        "Modpacks"
+      ],
+      "version": "1.0.0",
+      "source": "https://twitch.tv/joerusumittokan"
+    },
+    {
+      "id": "divinemamma-practice_mod",
+      "url": "https://thunderstore.io/c/megabonk/p/divinemamma/practice_mod/",
+      "downloads": 26,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.1.0",
+      "source": "https://github.com/danielreeder/megabonk_practice_mod"
+    },
+    {
+      "id": "Devil_May_Cry-Dante",
+      "url": "https://thunderstore.io/c/megabonk/p/Devil_May_Cry/Dante/",
+      "downloads": 12,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/TheWackyWahooPizzaMan"
+    },
+    {
+      "id": "MochiFlow-BonkCoopNavigation",
+      "url": "https://thunderstore.io/c/megabonk/p/MochiFlow/BonkCoopNavigation/",
+      "downloads": 11,
+      "deprecated": false,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": ""
+    },
+    {
+      "id": "Devil_May_Cry-SonsOfSparda",
+      "url": "https://thunderstore.io/c/megabonk/p/Devil_May_Cry/SonsOfSparda/",
+      "downloads": 10,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "1.0.0",
+      "source": "https://github.com/TheWackyWahooPizzaMan"
+    },
+    {
+      "id": "DatInc-BonkWithFriends_Fixes",
+      "url": "https://thunderstore.io/c/megabonk/p/DatInc/BonkWithFriends_Fixes/",
+      "downloads": 3,
+      "deprecated": true,
+      "categories": [
+        "Mods"
+      ],
+      "version": "0.8.0",
+      "source": ""
+    }
+  ]
+}
