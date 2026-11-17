@@ -79,7 +79,7 @@ def main():
     args = parser.parse_args()
     try:
         print(json.dumps(inspect_package(args.package), indent=2, ensure_ascii=False))
-    except (OSError, ValueError, KeyError, UnicodeError, zipfile.BadZipFile) as exc:
+    except (OSError, ValueError, KeyError, RuntimeError, UnicodeError, zipfile.BadZipFile) as exc:
         parser.exit(1, 'Cannot inspect package: ' + str(exc) + '\n')
 
 
