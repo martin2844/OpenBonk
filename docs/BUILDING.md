@@ -211,8 +211,15 @@ the substitution. Linux and Windows source data produced the same converted
 OBB; focused Linux and Windows plans each restored all 1,072 expected entries
 on a Retroid Pocket 5. The independent clean-clone OBB also accepted the four
 targets. These pixel bounds do not establish equivalent emissive shading or visual behavior.
-The extended option has not been tested in a complete launcher build; the
-results and remaining templates contain game data and stay private.
+An ensuing 38-stage Linux research chain reused the earlier runtime and
+Gradle export with all four targets and passed its restoration checks. The
+packaged template retained 106,486 nonzero bytes across 1,157 identified
+inline texture payloads, with seven empty textures and no streams or skips;
+other categories were not measured. Its isolated Retroid installation
+imported the Linux ZIP, produced the expected OBB hash and entered a short
+Forest run with enemy defeats. The test did not specifically inspect the pylon
+or its emissive shading. The APK and remaining templates still contain game
+data and stay private.
 
 Unity assigned different path IDs to both named targets in a separate fresh
 clone's OBB. The selection now uses group, unique name and exact texture
