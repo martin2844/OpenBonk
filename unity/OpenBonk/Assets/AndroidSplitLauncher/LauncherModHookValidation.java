@@ -10,7 +10,7 @@ final class LauncherModHookValidation {
         int api = manifest.optInt("api", 0);
         if (manifest.has("refresh") && !manifest.isNull("refresh") &&
             (!(manifest.opt("refresh") instanceof String) || api != 2 || !"level_up".equals(manifest.optString("refresh")))) return false;
-        if (api == 1) return startingTome(manifest.optString("hook", "")) || "unlock_all".equals(manifest.optString("hook", "")) || "collect_spawned_xp".equals(manifest.optString("hook", "")) || "auto_open_pots".equals(manifest.optString("hook", "")) || "item_lab".equals(manifest.optString("hook", "")) || hookStat(manifest.optString("hook", "")) != null;
+        if (api == 1) return startingTome(manifest.optString("hook", "")) || "unlock_all".equals(manifest.optString("hook", "")) || "collect_spawned_xp".equals(manifest.optString("hook", "")) || "auto_open_pots".equals(manifest.optString("hook", "")) || "item_lab".equals(manifest.optString("hook", "")) || "chest_tracker".equals(manifest.optString("hook", "")) || hookStat(manifest.optString("hook", "")) != null;
         JSONArray hooks = manifest.optJSONArray("hooks");
         if (api != 2 || hooks == null || hooks.length() < 1 || hooks.length() > 112) return false;
         HashSet<String> seen = new HashSet<>();

@@ -1,0 +1,11 @@
+# Chest Tracker (experimental)
+
+An independent chest count overlay inspired by [SpawnTracker by Antiparty](https://thunderstore.io/c/megabonk/p/Antiparty/SpawnTracker/). No original code or assets are included; no upstream license was identified. It needs an unreleased OpenBonk host with the `chest_tracker` hook and is not in the public catalog.
+
+During a run, it shows unopened and total tracked chests once at least one is present. Each chest is counted by identity for the current map; successful interactions are counted once per chest, including when a key makes the opening free. The reconstructed OpenBonk code destroys the chest after that opening; this has not been compared against the original game. Unopened chests removed from the world are removed from the total. It is a read-only overlay without controls, so it cannot capture touch or controller focus. This differs from the original, which describes additional shrine and vendor logging; full equivalence is not established.
+
+Disable and restart to remove the overlay.
+
+An isolated Xiaomi IL2CPP diagnostic loaded the policy from a test manifest and showed the overlay in Forest. A controlled real chest opening without animation forced the Key's chance to 100%: the interaction emitted one open event, added one reward, charged no gold and destroyed the chest; the HUD changed from 46/46 to 45/46. Another real chest rejected an unaffordable interaction without changing the count; opening it with animation emitted one event and reduced the count once. The animation was then completed using touch, and the run resumed. The HUD disappeared on the death screen. A diagnostic loop of 10,000 repeated registration/open calls took 1.15 ms on that device; this is not an FPS benchmark or a measurement of initial spawning. An Editor check covers repeated callbacks, object disable/re-enable, map reset, 10,000 unique registrations/opens and isolation from Item Lab.
+
+The Android run used an isolated embedded-data diagnostic, not a release APK or a remote catalog install. Real controller hardware, longer runs, dungeon transitions and every chest type remain untested; the original mod has not been compared in a running PC game. The passive overlay has no raycast target or selectable controls; touch worked for the tested chest window, while physical-controller behavior remains unverified.

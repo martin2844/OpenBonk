@@ -33,6 +33,11 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Chests
 
 		public static string debugNameCrypt = "Crypt Chests";
 
+		private void OnEnable()
+		{
+			OpenBonkChestTracker.Register(GetInstanceID());
+		}
+
 		private void Awake()
 		{
 			ChestWindowUi.A_Close += OnChestWindowClose;
@@ -63,6 +68,7 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Chests
 			OpenChestImplementation();
 			if (chestType != EChest.Free && chestType != EChest.FreeCrypt) A_ChestBought?.Invoke();
 			A_ChestOpened?.Invoke();
+			OpenBonkChestTracker.Opened(GetInstanceID());
 			return true;
 		}
 
@@ -90,6 +96,8 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Chests
 				inventory.ChangeGold(-GetPrice());
 				if (chestType != EChest.Free && chestType != EChest.FreeCrypt) MoneyUtility.IncreaseChestPrice();
 			}
+			// The no-animation path can disable the chest before Interact returns.
+			OpenBonkChestTracker.Opened(GetInstanceID());
 			Destroy(gameObject);
 		}
 
@@ -132,6 +140,7 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Chests
 
 		private void OnDisable()
 		{
+			OpenBonkChestTracker.Disabled(GetInstanceID());
 			if (ShowInDebug() && !opening) A_DebugDisable?.Invoke(GetDebugName());
 		}
 

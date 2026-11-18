@@ -1,0 +1,6 @@
+{
+  "id": "chest-tracker",
+  "api": 1,
+  "enabled": false,
+  "hook": "chest_tracker"
+}
