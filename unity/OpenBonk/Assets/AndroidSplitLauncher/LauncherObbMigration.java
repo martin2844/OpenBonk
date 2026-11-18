@@ -25,6 +25,30 @@ final class LauncherObbMigration {
 
     static void migrate(Context context, File destination, Runnable onLegacyDownload) {
         if (destination == null || destination.exists()) return;
+        if ("5e57197c6ed213095b3dc66fb518b9d1cfd6318d8961baed50a7a187383e445d".equals(SplitExpectedData.SHA256)) {
+            String target = "5e57197c6ed213095b3dc66fb518b9d1cfd6318d8961baed50a7a187383e445d";
+            String v018 = "9e1bb997a09945e448d1580222ce487a46d6840a39795c9734710cbc7e8bbf2e";
+            String v017 = "2d39f7ded1fd3892d5e8391f4d7b98756afccad52c1196bc878395ffd125ff99";
+            String v016 = "c7e714c4fe5be7d147e0225720dd4bc5d6d9f790432a016ab1ac99dedd67f60c";
+            migrateFrom(context, destination, 9, v018, "c12c18f4e4e292a7ee762703814da6aef8bad0a4cd0b0b7ccca09da0efbb07fe", "018-to-offer.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 8, v017, "96285f4965f6ebe303961bdaf8e8135344d55c64e69fd362fc542d85f53db0f2", "017-to-offer.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 7, v016, "ba9e6aae2714185b941af9e0674ff0f4ff953af527d6795cc18f34d6d8127093", "016-to-offer.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 6, v016, "ba9e6aae2714185b941af9e0674ff0f4ff953af527d6795cc18f34d6d8127093", "016-to-offer.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 5, TARGET, "9e16b54be0bcc326add180d6a1662d9216a46e8987959ae2ba91a2002141cf77", "014-to-offer.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 4, OLD, "d47e613b9321c880573d64ee879ef800fc0b03383c1252edc81a8cca783fd797", "013-to-offer.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 3, OLD, "d47e613b9321c880573d64ee879ef800fc0b03383c1252edc81a8cca783fd797", "013-to-offer.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 2, "c505401a92e8d9533c4d82237340a5d8946364169d8e64322af305d37ffc1afd", "906e704b725e16983b6c347dd62a4f4a0a38fbe63e80d13cebdbf930c330905e", "011-to-offer.zst", target, 374365435L);
+            if (!destination.exists()) {
+                File intermediate = new File(destination.getParentFile(), "main.5." + context.getPackageName() + ".obb");
+                boolean created = migrateLegacyRemote(context, intermediate, onLegacyDownload);
+                if (created) {
+                    migrateFrom(context, destination, 5, TARGET, "9e16b54be0bcc326add180d6a1662d9216a46e8987959ae2ba91a2002141cf77", "014-to-offer.zst", target, 374365435L);
+                    if (destination.exists()) intermediate.delete();
+                }
+            }
+            return;
+        }
+
         if ("9e1bb997a09945e448d1580222ce487a46d6840a39795c9734710cbc7e8bbf2e".equals(SplitExpectedData.SHA256)) {
             String target = "9e1bb997a09945e448d1580222ce487a46d6840a39795c9734710cbc7e8bbf2e";
             String v017 = "2d39f7ded1fd3892d5e8391f4d7b98756afccad52c1196bc878395ffd125ff99";

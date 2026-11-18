@@ -440,6 +440,14 @@ def gradle_command(java, gradle_jar, runner=None, online=False):
 
 
 MIGRATION_PATCHES = {
+    '5e57197c6ed213095b3dc66fb518b9d1cfd6318d8961baed50a7a187383e445d': (
+        ('011-to-offer.zst', '906e704b725e16983b6c347dd62a4f4a0a38fbe63e80d13cebdbf930c330905e'),
+        ('013-to-offer.zst', 'd47e613b9321c880573d64ee879ef800fc0b03383c1252edc81a8cca783fd797'),
+        ('014-to-offer.zst', '9e16b54be0bcc326add180d6a1662d9216a46e8987959ae2ba91a2002141cf77'),
+        ('016-to-offer.zst', 'ba9e6aae2714185b941af9e0674ff0f4ff953af527d6795cc18f34d6d8127093'),
+        ('017-to-offer.zst', '96285f4965f6ebe303961bdaf8e8135344d55c64e69fd362fc542d85f53db0f2'),
+        ('018-to-offer.zst', 'c12c18f4e4e292a7ee762703814da6aef8bad0a4cd0b0b7ccca09da0efbb07fe'),
+    ),
     '9e1bb997a09945e448d1580222ce487a46d6840a39795c9734710cbc7e8bbf2e': (
         ('011-to-candidate.zst', '2e738661f451f087e993e91005f229262c0b52856d6f669fff8947e5cc291368'),
         ('013-to-candidate.zst', '3f48971d26ae3cf543534dd44867e17c0000aa64af04602029acd97e654e7216'),
@@ -468,6 +476,8 @@ def verified_migration_patches(expected_sha, version_code, root=ROOT):
     patches = MIGRATION_PATCHES.get(expected_sha)
     if patches is None:
         raise ValueError('no pinned OBB migration for the expected game data')
+    if len(patches) == 6 and (version_code is None or version_code < 10):
+        raise ValueError('offer tools migration requires version code 10 or later')
     if len(patches) == 5 and (version_code is None or version_code < 9):
         raise ValueError('candidate migration requires version code 9 or later')
     if len(patches) == 4 and (version_code is None or version_code < 8):
