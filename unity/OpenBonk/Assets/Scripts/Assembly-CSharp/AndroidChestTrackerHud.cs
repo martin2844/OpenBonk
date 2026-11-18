@@ -1,5 +1,6 @@
 #if UNITY_ANDROID && !UNITY_EDITOR
 using Assets.Scripts.Actors.Player;
+using Assets.Scripts.Utility;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,7 +21,7 @@ internal sealed class AndroidChestTrackerHud : MonoBehaviour
     }
     private void Update()
     {
-        bool visible = OpenBonkChestTracker.Enabled && OpenBonkChestTracker.Total > 0 &&
+        bool visible = OpenBonkChestTracker.Enabled && !MyTime.paused && OpenBonkChestTracker.Total > 0 &&
             GameManager.Instance != null && GameManager.Instance.IsPlaying() &&
             MyPlayer.Instance != null && MyPlayer.Instance.inventory != null &&
             MyPlayer.Instance.inventory.playerHealth != null && !MyPlayer.Instance.IsDead();
