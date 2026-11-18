@@ -1865,7 +1865,35 @@ public final class SplitDataLauncher extends Activity {
             }).create());
     }
 
+    private void prepareRuntimeMetadata(SharedPreferences prefs)
+            throws IOException, android.content.pm.PackageManager.NameNotFoundException {
+        long installedAt = getPackageManager().getPackageInfo(getPackageName(), 0).lastUpdateTime;
+        String key = "openbonk_runtime_metadata_install";
+        if (prefs.getLong(key, -1L) == installedAt) return;
+
+        // Unity extracts this file once and may otherwise reuse a previous
+        // APK's metadata with the upgraded IL2CPP library.
+        File external = getExternalFilesDir(null);
+        if (external == null) throw new IOException("Runtime storage unavailable");
+        for (File root : new File[] { external, getFilesDir() }) {
+            File cached = new File(root, "il2cpp/Metadata/global-metadata.dat");
+            if (cached.exists() && (!cached.isFile() || !cached.delete()))
+                throw new IOException("Could not refresh the Unity metadata cache");
+        }
+        if (!prefs.edit().putLong(key, installedAt).commit())
+            throw new IOException("Could not record the Unity metadata refresh");
+    }
+
     private void launchGame() {
+        SharedPreferences prefs = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE);
+        try {
+            prepareRuntimeMetadata(prefs);
+        } catch (IOException | android.content.pm.PackageManager.NameNotFoundException e) {
+            android.util.Log.w("OpenBonk", "Could not prepare Unity runtime metadata", e);
+            showStartupReport(startupReport(installedVersion(),
+                es ? "No se pudo actualizar la caché del juego" : "Could not refresh the game cache"));
+            return;
+        }
         if (controlChanged) {
             synchronized (CONTROL_LOCK) {
                 if (!getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).edit().putInt(PENDING_CONTROL, touchMode).commit()) {
@@ -1878,7 +1906,6 @@ public final class SplitDataLauncher extends Activity {
         game.putExtra("openbonk_split_launcher", true);
         if (controlChanged) game.putExtra("megabonk_launcher_touch_mode", touchMode);
         if (pendingSteam().isFile()) game.putExtra("megabonk_import_original_texts", true);
-        SharedPreferences prefs = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE);
         long attempt = System.currentTimeMillis();
         String version = installedVersion();
         game.putExtra(LAUNCH_ATTEMPT, attempt);
