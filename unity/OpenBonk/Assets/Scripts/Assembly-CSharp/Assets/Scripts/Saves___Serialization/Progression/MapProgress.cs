@@ -1,4 +1,6 @@
 using System;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 
 namespace Assets.Scripts.Saves___Serialization.Progression
@@ -6,6 +8,9 @@ namespace Assets.Scripts.Saves___Serialization.Progression
 	[Serializable]
 	public class MapProgress
 	{
+		[JsonExtensionData, UnityEngine.Scripting.Preserve]
+		private IDictionary<string, JToken> extraFields;
+
 		public HashSet<int> tierNotifications = new HashSet<int>();
 
 		public HashSet<int> tierChallengeNotifications = new HashSet<int>();

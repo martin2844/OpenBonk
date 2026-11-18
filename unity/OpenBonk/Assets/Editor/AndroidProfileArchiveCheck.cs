@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Assets.Scripts.Saves___Serialization.SaveFiles;
 using UnityEngine;
 
@@ -25,6 +26,33 @@ public static class AndroidProfileArchiveCheck
         catch (InvalidDataException) { failed = true; }
         Require(failed, "Invalid profile accepted");
     }
+
+    private static void CheckVersionCompatibility(string root)
+    {
+        // Model an older export without later optional fields, plus fields a
+        // different release might have added at the root or inside records.
+        const string oldProgress = "{\"silver\":432,\"achievements\":[\"compatibility-check\"],\"future\":{\"mode\":2},\"menuMeta\":{\"mapsProgress\":{\"Forest\":{\"completedTiers\":[0],\"futureTier\":1}}}}";
+        const string oldStats = "{\"stats\":{\"runs\":{\"name\":\"runs\",\"value\":9,\"futureTotal\":10}},\"future\":[true,12]}";
+        using var zip = Zip("progression.json", SimpleEncryptor.Encrypt(oldProgress), "stats.json", SimpleEncryptor.Encrypt(oldStats));
+        AndroidProfileArchive.Import(zip, root, "2");
+        string account = Path.Combine(root, "2");
+        var progress = JsonConvert.DeserializeObject<ProgressionSaveFile>(SimpleEncryptor.Decrypt(
+            File.ReadAllText(Path.Combine(account, "progression.json"))));
+        var stats = JsonConvert.DeserializeObject<StatsSaveFile>(SimpleEncryptor.Decrypt(
+            File.ReadAllText(Path.Combine(account, "stats.json"))));
+        Require(progress.silver == 432 && progress.achievements.Contains("compatibility-check")
+            && progress.shopItems != null && stats.stats["runs"].value == 9 && stats.times != null,
+            "An older profile did not retain its progress or defaults");
+        progress.silver++;
+        JObject savedProgress = JObject.FromObject(progress);
+        JObject savedStats = JObject.FromObject(stats);
+        Require((int)savedProgress["silver"] == 433 && (int)savedProgress["future"]["mode"] == 2
+            && (int)savedProgress["menuMeta"]["mapsProgress"]["Forest"]["futureTier"] == 1,
+            "A progression write lost an additive field");
+        Require((int)savedStats["stats"]["runs"]["futureTotal"] == 10 && (bool)savedStats["future"][0],
+            "A stats write lost an additive field");
+    }
+
     public static void Run()
     {
         string root = Path.Combine(Application.temporaryCachePath, "profile-check-" + Guid.NewGuid().ToString("N"));
@@ -55,6 +83,7 @@ public static class AndroidProfileArchiveCheck
             int before = Directory.GetDirectories(root, ".profile-backup-0-*").Length;
             AndroidProfileArchive.Recover(root, "0");
             Require(Directory.Exists(current) && !Directory.Exists(previous) && Directory.GetDirectories(root, ".profile-backup-0-*").Length == before + 1, "committed replacement recovery");
+            CheckVersionCompatibility(root);
             string fixture = Environment.GetEnvironmentVariable("MEGABONK_PROFILE_FIXTURE_DIR");
             if (!string.IsNullOrEmpty(fixture))
             {
@@ -62,7 +91,7 @@ public static class AndroidProfileArchiveCheck
                 AndroidProfileArchive.Import(zip, root, "1");
                 Debug.Log("Original encrypted profile shape accepted");
             }
-            Debug.Log("AndroidProfileArchiveCheck passed: profile validation, safe paths, pair matching, preservation and interrupted replacement recovery");
+            Debug.Log("AndroidProfileArchiveCheck passed: legacy ZIP compatibility, additive fields, safe paths, pair matching and interrupted replacement recovery");
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }

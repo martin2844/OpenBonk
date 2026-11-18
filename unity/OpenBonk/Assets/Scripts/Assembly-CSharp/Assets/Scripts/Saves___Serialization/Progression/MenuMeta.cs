@@ -1,4 +1,6 @@
 using System;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using Assets.Scripts._Data.MapsAndStages;
 using Assets.Scripts.Saves___Serialization.Progression.Stats;
@@ -8,6 +10,9 @@ namespace Assets.Scripts.Saves___Serialization.Progression
 	[Serializable]
 	public class MenuMeta
 	{
+		[JsonExtensionData, UnityEngine.Scripting.Preserve]
+		private IDictionary<string, JToken> extraFields;
+
 		public EMap lastSelectedMap = EMap.Forest;
 
 		public Dictionary<EMap, MapProgress> mapsProgress = new Dictionary<EMap, MapProgress>();

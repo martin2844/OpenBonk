@@ -1,7 +1,14 @@
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
 namespace Assets.Scripts.Saves___Serialization.Progression
 {
 	public class CharacterProgression
 	{
+		[JsonExtensionData, UnityEngine.Scripting.Preserve]
+		private IDictionary<string, JToken> extraFields;
+
 		public int xp;
 
 		public int numRuns;

@@ -1,4 +1,6 @@
 using System;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using Actors.Enemies;
 using Assets.Scripts.Saves___Serialization.Progression;
@@ -9,6 +11,9 @@ namespace Assets.Scripts.Saves___Serialization.SaveFiles
 	[Serializable]
 	public class StatsSaveFile
 	{
+		[JsonExtensionData, UnityEngine.Scripting.Preserve]
+		private IDictionary<string, JToken> extraFields;
+
 		public Dictionary<string, MyStat> stats = new Dictionary<string, MyStat>();
 
 		public Dictionary<EEnemy, EnemyLog> enemyLogs = new Dictionary<EEnemy, EnemyLog>();

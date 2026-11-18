@@ -27,6 +27,8 @@ If you enjoy OpenBonk and would like to support its development, you can [buy Ma
 
 OpenBonk requires **64-bit Android 8 or later**. It has been tested on a Retroid Pocket 5, an iPlay 70 mini Pro and a Xiaomi phone. Device compatibility is still being established. Back up existing progress before replacing or uninstalling an app.
 
+Install newer official APKs over your existing app to keep your profile. A ZIP saved with **Export profile** can also be restored with **Import profile ZIP** on a newer release. Keep a pre-update export if you plan to return to an older build.
+
 ![OpenBonk gameplay in Forest using touch controls](docs/screenshots/gameplay.png)
 
 ## Installation guides

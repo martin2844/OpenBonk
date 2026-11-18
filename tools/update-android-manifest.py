@@ -12,6 +12,7 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parent.parent
+RELEASE_CERTIFICATE = 'bb2167e814b376d57c1f6a685a9255953f07efe64a91725e56e59f6cebcd8774'
 
 
 def manifest(tag, code, asset, local_size, local_digest):
@@ -27,6 +28,14 @@ def manifest(tag, code, asset, local_size, local_digest):
             'size': local_size, 'sha256': local_digest}
 
 
+def verify_release_signer(apk, apksigner, runner):
+    command = ([runner] if runner else []) + [str(apksigner), 'verify', '--print-certs', str(apk)]
+    details = subprocess.check_output(command, text=True)
+    signers = re.findall(r'^Signer #\d+ certificate SHA-256 digest: ([a-fA-F0-9]{64})\s*$', details, re.M)
+    if [signer.lower() for signer in signers] != [RELEASE_CERTIFICATE]:
+        raise ValueError('APK does not use the OpenBonk beta signing certificate')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('tag')
@@ -40,6 +49,7 @@ def main():
     package = re.search(r"^package: name='([^']+)' versionCode='(\d+)'", badging, re.M)
     if not package or package.group(1) != 'com.megabonk.nativeport.splittest':
         raise ValueError('unexpected Android application ID or unreadable APK')
+    verify_release_signer(apk, Path(args.aapt).with_name('apksigner'), args.runner)
     release = json.loads(subprocess.check_output([
         'gh', 'release', 'view', args.tag, '--repo', 'martin2844/OpenBonk',
         '--json', 'tagName,isDraft,assets'], text=True))

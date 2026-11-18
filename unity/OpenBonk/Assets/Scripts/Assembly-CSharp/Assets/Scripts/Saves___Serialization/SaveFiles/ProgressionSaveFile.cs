@@ -1,4 +1,6 @@
 using System;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using Assets.Scripts.Saves___Serialization.Progression;
 using Assets.Scripts.Saves___Serialization.Progression.Achievements;
@@ -9,6 +11,10 @@ namespace Assets.Scripts.Saves___Serialization.SaveFiles
 	[Serializable]
 	public class ProgressionSaveFile
 	{
+		// Preserve fields written by another version when this build saves again.
+		[JsonExtensionData, UnityEngine.Scripting.Preserve]
+		private IDictionary<string, JToken> extraFields;
+
 		public int gold;
 
 		public int silver;

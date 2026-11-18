@@ -227,3 +227,16 @@ To check the workspace's managed and native binary files against its local expor
 ```
 
 The check flags workspace binary files that differ from or have no corresponding local input, as well as missing generated plugins and missing exported binaries. It permits the known Unity package duplicates removed by workspace preparation. It does not validate the creation of those inputs, Unity package-cache binaries, provenance, redistribution rights or behavior of the resulting APK.
+
+## Profile compatibility
+
+Keep the exported profile ZIP independent of the APK version. It uses the same
+encrypted `progression.json` and `stats.json` pair across releases. When
+adding fields, keep defaults for older profiles and preserve fields read from
+another build. Changes to an existing field's name, type, or saved enum values
+need an explicit migration and a regression check.
+
+Before shipping a profile change, run `AndroidProfileArchiveCheck.Run` in the
+prepared Unity workspace. Verify that installing the new APK over the previous
+official version on a test device keeps an existing profile, and that a ZIP
+exported by the previous release imports into the new one.

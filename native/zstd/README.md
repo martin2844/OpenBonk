@@ -14,7 +14,9 @@ To build the ARM64 decoder, set `ANDROID_NDK_HOME` and run
 checks the patch and target hashes. Zstandard's source archive and license are
 included here; its SHA-256 is verified by the build script.
 
-The Android release workflow verifies the published APK's size and SHA-256,
+The Android release workflow verifies the published APK's size, SHA-256 and
+beta signing certificate. Keeping the application ID and certificate stable
+lets Android update the app in place and retain its profile. The workflow
 reads its version code, and updates `updates/android.json` so launchers can
 discover it. Check that the workflow succeeds after each release; it can also
 be run manually for a published tag. As a local fallback, run
