@@ -5,7 +5,9 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Assets.Scripts.Actors.Player;
 using Assets.Scripts.Managers;
+using Assets.Scripts.Saves___Serialization.Progression.Stats;
 using Assets.Scripts.UI.Localization;
+using Assets.Scripts.Utility;
 using UnityEngine;
 
 public class InteractablePortal : BaseInteractable
@@ -67,6 +69,7 @@ public class InteractablePortal : BaseInteractable
 	private bool done;
 
 	private bool restarted;
+	[NonSerialized] internal bool completesExternalRun;
 
 	private void Awake()
 	{
@@ -95,8 +98,25 @@ public class InteractablePortal : BaseInteractable
 		GameManager.Instance.cutscene = true;
 		MyPlayer.Instance.TeleportPlayerNextStage();
 		yield return new WaitForSeconds(2f);
-		if (!restarted && !MyPlayer.Instance.IsDead()) MapController.LoadNextStage();
+		if (restarted || MyPlayer.Instance.IsDead()) yield break;
+		if (!completesExternalRun)
+		{
+			MapController.LoadNextStage();
+			yield break;
+		}
+		GameManager.Instance.OnTeleportAway();
+		var save = SaveManager.Instance;
+		if (save?.progression != null)
+		{
+			save.progression.menuMeta.GetMapProgress(MapController.currentMap.eMap).SetKills(RunStats.GetStat(EMyStat.kills));
+			save.SaveProgression();
+			save.SaveStats();
+		}
+		MyTime.Pause();
+		UiManager.Instance.hud.SetActive(false);
+		UiManager.Instance.deathScreen.ShowStats();
 	}
 
-	public override string GetInteractString() => LocalizationUtility.GetLocalizedString("Game_Interactables", "ENTER_PORTAL");
+	public override string GetInteractString() =>
+		LocalizationUtility.GetLocalizedString("Game_Interactables", completesExternalRun ? "FINAL_PORTAL" : "ENTER_PORTAL");
 }

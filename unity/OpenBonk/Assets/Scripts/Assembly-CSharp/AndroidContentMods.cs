@@ -26,8 +26,27 @@ internal static class AndroidContentMods
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class PerLevelSpec { public string stat; public float amount; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class ItemSpec { public string id, name, description, icon, rarity; public bool inPool; public int maxAmount, maxAmountPerRun; public ItemBonusSpec[] bonuses; public string[] hooks; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class ItemBonusSpec { public string stat, mode; public float amount; }
-    [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapSpec { public string id, name, description, icon, groundTexture, wallTexture, bundle, @base; public string[] hooks; public MapObjectSpec[] objects; public int tileGridSize; public float volatility, slopeStrength, flatMapBias, stageDuration, noiseScale, heightMultiplier, mapScale; }
+    [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapSpec
+    {
+        public string id, name, description, icon, groundTexture, wallTexture, bundle, @base;
+        public string[] hooks;
+        public MapObjectSpec[] objects;
+        public StageEnvironmentSpec[] stageEnvironments;
+        public OpenBonkMapEncounterBuild.EnemySpec[] enemies;
+        public OpenBonkMapEncounterBuild.StageSpec[] encounters;
+        public int tileGridSize;
+        public float volatility, slopeStrength, flatMapBias, stageDuration, noiseScale, heightMultiplier, mapScale;
+    }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapObjectSpec { public string prefab; public int amount; public int[] stages; public float scaleMin, scaleMax, checkRadius, maxSlopeAngle, upOffset; }
+    [Serializable, UnityEngine.Scripting.Preserve] private sealed class StageEnvironmentSpec
+    {
+        public int stage;
+        public string groundTexture, wallTexture;
+        public string architectureMaterial, skyMaterial;
+        public bool replaceDecorations;
+        public string potVisual, silverPotVisual, arenaLandmark, potBreakFx;
+        public OpenBonkRoofLayout.Profile rooftops;
+    }
     private static readonly List<AssetBundle> Bundles = new List<AssetBundle>();
     private static readonly List<OpenBonkProceduralMapBuild> Maps = new List<OpenBonkProceduralMapBuild>();
     private static readonly List<OpenBonkMeshMapBuild> MeshMaps = new List<OpenBonkMeshMapBuild>();
@@ -205,6 +224,10 @@ internal static class AndroidContentMods
         var spec = manifest.map;
         OpenBonkContentIds.Map(id, spec.id);
         if (spec.@base != "Forest" && spec.@base != "Desert") throw new InvalidDataException("unsupported map template");
+        if (spec.stageEnvironments != null && (spec.@base != "Forest" || spec.stageEnvironments.Length < 1 || spec.stageEnvironments.Length > 3))
+            throw new InvalidDataException("invalid stage environments");
+        if ((spec.enemies == null) != (spec.encounters == null))
+            throw new InvalidDataException("map enemies and encounters must be declared together");
         bool spawnHook = false, healthHook = false, speedHook = false, damageHook = false;
         bool enemyHealthHook = false, enemySpeedHook = false, enemyDamageHook = false;
         if (spec.hooks != null) foreach (string hook in spec.hooks)
@@ -218,7 +241,14 @@ internal static class AndroidContentMods
             else if (hook == "enemy_damage_multiplier" && !enemyDamageHook) enemyDamageHook = true;
             else throw new InvalidDataException("unsupported map hooks");
         }
-        if ((spec.objects == null && !string.IsNullOrEmpty(spec.bundle)) || (spec.objects != null && (spec.objects.Length == 0 || spec.objects.Length > 8 || !Text(spec.bundle, 120)))) throw new InvalidDataException("invalid map objects");
+        bool needsBundle = spec.enemies != null || spec.objects != null || (spec.stageEnvironments != null &&
+            Array.Exists(spec.stageEnvironments, stage => stage != null &&
+                (!string.IsNullOrEmpty(stage.potVisual) || !string.IsNullOrEmpty(stage.silverPotVisual) ||
+                 !string.IsNullOrEmpty(stage.architectureMaterial) || !string.IsNullOrEmpty(stage.skyMaterial) ||
+                 !string.IsNullOrEmpty(stage.arenaLandmark) || !string.IsNullOrEmpty(stage.potBreakFx))));
+        if ((spec.objects != null && (spec.objects.Length == 0 || spec.objects.Length > 8)) ||
+            (needsBundle ? !Text(spec.bundle, 120) : !string.IsNullOrEmpty(spec.bundle)))
+            throw new InvalidDataException("invalid map bundle");
         var files = new Dictionary<string, FileSpec>(StringComparer.Ordinal);
         foreach (var f in manifest.files)
         {
@@ -228,26 +258,21 @@ internal static class AndroidContentMods
         string source = Utf8.GetString(File.ReadAllBytes(CheckedFile(folder, files, "main.lua", 65536)));
         if (source.IndexOf('\0') >= 0) throw new InvalidDataException("invalid Lua source");
         string iconPath = CheckedFile(folder, files, spec.icon, 4L * 1024 * 1024);
-        string groundPath = string.IsNullOrEmpty(spec.groundTexture) ? null : CheckedFile(folder, files, spec.groundTexture, 4L * 1024 * 1024);
-        string wallPath = string.IsNullOrEmpty(spec.wallTexture) ? null : CheckedFile(folder, files, spec.wallTexture, 4L * 1024 * 1024);
-        string bundlePath = spec.objects == null ? null : CheckedFile(folder, files, spec.bundle, 64L * 1024 * 1024);
-        Texture2D icon = null, ground = null, wall = null; AssetBundle bundle = null; OpenBonkProceduralMapBuild build = null; OpenBonkMeshMapBuild meshBuild = null;
+        string bundlePath = needsBundle ? CheckedFile(folder, files, spec.bundle, 64L * 1024 * 1024) : null;
+        var textures = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
+        Texture2D icon = null; AssetBundle bundle = null; OpenBonkProceduralMapBuild build = null; OpenBonkMeshMapBuild meshBuild = null;
+        OpenBonkMapEncounterBuild encounters = null;
         try
         {
+            if (needsBundle)
+            {
+                bundle = AssetBundle.LoadFromFile(bundlePath);
+                if (bundle == null) throw new InvalidDataException("cannot load map bundle");
+            }
             icon = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             if (!icon.LoadImage(File.ReadAllBytes(iconPath)) || icon.width > 2048 || icon.height > 2048) throw new InvalidDataException("invalid map icon");
-            if (groundPath != null)
-            {
-                ground = new Texture2D(2, 2, TextureFormat.RGBA32, true);
-                if (!ground.LoadImage(File.ReadAllBytes(groundPath)) || ground.width > 2048 || ground.height > 2048) throw new InvalidDataException("invalid ground texture");
-                ground.wrapMode = TextureWrapMode.Repeat; ground.filterMode = FilterMode.Point;
-            }
-            if (wallPath != null)
-            {
-                wall = new Texture2D(2, 2, TextureFormat.RGBA32, true);
-                if (!wall.LoadImage(File.ReadAllBytes(wallPath)) || wall.width > 2048 || wall.height > 2048) throw new InvalidDataException("invalid wall texture");
-                wall.wrapMode = TextureWrapMode.Repeat; wall.filterMode = FilterMode.Point;
-            }
+            var ground = LoadMapTexture(folder, files, textures, spec.groundTexture);
+            var wall = LoadMapTexture(folder, files, textures, spec.wallTexture);
             OpenBonkExternalMapData map;
             if (spec.@base == "Desert")
             {
@@ -257,14 +282,34 @@ internal static class AndroidContentMods
             else
             {
                 var recipe = new OpenBonkProceduralMapRecipe { name = spec.name, description = spec.description, tileGridSize = spec.tileGridSize, volatility = spec.volatility, slopeStrength = spec.slopeStrength, flatMapBias = spec.flatMapBias, stageDuration = spec.stageDuration };
+                if (spec.stageEnvironments != null)
+                {
+                    recipe.stageEnvironments = new OpenBonkProceduralMapRecipe.StageEnvironment[spec.stageEnvironments.Length];
+                    for (int index = 0; index < recipe.stageEnvironments.Length; index++)
+                    {
+                        var stage = spec.stageEnvironments[index] ?? throw new InvalidDataException("invalid stage environment");
+                        recipe.stageEnvironments[index] = new OpenBonkProceduralMapRecipe.StageEnvironment
+                        {
+                            stage = stage.stage,
+                            replaceDecorations = stage.replaceDecorations,
+                            groundTexture = LoadMapTexture(folder, files, textures, stage.groundTexture),
+                            wallTexture = LoadMapTexture(folder, files, textures, stage.wallTexture),
+                            potVisual = LoadPotVisual(bundle, stage.potVisual),
+                            silverPotVisual = LoadPotVisual(bundle, stage.silverPotVisual),
+                            arenaLandmark = LoadArenaLandmark(bundle, stage.arenaLandmark),
+                            potBreakFx = LoadPotBreakFx(bundle, stage.potBreakFx),
+                            rooftops = stage.rooftops,
+                            architectureMaterial = LoadMapMaterial(bundle, stage.architectureMaterial),
+                            skyMaterial = LoadMapMaterial(bundle, stage.skyMaterial),
+                        };
+                    }
+                }
                 build = OpenBonkProceduralMapBuild.Create(DataManager.Instance.GetMap(EMap.Forest), recipe, icon, ground, wall); map = build.Map;
             }
             map.luaSource = source; map.luaStageSpawnMultiplier = spawnHook; map.luaStageEnemyHealthMultiplier = healthHook; map.luaStageEnemySpeedMultiplier = speedHook; map.luaStageEnemyDamageMultiplier = damageHook;
             map.luaEnemyHealthMultiplier = enemyHealthHook; map.luaEnemySpeedMultiplier = enemySpeedHook; map.luaEnemyDamageMultiplier = enemyDamageHook;
             if (spec.objects != null)
             {
-                bundle = AssetBundle.LoadFromFile(bundlePath);
-                if (bundle == null) throw new InvalidDataException("cannot load map object bundle");
                 var placements = new OpenBonkMapObjects.Placement[spec.objects.Length];
                 for (int i = 0; i < placements.Length; i++)
                 {
@@ -274,14 +319,88 @@ internal static class AndroidContentMods
                 }
                 OpenBonkMapObjects.AddToStages(map, placements);
             }
-            DataManager.Instance.RegisterExternalMap(id, spec.id, map);
+            if (spec.enemies != null)
+                encounters = OpenBonkMapEncounterBuild.Create(id, map, bundle, spec.enemies, spec.encounters,
+                    path => LoadMapTexture(folder, files, textures, path));
+            DataManager.Instance.RegisterExternalMap(id, spec.id, map, encounters);
+            encounters = null;
             if (build != null) { Maps.Add(build); build = null; }
             if (meshBuild != null) { MeshMaps.Add(meshBuild); meshBuild = null; }
             if (bundle != null) { Bundles.Add(bundle); bundle = null; }
-            icon = null; ground = null; wall = null;
+            icon = null;
+            textures.Clear();
             Debug.Log($"Content mod loaded: {id} map={spec.id}");
         }
-        finally { if (build != null) build.Dispose(); if (meshBuild != null) meshBuild.Dispose(); if (bundle != null) bundle.Unload(true); if (icon != null) UnityEngine.Object.Destroy(icon); if (ground != null) UnityEngine.Object.Destroy(ground); if (wall != null) UnityEngine.Object.Destroy(wall); }
+        finally
+        {
+            build?.Dispose();
+            meshBuild?.Dispose();
+            encounters?.Dispose();
+            if (bundle != null) bundle.Unload(true);
+            if (icon != null) UnityEngine.Object.Destroy(icon);
+            foreach (var texture in textures.Values) UnityEngine.Object.Destroy(texture);
+        }
+    }
+
+    private static Material LoadMapMaterial(AssetBundle bundle, string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        if (!Text(name, 120)) throw new InvalidDataException("invalid architecture material name");
+        var material = bundle?.LoadAsset<Material>(name);
+        if (material == null || material.shader == null)
+            throw new InvalidDataException($"missing architecture material {name}");
+        return material;
+    }
+
+    private static GameObject LoadPotVisual(AssetBundle bundle, string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        if (!Text(name, 120)) throw new InvalidDataException("invalid pot visual name");
+        var visual = bundle.LoadAsset<GameObject>(name);
+        if (visual == null || !visual.activeSelf || visual.transform.childCount != 0 ||
+            visual.GetComponents<Component>().Length != 3 || visual.GetComponent<MeshFilter>()?.sharedMesh == null ||
+            visual.GetComponent<MeshRenderer>()?.sharedMaterial == null)
+            throw new InvalidDataException("pot visuals must be single-mesh prefabs");
+        return visual;
+    }
+
+    private static GameObject LoadArenaLandmark(AssetBundle bundle, string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        if (!Text(name, 120)) throw new InvalidDataException("Invalid arena landmark name");
+        var landmark = bundle.LoadAsset<GameObject>(name);
+        if (landmark == null || !landmark.activeSelf || landmark.transform.childCount != 0 ||
+            landmark.GetComponents<Component>().Length != 4 || landmark.GetComponent<MeshRenderer>()?.sharedMaterial == null ||
+            landmark.GetComponent<BoxCollider>() == null ||
+            landmark.GetComponent<MeshFilter>()?.sharedMesh is not Mesh mesh || mesh.bounds.extents.magnitude > 12f)
+            throw new InvalidDataException("Arena landmarks must be small single-mesh prefabs with a box collider");
+        return landmark;
+    }
+
+    private static GameObject LoadPotBreakFx(AssetBundle bundle, string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        if (!Text(name, 120)) throw new InvalidDataException("Invalid pot effect name");
+        var effect = bundle.LoadAsset<GameObject>(name);
+        if (effect == null || !effect.activeSelf || effect.transform.childCount != 0 ||
+            effect.GetComponents<Component>().Length != 3 || effect.GetComponent<ParticleSystem>() == null)
+            throw new InvalidDataException("Pot effects must be single particle systems");
+        return effect;
+    }
+
+    private static Texture2D LoadMapTexture(string folder, Dictionary<string, FileSpec> files,
+        Dictionary<string, Texture2D> loaded, string path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        if (loaded.TryGetValue(path, out var cached)) return cached;
+        string source = CheckedFile(folder, files, path, 4L * 1024 * 1024);
+        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, true);
+        loaded.Add(path, texture);
+        if (!texture.LoadImage(File.ReadAllBytes(source)) || texture.width > 2048 || texture.height > 2048)
+            throw new InvalidDataException("invalid map texture");
+        texture.wrapMode = TextureWrapMode.Repeat;
+        texture.filterMode = FilterMode.Point;
+        return texture;
     }
     private static void LoadWeapon(string folder, string id, Manifest manifest)
     {

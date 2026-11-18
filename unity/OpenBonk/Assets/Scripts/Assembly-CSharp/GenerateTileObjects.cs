@@ -33,8 +33,16 @@ public class GenerateTileObjects : MonoBehaviour
 		}
 		else
 		{
-			GameObject boss = MapController.IsLastStage() ? bossSpawnerFinal : bossSpawner;
+			bool customBoss = stageData.stageTimeline?.boss is OpenBonkMapEnemyData;
+			GameObject boss = MapController.IsLastStage() && !customBoss ? bossSpawnerFinal : bossSpawner;
 			Instantiate(boss, lastTile.transform.position, boss.transform.rotation);
+			if (MapController.currentMap is OpenBonkExternalMapData map && map.arenaLandmarks.TryGetValue(stageData, out var landmark))
+			{
+				Vector3 route = lastTile.GetComponent<ProceduralTile>().parentDir;
+				if (route == Vector3.zero) route = Vector3.forward;
+				Vector3 position = lastTile.transform.position + route * (stageData.mapParameters.scaledTileWidth * .29f);
+				Instantiate(landmark, position, Quaternion.LookRotation(-route), tileObjectsParent.transform);
+			}
 		}
 		GameObject[] prefabs = stageData.stageTilePrefabs.flatTilePrefabs;
 		if (prefabs.Length == 0) return;

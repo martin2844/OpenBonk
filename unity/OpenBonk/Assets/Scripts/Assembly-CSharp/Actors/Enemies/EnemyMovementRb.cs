@@ -106,6 +106,10 @@ namespace Actors.Enemies
 
 		private float nextCheckDamageTime;
 
+		private OpenBonkEnemyCharge customCharge;
+		private OpenBonkBossHazard customHazard;
+		private bool hasCustomIdle;
+
 		public bool grounded { get; private set; } = true;
 
 		private void Awake()
@@ -117,6 +121,8 @@ namespace Actors.Enemies
 		{
 			MyTime.A_TimeScaleChange -= TimescaleVelocity;
 		}
+
+		private void OnDisable() => customHazard?.Cancel();
 
 		public void Init()
 		{
@@ -143,6 +149,12 @@ namespace Actors.Enemies
 			float speed = enemy.GetSpeed();
 			maxKnockbackVelSqrBoss = speed * speed + 5.0625f;
 			totalSuckTimeMax = enemy.enemyData.maxSuckTime;
+			var custom = enemy.enemyData as OpenBonkMapEnemyData;
+			customCharge = custom?.charges == true ? new OpenBonkEnemyCharge() : null;
+			customHazard?.Cancel();
+			customHazard = custom?.hazardMaterial != null && enemy.IsStageBoss()
+				? new OpenBonkBossHazard(enemy, custom.sweepAttack, custom.hazardMaterial) : null;
+			hasCustomIdle = custom?.hasIdle == true;
 		}
 
 		public void MyFixedUpdate()
@@ -152,8 +164,11 @@ namespace Actors.Enemies
 				totalSuckTime += MyTime.fixedDeltaTime;
 				if (totalSuckTime > totalSuckTimeMax) state = State.Normal;
 			}
-			if (!enemy.CanMove()) return;
+			if (!enemy.CanMove()) { customHazard?.Cancel(); return; }
 			if (MyTime.time >= nextStepTime) FindNextPosition();
+			if (customCharge != null && customCharge.Step(this)) return;
+			if (state == State.Normal) customHazard?.Step();
+			else customHazard?.Cancel();
 			float vertical = enemy.enemyData.isFlying ? desiredVelocity.y : rb.velocity.y;
 			if (enemy.enemyData.isFlying && flyingKnockupVel > 0f)
 			{
@@ -169,6 +184,8 @@ namespace Actors.Enemies
 				if (knockbackVelocity.sqrMagnitude <= 1f) knockbackVelocity = Vector3.zero;
 			}
 			rb.velocity = new Vector3(desiredVelocity.x + knockbackVelocity.x, vertical, desiredVelocity.z + knockbackVelocity.z);
+			if (hasCustomIdle)
+				enemy.animatedMesh.SelectClip(new Vector2(rb.velocity.x, rb.velocity.z).sqrMagnitude > .25f ? "walk" : "idle");
 			if ((state == State.Normal || state == State.Charmed) && canRotate &&
 				Mathf.Abs(desiredRotation.eulerAngles.y - rb.rotation.eulerAngles.y) > 8f)
 				rb.MoveRotation(Quaternion.Lerp(rb.rotation, desiredRotation, Time.deltaTime * rotationSpeed));

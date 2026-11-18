@@ -28,6 +28,7 @@ namespace Assets.Scripts.Game.Spawning.New
 		private int currentTimelineEvent = -1;
 
 		private StageTimeline timeline;
+		private OpenBonkStageEncounter customEncounter;
 
 		public static Action A_SwarmStarted;
 
@@ -59,12 +60,16 @@ namespace Assets.Scripts.Game.Spawning.New
 		{
 			summoners = new List<BaseSummoner>();
 			timeline = MapController.currentStage.stageTimeline;
+			customEncounter = OpenBonkExternalMapData.GetEncounters(MapController.currentMap, MapController.currentStage);
 			if (!MapController.IsFinalBossStage())
 			{
 				stageSummoner = new StageSummoner(id++, timeline.startEnemies);
-				specialSkeletonSummoner = new SpecialSkeletonSummoner(id++, new List<EEnemy>());
 				AddSummoner(stageSummoner);
-				AddSummoner(specialSkeletonSummoner);
+				if (customEncounter == null)
+				{
+					specialSkeletonSummoner = new SpecialSkeletonSummoner(id++, new List<EEnemy>());
+					AddSummoner(specialSkeletonSummoner);
+				}
 			}
 			InteractableBossSpawner.A_BossDefeated += OnBossDied;
 		}
@@ -172,7 +177,7 @@ namespace Assets.Scripts.Game.Spawning.New
 			if (isFinalSwarmStarted) return;
 			isFinalSwarmStarted = true;
 			TryStopSummoners();
-			finalSwarmSummoner = new SwarmSummoner(id++, new List<EEnemy> { EEnemy.Ghost });
+			finalSwarmSummoner = new SwarmSummoner(id++, customEncounter?.overtime ?? new List<EEnemy> { EEnemy.Ghost });
 			AddSummoner(finalSwarmSummoner);
 			A_FinalSwarmStarted?.Invoke();
 		}
@@ -202,12 +207,26 @@ namespace Assets.Scripts.Game.Spawning.New
 		{
 			stageSummoner?.SetSlowmode(0.5f, 30f);
 			List<Enemy> bosses = new List<Enemy>();
+			var external = MapController.currentMap as OpenBonkExternalMapData;
+			bool useGround = external?.GetRooftops(MapController.currentStage) != null ||
+				external?.arenaLandmarks.ContainsKey(MapController.currentStage) == true;
 			for (int i = 0; i < GameManager.Instance.bossCurses + 1; i++)
 			{
 				Vector3 offset = UnityEngine.Random.insideUnitSphere;
 				offset.y = 0f;
-				pos += offset * 7f;
-				Enemy boss = EnemyManager.Instance.SpawnBoss(timeline.boss.enemyName, -1, EEnemyFlag.StageBoss, pos);
+				Vector3 spawn;
+				if (useGround)
+				{
+					Vector3 candidate = pos + offset * 7f;
+					spawn = Physics.Raycast(candidate + Vector3.up * 4f, Vector3.down, out var surface, 8f,
+						GameManager.Instance.whatIsGround, QueryTriggerInteraction.Ignore) ? surface.point : pos;
+				}
+				else
+				{
+					pos += offset * 7f;
+					spawn = pos;
+				}
+				Enemy boss = EnemyManager.Instance.SpawnBoss(timeline.boss.enemyName, -1, EEnemyFlag.StageBoss, spawn);
 				if (boss != null) bosses.Add(boss);
 			}
 			return bosses;

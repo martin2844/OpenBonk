@@ -160,6 +160,11 @@ namespace Assets.Scripts.Camera
 
 		public void AddArrow(Transform target, Color color)
 		{
+			if (arrowDict.TryGetValue(target, out var existing))
+			{
+				existing.Set(target, color);
+				return;
+			}
 			MinimapArrow arrow = Instantiate(arrowPrefab).GetComponent<MinimapArrow>();
 			arrow.Set(target, color);
 			arrow.transform.SetParent(null);
@@ -193,6 +198,7 @@ namespace Assets.Scripts.Camera
 
 		private void OnBossSpawnerInteract()
 		{
+			bossSpotted = true;
 			if (bossSpawner != null) RemoveArrow(bossSpawner);
 		}
 

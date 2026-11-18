@@ -23,6 +23,7 @@ public class AnimatedMesh : MonoBehaviour
 	private string AnimationName;
 
 	private List<Mesh> AnimationMeshes;
+	private string currentClip;
 
 	public bool paused;
 
@@ -40,9 +41,25 @@ public class AnimatedMesh : MonoBehaviour
 		AnimationIndex = 0;
 		AnimationSO = animation;
 		AnimationMeshes = animation.Animations[0].Meshes;
-		Filter.mesh = AnimationMeshes[0];
+		currentClip = animation.Animations[0].Name;
+		Filter.sharedMesh = AnimationMeshes[0];
 		tickInterval = animation.AnimationFPS;
 		paused = false;
+	}
+
+	public void SelectClip(string name)
+	{
+		if (currentClip == name) return;
+		foreach (var candidate in AnimationSO.Animations)
+		{
+			if (candidate.Name != name || candidate.Meshes.Count == 0) continue;
+			AnimationMeshes = candidate.Meshes;
+			currentClip = name;
+			AnimationIndex = 0;
+			LastTickTime = MyTime.time;
+			Filter.sharedMesh = AnimationMeshes[0];
+			break;
+		}
 	}
 
 	private void Awake()
@@ -66,7 +83,7 @@ public class AnimatedMesh : MonoBehaviour
 		if (AnimationMeshes == null || paused) return;
 		if (MyTime.time >= LastTickTime + 1f / tickInterval)
 		{
-			Filter.mesh = AnimationMeshes[AnimationIndex];
+			Filter.sharedMesh = AnimationMeshes[AnimationIndex];
 			AnimationIndex++;
 			if (AnimationIndex >= AnimationMeshes.Count) AnimationIndex = 0;
 			LastTickTime = MyTime.time;
