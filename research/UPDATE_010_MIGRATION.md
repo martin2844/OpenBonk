@@ -16,8 +16,18 @@ The patch is 70,927,808 bytes, with SHA-256
 It contains game-derived data and remains local. It is not included in the
 candidate launcher, whose current patch limits are smaller.
 
-An optional, checksum-verified download only for matching 0.1.0 installations
-could avoid increasing the APK for everyone. It would need a published patch,
-updated Java and native size limits, failure and storage handling, and tests
-on Android using the real launcher before release. Other variants of 0.1.0
-data would still need separate validation or a game ZIP import.
+The proposed launcher migration downloads a pinned 70,982,639-byte patch only
+when a version-code-1 OBB matches the digest above. The downloaded patch
+(`data-0.1.0-to-0.1.4.zst`, SHA-256
+`5a2f4b34cef6d0d288e8ca63d895a5515880d0649c3b5145f60612b9a7583907`)
+produces the 0.1.4 OBB; the existing bundled patch then produces the integrated
+0.1.5 OBB. Each output is checked before publication and the original is
+retained. The download is hosted with the 0.1.5 beta, but the migration code
+itself has not yet been included in a public APK.
+
+On a Xiaomi 22126RN91Y, an isolated launcher package with the real 0.1.0 OBB
+downloaded the patch, produced the expected 0.1.5 OBB, reached `Data ready`
+and opened Unity. A second isolated build pointed to a missing asset: the
+launcher recovered to manual import and the original OBB's hash was unchanged.
+These tests did not install the original 0.1.0 APK or use a real player profile.
+Other 0.1.0 data variants need separate validation or a game ZIP import.

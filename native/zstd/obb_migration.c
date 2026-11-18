@@ -29,7 +29,7 @@ Java_com_megabonk_launcher_LauncherObbMigration_applyNative(
     if (old_fd < 0 || patch_fd < 0 || output_fd < 0 || fstat(old_fd, &old_stat) ||
         fstat(patch_fd, &patch_stat) || !S_ISREG(old_stat.st_mode) || !S_ISREG(patch_stat.st_mode) ||
         old_stat.st_size <= 0 || old_stat.st_size > 1024LL * 1024 * 1024 ||
-        patch_stat.st_size <= 0 || patch_stat.st_size > 64LL * 1024 * 1024 ||
+        patch_stat.st_size <= 0 || patch_stat.st_size > 96LL * 1024 * 1024 ||
         ftruncate(output_fd, (off_t)expected_size) ||
         posix_fallocate(output_fd, 0, (off_t)expected_size)) goto done;
     old_map = mmap(NULL, (size_t)old_stat.st_size, PROT_READ, MAP_PRIVATE, old_fd, 0);

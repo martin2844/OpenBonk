@@ -316,7 +316,9 @@ public final class SplitDataLauncher extends Activity {
                         LauncherDataBundle.recoverTransactions(existing, legacyPendingSteam(), pendingSteam());
                         SplitFileRecovery.recover(existing, this::valid);
                         migrateCompatibleObb(existing);
-                        LauncherObbMigration.migrate(this, existing);
+                        LauncherObbMigration.migrate(this, existing, () -> runOnUiThread(() -> {
+                            if (!isFinishing() && !isDestroyed()) message.setText(es ? "Descargando datos para actualizar…" : "Downloading update data…");
+                        }));
                     }
                     File modRoot = getExternalFilesDir(null);
                     if (modRoot == null) throw new IOException("mod storage unavailable");
