@@ -506,6 +506,15 @@ one-based stages. The list must contain one to three distinct integers from 1
 to 3. Omitting it keeps the default of placement in all three stages. Invalid
 lists are rejected; they do not modify the cloned stages.
 
+Forest recipes can declare `stageEnvironments` on host builds that include
+per-stage environment support. Each entry has a distinct one-based `stage`
+from 1 to 3 and can specify `groundTexture`, `wallTexture`, or
+`replaceDecorations: true`. A stage texture overrides the corresponding
+map-wide texture. With `replaceDecorations` enabled, the stage omits the
+template's tile props, scattered scenery, grass, and ambient particles.
+Declared `map.objects` still spawn in their assigned stages. The maze,
+encounters, shrines and portal logic are inherited from the template.
+
 ### Experimental weapon target context
 
 On the experimental weapon-context build, an API 3 weapon's `attack(level, target)` callback receives a copied table for the first enemy selected by the host: `enemy` (the built-in enemy enum name), `boss` and `elite` booleans, `target_health`, and `distance` between the player and target transforms. For example:

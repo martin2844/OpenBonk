@@ -26,8 +26,14 @@ internal static class AndroidContentMods
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class PerLevelSpec { public string stat; public float amount; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class ItemSpec { public string id, name, description, icon, rarity; public bool inPool; public int maxAmount, maxAmountPerRun; public ItemBonusSpec[] bonuses; public string[] hooks; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class ItemBonusSpec { public string stat, mode; public float amount; }
-    [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapSpec { public string id, name, description, icon, groundTexture, wallTexture, bundle, @base; public string[] hooks; public MapObjectSpec[] objects; public int tileGridSize; public float volatility, slopeStrength, flatMapBias, stageDuration, noiseScale, heightMultiplier, mapScale; }
+    [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapSpec { public string id, name, description, icon, groundTexture, wallTexture, bundle, @base; public string[] hooks; public MapObjectSpec[] objects; public StageEnvironmentSpec[] stageEnvironments; public int tileGridSize; public float volatility, slopeStrength, flatMapBias, stageDuration, noiseScale, heightMultiplier, mapScale; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapObjectSpec { public string prefab; public int amount; public int[] stages; public float scaleMin, scaleMax, checkRadius, maxSlopeAngle, upOffset; }
+    [Serializable, UnityEngine.Scripting.Preserve] private sealed class StageEnvironmentSpec
+    {
+        public int stage;
+        public string groundTexture, wallTexture;
+        public bool replaceDecorations;
+    }
     private static readonly List<AssetBundle> Bundles = new List<AssetBundle>();
     private static readonly List<OpenBonkProceduralMapBuild> Maps = new List<OpenBonkProceduralMapBuild>();
     private static readonly List<OpenBonkMeshMapBuild> MeshMaps = new List<OpenBonkMeshMapBuild>();
@@ -205,6 +211,8 @@ internal static class AndroidContentMods
         var spec = manifest.map;
         OpenBonkContentIds.Map(id, spec.id);
         if (spec.@base != "Forest" && spec.@base != "Desert") throw new InvalidDataException("unsupported map template");
+        if (spec.stageEnvironments != null && (spec.@base != "Forest" || spec.stageEnvironments.Length < 1 || spec.stageEnvironments.Length > 3))
+            throw new InvalidDataException("invalid stage environments");
         bool spawnHook = false, healthHook = false, speedHook = false, damageHook = false;
         bool enemyHealthHook = false, enemySpeedHook = false, enemyDamageHook = false;
         if (spec.hooks != null) foreach (string hook in spec.hooks)
@@ -228,26 +236,15 @@ internal static class AndroidContentMods
         string source = Utf8.GetString(File.ReadAllBytes(CheckedFile(folder, files, "main.lua", 65536)));
         if (source.IndexOf('\0') >= 0) throw new InvalidDataException("invalid Lua source");
         string iconPath = CheckedFile(folder, files, spec.icon, 4L * 1024 * 1024);
-        string groundPath = string.IsNullOrEmpty(spec.groundTexture) ? null : CheckedFile(folder, files, spec.groundTexture, 4L * 1024 * 1024);
-        string wallPath = string.IsNullOrEmpty(spec.wallTexture) ? null : CheckedFile(folder, files, spec.wallTexture, 4L * 1024 * 1024);
         string bundlePath = spec.objects == null ? null : CheckedFile(folder, files, spec.bundle, 64L * 1024 * 1024);
-        Texture2D icon = null, ground = null, wall = null; AssetBundle bundle = null; OpenBonkProceduralMapBuild build = null; OpenBonkMeshMapBuild meshBuild = null;
+        var textures = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
+        Texture2D icon = null; AssetBundle bundle = null; OpenBonkProceduralMapBuild build = null; OpenBonkMeshMapBuild meshBuild = null;
         try
         {
             icon = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             if (!icon.LoadImage(File.ReadAllBytes(iconPath)) || icon.width > 2048 || icon.height > 2048) throw new InvalidDataException("invalid map icon");
-            if (groundPath != null)
-            {
-                ground = new Texture2D(2, 2, TextureFormat.RGBA32, true);
-                if (!ground.LoadImage(File.ReadAllBytes(groundPath)) || ground.width > 2048 || ground.height > 2048) throw new InvalidDataException("invalid ground texture");
-                ground.wrapMode = TextureWrapMode.Repeat; ground.filterMode = FilterMode.Point;
-            }
-            if (wallPath != null)
-            {
-                wall = new Texture2D(2, 2, TextureFormat.RGBA32, true);
-                if (!wall.LoadImage(File.ReadAllBytes(wallPath)) || wall.width > 2048 || wall.height > 2048) throw new InvalidDataException("invalid wall texture");
-                wall.wrapMode = TextureWrapMode.Repeat; wall.filterMode = FilterMode.Point;
-            }
+            var ground = LoadMapTexture(folder, files, textures, spec.groundTexture);
+            var wall = LoadMapTexture(folder, files, textures, spec.wallTexture);
             OpenBonkExternalMapData map;
             if (spec.@base == "Desert")
             {
@@ -257,6 +254,21 @@ internal static class AndroidContentMods
             else
             {
                 var recipe = new OpenBonkProceduralMapRecipe { name = spec.name, description = spec.description, tileGridSize = spec.tileGridSize, volatility = spec.volatility, slopeStrength = spec.slopeStrength, flatMapBias = spec.flatMapBias, stageDuration = spec.stageDuration };
+                if (spec.stageEnvironments != null)
+                {
+                    recipe.stageEnvironments = new OpenBonkProceduralMapRecipe.StageEnvironment[spec.stageEnvironments.Length];
+                    for (int index = 0; index < recipe.stageEnvironments.Length; index++)
+                    {
+                        var stage = spec.stageEnvironments[index] ?? throw new InvalidDataException("invalid stage environment");
+                        recipe.stageEnvironments[index] = new OpenBonkProceduralMapRecipe.StageEnvironment
+                        {
+                            stage = stage.stage,
+                            replaceDecorations = stage.replaceDecorations,
+                            groundTexture = LoadMapTexture(folder, files, textures, stage.groundTexture),
+                            wallTexture = LoadMapTexture(folder, files, textures, stage.wallTexture),
+                        };
+                    }
+                }
                 build = OpenBonkProceduralMapBuild.Create(DataManager.Instance.GetMap(EMap.Forest), recipe, icon, ground, wall); map = build.Map;
             }
             map.luaSource = source; map.luaStageSpawnMultiplier = spawnHook; map.luaStageEnemyHealthMultiplier = healthHook; map.luaStageEnemySpeedMultiplier = speedHook; map.luaStageEnemyDamageMultiplier = damageHook;
@@ -278,10 +290,33 @@ internal static class AndroidContentMods
             if (build != null) { Maps.Add(build); build = null; }
             if (meshBuild != null) { MeshMaps.Add(meshBuild); meshBuild = null; }
             if (bundle != null) { Bundles.Add(bundle); bundle = null; }
-            icon = null; ground = null; wall = null;
+            icon = null;
+            textures.Clear();
             Debug.Log($"Content mod loaded: {id} map={spec.id}");
         }
-        finally { if (build != null) build.Dispose(); if (meshBuild != null) meshBuild.Dispose(); if (bundle != null) bundle.Unload(true); if (icon != null) UnityEngine.Object.Destroy(icon); if (ground != null) UnityEngine.Object.Destroy(ground); if (wall != null) UnityEngine.Object.Destroy(wall); }
+        finally
+        {
+            build?.Dispose();
+            meshBuild?.Dispose();
+            if (bundle != null) bundle.Unload(true);
+            if (icon != null) UnityEngine.Object.Destroy(icon);
+            foreach (var texture in textures.Values) UnityEngine.Object.Destroy(texture);
+        }
+    }
+
+    private static Texture2D LoadMapTexture(string folder, Dictionary<string, FileSpec> files,
+        Dictionary<string, Texture2D> loaded, string path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        if (loaded.TryGetValue(path, out var cached)) return cached;
+        string source = CheckedFile(folder, files, path, 4L * 1024 * 1024);
+        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, true);
+        loaded.Add(path, texture);
+        if (!texture.LoadImage(File.ReadAllBytes(source)) || texture.width > 2048 || texture.height > 2048)
+            throw new InvalidDataException("invalid map texture");
+        texture.wrapMode = TextureWrapMode.Repeat;
+        texture.filterMode = FilterMode.Point;
+        return texture;
     }
     private static void LoadWeapon(string folder, string id, Manifest manifest)
     {

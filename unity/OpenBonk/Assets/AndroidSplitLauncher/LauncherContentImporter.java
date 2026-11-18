@@ -62,6 +62,7 @@ final class LauncherContentImporter {
         if (json.optInt("api") != 3 || !json.optString("kind").equals("content") || !id.matches("[a-z0-9][a-z0-9._-]{0,63}")) throw new IOException("unsupported content package");
         JSONObject character = json.optJSONObject("character"), weapon = json.optJSONObject("weapon"), item = json.optJSONObject("item"), map = json.optJSONObject("map");
         JSONObject passive = json.optJSONObject("passive");
+        JSONArray stageEnvironments = map == null ? null : map.optJSONArray("stageEnvironments");
         if (json.has("passive") && !json.isNull("passive") && passive == null)
             throw new IOException("invalid passive definition");
         if (map != null) {
@@ -79,6 +80,7 @@ final class LauncherContentImporter {
                 if (!number(map, "noiseScale", 25, 250) || !number(map, "heightMultiplier", 1, 20) || !number(map, "mapScale", .75, 1.25))
                     throw new IOException("unsupported mesh recipe");
             } else throw new IOException("unsupported map template");
+            if (map.has("stageEnvironments")) validateStageEnvironments(base, stageEnvironments);
             if (map.has("objects")) {
                 JSONArray objects = map.optJSONArray("objects");
                 if (objects == null || objects.length() == 0 || objects.length() > 8 || !text(map.optString("bundle"), 120)) throw new IOException("unsupported map objects");
@@ -223,10 +225,9 @@ final class LauncherContentImporter {
         if (!weaponIcon.isEmpty() && (!files.containsKey(weaponIcon) || files.get(weaponIcon).getLong("size") > 4L * 1024 * 1024)) throw new IOException("missing weapon icon");
         String mapBundle = map == null || !map.has("objects") ? null : map.optString("bundle", "");
         if (mapBundle != null && !files.containsKey(mapBundle)) throw new IOException("missing map bundle");
-        String groundTexture = map == null || map.isNull("groundTexture") ? "" : map.optString("groundTexture", "");
-        if (!groundTexture.isEmpty() && (!files.containsKey(groundTexture) || files.get(groundTexture).getLong("size") > 4L * 1024 * 1024)) throw new IOException("missing ground texture");
-        String wallTexture = map == null || map.isNull("wallTexture") ? "" : map.optString("wallTexture", "");
-        if (!wallTexture.isEmpty() && (!files.containsKey(wallTexture) || files.get(wallTexture).getLong("size") > 4L * 1024 * 1024)) throw new IOException("missing wall texture");
+        if (map != null) requireMapTextures(map, files);
+        if (stageEnvironments != null)
+            for (int i = 0; i < stageEnvironments.length(); i++) requireMapTextures(stageEnvironments.getJSONObject(i), files);
         File destination = new File(root, id), staging = new File(root, ".import-" + UUID.randomUUID());
         if (!staging.mkdir()) throw new IOException("cannot stage mod");
         try {
@@ -258,6 +259,31 @@ final class LauncherContentImporter {
     }
     private static String utf8(byte[] bytes) throws Exception { return StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString(); }
     private static boolean contentId(String value) { return value.matches("[a-z0-9][a-z0-9._-]{0,63}"); }
+    private static void validateStageEnvironments(String base, JSONArray environments) throws IOException {
+        if (!"Forest".equals(base) || environments == null || environments.length() < 1 || environments.length() > 3)
+            throw new IOException("unsupported stage environments");
+        boolean[] seen = new boolean[3];
+        for (int i = 0; i < environments.length(); i++) {
+            JSONObject entry = environments.optJSONObject(i);
+            if (entry == null || !(entry.opt("stage") instanceof Number) || !number(entry, "stage", 1, 3) ||
+                entry.optDouble("stage") != entry.optInt("stage") || !optionalText(entry, "groundTexture", 120) ||
+                !optionalText(entry, "wallTexture", 120) ||
+                (entry.has("replaceDecorations") && !(entry.opt("replaceDecorations") instanceof Boolean)))
+                throw new IOException("invalid stage environment");
+            int index = entry.optInt("stage") - 1;
+            if (seen[index] || (!entry.optBoolean("replaceDecorations") && texturePath(entry, "groundTexture").isEmpty() &&
+                texturePath(entry, "wallTexture").isEmpty())) throw new IOException("invalid stage environment");
+            seen[index] = true;
+        }
+    }
+    private static String texturePath(JSONObject entry, String key) { return entry.isNull(key) ? "" : entry.optString(key, ""); }
+    private static void requireMapTextures(JSONObject entry, Map<String, JSONObject> files) throws Exception {
+        for (String key : new String[] {"groundTexture", "wallTexture"}) {
+            String path = texturePath(entry, key);
+            if (!path.isEmpty() && (!files.containsKey(path) || files.get(path).getLong("size") > 4L * 1024 * 1024))
+                throw new IOException("missing map texture: " + key);
+        }
+    }
     private static boolean text(String value, int limit) { return value != null && !value.trim().isEmpty() && value.length() <= limit && value.indexOf('\0') < 0; }
     private static boolean optionalText(JSONObject object, String key, int limit) {
         if (!object.has(key) || object.isNull(key)) return true;

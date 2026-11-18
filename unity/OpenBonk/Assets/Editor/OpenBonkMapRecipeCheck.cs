@@ -76,13 +76,42 @@ public static class OpenBonkMapRecipeCheck
                 Require(wallOnly.Map.stages[0].flatMaterials[0] == originalMaterial && wallOnly.Map.stages[0].m_fillMiddle != originalWall, "wall-only recipe");
                 using var groundOnly = OpenBonkProceduralMapBuild.Create(forest, recipe, icon, ground);
                 Require(groundOnly.Map.stages[0].flatMaterials[0] != originalMaterial && groundOnly.Map.stages[0].m_fillMiddle == originalWall, "ground-only recipe");
+
+                var repeatedTemplate = UnityEngine.Object.Instantiate(forest);
+                try
+                {
+                    var source = forest.stages[0];
+                    repeatedTemplate.stages = new[] { source, source, source };
+                    recipe.stageEnvironments = new[]
+                    {
+                        new OpenBonkProceduralMapRecipe.StageEnvironment { stage = 2, groundTexture = wall, wallTexture = ground, replaceDecorations = true },
+                        new OpenBonkProceduralMapRecipe.StageEnvironment { stage = 1, replaceDecorations = true },
+                    };
+                    using var district = OpenBonkProceduralMapBuild.Create(repeatedTemplate, recipe, icon, ground, wall);
+                    var stages = district.Map.stages;
+                    Require(stages[0].flatMaterials[0] == stages[2].flatMaterials[0] && stages[1].flatMaterials[0] != stages[0].flatMaterials[0], "reused base material needs distinct variants for distinct texture files");
+                    Require(stages[0].flatMaterials[0].mainTexture == ground && stages[1].flatMaterials[0].mainTexture == wall, "stage ground and global fallback");
+                    Require(stages[1].m_fillMiddle.mainTexture == ground && stages[2].m_fillMiddle.mainTexture == wall, "stage wall and global fallback");
+                    for (int i = 0; i < 2; i++)
+                        Require(stages[i].grassMaterial == null && stages[i].grassPerChunk == 0 && stages[i].particles == null &&
+                            stages[i].randomMapObjects.Length == 0 && stages[i].stageTilePrefabs.flatTilePrefabs.Length == 0 &&
+                            stages[i].stageTilePrefabs.mapSpecificTilesPrefabs.Length == 0, "only the mod's decorations should populate the selected stage");
+                    Require(source.randomMapObjects.Length > 0 && source.stageTilePrefabs.flatTilePrefabs.Length > 0 &&
+                        stages[2].randomMapObjects.Length == source.randomMapObjects.Length &&
+                        stages[2].stageTilePrefabs.flatTilePrefabs.Length == source.stageTilePrefabs.flatTilePrefabs.Length, "untouched stage and Forest template retain their decorations");
+                    recipe.stageEnvironments[1].stage = 2;
+                    rejected = false;
+                    try { OpenBonkProceduralMapBuild.Create(repeatedTemplate, recipe, icon); } catch (ArgumentException) { rejected = true; }
+                    Require(rejected, "duplicate stage environments must fail");
+                }
+                finally { recipe.stageEnvironments = null; UnityEngine.Object.DestroyImmediate(repeatedTemplate); }
             }
             finally { UnityEngine.Object.DestroyImmediate(ground); UnityEngine.Object.DestroyImmediate(wall); }
             recipe.tileGridSize = 0; rejected = false; try { OpenBonkProceduralMapBuild.Create(forest, recipe, icon); } catch (ArgumentException) { rejected = true; }
             Require(rejected, "invalid size");
             recipe.tileGridSize = 9; recipe.volatility = float.NaN; rejected = false; try { OpenBonkProceduralMapBuild.Create(forest, recipe, icon); } catch (ArgumentException) { rejected = true; }
             Require(rejected, "nonfinite recipe");
-            Debug.Log("OpenBonk map recipe PASS: original Forest assets, independent parameters, 81-cell maze, invalid and incompatible input rejection");
+            Debug.Log("OpenBonk map recipe PASS: independent parameters and stage environments, preserved Forest assets, 81-cell maze, invalid and incompatible input rejection");
         }
         finally { UnityEngine.Object.DestroyImmediate(icon); }
     }

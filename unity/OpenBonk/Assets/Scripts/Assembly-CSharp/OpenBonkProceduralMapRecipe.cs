@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Assets.Scripts._Data.MapsAndStages;
+using Assets.Scripts.Game.MapGeneration;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -8,9 +9,17 @@ using Object = UnityEngine.Object;
 [Serializable]
 public sealed class OpenBonkProceduralMapRecipe
 {
+    public sealed class StageEnvironment
+    {
+        public int stage;
+        public Texture groundTexture, wallTexture;
+        public bool replaceDecorations;
+    }
+
     public string name, description;
     public int tileGridSize;
     public float volatility, slopeStrength, flatMapBias, stageDuration;
+    public StageEnvironment[] stageEnvironments;
 }
 
 // Owns cloned map objects and materials, never shared assets or supplied textures.
@@ -32,6 +41,20 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
         foreach (var stage in template.stages)
             if (stage == null || stage.mapParameters == null || stage.stageTilePrefabs == null || stage.stageTimeline == null || !Range(stage.stageTimeline.stageTime, 1, 100000))
                 throw new ArgumentException("Incomplete procedural map template");
+        var environments = new OpenBonkProceduralMapRecipe.StageEnvironment[template.stages.Length];
+        if (recipe.stageEnvironments != null)
+        {
+            if (recipe.stageEnvironments.Length == 0 || recipe.stageEnvironments.Length > environments.Length)
+                throw new ArgumentException("Invalid stage environment count");
+            foreach (var environment in recipe.stageEnvironments)
+            {
+                if (environment == null || environment.stage < 1 || environment.stage > environments.Length ||
+                    environments[environment.stage - 1] != null ||
+                    (!environment.replaceDecorations && environment.groundTexture == null && environment.wallTexture == null))
+                    throw new ArgumentException("Invalid stage environment");
+                environments[environment.stage - 1] = environment;
+            }
+        }
         var result = new OpenBonkProceduralMapBuild();
         try
         {
@@ -44,27 +67,46 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
             map.ambience = template.ambience; map.musicTracks = template.musicTracks; map.bossTrack = template.bossTrack;
             map.isWaterDamaging = template.isWaterDamaging; map.finalStageMaterial = template.finalStageMaterial;
             map.stages = new StageData[template.stages.Length];
-            var groundMaterials = new Dictionary<Material, Material>();
-            var wallMaterials = new Dictionary<Material, Material>();
+            var materials = new Dictionary<(Material, Texture), Material>();
             for (int i = 0; i < map.stages.Length; i++)
             {
                 var stage = result.Own(Object.Instantiate(template.stages[i]));
                 var parameters = result.Own(Object.Instantiate(stage.mapParameters));
-                if (groundTexture != null && stage.flatMaterials != null)
+                var environment = environments[i];
+                var ground = environment?.groundTexture ?? groundTexture;
+                var wall = environment?.wallTexture ?? wallTexture;
+                if (ground != null)
                 {
+                    if (stage.flatMaterials == null || !Array.Exists(stage.flatMaterials, material => material != null))
+                        throw new ArgumentException("No ground materials in stage template");
                     stage.flatMaterials = (Material[])stage.flatMaterials.Clone();
                     for (int materialIndex = 0; materialIndex < stage.flatMaterials.Length; materialIndex++)
                     {
-                        stage.flatMaterials[materialIndex] = result.ReplaceTexture(stage.flatMaterials[materialIndex], groundTexture, groundMaterials);
+                        stage.flatMaterials[materialIndex] = result.ReplaceTexture(stage.flatMaterials[materialIndex], ground, materials);
                     }
                 }
-                if (wallTexture != null)
+                if (wall != null)
                 {
-                    stage.m_fillMiddle = result.ReplaceTexture(stage.m_fillMiddle, wallTexture, wallMaterials);
-                    stage.m_fillTop = result.ReplaceTexture(stage.m_fillTop, wallTexture, wallMaterials);
-                    stage.m_fillMiddleEdge = result.ReplaceTexture(stage.m_fillMiddleEdge, wallTexture, wallMaterials);
-                    stage.m_fillTopEdge = result.ReplaceTexture(stage.m_fillTopEdge, wallTexture, wallMaterials);
-                    stage.m_stairs = result.ReplaceTexture(stage.m_stairs, wallTexture, wallMaterials);
+                    if (stage.m_fillMiddle == null && stage.m_fillTop == null && stage.m_fillMiddleEdge == null &&
+                        stage.m_fillTopEdge == null && stage.m_stairs == null)
+                        throw new ArgumentException("No wall materials in stage template");
+                    stage.m_fillMiddle = result.ReplaceTexture(stage.m_fillMiddle, wall, materials);
+                    stage.m_fillTop = result.ReplaceTexture(stage.m_fillTop, wall, materials);
+                    stage.m_fillMiddleEdge = result.ReplaceTexture(stage.m_fillMiddleEdge, wall, materials);
+                    stage.m_fillTopEdge = result.ReplaceTexture(stage.m_fillTopEdge, wall, materials);
+                    stage.m_stairs = result.ReplaceTexture(stage.m_stairs, wall, materials);
+                }
+                if (environment?.replaceDecorations == true)
+                {
+                    stage.grassMaterial = null;
+                    stage.grassPerChunk = 0;
+                    stage.particles = null;
+                    stage.randomMapObjects = Array.Empty<RandomMapObject>();
+                    stage.stageTilePrefabs = new StageTilePrefabs
+                    {
+                        flatTilePrefabs = Array.Empty<GameObject>(),
+                        mapSpecificTilesPrefabs = Array.Empty<GameObject>(),
+                    };
                 }
                 // Forest's challenge definitions explicitly target Forest, not this map.
                 stage.challenges = Array.Empty<ChallengeData>();
@@ -79,23 +121,22 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                 parameters.slopeStrength = recipe.slopeStrength; parameters.flatMapBias = recipe.flatMapBias;
                 parameters.testStageData = stage; stage.mapParameters = parameters; map.stages[i] = stage;
             }
-            if (groundTexture != null && groundMaterials.Count == 0) throw new ArgumentException("No ground materials in template");
-            if (wallTexture != null && wallMaterials.Count == 0) throw new ArgumentException("No wall materials in template");
             return result;
         }
         catch { result.Dispose(); throw; }
     }
 
-    private Material ReplaceTexture(Material original, Texture texture, Dictionary<Material, Material> replacements)
+    private Material ReplaceTexture(Material original, Texture texture, Dictionary<(Material, Texture), Material> replacements)
     {
         if (original == null) return null;
-        if (replacements.TryGetValue(original, out var existing)) return existing;
+        var key = (original, texture);
+        if (replacements.TryGetValue(key, out var existing)) return existing;
         var replacement = Own(Object.Instantiate(original));
         bool changed = false;
         foreach (var property in new[] { "_MainTex", "_BaseMap", "_AlbedoMap" })
             if (replacement.HasProperty(property)) { replacement.SetTexture(property, texture); changed = true; }
         if (!changed) throw new ArgumentException("Terrain material has no supported texture property");
-        replacements.Add(original, replacement);
+        replacements.Add(key, replacement);
         return replacement;
     }
 
