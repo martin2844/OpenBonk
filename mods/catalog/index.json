@@ -90,6 +90,15 @@
       "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.8-beta/run-metrics.zip",
       "size": 390,
       "sha256": "c13392f4391e9800b849c81f70f1f1e29dabf30ab8adf55150bea21631132194"
+    },
+    {
+      "id": "offer-tools",
+      "name": "Offer Tools",
+      "description": "Reusable refreshes, skips and banishes with normal gold costs. Partial SimpleModMenu adaptation; requires OpenBonk 0.1.9 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.9-beta/offer-tools.zip",
+      "size": 405,
+      "sha256": "58aaf9f4ea6eddd60765c4ce323e7a95ae8d2e37f646f58bbbeedb15cbcc98d0"
     }
   ]
 }
