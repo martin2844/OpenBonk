@@ -11,11 +11,16 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parent
 DISTRICTS = (
-    ("terminal", (59, 89, 81), (231, 136, 57), (168, 168, 145), (48, 76, 75)),
-    ("interchange", (49, 72, 94), (91, 202, 183), (116, 142, 156), (38, 57, 79)),
-    ("relay", (73, 71, 106), (237, 123, 107), (127, 115, 152), (51, 45, 78)),
+    ("terminal", (247, 229, 192), (219, 171, 96), (131, 144, 148), (73, 145, 171)),
+    ("interchange", (220, 239, 220), (151, 192, 154), (100, 137, 142), (72, 156, 163)),
+    ("relay", (238, 229, 249), (201, 174, 221), (125, 114, 151), (104, 133, 182)),
 )
-ROOFTOPS = ((.76, .30, .045), (.71, .27, .065), (.66, .24, .090))
+LANDMARKS = ("TerminalDepot", "InterchangePavilion", "RelayBeacon")
+REWARDS = (
+    ("platform-pass", "Pase de andén", "Aumenta un 12 % la velocidad de movimiento.", "MoveSpeedMultiplier", .12),
+    ("transit-crystal", "Cristal de paso", "Aumenta un 18 % la velocidad de los proyectiles.", "ProjectileSpeedMultiplier", .18),
+    ("relay-core", "Núcleo del relé", "Aumenta un 20 % la duración de los ataques.", "DurationMultiplier", .20),
+)
 
 
 def png(size, pixel_at):
@@ -36,25 +41,34 @@ def shift(color, amount):
 
 
 def roof_pixel(base, paint, x, y):
-    if (x in range(9, 12) or x in range(116, 119)) and (y % 24) < 16:
+    if (x in range(7, 11) or x in range(117, 121)) and (y % 32) < 24:
         return paint
-    if x in (0, 63, 127) or y in (0, 63, 127):
-        return shift(base, -9)
-    grain = (x * 17 + y * 23 + x * y * 3) % 7
-    return shift(base, grain - 3)
+    # Staggered concrete slabs, with the seams less bright than the route marks.
+    if y % 32 == 0 or (x + (16 if y // 32 % 2 else 0)) % 32 == 0:
+        return shift(base, -20)
+    grain = (x * 17 + y * 23 + x * y * 3) % 6
+    variation = ((x + (16 if y // 32 % 2 else 0)) // 32 + y // 32 * 2) % 4
+    return shift(base, grain + 3 * variation - 8)
 
 
 def wall_pixel(base, glass, sign, x, y):
     bay, floor = x % 32, y % 32
-    if floor in (0, 1, 30, 31):
-        return shift(base, 16)
-    if 6 <= bay <= 25 and 8 <= floor <= 23:
-        if bay in (6, 25) or floor in (8, 23):
-            return shift(base, -23)
-        if (x // 32 + 2 * (y // 32)) % 9 == 3:
-            return shift(sign, -10 if floor >= 18 else 0)
-        return shift(glass, 9 if floor < 12 else 0)
-    return shift(base, -4 if bay in (0, 31) else 0)
+    if floor in (0, 31):
+        return shift(base, -40)
+    if floor in (1, 2, 29, 30):
+        return shift(base, 12)
+    if 3 <= bay <= 28 and 6 <= floor <= 23:
+        if bay in (3, 4, 27, 28, 15, 16) or floor in (6, 7, 22, 23):
+            return (40, 59, 78)
+        if floor + (bay % 15) in (14, 15, 16):
+            return shift(glass, 32)
+        if (x // 32 + 2 * (y // 32)) % 11 == 6:
+            return shift(sign, -9 if floor >= 18 else 0)
+        return shift(glass, 10 if floor < 14 else -11)
+    if 6 <= bay <= 25 and floor == 24:
+        return shift(base, -25)
+    brick = 5 if (y % 8 == 0 or (x + 7 * (y // 8 % 2)) % 14 == 0) else 0
+    return shift(base, -brick)
 
 
 def icon_pixel(x, y):
@@ -73,6 +87,34 @@ def icon_pixel(x, y):
     return (123, 156, 179) if y < 55 else (57, 80, 100)
 
 
+def reward_pixel(stage, x, y):
+    dx, dy = x - 32, y - 32
+    if max(abs(dx), abs(dy)) >= 29:
+        return (23, 29, 50)
+    if stage == 1 and abs(dx + dy // 4) < 22 and abs(dy) < 13:
+        if -6 < dy < 6 and dx in range(-18, 19) and dx % 6 < 3:
+            return (125, 71, 60)
+        return (249, 185, 102) if dy < 7 else (212, 126, 72)
+    if stage == 2 and abs(dx) * 3 + abs(dy) * 2 < 55:
+        return (134, 236, 225) if dx < 5 else (44, 158, 168)
+    if stage == 3 and abs(dx) + abs(dy) < 27:
+        if abs(dx) < 4 or abs(dy) < 4:
+            return (236, 210, 255)
+        return (152, 107, 230) if dx < 0 else (100, 79, 185)
+    return (48, 59, 83)
+
+
+def enemy(identifier, name, mesh_prefix, movement, *, hp, damage, xp, speed, cost, scale, radius, attack=None):
+    clips = ("walk", "idle", "charge") if movement == "charge" else ("walk", "idle")
+    return {
+        "id": identifier, "name": name, "material": "NimboProp", "movement": movement,
+        "hp": hp, "damage": damage, "xp": xp, "speed": speed, "cost": cost,
+        "scale": scale, "radius": radius, "fps": 12,
+        **({"attack": attack, "attackMaterial": "NimboWarning"} if attack else {}),
+        **{clip: {"prefix": mesh_prefix + clip.title(), "frames": 12} for clip in clips},
+    }
+
+
 def build(destination, prop_bundle):
     payloads = {"main.lua": (ROOT / "main.lua").read_bytes(), "icon.png": png(64, icon_pixel)}
     bundle_path = "assets/nimbo-props"
@@ -81,17 +123,23 @@ def build(destination, prop_bundle):
         raise ValueError("Expected the nimbo-props Android bundle")
     payloads[bundle_path] = assets
     environments = []
+    rewards = []
     for stage, (name, deck, paint, concrete, glass) in enumerate(DISTRICTS, 1):
         ground = f"textures/{name}-roof.png"
         wall = f"textures/{name}-facade.png"
         payloads[ground] = png(128, lambda x, y: roof_pixel(deck, paint, x, y))
         payloads[wall] = png(128, lambda x, y: wall_pixel(concrete, glass, paint, x, y))
-        roof, bridge, rise = ROOFTOPS[stage - 1]
         environments.append({
             "stage": stage, "groundTexture": ground, "wallTexture": wall, "replaceDecorations": True,
+            "architectureMaterial": "NimboTerrain", "skyMaterial": "NimboDaySky",
             "potVisual": "CargoCapsule", "silverPotVisual": "SilverCargoCapsule",
-            "rooftops": {"roofFraction": roof, "bridgeFraction": bridge, "riseFraction": rise},
+            "arenaLandmark": LANDMARKS[stage - 1], "potBreakFx": "NimboCapsuleBurst",
         })
+        identifier, title, details, stat, bonus = REWARDS[stage - 1]
+        reward_icon = f"textures/{identifier}.png"
+        payloads[reward_icon] = png(64, lambda x, y: reward_pixel(stage, x, y))
+        rewards.append({"id": identifier, "name": title, "description": details, "icon": reward_icon,
+                        "stat": stat, "bonus": bonus})
 
     manifest = {
         "api": 3,
@@ -100,24 +148,75 @@ def build(destination, prop_bundle):
         "map": {
             "id": "distrito-nimbo",
             "name": "Distrito Nimbo",
-            "description": "Cross connected roofs through three districts. Development preview.",
+            "description": "Climb switchback streets and cross terraced plazas through three city districts.",
             "base": "Forest",
             "icon": "icon.png",
-            "tileGridSize": 9,
-            "volatility": 0.45,
-            "slopeStrength": 0.25,
-            "flatMapBias": 0.2,
+            "tileGridSize": 15,
+            "volatility": 0.8,
+            "slopeStrength": 0,
+            "flatMapBias": 0,
             "stageDuration": 420,
             "hooks": ["stage_spawn_multiplier"],
             "stageEnvironments": environments,
+            "enemies": [
+                enemy("beedrill", "Beedrill", "Beedrill", "charge",
+                      hp=9, damage=13, xp=1, speed=5, cost=1, scale=1.35, radius=.59),
+                enemy("pidgey", "Pidgey", "Pidgey", "fly",
+                      hp=6, damage=9, xp=1, speed=6, cost=.9, scale=1.7, radius=.24),
+                enemy("charizard", "Charizard", "Charizard", "charge",
+                      hp=160, damage=24, xp=8, speed=5.4, cost=9, scale=2.9, radius=.70),
+                enemy("rattata", "Rattata", "Rattata", "ground",
+                      hp=16, damage=15, xp=2, speed=6.7, cost=1.1, scale=1.75, radius=.36),
+                enemy("gyarados", "Gyarados", "Gyarados", "fly",
+                      hp=230, damage=25, xp=11, speed=4.5, cost=10, scale=2.26, radius=.30, attack="sweep"),
+                enemy("raticate", "Raticate", "Raticate", "ground",
+                      hp=18, damage=18, xp=2, speed=6.3, cost=1.3, scale=1.65, radius=.32),
+                enemy("rhydon", "Rhydon", "Rhydon", "ground",
+                      hp=340, damage=31, xp=15, speed=4.5, cost=12, scale=2.7, radius=.69, attack="pulse"),
+                enemy("fearow", "Fearow", "Fearow", "fly",
+                      hp=72, damage=18, xp=5, speed=6.4, cost=5, scale=2.2, radius=.45),
+                enemy("arbok", "Arbok", "Arbok", "charge",
+                      hp=105, damage=23, xp=6, speed=5.8, cost=6, scale=2.35, radius=.57),
+                enemy("nidoking", "Nidoking", "Nidoking", "charge",
+                      hp=150, damage=28, xp=8, speed=5.1, cost=7, scale=2.6, radius=.68),
+            ],
+            "encounters": [{
+                "stage": 1,
+                "start": ["beedrill"],
+                "reserve": ["pidgey"],
+                "swarm": ["pidgey"],
+                "minibosses": ["fearow"],
+                "overtime": ["beedrill", "pidgey"],
+                "boss": "charizard", "reward": rewards[0],
+            }, {
+                "stage": 2,
+                "start": ["rattata"],
+                "reserve": ["pidgey", "beedrill"],
+                "swarm": ["rattata", "pidgey"],
+                "minibosses": ["arbok"],
+                "overtime": ["rattata", "pidgey", "beedrill"],
+                "boss": "gyarados", "reward": rewards[1],
+            }, {
+                "stage": 3,
+                "start": ["raticate", "beedrill"],
+                "reserve": ["rattata"],
+                "swarm": ["raticate"],
+                "minibosses": ["nidoking"],
+                "overtime": ["raticate", "beedrill", "rattata"],
+                "boss": "rhydon", "reward": rewards[2],
+            }],
             "bundle": bundle_path,
             "objects": [
-                {"prefab": "TerminalHeatPump", "amount": 20, "scaleMin": 0.95, "scaleMax": 1.15,
+                {"prefab": "TerminalHeatPump", "amount": 36, "scaleMin": 0.95, "scaleMax": 1.15,
                  "checkRadius": 2, "maxSlopeAngle": 5, "upOffset": 0},
                 {"prefab": "BasaltHead", "amount": 12, "stages": [1, 2], "scaleMin": 0.95, "scaleMax": 1.4,
                  "checkRadius": 2.5, "maxSlopeAngle": 5, "upOffset": 0},
                 {"prefab": "SignalAntenna", "amount": 22, "stages": [2, 3], "scaleMin": 1, "scaleMax": 1.3,
                  "checkRadius": 2, "maxSlopeAngle": 5, "upOffset": 0},
+                {"prefab": "SageAccessHouse", "amount": 56, "stages": [1, 2], "scaleMin": 1.7, "scaleMax": 2.1,
+                 "checkRadius": 4.5, "maxSlopeAngle": 3, "upOffset": 0},
+                {"prefab": "LilacAccessHouse", "amount": 42, "stages": [1, 3], "scaleMin": 1.55, "scaleMax": 2.0,
+                 "checkRadius": 4.5, "maxSlopeAngle": 3, "upOffset": 0},
             ],
         },
         "files": [

@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Assets.Scripts.MapGeneration.ProceduralTiles;
 using Assets.Scripts._Data.MapsAndStages;
 using UnityEditor;
@@ -107,6 +108,7 @@ public static class OpenBonkMapRecipeCheck
                 finally { recipe.stageEnvironments = null; UnityEngine.Object.DestroyImmediate(repeatedTemplate); }
             }
             finally { UnityEngine.Object.DestroyImmediate(ground); UnityEngine.Object.DestroyImmediate(wall); }
+            CheckArchitecturalTerrain(forest, icon);
             recipe.tileGridSize = 0; rejected = false; try { OpenBonkProceduralMapBuild.Create(forest, recipe, icon); } catch (ArgumentException) { rejected = true; }
             Require(rejected, "invalid size");
             recipe.tileGridSize = 9; recipe.volatility = float.NaN; rejected = false; try { OpenBonkProceduralMapBuild.Create(forest, recipe, icon); } catch (ArgumentException) { rejected = true; }
@@ -114,6 +116,45 @@ public static class OpenBonkMapRecipeCheck
             Debug.Log("OpenBonk map recipe PASS: independent parameters and stage environments, preserved Forest assets, 81-cell maze, invalid and incompatible input rejection");
         }
         finally { UnityEngine.Object.DestroyImmediate(icon); }
+    }
+
+    private static void CheckArchitecturalTerrain(MapData forest, Texture icon)
+    {
+        var texture = new Texture2D(2, 2);
+        var material = new Material(Shader.Find("Unlit/Texture"));
+        try
+        {
+            var recipe = new OpenBonkProceduralMapRecipe
+            {
+                name = "Terraces", description = "Test", tileGridSize = 15, volatility = .8f, stageDuration = 420,
+                stageEnvironments = new[]
+                {
+                    new OpenBonkProceduralMapRecipe.StageEnvironment
+                    {
+                        stage = 1, architectureMaterial = material, skyMaterial = material,
+                        groundTexture = texture, wallTexture = texture, replaceDecorations = true,
+                    },
+                },
+            };
+            using var build = OpenBonkProceduralMapBuild.Create(forest, recipe, icon);
+            var stage = build.Map.stages[0];
+            var source = forest.stages[0];
+            var getRooftops = typeof(OpenBonkExternalMapData).GetMethod("GetRooftops", BindingFlags.Instance | BindingFlags.NonPublic);
+            Require(getRooftops != null && getRooftops.Invoke(build.Map, new object[] { stage }) == null &&
+                stage.mapParameters.scaledTileHeight == source.mapParameters.scaledTileHeight &&
+                stage.mapParameters.heightGenerationStrategy == source.mapParameters.heightGenerationStrategy,
+                "tiled architecture needs native terrain elevations");
+            Require(stage.skybox == material && stage.flatMaterials[0] != material && stage.flatMaterials[0].mainTexture == texture &&
+                stage.m_fillTop != stage.flatMaterials[0] && stage.m_fillTop.mainTexture == texture && stage.m_stairs == null,
+                "tiled architecture needs independent pavement and facade materials");
+            Require(stage.triplanarMaterial == source.triplanarMaterial, "facades must not be applied to the menu terrain or distant hills");
+            Require(build.Map.stages[1].flatMaterials[0] == forest.stages[1].flatMaterials[0], "unselected stage keeps its terrain materials");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(texture);
+            UnityEngine.Object.DestroyImmediate(material);
+        }
     }
 }
 #endif

@@ -13,7 +13,8 @@ public sealed class OpenBonkProceduralMapRecipe
     {
         public int stage;
         public Texture groundTexture, wallTexture;
-        public GameObject potVisual, silverPotVisual;
+        public Material architectureMaterial, skyMaterial;
+        public GameObject potVisual, silverPotVisual, arenaLandmark, potBreakFx;
         public OpenBonkRoofLayout.Profile rooftops;
         public bool replaceDecorations;
     }
@@ -52,9 +53,13 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
             {
                 if (environment == null || environment.stage < 1 || environment.stage > environments.Length ||
                     environments[environment.stage - 1] != null ||
+                    (environment.arenaLandmark != null && (environment.rooftops != null || !environment.replaceDecorations)) ||
                     (environment.rooftops != null && (!environment.replaceDecorations || !environment.rooftops.IsValid())) ||
+                    ((environment.architectureMaterial != null || environment.skyMaterial != null) &&
+                        (environment.architectureMaterial == null || environment.skyMaterial == null)) ||
                     (!environment.replaceDecorations && environment.groundTexture == null && environment.wallTexture == null &&
-                        environment.potVisual == null && environment.silverPotVisual == null))
+                        environment.potVisual == null && environment.silverPotVisual == null && environment.potBreakFx == null &&
+                        environment.architectureMaterial == null))
                     throw new ArgumentException("Invalid stage environment");
                 environments[environment.stage - 1] = environment;
             }
@@ -79,6 +84,8 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                 var environment = environments[i];
                 if (environment != null && (environment.potVisual != null || environment.silverPotVisual != null))
                     map.potVisuals.Add(stage, (environment.potVisual, environment.silverPotVisual));
+                if (environment?.arenaLandmark != null) map.arenaLandmarks.Add(stage, environment.arenaLandmark);
+                if (environment?.potBreakFx != null) map.potEffects.Add(stage, environment.potBreakFx);
                 if (environment?.rooftops != null)
                 {
                     if (stage.flatMaterials == null || stage.flatMaterials.Length == 0 || stage.flatMaterials[0] == null ||
@@ -88,7 +95,24 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                 }
                 var ground = environment?.groundTexture ?? groundTexture;
                 var wall = environment?.wallTexture ?? wallTexture;
-                if (ground != null)
+                if (environment?.architectureMaterial != null)
+                {
+                    if (ground == null || wall == null || !environment.architectureMaterial.HasProperty("_MainTex"))
+                        throw new ArgumentException("Missing architecture textures");
+                    var deck = result.Own(new Material(environment.architectureMaterial) { mainTexture = ground });
+                    var facade = result.Own(new Material(environment.architectureMaterial) { mainTexture = wall });
+                    if (environment.rooftops != null)
+                        map.rooftops[stage] = environment.rooftops.WithArchitecture(deck, facade, environment.architectureMaterial);
+                    else
+                        SetTerrainSurfaces(stage, deck, facade, parameters.scaledTileWidth, recipe.tileGridSize);
+                    stage.skybox = environment.skyMaterial;
+                    stage.fogColor = new Color(.75f, .86f, .89f);
+                    stage.fogIntensity = .0035f;
+                    stage.ambienceColor = new Color(.86f, .89f, .94f);
+                    stage.lightColor = new Color(1f, .95f, .83f);
+                    stage.lightIntensity = 1f;
+                }
+                if (ground != null && environment?.architectureMaterial == null)
                 {
                     if (stage.flatMaterials == null || !Array.Exists(stage.flatMaterials, material => material != null))
                         throw new ArgumentException("No ground materials in stage template");
@@ -98,7 +122,7 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                         stage.flatMaterials[materialIndex] = result.ReplaceTexture(stage.flatMaterials[materialIndex], ground, materials);
                     }
                 }
-                if (wall != null)
+                if (wall != null && environment?.architectureMaterial == null)
                 {
                     if (stage.m_fillMiddle == null && stage.m_fillTop == null && stage.m_fillMiddleEdge == null &&
                         stage.m_fillTopEdge == null && stage.m_stairs == null)
@@ -151,6 +175,20 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
         if (!changed) throw new ArgumentException("Terrain material has no supported texture property");
         replacements.Add(key, replacement);
         return replacement;
+    }
+
+    private static void SetTerrainSurfaces(StageData stage, Material deck, Material facade, float tileWidth, int gridSize)
+    {
+        float gridOffset = gridSize % 2 == 0 ? tileWidth * .5f : 0;
+        if (deck.HasProperty("_TileWidth")) deck.SetFloat("_TileWidth", tileWidth);
+        if (facade.HasProperty("_TileWidth")) facade.SetFloat("_TileWidth", tileWidth);
+        if (deck.HasProperty("_GridOffset")) deck.SetFloat("_GridOffset", gridOffset);
+        if (facade.HasProperty("_GridOffset")) facade.SetFloat("_GridOffset", gridOffset);
+        if (facade.HasProperty("_Facade")) facade.SetFloat("_Facade", 1);
+        stage.flatMaterials = new[] { deck };
+        stage.m_fillMiddle = stage.m_fillMiddleEdge = facade;
+        stage.m_fillTop = stage.m_fillTopEdge = facade;
+        stage.m_stairs = null;
     }
 
     private static bool ValidText(string text, int limit) => !string.IsNullOrWhiteSpace(text) && text.Length <= limit && text.IndexOf('\0') < 0;

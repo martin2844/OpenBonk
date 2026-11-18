@@ -26,14 +26,25 @@ internal static class AndroidContentMods
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class PerLevelSpec { public string stat; public float amount; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class ItemSpec { public string id, name, description, icon, rarity; public bool inPool; public int maxAmount, maxAmountPerRun; public ItemBonusSpec[] bonuses; public string[] hooks; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class ItemBonusSpec { public string stat, mode; public float amount; }
-    [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapSpec { public string id, name, description, icon, groundTexture, wallTexture, bundle, @base; public string[] hooks; public MapObjectSpec[] objects; public StageEnvironmentSpec[] stageEnvironments; public int tileGridSize; public float volatility, slopeStrength, flatMapBias, stageDuration, noiseScale, heightMultiplier, mapScale; }
+    [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapSpec
+    {
+        public string id, name, description, icon, groundTexture, wallTexture, bundle, @base;
+        public string[] hooks;
+        public MapObjectSpec[] objects;
+        public StageEnvironmentSpec[] stageEnvironments;
+        public OpenBonkMapEncounterBuild.EnemySpec[] enemies;
+        public OpenBonkMapEncounterBuild.StageSpec[] encounters;
+        public int tileGridSize;
+        public float volatility, slopeStrength, flatMapBias, stageDuration, noiseScale, heightMultiplier, mapScale;
+    }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapObjectSpec { public string prefab; public int amount; public int[] stages; public float scaleMin, scaleMax, checkRadius, maxSlopeAngle, upOffset; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class StageEnvironmentSpec
     {
         public int stage;
         public string groundTexture, wallTexture;
+        public string architectureMaterial, skyMaterial;
         public bool replaceDecorations;
-        public string potVisual, silverPotVisual;
+        public string potVisual, silverPotVisual, arenaLandmark, potBreakFx;
         public OpenBonkRoofLayout.Profile rooftops;
     }
     private static readonly List<AssetBundle> Bundles = new List<AssetBundle>();
@@ -215,6 +226,8 @@ internal static class AndroidContentMods
         if (spec.@base != "Forest" && spec.@base != "Desert") throw new InvalidDataException("unsupported map template");
         if (spec.stageEnvironments != null && (spec.@base != "Forest" || spec.stageEnvironments.Length < 1 || spec.stageEnvironments.Length > 3))
             throw new InvalidDataException("invalid stage environments");
+        if ((spec.enemies == null) != (spec.encounters == null))
+            throw new InvalidDataException("map enemies and encounters must be declared together");
         bool spawnHook = false, healthHook = false, speedHook = false, damageHook = false;
         bool enemyHealthHook = false, enemySpeedHook = false, enemyDamageHook = false;
         if (spec.hooks != null) foreach (string hook in spec.hooks)
@@ -228,9 +241,11 @@ internal static class AndroidContentMods
             else if (hook == "enemy_damage_multiplier" && !enemyDamageHook) enemyDamageHook = true;
             else throw new InvalidDataException("unsupported map hooks");
         }
-        bool needsBundle = spec.objects != null || (spec.stageEnvironments != null &&
+        bool needsBundle = spec.enemies != null || spec.objects != null || (spec.stageEnvironments != null &&
             Array.Exists(spec.stageEnvironments, stage => stage != null &&
-                (!string.IsNullOrEmpty(stage.potVisual) || !string.IsNullOrEmpty(stage.silverPotVisual))));
+                (!string.IsNullOrEmpty(stage.potVisual) || !string.IsNullOrEmpty(stage.silverPotVisual) ||
+                 !string.IsNullOrEmpty(stage.architectureMaterial) || !string.IsNullOrEmpty(stage.skyMaterial) ||
+                 !string.IsNullOrEmpty(stage.arenaLandmark) || !string.IsNullOrEmpty(stage.potBreakFx))));
         if ((spec.objects != null && (spec.objects.Length == 0 || spec.objects.Length > 8)) ||
             (needsBundle ? !Text(spec.bundle, 120) : !string.IsNullOrEmpty(spec.bundle)))
             throw new InvalidDataException("invalid map bundle");
@@ -246,6 +261,7 @@ internal static class AndroidContentMods
         string bundlePath = needsBundle ? CheckedFile(folder, files, spec.bundle, 64L * 1024 * 1024) : null;
         var textures = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
         Texture2D icon = null; AssetBundle bundle = null; OpenBonkProceduralMapBuild build = null; OpenBonkMeshMapBuild meshBuild = null;
+        OpenBonkMapEncounterBuild encounters = null;
         try
         {
             if (needsBundle)
@@ -280,7 +296,11 @@ internal static class AndroidContentMods
                             wallTexture = LoadMapTexture(folder, files, textures, stage.wallTexture),
                             potVisual = LoadPotVisual(bundle, stage.potVisual),
                             silverPotVisual = LoadPotVisual(bundle, stage.silverPotVisual),
+                            arenaLandmark = LoadArenaLandmark(bundle, stage.arenaLandmark),
+                            potBreakFx = LoadPotBreakFx(bundle, stage.potBreakFx),
                             rooftops = stage.rooftops,
+                            architectureMaterial = LoadMapMaterial(bundle, stage.architectureMaterial),
+                            skyMaterial = LoadMapMaterial(bundle, stage.skyMaterial),
                         };
                     }
                 }
@@ -299,7 +319,11 @@ internal static class AndroidContentMods
                 }
                 OpenBonkMapObjects.AddToStages(map, placements);
             }
-            DataManager.Instance.RegisterExternalMap(id, spec.id, map);
+            if (spec.enemies != null)
+                encounters = OpenBonkMapEncounterBuild.Create(id, map, bundle, spec.enemies, spec.encounters,
+                    path => LoadMapTexture(folder, files, textures, path));
+            DataManager.Instance.RegisterExternalMap(id, spec.id, map, encounters);
+            encounters = null;
             if (build != null) { Maps.Add(build); build = null; }
             if (meshBuild != null) { MeshMaps.Add(meshBuild); meshBuild = null; }
             if (bundle != null) { Bundles.Add(bundle); bundle = null; }
@@ -311,10 +335,21 @@ internal static class AndroidContentMods
         {
             build?.Dispose();
             meshBuild?.Dispose();
+            encounters?.Dispose();
             if (bundle != null) bundle.Unload(true);
             if (icon != null) UnityEngine.Object.Destroy(icon);
             foreach (var texture in textures.Values) UnityEngine.Object.Destroy(texture);
         }
+    }
+
+    private static Material LoadMapMaterial(AssetBundle bundle, string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        if (!Text(name, 120)) throw new InvalidDataException("invalid architecture material name");
+        var material = bundle?.LoadAsset<Material>(name);
+        if (material == null || material.shader == null)
+            throw new InvalidDataException($"missing architecture material {name}");
+        return material;
     }
 
     private static GameObject LoadPotVisual(AssetBundle bundle, string name)
@@ -327,6 +362,30 @@ internal static class AndroidContentMods
             visual.GetComponent<MeshRenderer>()?.sharedMaterial == null)
             throw new InvalidDataException("pot visuals must be single-mesh prefabs");
         return visual;
+    }
+
+    private static GameObject LoadArenaLandmark(AssetBundle bundle, string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        if (!Text(name, 120)) throw new InvalidDataException("Invalid arena landmark name");
+        var landmark = bundle.LoadAsset<GameObject>(name);
+        if (landmark == null || !landmark.activeSelf || landmark.transform.childCount != 0 ||
+            landmark.GetComponents<Component>().Length != 4 || landmark.GetComponent<MeshRenderer>()?.sharedMaterial == null ||
+            landmark.GetComponent<BoxCollider>() == null ||
+            landmark.GetComponent<MeshFilter>()?.sharedMesh is not Mesh mesh || mesh.bounds.extents.magnitude > 12f)
+            throw new InvalidDataException("Arena landmarks must be small single-mesh prefabs with a box collider");
+        return landmark;
+    }
+
+    private static GameObject LoadPotBreakFx(AssetBundle bundle, string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        if (!Text(name, 120)) throw new InvalidDataException("Invalid pot effect name");
+        var effect = bundle.LoadAsset<GameObject>(name);
+        if (effect == null || !effect.activeSelf || effect.transform.childCount != 0 ||
+            effect.GetComponents<Component>().Length != 3 || effect.GetComponent<ParticleSystem>() == null)
+            throw new InvalidDataException("Pot effects must be single particle systems");
+        return effect;
     }
 
     private static Texture2D LoadMapTexture(string folder, Dictionary<string, FileSpec> files,

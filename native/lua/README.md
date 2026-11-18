@@ -517,6 +517,9 @@ encounters, shrines and portal logic are inherited from the template.
 Optional `potVisual` and `silverPotVisual` names refer to Y-up, single-mesh
 prefabs in `map.bundle`. They replace the appearance of normal and silver
 pots in that stage while keeping their interaction, collisions and rewards.
+Optional `potBreakFx` names a single particle-system prefab. On tiled
+stages with `replaceDecorations` enabled, `arenaLandmark` names a small
+single-mesh prop with a box collider placed opposite the boss approach.
 
 Stages with `replaceDecorations: true` can set `rooftops` to generate buildings
 with walkable decks, bridges, and gaps. `roofFraction` (0.60–0.82) is the
@@ -525,6 +528,39 @@ typical deck width, `bridgeFraction` (0.18–0.40) is the bridge width, and
 buildings, all relative to one tile. The host also checks the rise against
 the deck width to keep bridges walkable. The original layout seed supplies
 the connected routes. Outer skyline buildings are visual scenery.
+
+Stages may declare an `architectureMaterial` with a `_MainTex` property
+and a `skyMaterial`. Both named materials come from the map bundle.
+With `rooftops`, the architecture shader uses vertex colors to tint
+individual buildings. Otherwise, the supplied textures shade the Forest
+pavement and cliff meshes, and the stage uses the original elevation and
+collision. Optional shader properties `_TileWidth` and `_GridOffset`
+align pavement details with the grid. If present, `_Facade` is set to
+1 on cliff materials.
+
+Map packages can declare map-local `enemies` and `encounters` together.
+Each enemy has a stable package-scoped `id`, a display `name`, base stats
+(`hp`, `damage`, `xp`, `speed`, `cost`, `scale`, `radius`), a bundle
+`material`, animation `fps`, and `movement` of `ground`, `fly`, or
+`charge`. A `walk` clip is required, `idle` is optional, and `charge`
+movement requires a `charge` clip. Each clip gives a mesh asset name
+`prefix` and a `frames` count from 1 to 24. Mesh names end in two digits
+starting at `00`. Meshes and materials are read from `map.bundle`.
+An enemy can also declare an arena `attack` of `sweep` or `pulse`, paired
+with an `attackMaterial` that reads vertex color on its warning outline.
+
+Each encounter declares a one-based `stage` and a nonempty `start` roster
+of local enemy IDs. Optional `reserve` enemies join as reinforcement cards.
+`swarm` defaults to `start`, and `overtime` defaults to `swarm`.
+`minibosses` defaults to an empty roster. `boss` selects a local enemy for
+the stage portal. Omit it to keep the template's boss. Stages without an
+encounter keep their template roster.
+
+With a local boss, optional `reward` defines a one-stack item granted on
+clear. Provide a package-scoped `id`, `name`, `description`, an `icon`
+declared in the ZIP, a stat name, and an additive `bonus` from 0.01 to 1.
+Arena rewards stay outside the general item pool. The last local boss for
+the chosen tier opens an exit that records a completed run.
 
 ### Experimental weapon target context
 

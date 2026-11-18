@@ -155,9 +155,11 @@ public class DataManager : MonoBehaviour
 		weapons.Add(id, weapon); unsortedWeapons.Add(weapon);
 	}
 
-	// Registration only; loading a mod package and producing playable stages
-	// requires additional integration with map generation and progression.
-	public void RegisterExternalMap(string packageId, string mapKey, OpenBonkExternalMapData map)
+	public void RegisterExternalMap(string packageId, string mapKey, OpenBonkExternalMapData map) =>
+		RegisterExternalMap(packageId, mapKey, map, null);
+
+	internal void RegisterExternalMap(string packageId, string mapKey, OpenBonkExternalMapData map,
+		OpenBonkMapEncounterBuild encounters)
 	{
 		if (!externalRegistrationReady) throw new InvalidOperationException("Game data not loaded");
 		if (map == null || !map.isEnabled || string.IsNullOrWhiteSpace(map.displayName) ||
@@ -168,6 +170,22 @@ public class DataManager : MonoBehaviour
 		var id = (EMap)OpenBonkContentIds.Map(packageId, mapKey);
 		if (maps == null || maps.Contains(map) || maps.Exists(candidate => candidate != null && candidate.eMap == id))
 			throw new InvalidOperationException("Content ID collision or object already registered");
+		if (encounters != null)
+		{
+			foreach (var enemy in encounters.Enemies)
+				if (enemyData.ContainsKey(enemy.enemyName))
+					throw new InvalidOperationException("Enemy ID collision");
+			foreach (var reward in encounters.Rewards)
+				if (itemData.ContainsKey(reward.eItem) || unsortedItems.Exists(item => item != null && item.eItem == reward.eItem))
+					throw new InvalidOperationException("Arena reward ID collision");
+			foreach (var enemy in encounters.Enemies)
+				enemyData.Add(enemy.enemyName, enemy);
+			foreach (var reward in encounters.Rewards)
+			{
+				itemData.Add(reward.eItem, reward);
+				unsortedItems.Add(reward);
+			}
+		}
 		map.eMap = id; map.externalId = packageId + ":" + mapKey; maps.Add(map);
 	}
 
@@ -221,7 +239,7 @@ public class DataManager : MonoBehaviour
 
 	public EnemyData GetEnemyData(EEnemy eEnemy)
 	{
-		return enemyData.ContainsKey(eEnemy) ? enemyData[eEnemy] : null;
+		return enemyData.TryGetValue(eEnemy, out var data) ? data : null;
 	}
 
 	public EncounterData GetEncounter(EEncounter encounter)

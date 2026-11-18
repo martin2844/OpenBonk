@@ -81,7 +81,11 @@ final class LauncherContentImporter {
                 if (!number(map, "noiseScale", 25, 250) || !number(map, "heightMultiplier", 1, 20) || !number(map, "mapScale", .75, 1.25))
                     throw new IOException("unsupported mesh recipe");
             } else throw new IOException("unsupported map template");
-            boolean needsMapBundle = map.has("stageEnvironments") && validateStageEnvironments(base, stageEnvironments);
+            boolean needsMapBundle = map.has("stageEnvironments") && validateStageEnvironments(base, map, stageEnvironments);
+            if (map.has("enemies") || map.has("encounters")) {
+                validateMapEncounters(map.optJSONArray("enemies"), map.optJSONArray("encounters"));
+                needsMapBundle = true;
+            }
             if (map.has("objects")) {
                 needsMapBundle = true;
                 JSONArray objects = map.optJSONArray("objects");
@@ -231,6 +235,16 @@ final class LauncherContentImporter {
         if (!weaponIcon.isEmpty() && (!files.containsKey(weaponIcon) || files.get(weaponIcon).getLong("size") > 4L * 1024 * 1024)) throw new IOException("missing weapon icon");
         if (mapBundle != null && !files.containsKey(mapBundle)) throw new IOException("missing map bundle");
         if (map != null) requireMapTextures(map, files);
+        if (map != null && map.has("encounters")) {
+            JSONArray encounters = map.getJSONArray("encounters");
+            for (int i = 0; i < encounters.length(); i++) {
+                JSONObject reward = encounters.getJSONObject(i).optJSONObject("reward");
+                if (reward == null) continue;
+                JSONObject icon = files.get(reward.getString("icon"));
+                if (icon == null || icon.getLong("size") > 4L * 1024 * 1024)
+                    throw new IOException("missing arena reward icon");
+            }
+        }
         if (stageEnvironments != null)
             for (int i = 0; i < stageEnvironments.length(); i++) requireMapTextures(stageEnvironments.getJSONObject(i), files);
         File destination = new File(root, id), staging = new File(root, ".import-" + UUID.randomUUID());
@@ -264,7 +278,7 @@ final class LauncherContentImporter {
     }
     private static String utf8(byte[] bytes) throws Exception { return StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString(); }
     private static boolean contentId(String value) { return value.matches("[a-z0-9][a-z0-9._-]{0,63}"); }
-    private static boolean validateStageEnvironments(String base, JSONArray environments) throws IOException {
+    private static boolean validateStageEnvironments(String base, JSONObject map, JSONArray environments) throws IOException {
         if (!"Forest".equals(base) || environments == null || environments.length() < 1 || environments.length() > 3)
             throw new IOException("unsupported stage environments");
         boolean[] seen = new boolean[3];
@@ -274,10 +288,19 @@ final class LauncherContentImporter {
             if (entry == null || !(entry.opt("stage") instanceof Number) || !number(entry, "stage", 1, 3) ||
                 entry.optDouble("stage") != entry.optInt("stage") || !optionalText(entry, "groundTexture", 120) ||
                 !optionalText(entry, "wallTexture", 120) || !optionalText(entry, "potVisual", 120) ||
-                !optionalText(entry, "silverPotVisual", 120) ||
+                !optionalText(entry, "silverPotVisual", 120) || !optionalText(entry, "architectureMaterial", 120) ||
+                !optionalText(entry, "skyMaterial", 120) || !optionalText(entry, "arenaLandmark", 120) ||
+                !optionalText(entry, "potBreakFx", 120) ||
                 (entry.has("replaceDecorations") && !(entry.opt("replaceDecorations") instanceof Boolean)))
                 throw new IOException("invalid stage environment");
             int index = entry.optInt("stage") - 1;
+            boolean architecture = !optionalString(entry, "architectureMaterial").isEmpty();
+            boolean sky = !optionalString(entry, "skyMaterial").isEmpty();
+            if (architecture != sky)
+                throw new IOException("architecture and sky materials must be provided together");
+            if (architecture && ((optionalString(entry, "groundTexture").isEmpty() && optionalString(map, "groundTexture").isEmpty()) ||
+                (optionalString(entry, "wallTexture").isEmpty() && optionalString(map, "wallTexture").isEmpty())))
+                throw new IOException("architecture requires ground and wall textures");
             if (entry.has("rooftops")) {
                 JSONObject layout = entry.optJSONObject("rooftops");
                 if (!entry.optBoolean("replaceDecorations") || layout == null ||
@@ -287,16 +310,99 @@ final class LauncherContentImporter {
                     layout.optDouble("riseFraction") > (.96 - layout.optDouble("roofFraction")) * .55)
                     throw new IOException("invalid rooftop dimensions");
             }
+            boolean landmark = !optionalString(entry, "arenaLandmark").isEmpty();
+            if (landmark && (entry.has("rooftops") || !entry.optBoolean("replaceDecorations")))
+                throw new IOException("arena landmarks require tiled terrain with mod decorations");
+            boolean potEffect = !optionalString(entry, "potBreakFx").isEmpty();
             boolean hasPotVisual = !optionalString(entry, "potVisual").isEmpty() ||
                 !optionalString(entry, "silverPotVisual").isEmpty();
             if (seen[index] || (!entry.optBoolean("replaceDecorations") && optionalString(entry, "groundTexture").isEmpty() &&
-                optionalString(entry, "wallTexture").isEmpty() && !hasPotVisual)) throw new IOException("invalid stage environment");
-            needsBundle |= hasPotVisual;
+                optionalString(entry, "wallTexture").isEmpty() && !hasPotVisual && !architecture && !potEffect)) throw new IOException("invalid stage environment");
+            needsBundle |= hasPotVisual || architecture || landmark || potEffect;
             seen[index] = true;
         }
         return needsBundle;
     }
     private static String optionalString(JSONObject entry, String key) { return entry.isNull(key) ? "" : entry.optString(key, ""); }
+    private static void validateMapEncounters(JSONArray enemies, JSONArray encounters) throws IOException {
+        if (enemies == null || enemies.length() < 1 || enemies.length() > 24 ||
+            encounters == null || encounters.length() < 1 || encounters.length() > 3)
+            throw new IOException("map enemies and encounters must be declared together");
+        Set<String> keys = new HashSet<>();
+        for (int i = 0; i < enemies.length(); i++) {
+            JSONObject enemy = enemies.optJSONObject(i);
+            if (enemy == null || !(enemy.opt("id") instanceof String) ||
+                !contentId(enemy.optString("id")) || !keys.add(enemy.optString("id")) ||
+                !strictText(enemy, "name", 80) || !strictText(enemy, "material", 120) ||
+                !strictInteger(enemy, "hp", 1, 1000000) || !strictInteger(enemy, "damage", 1, 10000) ||
+                !strictInteger(enemy, "xp", 0, 1000) || !strictInteger(enemy, "fps", 4, 24) ||
+                !strictNumber(enemy, "speed", .1, 40) || !strictNumber(enemy, "cost", .1, 30) ||
+                !strictNumber(enemy, "scale", .25, 12) || !strictNumber(enemy, "radius", .1, 8))
+                throw new IOException("invalid local enemy");
+            String movement = enemy.optString("movement");
+            if (!optionalText(enemy, "attack", 12) || !optionalText(enemy, "attackMaterial", 120))
+                throw new IOException("invalid enemy attack");
+            String attack = optionalString(enemy, "attack");
+            if (attack.isEmpty() != optionalString(enemy, "attackMaterial").isEmpty() ||
+                (!attack.isEmpty() && !"sweep".equals(attack) && !"pulse".equals(attack)))
+                throw new IOException("unsupported enemy attack");
+            boolean charge = "charge".equals(movement);
+            if (!("ground".equals(movement) || "fly".equals(movement) || charge) ||
+                charge != !enemy.isNull("charge"))
+                throw new IOException("invalid enemy movement");
+            validateEnemyClip(enemy.optJSONObject("walk"));
+            if (!enemy.isNull("idle")) validateEnemyClip(enemy.optJSONObject("idle"));
+            if (charge) validateEnemyClip(enemy.optJSONObject("charge"));
+        }
+        boolean[] seen = new boolean[3];
+        Set<String> rewardIds = new HashSet<>();
+        for (int i = 0; i < encounters.length(); i++) {
+            JSONObject encounter = encounters.optJSONObject(i);
+            if (encounter == null || !strictInteger(encounter, "stage", 1, 3))
+                throw new IOException("invalid encounter stage");
+            int index = encounter.optInt("stage") - 1;
+            if (seen[index]) throw new IOException("duplicate encounter stage");
+            seen[index] = true;
+            Set<String> start = validateEnemyRoster(encounter, "start", keys, true, false);
+            Set<String> reserve = validateEnemyRoster(encounter, "reserve", keys, false, true);
+            for (String id : reserve) if (start.contains(id)) throw new IOException("reinforcement already starts in stage");
+            validateEnemyRoster(encounter, "swarm", keys, false, false);
+            validateEnemyRoster(encounter, "overtime", keys, false, false);
+            validateEnemyRoster(encounter, "minibosses", keys, false, true);
+            if (!optionalText(encounter, "boss", 64) ||
+                (!optionalString(encounter, "boss").isEmpty() && !keys.contains(encounter.optString("boss"))))
+                throw new IOException("unknown local boss");
+            if (!encounter.isNull("reward")) {
+                JSONObject reward = encounter.optJSONObject("reward");
+                if (optionalString(encounter, "boss").isEmpty() || reward == null || !(reward.opt("id") instanceof String) ||
+                    !contentId(reward.optString("id")) || !rewardIds.add(reward.optString("id")) ||
+                    !strictText(reward, "name", 80) || !strictText(reward, "description", 500) ||
+                    !strictText(reward, "icon", 120) || !validItemStat(reward.optString("stat")) ||
+                    !strictNumber(reward, "bonus", .01, 1))
+                    throw new IOException("invalid arena reward");
+            }
+        }
+    }
+
+    private static void validateEnemyClip(JSONObject clip) throws IOException {
+        if (clip == null || !strictText(clip, "prefix", 100) || !strictInteger(clip, "frames", 1, 24))
+            throw new IOException("invalid enemy animation clip");
+    }
+
+    private static Set<String> validateEnemyRoster(JSONObject encounter, String field, Set<String> keys,
+        boolean required, boolean allowEmpty) throws IOException {
+        Set<String> used = new HashSet<>();
+        if (!required && encounter.isNull(field)) return used;
+        JSONArray names = encounter.optJSONArray(field);
+        if (names == null || names.length() > 12 || (!allowEmpty && names.length() == 0))
+            throw new IOException("invalid enemy roster: " + field);
+        for (int i = 0; i < names.length(); i++) {
+            Object name = names.opt(i);
+            if (!(name instanceof String) || !keys.contains(name) || !used.add((String)name))
+                throw new IOException("unknown or duplicate enemy in roster: " + field);
+        }
+        return used;
+    }
     private static void requireMapTextures(JSONObject entry, Map<String, JSONObject> files) throws Exception {
         for (String key : new String[] {"groundTexture", "wallTexture"}) {
             String path = optionalString(entry, key);
@@ -313,6 +419,12 @@ final class LauncherContentImporter {
     private static boolean number(JSONObject object, String key, double min, double max) { double value = object.optDouble(key, Double.NaN); return !Double.isNaN(value) && !Double.isInfinite(value) && value >= min && value <= max; }
     private static boolean strictNumber(JSONObject object, String key, double min, double max) {
         return object.opt(key) instanceof Number && number(object, key, min, max);
+    }
+    private static boolean strictInteger(JSONObject object, String key, int min, int max) {
+        return strictNumber(object, key, min, max) && object.optDouble(key) == object.optInt(key);
+    }
+    private static boolean strictText(JSONObject object, String key, int length) {
+        return object.opt(key) instanceof String && text(object.optString(key), length);
     }
     private static boolean optionalInteger(JSONObject object, String key, int min, int max) { return !object.has(key) || (number(object, key, min, max) && object.optDouble(key) == object.optInt(key)); }
     private static String hex(byte[] bytes) { StringBuilder out = new StringBuilder(); for (byte b : bytes) out.append(String.format(Locale.ROOT, "%02x", b & 255)); return out.toString(); }

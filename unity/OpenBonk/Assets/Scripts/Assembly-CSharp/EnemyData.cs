@@ -80,7 +80,7 @@ public class EnemyData : ScriptableObject
 
 	public LocalizedString forceName;
 
-	public string GetName()
+	public virtual string GetName()
 	{
 		return forceName != null && !forceName.IsEmpty ? forceName.GetLocalizedString() : Assets.Scripts.UI.Localization.LocalizationUtility.GetEnemyName(enemyName);
 	}

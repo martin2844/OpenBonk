@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Assets.Scripts.MapGeneration.ProceduralTiles;
 using UnityEditor;
 using UnityEngine;
@@ -9,7 +10,11 @@ using Object = UnityEngine.Object;
 
 public static class OpenBonkRoofLayoutCheck
 {
-    public static void Run()
+    public static void Run() => RunLayout(false);
+
+    public static void RunDaylight() => RunLayout(true);
+
+    private static void RunLayout(bool daylight)
     {
         var forest = AssetDatabase.LoadAssetAtPath<MapData>("Assets/MonoBehaviour/MapForest.asset");
         var owner = new GameObject("Roof generation check");
@@ -22,8 +27,18 @@ public static class OpenBonkRoofLayoutCheck
         };
         int testedConnections = 0;
         Mesh previous = null;
+        Material dayMaterial = null;
         try
         {
+            if (daylight)
+            {
+                dayMaterial = new Material(Shader.Find("Unlit/Texture"));
+                var style = typeof(OpenBonkRoofLayout.Profile).GetMethod("WithArchitecture",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                for (int stage = 0; stage < profiles.Length; stage++)
+                    profiles[stage] = (OpenBonkRoofLayout.Profile)style.Invoke(profiles[stage],
+                        new object[] { dayMaterial, dayMaterial, dayMaterial });
+            }
             for (int stage = 0; stage < profiles.Length; stage++)
             {
                 StageData template = forest.stages[stage];
@@ -39,6 +54,11 @@ public static class OpenBonkRoofLayoutCheck
                         var ground = generator.collider.GetComponent<MeshCollider>();
                         previous = ground.sharedMesh;
                         Physics.SyncTransforms();
+                        if (daylight)
+                        {
+                            var visual = generator.tilesParent.GetComponent<MeshFilter>().sharedMesh;
+                            Require(visual.colors.Distinct().Count() >= 10, "missing stylized geometry and palette");
+                        }
                         Vector3 boss = generator.flatTiles.Last().transform.position;
                         Require(entry != boss, "distinct entrance and boss roofs");
                         Require(Mathf.Abs(Floor(ground, entry).point.y - entry.y) < .01f, "entrance height");
@@ -56,12 +76,22 @@ public static class OpenBonkRoofLayoutCheck
                                 Vector3 b = generator.TilePositionToWorldPosition(child.position);
                                 Vector3 shoulder = Vector3.Cross((b - a).normalized, Vector3.up) *
                                     (parameters.scaledTileWidth * profiles[stage].bridgeFraction * .4f);
+                                var advance = (b - a).normalized;
+                                float interval = (b - a).magnitude / 32f;
                                 for (int point = 0; point <= 32; point++)
                                 {
                                     Vector3 sample = Vector3.Lerp(a, b, point / 32f);
                                     foreach (float side in new[] { -1f, 1f })
-                                        Require(Vector3.Angle(Vector3.up, Floor(ground, sample + shoulder * side).normal) <= 30f,
+                                    {
+                                        Vector3 lane = sample + shoulder * side;
+                                        Require(HasFloor(ground, lane, out var floor),
+                                            $"missing bridge floor at {lane} in stage {stage + 1}, seed {seed}");
+                                        Require(Vector3.Angle(Vector3.up, floor.normal) <= 30f,
                                             $"steep walkable space in stage {stage + 1}, seed {seed}");
+                                        if (daylight && point < 32 &&
+                                            ground.Raycast(new Ray(floor.point + Vector3.up * .68f, advance), out var obstruction, interval))
+                                            Require(obstruction.normal.y > .4f, $"blocked bridge in stage {stage + 1}, seed {seed}");
+                                    }
                                 }
                                 testedConnections++;
                                 pending.Enqueue(child);
@@ -85,8 +115,9 @@ public static class OpenBonkRoofLayoutCheck
             if (generator.collider != null) Object.DestroyImmediate(generator.collider);
             if (previous != null) Object.DestroyImmediate(previous);
             Object.DestroyImmediate(owner);
+            if (dayMaterial != null) Object.DestroyImmediate(dayMaterial);
         }
-        Debug.Log($"OpenBonk rooftop layout PASS: 90 generated districts, {testedConnections} measured crossings, intact gaps and guardrails, valid portal grounds");
+        Debug.Log($"OpenBonk rooftop layout PASS: 90 {(daylight ? "daylight" : "default")} districts, {testedConnections} measured crossings, intact gaps and guardrails, valid portal grounds");
     }
 
     private static void VerifyGap(MeshCollider ground, ProceduralTileGeneration generator, MapParameters parameters)

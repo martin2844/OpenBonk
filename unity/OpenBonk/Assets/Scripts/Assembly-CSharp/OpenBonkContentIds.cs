@@ -10,6 +10,7 @@ public static class OpenBonkContentIds
     public static int Weapon(string packageId, string contentId) => Make("weapon", packageId, contentId);
     public static int Item(string packageId, string contentId) => Make("item", packageId, contentId);
     public static int Map(string packageId, string contentId) => Make("map", packageId, contentId);
+    public static int Enemy(string packageId, string contentId) => Make("enemy", packageId, contentId);
     private static int Make(string kind, string packageId, string contentId)
     {
         if (!Valid(packageId) || !Valid(contentId)) throw new ArgumentException("Content IDs require lowercase ASCII letters, digits, dot, underscore or hyphen");

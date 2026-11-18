@@ -100,6 +100,12 @@ namespace Assets.Scripts.Game.Spawning.New.Summoners
 			: base(id, defaultEnemies)
 		{
 			MapSpawnMultiplier = OpenBonkMapLuaHooks.StageSpawnMultiplier(MapController.currentMap, MapController.index + 1);
+			var encounter = OpenBonkExternalMapData.GetEncounters(MapController.currentMap, MapController.currentStage);
+			if (encounter != null)
+			{
+				enemyPool.AddRange(encounter.reserve);
+				return;
+			}
 			EMap map = OpenBonkExternalMapData.EnemyPoolMap(MapController.currentMap);
 			foreach (EnemyData data in DataManager.Instance.unsortedEnemies)
 				if ((data.maps & map) == map && data.minStage <= MapController.GetStageIndex() && !defaultEnemies.Contains(data.enemyName))

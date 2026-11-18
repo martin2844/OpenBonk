@@ -83,6 +83,7 @@ public class RandomObjectPlacer : MonoBehaviour
 			{
 				var visual = map.GetPotVisual(MapController.currentStage, pot.isSilver);
 				if (visual != null) pot.ReplaceVisual(visual);
+				if (map.potEffects.TryGetValue(MapController.currentStage, out var effect)) pot.potBreakFx = effect;
 			}
 			if (placed.isStatic) staticObjects.Add(placed);
 		}

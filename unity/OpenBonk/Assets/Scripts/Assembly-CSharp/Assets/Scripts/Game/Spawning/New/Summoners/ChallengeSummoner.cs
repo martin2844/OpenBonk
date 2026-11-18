@@ -27,10 +27,22 @@ namespace Assets.Scripts.Game.Spawning.New.Summoners
 			enemyPool = new List<EEnemy>();
 			float maximumCost = GetInitialCredits() * .5f;
 			var candidates = new List<EEnemy>();
-			var map = OpenBonkExternalMapData.EnemyPoolMap(MapController.currentMap);
-			foreach (EnemyData data in DataManager.Instance.unsortedEnemies)
-				if ((data.maps & map) == map && data.minStage <= MapController.index && data.creditCost <= maximumCost)
-					candidates.Add(data.enemyName);
+			var encounter = OpenBonkExternalMapData.GetEncounters(MapController.currentMap, MapController.currentStage);
+			if (encounter != null)
+			{
+				foreach (var id in encounter.start)
+					if (DataManager.Instance.GetEnemyData(id).creditCost <= maximumCost) candidates.Add(id);
+				foreach (var id in encounter.reserve)
+					if (DataManager.Instance.GetEnemyData(id).creditCost <= maximumCost) candidates.Add(id);
+				if (candidates.Count == 0) candidates.Add(encounter.start[0]);
+			}
+			else
+			{
+				var map = OpenBonkExternalMapData.EnemyPoolMap(MapController.currentMap);
+				foreach (EnemyData data in DataManager.Instance.unsortedEnemies)
+					if ((data.maps & map) == map && data.minStage <= MapController.index && data.creditCost <= maximumCost)
+						candidates.Add(data.enemyName);
+			}
 			if (candidates.Count > 0) enemyPool.Add(candidates[Random.Range(0, candidates.Count)]);
 		}
 
