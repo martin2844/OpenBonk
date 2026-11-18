@@ -25,6 +25,31 @@ final class LauncherObbMigration {
 
     static void migrate(Context context, File destination, Runnable onLegacyDownload) {
         if (destination == null || destination.exists()) return;
+        if ("2d39f7ded1fd3892d5e8391f4d7b98756afccad52c1196bc878395ffd125ff99".equals(SplitExpectedData.SHA256)) {
+            String target = "2d39f7ded1fd3892d5e8391f4d7b98756afccad52c1196bc878395ffd125ff99";
+            String v016 = "c7e714c4fe5be7d147e0225720dd4bc5d6d9f790432a016ab1ac99dedd67f60c";
+            String p016 = "a3350a14d0000b1dff0c202b73caa7cbcba28fd57912ff1dec6a4902064bd2f4";
+            migrateFrom(context, destination, 7, v016, p016, "016-to-suite.zst", target, 374365431L);
+            if (!destination.exists()) migrateFrom(context, destination, 6, v016, p016, "016-to-suite.zst", target, 374365431L);
+            String p014 = "a90eeb388088fa05916ccc6b907ab3bffeb36c7e08e9c8043bc9feb6a4f3b732";
+            if (!destination.exists()) migrateFrom(context, destination, 5, TARGET, p014, "014-to-suite.zst", target, 374365431L);
+            String p013 = "5dc67ed04c1413f6a886a4d27a05ded0091d3f50d294976d8cceb1cfb8f45972";
+            if (!destination.exists()) migrateFrom(context, destination, 4, OLD, p013, "013-to-suite.zst", target, 374365431L);
+            if (!destination.exists()) migrateFrom(context, destination, 3, OLD, p013, "013-to-suite.zst", target, 374365431L);
+            if (!destination.exists()) migrateFrom(context, destination, 2,
+                "c505401a92e8d9533c4d82237340a5d8946364169d8e64322af305d37ffc1afd",
+                "74f120e42299ddef9271caf0e542c6346a2e894bb57b8a154e3c7ec9424824f3",
+                "011-to-suite.zst", target, 374365431L);
+            if (!destination.exists()) {
+                File intermediate = new File(destination.getParentFile(), "main.5." + context.getPackageName() + ".obb");
+                boolean created = migrateLegacyRemote(context, intermediate, onLegacyDownload);
+                if (created) {
+                    migrateFrom(context, destination, 5, TARGET, p014, "014-to-suite.zst", target, 374365431L);
+                    if (destination.exists()) intermediate.delete();
+                }
+            }
+            return;
+        }
         if ("c7e714c4fe5be7d147e0225720dd4bc5d6d9f790432a016ab1ac99dedd67f60c".equals(SplitExpectedData.SHA256)) {
             String target = "c7e714c4fe5be7d147e0225720dd4bc5d6d9f790432a016ab1ac99dedd67f60c";
             migrateFrom(context, destination, 5, TARGET,

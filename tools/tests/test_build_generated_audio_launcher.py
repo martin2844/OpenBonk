@@ -17,6 +17,10 @@ SPEC.loader.exec_module(MODULE)
 
 class GeneratedAudioBuildTest(unittest.TestCase):
     def test_pinned_migration_paths_validate_targets_versions_and_patch_bytes(self):
+        suite_target = '2d39f7ded1fd3892d5e8391f4d7b98756afccad52c1196bc878395ffd125ff99'
+        self.assertEqual(len(MODULE.verified_migration_patches(suite_target, 8)), 4)
+        with self.assertRaisesRegex(ValueError, 'version code'):
+            MODULE.verified_migration_patches(suite_target, 7)
         old_target = '9011ea73423c8418db7f7d0895c515b98a23001e947fd227b83c221a04e37475'
         new_target = 'c3a42cbb1b38bdf89ee0e8175b81f2f70da4206e9a4862a67b11cda7cf3adf34'
         self.assertEqual(len(MODULE.verified_migration_patches(old_target, 2)), 1)
