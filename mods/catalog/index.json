@@ -11,6 +11,15 @@
       "sha256": "200bcd95347c695b75f464aa0f824d8d2e2fb21d069fb0c713eb5d6d67bc611c"
     },
     {
+      "id": "retry",
+      "name": "Retry",
+      "description": "Requires OpenBonk 0.1.11 or newer. Revive in place and continue the same run.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.11-beta/retry.zip",
+      "size": 290,
+      "sha256": "28362b15160680862174f32ba55212ca894e9a43677f712a51de4038affcca71"
+    },
+    {
       "id": "unlock-everything",
       "name": "Unlock Everything",
       "description": "Temporarily unlock content without changing your saved progress. Requires OpenBonk 0.1.4 or newer.",
