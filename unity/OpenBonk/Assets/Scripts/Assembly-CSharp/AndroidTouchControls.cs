@@ -124,8 +124,8 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         safe.offsetMin = safe.offsetMax = Vector2.zero;
 
         // The first sibling receives only touches that did not start on a
-        // control. Keeping ownership for the whole gesture prevents a drag
-        // from a joystick or button from also rotating the camera.
+        // control. Jump explicitly shares its gesture with free look;
+        // the other controls keep exclusive ownership.
         var lookArea = new GameObject("Free look area", typeof(RectTransform), typeof(Image), typeof(AndroidTouchFreeLook));
         var lookRect = (RectTransform)lookArea.transform;
         lookRect.SetParent(safe, false); lookRect.anchorMin = Vector2.zero; lookRect.anchorMax = Vector2.one;
@@ -210,29 +210,40 @@ internal sealed class AndroidTouchControls : MonoBehaviour
 internal sealed class AndroidTouchFreeLook : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 {
     private static int pointer = int.MinValue;
+    private static int jumpPointer = int.MinValue;
 
     public void OnPointerDown(PointerEventData e)
     {
         if (!AndroidTouchLayoutEditor.Editing && pointer == int.MinValue) pointer = e.pointerId;
     }
     public void OnPointerUp(PointerEventData e) { if (e.pointerId == pointer) pointer = int.MinValue; }
-    private void OnDisable() { pointer = int.MinValue; }
+    private void OnDisable() { pointer = jumpPointer = int.MinValue; }
+
+    internal static void CaptureJump(int id) { jumpPointer = id; }
+    internal static void ReleaseJump(int id) { if (jumpPointer == id) jumpPointer = int.MinValue; }
 
     internal static Vector2 Delta()
     {
-        if (pointer == int.MinValue || AndroidTouchLayoutEditor.Editing) return Vector2.zero;
+        if (AndroidTouchLayoutEditor.Editing) return Vector2.zero;
+        if (pointer == int.MinValue && jumpPointer == int.MinValue) return Vector2.zero;
+        Vector2 freeDelta = Vector2.zero;
+        bool foundFree = false;
         for (int i = 0; i < Input.touchCount; i++)
         {
             Touch touch = Input.GetTouch(i);
-            if (touch.fingerId != pointer) continue;
-            if (touch.phase != TouchPhase.Moved) return Vector2.zero;
-            // Normalize against screen height so a swipe feels similar at
-            // different resolutions, and apply the existing mouse sensitivity.
-            return touch.deltaPosition * (1080f / Mathf.Max(1, Screen.height)) * .04f;
+            if (touch.fingerId == jumpPointer && touch.phase == TouchPhase.Moved)
+                return ScaleDelta(touch.deltaPosition);
+            if (touch.fingerId == pointer)
+            {
+                foundFree = true;
+                if (touch.phase == TouchPhase.Moved) freeDelta = touch.deltaPosition;
+            }
         }
-        pointer = int.MinValue;
-        return Vector2.zero;
+        if (!foundFree) pointer = int.MinValue;
+        return ScaleDelta(freeDelta);
     }
+
+    private static Vector2 ScaleDelta(Vector2 delta) => delta * (1080f / Mathf.Max(1, Screen.height)) * .04f;
 }
 
 internal sealed class AndroidTouchStick : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
@@ -303,13 +314,18 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
             var pause = UnityEngine.Object.FindObjectOfType<PauseUi>(true);
             if (pause != null) pause.Pause();
         }
-        else AndroidTouchInput.SetButton(action, true);
+        else
+        {
+            AndroidTouchInput.SetButton(action, true);
+            if (action == "Jump") AndroidTouchFreeLook.CaptureJump(pointer);
+        }
     }
     public void OnPointerUp(PointerEventData eventData) { if (eventData.pointerId == pointer) Release(); }
     private void OnDisable() { Release(); }
     internal void ResetPointer() { Release(); }
     private void Release()
     {
+        if (action == "Jump") AndroidTouchFreeLook.ReleaseJump(pointer);
         pointer = int.MinValue;
         if (action != "Pause") AndroidTouchInput.SetButton(action, false);
     }

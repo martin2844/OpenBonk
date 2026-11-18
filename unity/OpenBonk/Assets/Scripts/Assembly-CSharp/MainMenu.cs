@@ -141,8 +141,8 @@ public class MainMenu : MonoBehaviour
 	private void Start()
 	{
 #if UNITY_ANDROID && !UNITY_EDITOR
-		// The menu profile enables a full-screen blur independently of video settings.
-		AndroidPerformanceSettings.DisableMenuDepthOfField(menuCamera != null ? menuCamera.camera : Camera.main);
+		AndroidPerformanceSettings.ConfigureMenuCamera(menuCamera != null ? menuCamera.camera : null);
+		MarkAndroidMenuReady();
 #endif
 		if (SaveManager.loaded && SaveManager.Instance != null)
 		{
@@ -187,6 +187,20 @@ public class MainMenu : MonoBehaviour
 		MyInputManager.RefreshHorizontalNavigationForChests(false);
 		A_MenuOpened?.Invoke();
 	}
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+	private static void MarkAndroidMenuReady()
+	{
+		try
+		{
+			using var unity = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+			using var activity = unity.GetStatic<AndroidJavaObject>("currentActivity");
+			using var launcher = new AndroidJavaClass("com.megabonk.launcher.SplitDataLauncher");
+			launcher.CallStatic("markGameMenuReady", activity);
+		}
+		catch (System.Exception e) { UnityEngine.Debug.LogWarning("Could not mark Android menu ready: " + e.GetType().Name); }
+	}
+#endif
 
 #if UNITY_ANDROID && !UNITY_EDITOR
 	private IEnumerator ProbeChallengeMenu()

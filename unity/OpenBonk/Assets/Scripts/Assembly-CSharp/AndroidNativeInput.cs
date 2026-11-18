@@ -61,6 +61,7 @@ public static class AndroidNativeInput
 	private static readonly TriggerState aimTrigger = new TriggerState();
 	private static readonly TriggerState mapTrigger = new TriggerState();
 	private static readonly TriggerState jumpButton = new TriggerState();
+	private static readonly TriggerState physicalJumpButton = new TriggerState();
 	private static readonly TriggerState interactButton = new TriggerState();
 	private static readonly TriggerState slideButton = new TriggerState();
 	private static readonly TriggerState resetButton = new TriggerState();
@@ -79,11 +80,15 @@ public static class AndroidNativeInput
 		SampleAction(aimTrigger, "Aim", left, right);
 		SampleAction(mapTrigger, "MapOverlay", left, right);
 		SampleAction(jumpButton, "Jump", left, right);
+		physicalJumpButton.Sample(IsButtonPressed("Jump", Input.GetKey, Input.GetKey), BoundAnalog("Jump", left, right));
 		SampleAction(interactButton, "Interact", left, right);
 		SampleAction(slideButton, "Slide", left, right);
 		SampleAction(resetButton, "QuickReset", left, right);
 		SampleAction(wallrunButton, "Wallrun", left, right);
 	}
+
+	internal static bool PhysicalJumpDown => physicalJumpButton.down;
+	internal static bool PhysicalJumpHeld => physicalJumpButton.held;
 
 	private static void SampleAction(TriggerState state, string action, float left, float right)
 	{

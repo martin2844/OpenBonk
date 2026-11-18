@@ -66,6 +66,9 @@ public final class SplitDataLauncher extends Activity {
     private static final Object DATA_LOCK = new Object();
     private static final LauncherImportGate IMPORT_GATE = new LauncherImportGate();
     private static final String LAUNCHER_PREFS = "openbonk_launcher";
+    private static final String LAUNCH_ATTEMPT = "openbonk_launch_attempt";
+    private static final String LAUNCH_PID = "openbonk_launch_pid";
+    private static final String LAUNCH_REPORT = "openbonk_launch_report";
     private static final String PENDING_CONTROL = "pending_touch_mode";
     private static final Object CONTROL_LOCK = new Object();
     private TextView message, modHint;
@@ -92,6 +95,14 @@ public final class SplitDataLauncher extends Activity {
     private String exportProfileId;
     private String exportCurrentAccount;
     private static boolean embeddedData() { return "EMBEDDED".equals(SplitExpectedData.SHA256); }
+
+    public static void markGameMenuReady(Activity activity) {
+        long attempt = activity.getIntent().getLongExtra(LAUNCH_ATTEMPT, 0L);
+        SharedPreferences prefs = activity.getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE);
+        if (attempt != 0L && attempt == prefs.getLong(LAUNCH_ATTEMPT, 0L)) {
+            prefs.edit().remove(LAUNCH_ATTEMPT).remove(LAUNCH_PID).apply();
+        }
+    }
 
     public static void registerGameDataGeneration(String generation) {
         Activity activity = com.unity3d.player.UnityPlayer.currentActivity;
@@ -186,6 +197,7 @@ public final class SplitDataLauncher extends Activity {
         message.setText(es ? "Comprobando datos…" : "Checking data…");
         dataCard.addView(message);
         SharedPreferences launcherPrefs = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE);
+        collectStartupReport(launcherPrefs);
         controlChanged = launcherPrefs.contains(PENDING_CONTROL);
         touchMode = controlChanged ? launcherPrefs.getInt(PENDING_CONTROL, readTouchMode()) : readTouchMode();
         controls = new RadioGroup(this); controls.setOrientation(RadioGroup.HORIZONTAL); controls.setGravity(Gravity.START);
@@ -340,6 +352,15 @@ public final class SplitDataLauncher extends Activity {
         styleButton(feedback, true);
         addActionRow(helpCard, es ? "Comentarios" : "Feedback",
             es ? "Reportá un problema o sugerí una mejora en GitHub." : "Report a problem or suggest an improvement on GitHub.", feedback);
+        String startupReport = launcherPrefs.getString(LAUNCH_REPORT, "");
+        if (!startupReport.isEmpty()) {
+            Button report = new Button(this);
+            report.setText(es ? "Ver informe" : "View report");
+            styleButton(report, false);
+            report.setOnClickListener(v -> showStartupReport(startupReport));
+            addActionRow(helpCard, es ? "Error de inicio" : "Startup failure",
+                es ? "Datos de diagnóstico del último error al iniciar." : "Details from the last failed startup.", report);
+        }
         if (hasTextureNotices()) {
             Button notices = new Button(this); notices.setText(es ? "Avisos" : "Notices");
             notices.setOnClickListener(v -> showTextureNotices()); styleButton(notices, false);
@@ -1794,6 +1815,56 @@ public final class SplitDataLauncher extends Activity {
         }, "megabonk-data-import");
     }
 
+    private void collectStartupReport(SharedPreferences prefs) {
+        if (android.os.Build.VERSION.SDK_INT < 30) return;
+        long attempt = prefs.getLong(LAUNCH_ATTEMPT, 0L);
+        int pid = prefs.getInt(LAUNCH_PID, 0);
+        if (attempt == 0L || pid == 0 || pid == android.os.Process.myPid()) return;
+        try {
+            android.app.ActivityManager manager = getSystemService(android.app.ActivityManager.class);
+            if (manager == null) return;
+            for (android.app.ApplicationExitInfo exit : manager.getHistoricalProcessExitReasons(getPackageName(), pid, 5)) {
+                if (exit.getTimestamp() < attempt) continue;
+                String reason = startupExitReason(exit.getReason());
+                SharedPreferences.Editor editor = prefs.edit().remove(LAUNCH_ATTEMPT).remove(LAUNCH_PID);
+                if (reason != null) {
+                    String version = prefs.getString("openbonk_launch_version", "");
+                    editor.putString(LAUNCH_REPORT, startupReport(version, reason + " (Android status " + exit.getStatus() + ")"));
+                }
+                editor.apply();
+                break;
+            }
+        } catch (RuntimeException e) {
+            android.util.Log.w("OpenBonk", "Could not read startup exit reason", e);
+        }
+    }
+
+    private static String startupExitReason(int reason) {
+        switch (reason) {
+            case android.app.ApplicationExitInfo.REASON_CRASH: return "Java crash";
+            case android.app.ApplicationExitInfo.REASON_CRASH_NATIVE: return "Native crash";
+            case android.app.ApplicationExitInfo.REASON_LOW_MEMORY: return "Low memory";
+            case android.app.ApplicationExitInfo.REASON_ANR: return "App not responding";
+            case android.app.ApplicationExitInfo.REASON_INITIALIZATION_FAILURE: return "Process initialization failed";
+            default: return null;
+        }
+    }
+
+    private String startupReport(String version, String reason) {
+        return "OpenBonk " + version + "\n" + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL
+            + ", Android " + android.os.Build.VERSION.RELEASE + "\nPlay → main menu: " + reason;
+    }
+
+    private void showStartupReport(String report) {
+        showDialog(new AlertDialog.Builder(this).setTitle(es ? "Informe de inicio" : "Startup report")
+            .setMessage(report)
+            .setNegativeButton(es ? "Cerrar" : "Close", null)
+            .setPositiveButton(es ? "Copiar" : "Copy", (dialog, which) -> {
+                android.content.ClipboardManager clipboard = getSystemService(android.content.ClipboardManager.class);
+                if (clipboard != null) clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OpenBonk startup report", report));
+            }).create());
+    }
+
     private void launchGame() {
         if (controlChanged) {
             synchronized (CONTROL_LOCK) {
@@ -1807,7 +1878,19 @@ public final class SplitDataLauncher extends Activity {
         game.putExtra("openbonk_split_launcher", true);
         if (controlChanged) game.putExtra("megabonk_launcher_touch_mode", touchMode);
         if (pendingSteam().isFile()) game.putExtra("megabonk_import_original_texts", true);
-        startActivity(game);
-        finish();
+        SharedPreferences prefs = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE);
+        long attempt = System.currentTimeMillis();
+        String version = installedVersion();
+        game.putExtra(LAUNCH_ATTEMPT, attempt);
+        prefs.edit().putLong(LAUNCH_ATTEMPT, attempt).putInt(LAUNCH_PID, android.os.Process.myPid())
+            .putString("openbonk_launch_version", version).commit();
+        try {
+            startActivity(game);
+            finish();
+        } catch (RuntimeException e) {
+            String report = startupReport(version, e.getClass().getSimpleName());
+            prefs.edit().remove(LAUNCH_ATTEMPT).remove(LAUNCH_PID).putString(LAUNCH_REPORT, report).apply();
+            showStartupReport(report);
+        }
     }
 }

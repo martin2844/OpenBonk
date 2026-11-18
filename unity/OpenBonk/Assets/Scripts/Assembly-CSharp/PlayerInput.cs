@@ -95,11 +95,14 @@ public class PlayerInput : MonoBehaviour
 			moveHorizontal = -moveHorizontal;
 			moveVertical = -moveVertical;
 		}
+#if UNITY_ANDROID && !UNITY_EDITOR
+		if (AndroidNativeInput.PhysicalJumpDown)
+#else
 		if (MyInputManager.GetButtonDown(MyInputManager.Jump) ||
 			(MyInputManager.GetButtonDown(MyInputManager.JumpBhop) && MyPlayer.Instance.playerMovement.CanBhopJump()))
+#endif
 		{
-			jumping = true;
-			currentJumpBufferTick = 0;
+			QueueJump();
 		}
 		holdingJump = MyInputManager.GetButton(MyInputManager.Jump);
 		var controls = SaveManager.Instance.config.cfControlSettings;
@@ -110,6 +113,12 @@ public class PlayerInput : MonoBehaviour
 		else if (controls.hold_aim == 1) aiming = MyInputManager.GetButton(MyInputManager.Aim);
 		else if (MyInputManager.GetButtonDown(MyInputManager.Aim)) aiming = !aiming;
 		holdingWallrun = !hasWallrunActionBound || MyInputManager.GetButton(MyInputManager.Wallrun);
+	}
+
+	private void QueueJump()
+	{
+		jumping = true;
+		currentJumpBufferTick = 0;
 	}
 
 	private void AbilityInput()
@@ -207,6 +216,11 @@ public class PlayerInput : MonoBehaviour
 		if (GameManager.Instance == null || !GameManager.Instance.IsPlaying() ||
 			MyPlayer.Instance == null || MyPlayer.Instance.playerMovement == null || MyTime.paused) return;
 		MyPlayer player = MyPlayer.Instance;
+#if UNITY_ANDROID && !UNITY_EDITOR
+		if (AndroidTouchInput.TakeJumpRequest() && CanInput() && MyTime.unpauseTick < MyTime.tick && !IsConsoleOpen())
+			QueueJump();
+		holdingJump = AndroidNativeInput.PhysicalJumpHeld || AndroidTouchInput.Held(MyInputManager.Jump);
+#endif
 		if (!player.IsDead() && !IsMovementDisabled())
 			player.playerMovement.SetBetterInput(GetInputState());
 		player.playerMovement.MovementTick();

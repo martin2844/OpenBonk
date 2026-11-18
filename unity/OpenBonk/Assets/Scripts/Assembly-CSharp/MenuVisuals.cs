@@ -50,8 +50,12 @@ public class MenuVisuals : MonoBehaviour
 
 	private void Start()
 	{
+#if UNITY_ANDROID && !UNITY_EDITOR
+		if (currentStageData == null) Set(defaultMapVisuals, defaultStageVisuals, EMap.Forest);
+#else
 		Set(defaultMapVisuals, defaultStageVisuals, EMap.Forest);
 		Invoke(nameof(StartDelayed), 0.25f);
+#endif
 	}
 
 	private void StartDelayed()

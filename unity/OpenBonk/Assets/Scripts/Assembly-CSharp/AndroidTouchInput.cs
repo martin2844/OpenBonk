@@ -16,6 +16,7 @@ internal static class AndroidTouchInput
 
     internal static Vector2 Move;
     internal static Vector2 Look;
+    private static bool jumpRequested;
 
     private static int Index(string action)
     {
@@ -32,8 +33,20 @@ internal static class AndroidTouchInput
         var button = Buttons[index];
         if (button.held == held) return;
         button.held = held;
-        if (held) button.pendingDown = true;
+        if (held)
+        {
+            button.pendingDown = true;
+            if (index == 0) jumpRequested = true;
+        }
         else button.pendingUp = true;
+    }
+
+    // Physics can consume this request as soon as the UI reports pointer down.
+    internal static bool TakeJumpRequest()
+    {
+        bool requested = jumpRequested;
+        jumpRequested = false;
+        return requested;
     }
 
     internal static void Sample()
@@ -52,6 +65,7 @@ internal static class AndroidTouchInput
 
     internal static void ReleaseAll()
     {
+        jumpRequested = false;
         Move = Look = Vector2.zero;
         foreach (var button in Buttons)
         {

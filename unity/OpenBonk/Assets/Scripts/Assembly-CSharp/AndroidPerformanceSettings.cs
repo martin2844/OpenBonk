@@ -24,18 +24,15 @@ internal static class AndroidPerformanceSettings
         return new Vector2Int(scaledWidth, scaledHeight);
     }
 
-    // The title scene has its own full-screen depth-of-field effect, which is
-    // not controlled by the game's video settings. Change only this volume's
-    // runtime profile; the shared asset and gameplay volumes stay untouched.
-    internal static bool DisableMenuDepthOfField(Camera camera)
+    // The title scene renders separately from the gameplay camera. Keep its
+    // backdrop and UI, but avoid extra full-screen passes and HDR targets.
+    internal static void ConfigureMenuCamera(Camera camera)
     {
-        if (camera == null) return false;
-        var volume = camera.GetComponent<PostProcessVolume>();
-        if (volume == null || volume.sharedProfile == null) return false;
-        var profile = volume.profile;
-        if (profile == null || !profile.TryGetSettings(out DepthOfField effect) || effect == null) return false;
-        effect.enabled.Override(false);
-        return true;
+        if (camera == null) return;
+        var layer = camera.GetComponent<PostProcessLayer>();
+        if (layer != null) layer.enabled = false;
+        camera.allowHDR = false;
+        camera.allowMSAA = false;
     }
 
 #if UNITY_ANDROID && !UNITY_EDITOR
