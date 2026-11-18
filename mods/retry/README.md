@@ -11,6 +11,6 @@ Build the package from the repository root:
 python3 mods/tools/package_mod.py mods/retry build/retry.zip
 ```
 
-Import the ZIP in the OpenBonk launcher and enable it in **Manage Mods** before
-launching the game. The mod requires a build with the API 1
-`retry_on_death` hook. This hook is introduced after beta 0.1.10.
+Retry requires OpenBonk 0.1.11-beta or newer. Get it from **Browse mods** or
+import the ZIP from the [0.1.11 beta release](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.11-beta).
+Enable it in **Manage mods** before launching the game.

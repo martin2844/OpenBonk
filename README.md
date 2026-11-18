@@ -16,14 +16,20 @@ OpenBonk is an unofficial community project in beta. Bring your own compatible S
 
 If you enjoy OpenBonk and would like to support its development, you can [buy Martin a coffee](https://buymeacoffee.com/martin2844).
 
-![The OpenBonk launcher, with game data, control and mod options](docs/screenshots/launcher.png)
+## Launcher
+
+![OpenBonk's Game tab showing verified game files, profile import and export, and the installed version](docs/screenshots/launcher.png)
+
+| Controls | Mod catalog |
+| --- | --- |
+| ![The Controls tab with touch and controller options](docs/screenshots/launcher-controls.png) | ![The paginated mod catalog in the OpenBonk launcher](docs/screenshots/launcher-mods.png) |
 
 ## Start playing
 
 1. Download `OpenBonk.apk` from the newest [beta release](https://github.com/martin2844/OpenBonk/releases). The ZIP helpers referenced in the guides are available in the [0.1.2 beta package](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.2-beta); use the APK from the newest release.
 2. Create a ZIP containing the `Megabonk_Data` folder from your own compatible Steam installation. The ZIP must be no larger than **1 GiB**; the guide explains how to create a smaller ZIP if necessary.
 3. Copy `OpenBonk.apk` and your private game-data ZIP to Android. Install and open the APK, choose **Megabonk game files ZIP**, and wait for **Data ready**.
-4. Choose **Touch** or **Controller**, then press **Play**. The first launch also imports text and textures.
+4. Choose **Touch** or **Controller** in **Controls**, then return to **Game** and press **Play**.
 
 OpenBonk requires **64-bit Android 8 or later**. It has been tested on a Retroid Pocket 5, an iPlay 70 mini Pro and a Xiaomi phone. Device compatibility is still being established. Back up existing progress before replacing or uninstalling an app.
 
@@ -87,7 +93,9 @@ The beta includes an in-game layout editor with individual visibility and opacit
 
 ## Mods
 
-Import mod ZIPs from the launcher with **Import mod**, then enable them under **Manage mods**. New imports and updates start disabled. The [Lua modding guide](docs/MODDING.md) covers the package format and a first mod; [`mods/`](mods/) contains examples, including the experimental [Pikachu mod](mods/pikachu/README.md).
+Open **Mods** in the launcher and choose **Browse mods** or **Import ZIP**. Enable the mods you want in **Manage mods**. New imports and updates start disabled.
+
+[Retry](mods/retry/) lets you revive in the same run and requires beta 0.1.11 or newer. The [Lua modding guide](docs/MODDING.md) covers the package format and includes examples such as the experimental [Pikachu mod](mods/pikachu/README.md).
 
 ![Pikachu selected in the OpenBonk character menu](docs/screenshots/pikachu.png)
 
