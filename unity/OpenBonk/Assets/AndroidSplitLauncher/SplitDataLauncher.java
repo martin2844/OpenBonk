@@ -280,7 +280,7 @@ public final class SplitDataLauncher extends Activity {
         for (int i = 0; i < pages.length; i++) {
             final int index = i; Button tab = new Button(this); tab.setText(tabNames[i]); tabButtons[i] = tab;
             LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(0, dp(37), 1); tabParams.setMargins(dp(2), 0, dp(2), 0); tabs.addView(tab, tabParams);
-            tab.setOnClickListener(v -> { art.setVisibility(index == 0 ? View.VISIBLE : View.GONE); for (int n = 0; n < pages.length; n++) { pages[n].setVisibility(n == index ? View.VISIBLE : View.GONE); styleButton(tabButtons[n], n == index); } });
+            tab.setOnClickListener(v -> { art.setVisibility(index == 0 ? View.VISIBLE : View.GONE); right.setVisibility(index == 0 ? View.VISIBLE : View.GONE); contentParams.topMargin = dp(index == 0 ? 24 : 12); left.setLayoutParams(contentParams); for (int n = 0; n < pages.length; n++) { pages[n].setVisibility(n == index ? View.VISIBLE : View.GONE); styleButton(tabButtons[n], n == index); } });
         }
         for (int i = 0; i < pages.length; i++) { pages[i].setVisibility(i == 0 ? View.VISIBLE : View.GONE); styleButton(tabButtons[i], i == 0); }
         play = new Button(this); play.setText(es ? "▶   JUGAR" : "▶   PLAY"); play.setEnabled(false);
@@ -391,6 +391,10 @@ public final class SplitDataLauncher extends Activity {
     }
 
     int dp(float value) { return (int)(value * getResources().getDisplayMetrics().density + 0.5f); }
+    private int modPageSize(int reservedDp, int rowDp) {
+        int screenDp = (int)(getResources().getDisplayMetrics().heightPixels / getResources().getDisplayMetrics().density);
+        return Math.max(1, Math.min(8, (screenDp - reservedDp) / rowDp));
+    }
     private GradientDrawable shape(int color, int stroke) {
         GradientDrawable result = new GradientDrawable(); result.setColor(color); result.setCornerRadius(dp(12)); result.setStroke(dp(2), stroke); return result;
     }
@@ -576,22 +580,48 @@ public final class SplitDataLauncher extends Activity {
                 boolean initial = usesLegacyPreference.get(i) && legacy.contains(oldKey) ? legacy.getInt(oldKey, 0) != 0 : defaults.get(i);
                 selected[i] = original[i] = prefs.getBoolean(ids.get(i), initial);
             }
-            AlertDialog modDialog = new AlertDialog.Builder(this).setTitle("Mods")
-                .setMultiChoiceItems(ids.toArray(new String[0]), selected, (dialog, which, checked) -> selected[which] = checked)
-                .setNeutralButton(es ? "Importar / restaurar" : "Import / restore", (dialog, which) -> showModActions(modsRoot))
-                .setNegativeButton(es ? "Cancelar" : "Cancel", null)
-                .setPositiveButton(es ? "Guardar" : "Save", (dialog, which) -> {
+            modCard.setVisibility(View.GONE); catalogCard.setVisibility(View.VISIBLE); catalogCard.removeAllViews();
+            catalogCard.addView(cardTitle(es ? "Gestionar mods" : "Manage mods"));
+            LinearLayout results = new LinearLayout(this); results.setOrientation(LinearLayout.VERTICAL); catalogCard.addView(results);
+            LinearLayout navigation = new LinearLayout(this); navigation.setGravity(Gravity.CENTER_VERTICAL);
+            Button previous = new Button(this); previous.setText("‹"); previous.setContentDescription(es ? "Página anterior" : "Previous page"); styleButton(previous, false);
+            TextView pageLabel = new TextView(this); pageLabel.setTextColor(Color.WHITE); pageLabel.setGravity(Gravity.CENTER);
+            Button next = new Button(this); next.setText("›"); next.setContentDescription(es ? "Página siguiente" : "Next page"); styleButton(next, false);
+            navigation.addView(previous, new LinearLayout.LayoutParams(dp(48), dp(37))); navigation.addView(pageLabel, new LinearLayout.LayoutParams(0, dp(37), 1)); navigation.addView(next, new LinearLayout.LayoutParams(dp(48), dp(37))); catalogCard.addView(navigation);
+            int[] page = {0}; int perPage = modPageSize(220, 43);
+            Runnable render = () -> {
+                results.removeAllViews(); int pages = Math.max(1, (ids.size() + perPage - 1) / perPage); page[0] = Math.min(page[0], pages - 1);
+                int start = page[0] * perPage, end = Math.min(ids.size(), start + perPage);
+                for (int i = start; i < end; i++) {
+                    final int index = i; android.widget.CheckBox choice = new android.widget.CheckBox(this);
+                    choice.setText(ids.get(i)); choice.setTextColor(Color.WHITE); choice.setTextSize(14); choice.setSingleLine(true); choice.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    choice.setButtonTintList(ColorStateList.valueOf(Color.rgb(213, 245, 95))); choice.setChecked(selected[i]);
+                    choice.setOnCheckedChangeListener((button, checked) -> selected[index] = checked);
+                    results.addView(choice, new LinearLayout.LayoutParams(-1, dp(43)));
+                }
+                pageLabel.setText((page[0] + 1) + " / " + pages); previous.setEnabled(page[0] > 0); next.setEnabled(page[0] + 1 < pages);
+            };
+            previous.setOnClickListener(v -> { if (page[0] > 0) { page[0]--; render.run(); } });
+            next.setOnClickListener(v -> { page[0]++; render.run(); }); render.run();
+            LinearLayout actions = new LinearLayout(this); actions.setOrientation(LinearLayout.HORIZONTAL); catalogCard.addView(actions, buttonParams());
+            Button back = new Button(this); back.setText(es ? "Cancelar" : "Cancel"); styleButton(back, false);
+            back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); actions.addView(back, new LinearLayout.LayoutParams(0, -1, 1));
+            Button restore = new Button(this); restore.setText(es ? "Importar / restaurar" : "Import / restore"); styleButton(restore, false);
+            restore.setOnClickListener(v -> showModActions(modsRoot)); LinearLayout.LayoutParams restoreParams = new LinearLayout.LayoutParams(0, -1, 1); restoreParams.leftMargin = dp(5); actions.addView(restore, restoreParams);
+            Button save = new Button(this); save.setText(es ? "Guardar" : "Save"); styleButton(save, true);
+            save.setOnClickListener(v -> {
                     SharedPreferences.Editor editor = prefs.edit(); boolean changed = false;
                     for (int i = 0; i < ids.size(); i++) if (selected[i] != original[i]) { editor.putBoolean(ids.get(i), selected[i]); changed = true; }
                     if (changed) {
-                        if (!editor.commit()) showDialog(new AlertDialog.Builder(this).setMessage(es ? "No se pudieron guardar los mods." : "Could not save mod choices.").setPositiveButton("OK", null).create());
+                        if (!editor.commit()) { showDialog(new AlertDialog.Builder(this).setMessage(es ? "No se pudieron guardar los mods." : "Could not save mod choices.").setPositiveButton("OK", null).create()); return; }
                         else {
                             IMPORT_GATE.clearModResult();
                             modHint.setText(es ? "Selección de mods guardada." : "Mod choices saved.");
                         }
                     }
-                }).create();
-            showDialog(modDialog);
+                    catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE);
+                });
+            LinearLayout.LayoutParams saveParams = new LinearLayout.LayoutParams(0, -1, 1); saveParams.leftMargin = dp(5); actions.addView(save, saveParams);
         } catch (Exception e) {
             showDialog(new AlertDialog.Builder(this).setMessage((es ? "No se pudieron leer los mods: " : "Could not read mods: ") + e.getMessage()).setPositiveButton("OK", null).create());
         }
@@ -851,28 +881,47 @@ public final class SplitDataLauncher extends Activity {
         catalogCard.addView(cardTitle(es ? "Catálogo de mods" : "Mod catalog"));
         android.widget.EditText search = new android.widget.EditText(this); search.setSingleLine(true); search.setTextColor(Color.WHITE);
         search.setHintTextColor(Color.rgb(184, 163, 192)); search.setTextSize(13); search.setHint(es ? "Buscar mods" : "Search mods"); catalogCard.addView(search, buttonParams());
-        ScrollView resultsScroll = new ScrollView(this); LinearLayout results = new LinearLayout(this); results.setOrientation(LinearLayout.VERTICAL);
-        resultsScroll.addView(results); catalogCard.addView(resultsScroll, new LinearLayout.LayoutParams(-1, dp(170)));
-        Runnable filter = () -> {
-            results.removeAllViews(); String query = search.getText().toString().toLowerCase(Locale.ROOT); int matches = 0;
+        LinearLayout results = new LinearLayout(this); results.setOrientation(LinearLayout.VERTICAL); catalogCard.addView(results);
+        LinearLayout navigation = new LinearLayout(this); navigation.setGravity(Gravity.CENTER_VERTICAL);
+        Button previous = new Button(this); previous.setText("‹"); previous.setContentDescription(es ? "Página anterior" : "Previous page"); styleButton(previous, false);
+        TextView pageLabel = new TextView(this); pageLabel.setTextColor(Color.WHITE); pageLabel.setGravity(Gravity.CENTER);
+        Button next = new Button(this); next.setText("›"); next.setContentDescription(es ? "Página siguiente" : "Next page"); styleButton(next, false);
+        navigation.addView(previous, new LinearLayout.LayoutParams(dp(48), dp(37))); navigation.addView(pageLabel, new LinearLayout.LayoutParams(0, dp(37), 1)); navigation.addView(next, new LinearLayout.LayoutParams(dp(48), dp(37))); catalogCard.addView(navigation);
+        int widthDp = (int)(getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density);
+        int columns = widthDp >= 600 ? 2 : 1;
+        int[] page = {0}; int perPage = modPageSize(240, 48) * columns;
+        Runnable render = () -> {
+            results.removeAllViews(); String query = search.getText().toString().trim().toLowerCase(Locale.ROOT); ArrayList<JSONObject> matches = new ArrayList<>();
             for (int i = 0; i < entries.length(); i++) {
                 JSONObject item = entries.optJSONObject(i); if (item == null) continue;
                 String name = item.optString("name"), description = item.optString("description");
                 if (!(name + " " + description).toLowerCase(Locale.ROOT).contains(query)) continue;
-                matches++; LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.VERTICAL); row.setPadding(dp(6), dp(5), dp(6), dp(5));
-                TextView title = new TextView(this); title.setText(name + "  ·  " + item.optString("version")); title.setTextColor(Color.WHITE); title.setTypeface(Typeface.DEFAULT, Typeface.BOLD); row.addView(title);
-                TextView details = new TextView(this); details.setText(description); details.setTextColor(Color.rgb(225, 205, 235)); details.setTextSize(12); row.addView(details);
-                Button install = new Button(this); install.setText(es ? "Importar mod" : "Import mod"); styleButton(install, true);
-                install.setOnClickListener(v -> importOnlineMod(item)); row.addView(install, buttonParams()); results.addView(row);
+                matches.add(item);
             }
-            if (matches == 0) { TextView empty = new TextView(this); empty.setTextColor(Color.WHITE); empty.setText(es ? "No se encontraron mods." : "No mods found."); results.addView(empty); }
+            int pages = Math.max(1, (matches.size() + perPage - 1) / perPage); page[0] = Math.min(page[0], pages - 1);
+            int start = page[0] * perPage, end = Math.min(matches.size(), start + perPage);
+            LinearLayout rowGroup = null;
+            for (int i = start; i < end; i++) {
+                if ((i - start) % columns == 0) { rowGroup = new LinearLayout(this); rowGroup.setOrientation(LinearLayout.HORIZONTAL); results.addView(rowGroup, new LinearLayout.LayoutParams(-1, dp(48))); }
+                JSONObject item = matches.get(i); LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(4), dp(2), dp(4), dp(2));
+                LinearLayout info = new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); row.addView(info, new LinearLayout.LayoutParams(0, -2, 1));
+                TextView title = new TextView(this); title.setText(item.optString("name") + "  ·  " + item.optString("version")); title.setTextColor(Color.WHITE); title.setTypeface(Typeface.DEFAULT, Typeface.BOLD); title.setSingleLine(true); title.setEllipsize(android.text.TextUtils.TruncateAt.END); info.addView(title);
+                TextView details = new TextView(this); details.setText(item.optString("description")); details.setTextColor(Color.rgb(225, 205, 235)); details.setTextSize(12); details.setSingleLine(true); details.setEllipsize(android.text.TextUtils.TruncateAt.END); info.addView(details);
+                info.setFocusable(true); info.setOnClickListener(v -> showDialog(new AlertDialog.Builder(this).setTitle(item.optString("name")).setMessage(item.optString("description")).setPositiveButton("OK", null).create()));
+                Button install = new Button(this); install.setText(es ? "Importar mod" : "Import mod"); styleButton(install, true);
+                install.setOnClickListener(v -> importOnlineMod(item)); LinearLayout.LayoutParams installParams = new LinearLayout.LayoutParams(dp(112), dp(37)); installParams.leftMargin = dp(6); row.addView(install, installParams); rowGroup.addView(row, new LinearLayout.LayoutParams(0, -1, 1));
+            }
+            if (matches.isEmpty()) { TextView empty = new TextView(this); empty.setTextColor(Color.WHITE); empty.setText(es ? "No se encontraron mods." : "No mods found."); results.addView(empty); }
+            pageLabel.setText((page[0] + 1) + " / " + pages + "  ·  " + matches.size()); previous.setEnabled(page[0] > 0); next.setEnabled(page[0] + 1 < pages);
         };
+        previous.setOnClickListener(v -> { if (page[0] > 0) { page[0]--; render.run(); } });
+        next.setOnClickListener(v -> { page[0]++; render.run(); });
         search.addTextChangedListener(new android.text.TextWatcher() {
             public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
-            public void onTextChanged(CharSequence text, int start, int before, int count) { filter.run(); }
+            public void onTextChanged(CharSequence text, int start, int before, int count) { page[0] = 0; render.run(); }
             public void afterTextChanged(android.text.Editable text) { }
         });
-        filter.run();
+        render.run();
         Button back = new Button(this); back.setText(es ? "Volver" : "Back"); styleButton(back, false);
         back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); catalogCard.addView(back, buttonParams());
     }
