@@ -81,6 +81,15 @@
       "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.7-beta/toggle-everything.zip",
       "size": 460,
       "sha256": "26e7a7dbd0534d5efef2f3d782806771e8c5d8783d54c77837de2c7640030992"
+    },
+    {
+      "id": "run-metrics",
+      "name": "Run Metrics",
+      "description": "Show XP and gold rates and effective weapon DPS. Requires OpenBonk 0.1.8 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.8-beta/run-metrics.zip",
+      "size": 390,
+      "sha256": "c13392f4391e9800b849c81f70f1f1e29dabf30ab8adf55150bea21631132194"
     }
   ]
 }
