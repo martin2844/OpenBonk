@@ -30,6 +30,15 @@ The table excludes deprecated packages and the three platform-wide loaders/manag
 
 ## Porting status
 
+**Update for beta 0.1.8:** The inventory below records the earlier 0.1.4
+feasibility review and is not the current catalog. The launcher now offers
+Unlock Everything, Instant Collect, Lucky Tome, Auto Pots, Item Lab, Chest
+Tracker, Minimap Zoom, Toggle Everything and Run Metrics alongside Pikachu.
+Several are focused or partial independent adaptations, not full ports of the
+original PC packages. See [the live catalog](../../mods/catalog/index.json) for
+minimum versions and scope. Run Metrics counts effective weapon damage, not
+all damage sources. Multiplayer remains excluded.
+
 ### Compatibility inventory for beta 0.1.4
 
 The rank, download counts and package links in the table above identify these
