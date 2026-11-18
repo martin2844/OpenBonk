@@ -22,8 +22,8 @@ when a version-code-1 OBB matches the digest above. The downloaded patch
 `5a2f4b34cef6d0d288e8ca63d895a5515880d0649c3b5145f60612b9a7583907`)
 produces the 0.1.4 OBB; the existing bundled patch then produces the integrated
 0.1.5 OBB. Each output is checked before publication and the original is
-retained. The download is hosted with the 0.1.5 beta, but the migration code
-itself has not yet been included in a public APK.
+retained. The download is hosted with the 0.1.5 beta and the migration code
+was published in the 0.1.6 beta.
 
 On a Xiaomi 22126RN91Y, an isolated launcher package with the real 0.1.0 OBB
 downloaded the patch, produced the expected 0.1.5 OBB, reached `Data ready`
@@ -31,3 +31,9 @@ and opened Unity. A second isolated build pointed to a missing asset: the
 launcher recovered to manual import and the original OBB's hash was unchanged.
 These tests did not install the original 0.1.0 APK or use a real player profile.
 Other 0.1.0 data variants need separate validation or a game ZIP import.
+
+An additional isolated-package test installed a version-code-6 build, played a
+short Forest run, then installed a version-code-7 build over it. The original
+and copied OBBs had the same expected SHA-256, `progression.json` and
+`stats.json` were byte-identical before and after the update, and Unity opened.
+The exact production-signed APKs and a user's personal profile were not used.
