@@ -3,6 +3,7 @@ using Assets.Scripts.Game.Spawning;
 using Assets.Scripts.Managers;
 using Assets.Scripts.Inventory__Items__Pickups.Items;
 using Assets.Scripts.Inventory__Items__Pickups.Items.ItemImplementations;
+using Assets.Scripts.Inventory__Items__Pickups.Interactables;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -29,7 +30,8 @@ public class RandomObjectPlacer : MonoBehaviour
 		RandomMapObject[] objects = mapData.randomObjectsOverride.Length == 0 ? randomObjects : mapData.randomObjectsOverride;
 		RandomObjectSpawner(chargeShrineSpawns, mapData.numShrinesPotsAndOtherMultiplier);
 		RandomObjectSpawner(greedShrineSpawns, mapData.numShrinesPotsAndOtherMultiplier);
-		Generate(objects, mapData.numShrinesPotsAndOtherMultiplier);
+		foreach (var obj in objects)
+			RandomObjectSpawner(obj, mapData.numShrinesPotsAndOtherMultiplier, mapData as OpenBonkExternalMapData);
 	}
 
 	public void Generate(RandomMapObject[] objects, float amountMultiplier)
@@ -37,7 +39,7 @@ public class RandomObjectPlacer : MonoBehaviour
 		foreach (RandomMapObject obj in objects) RandomObjectSpawner(obj, amountMultiplier);
 	}
 
-	private void RandomObjectSpawner(RandomMapObject randomObject, float amountMultiplier = 1f)
+	private void RandomObjectSpawner(RandomMapObject randomObject, float amountMultiplier = 1f, OpenBonkExternalMapData map = null)
 	{
 		string prefabName = randomObject.prefabs[0].name;
 		if (SaveManager.Instance.config.cfGameSettings.enable_silver_pots == 0 &&
@@ -75,6 +77,11 @@ public class RandomObjectPlacer : MonoBehaviour
 				placed.transform.rotation = Quaternion.Euler(angles);
 			}
 			placed.transform.localScale *= scale;
+			if (map != null && placed.TryGetComponent<InteractablePot>(out var pot))
+			{
+				var visual = map.GetPotVisual(MapController.currentStage, pot.isSilver);
+				if (visual != null) pot.ReplaceVisual(visual);
+			}
 			if (placed.isStatic) staticObjects.Add(placed);
 		}
 		if (staticObjects.Count > 0)

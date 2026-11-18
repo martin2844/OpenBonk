@@ -2,8 +2,8 @@
 
 Development package for an original rooftop district in OpenBonk. It supplies
 three stage palettes, facade and roof textures, an antenna, a heat pump, a
-basalt-head sculpture, and a map selection icon. The maze and run progression
-use the tiled map system.
+basalt-head sculpture, two breakable cargo capsule variants, and a map
+selection icon. The maze and run progression use the tiled map system.
 
 ## Build the package
 
@@ -23,5 +23,6 @@ Import the ZIP through **Mods** in a development APK with the per-stage map
 environment feature, enable the package, and select **Distrito Nimbo** in
 the game's map menu. The 0.1.13 release does not apply the new stage settings.
 
-This package is for visual and map-loader checks. Dedicated rooftop geometry,
-creatures, bosses and breakable capsule drops are pending integration.
+This package is for visual and map-loader checks. Capsules use the base
+interaction and reward rules. Dedicated rooftop geometry, creatures, bosses
+and original rewards are pending integration.

@@ -25,8 +25,8 @@ public static class BuildDistrictBundle
         if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(output))
             throw new ArgumentException("Set OPENBONK_NIMBO_PROPS and OPENBONK_NIMBO_BUNDLE");
         var package = JsonUtility.FromJson<Package>(File.ReadAllText(input));
-        if (package?.props == null || package.props.Length != 3)
-            throw new InvalidDataException("Expected the three roof props");
+        if (package?.props == null || package.props.Length != 5)
+            throw new InvalidDataException("Expected three roof props and two capsule variants");
 
         if (!AssetDatabase.IsValidFolder(AssetRoot)) AssetDatabase.CreateFolder("Assets", "NimboAuthoring");
         foreach (Prop prop in package.props) AssetDatabase.DeleteAsset($"{AssetRoot}/{prop.name}.prefab");
@@ -87,7 +87,7 @@ public static class BuildDistrictBundle
         var instance = new GameObject(prop.name);
         try
         {
-            instance.isStatic = true;
+            instance.isStatic = !prop.name.EndsWith("Capsule", StringComparison.Ordinal);
             instance.AddComponent<MeshFilter>().sharedMesh = mesh;
             instance.AddComponent<MeshRenderer>().sharedMaterial = material;
             if (prop.collide)

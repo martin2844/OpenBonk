@@ -26,6 +26,7 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Interactables
 		public GameObject potBreakFx;
 
 		private bool broken;
+		[System.NonSerialized] private bool customVisual;
 
 		public bool isBig;
 
@@ -128,7 +129,19 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Interactables
 
 		public override string GetInteractString()
 		{
+			if (customVisual) return "Break capsule";
 			return localizedString != null ? localizedString.GetLocalizedString() : "Break pot";
+		}
+
+		internal void ReplaceVisual(GameObject visual)
+		{
+			foreach (var renderer in GetComponentsInChildren<Renderer>(true)) renderer.enabled = false;
+			// Stock vessels are authored Z-up. Custom models use Unity's Y-up convention.
+			var facing = Quaternion.Euler(0, transform.eulerAngles.y, 0);
+			var shell = Instantiate(visual, transform.position, facing);
+			shell.transform.localScale *= transform.lossyScale.x * (isBig ? 1.2f : 1f);
+			shell.transform.SetParent(transform, true);
+			customVisual = true;
 		}
 
 		public override bool ShowInDebug()

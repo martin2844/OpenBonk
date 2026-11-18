@@ -13,6 +13,7 @@ public sealed class OpenBonkProceduralMapRecipe
     {
         public int stage;
         public Texture groundTexture, wallTexture;
+        public GameObject potVisual, silverPotVisual;
         public bool replaceDecorations;
     }
 
@@ -50,7 +51,8 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
             {
                 if (environment == null || environment.stage < 1 || environment.stage > environments.Length ||
                     environments[environment.stage - 1] != null ||
-                    (!environment.replaceDecorations && environment.groundTexture == null && environment.wallTexture == null))
+                    (!environment.replaceDecorations && environment.groundTexture == null && environment.wallTexture == null &&
+                        environment.potVisual == null && environment.silverPotVisual == null))
                     throw new ArgumentException("Invalid stage environment");
                 environments[environment.stage - 1] = environment;
             }
@@ -73,6 +75,8 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                 var stage = result.Own(Object.Instantiate(template.stages[i]));
                 var parameters = result.Own(Object.Instantiate(stage.mapParameters));
                 var environment = environments[i];
+                if (environment != null && (environment.potVisual != null || environment.silverPotVisual != null))
+                    map.potVisuals.Add(stage, (environment.potVisual, environment.silverPotVisual));
                 var ground = environment?.groundTexture ?? groundTexture;
                 var wall = environment?.wallTexture ?? wallTexture;
                 if (ground != null)

@@ -87,6 +87,7 @@ def build(destination, prop_bundle):
         payloads[wall] = png(128, lambda x, y: wall_pixel(concrete, glass, paint, x, y))
         environments.append({
             "stage": stage, "groundTexture": ground, "wallTexture": wall, "replaceDecorations": True,
+            "potVisual": "CargoCapsule", "silverPotVisual": "SilverCargoCapsule",
         })
 
     manifest = {

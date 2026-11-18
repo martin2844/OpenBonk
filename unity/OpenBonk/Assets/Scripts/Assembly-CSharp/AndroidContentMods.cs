@@ -33,6 +33,7 @@ internal static class AndroidContentMods
         public int stage;
         public string groundTexture, wallTexture;
         public bool replaceDecorations;
+        public string potVisual, silverPotVisual;
     }
     private static readonly List<AssetBundle> Bundles = new List<AssetBundle>();
     private static readonly List<OpenBonkProceduralMapBuild> Maps = new List<OpenBonkProceduralMapBuild>();
@@ -226,7 +227,12 @@ internal static class AndroidContentMods
             else if (hook == "enemy_damage_multiplier" && !enemyDamageHook) enemyDamageHook = true;
             else throw new InvalidDataException("unsupported map hooks");
         }
-        if ((spec.objects == null && !string.IsNullOrEmpty(spec.bundle)) || (spec.objects != null && (spec.objects.Length == 0 || spec.objects.Length > 8 || !Text(spec.bundle, 120)))) throw new InvalidDataException("invalid map objects");
+        bool needsBundle = spec.objects != null || (spec.stageEnvironments != null &&
+            Array.Exists(spec.stageEnvironments, stage => stage != null &&
+                (!string.IsNullOrEmpty(stage.potVisual) || !string.IsNullOrEmpty(stage.silverPotVisual))));
+        if ((spec.objects != null && (spec.objects.Length == 0 || spec.objects.Length > 8)) ||
+            (needsBundle ? !Text(spec.bundle, 120) : !string.IsNullOrEmpty(spec.bundle)))
+            throw new InvalidDataException("invalid map bundle");
         var files = new Dictionary<string, FileSpec>(StringComparer.Ordinal);
         foreach (var f in manifest.files)
         {
@@ -236,11 +242,16 @@ internal static class AndroidContentMods
         string source = Utf8.GetString(File.ReadAllBytes(CheckedFile(folder, files, "main.lua", 65536)));
         if (source.IndexOf('\0') >= 0) throw new InvalidDataException("invalid Lua source");
         string iconPath = CheckedFile(folder, files, spec.icon, 4L * 1024 * 1024);
-        string bundlePath = spec.objects == null ? null : CheckedFile(folder, files, spec.bundle, 64L * 1024 * 1024);
+        string bundlePath = needsBundle ? CheckedFile(folder, files, spec.bundle, 64L * 1024 * 1024) : null;
         var textures = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
         Texture2D icon = null; AssetBundle bundle = null; OpenBonkProceduralMapBuild build = null; OpenBonkMeshMapBuild meshBuild = null;
         try
         {
+            if (needsBundle)
+            {
+                bundle = AssetBundle.LoadFromFile(bundlePath);
+                if (bundle == null) throw new InvalidDataException("cannot load map bundle");
+            }
             icon = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             if (!icon.LoadImage(File.ReadAllBytes(iconPath)) || icon.width > 2048 || icon.height > 2048) throw new InvalidDataException("invalid map icon");
             var ground = LoadMapTexture(folder, files, textures, spec.groundTexture);
@@ -266,6 +277,8 @@ internal static class AndroidContentMods
                             replaceDecorations = stage.replaceDecorations,
                             groundTexture = LoadMapTexture(folder, files, textures, stage.groundTexture),
                             wallTexture = LoadMapTexture(folder, files, textures, stage.wallTexture),
+                            potVisual = LoadPotVisual(bundle, stage.potVisual),
+                            silverPotVisual = LoadPotVisual(bundle, stage.silverPotVisual),
                         };
                     }
                 }
@@ -275,8 +288,6 @@ internal static class AndroidContentMods
             map.luaEnemyHealthMultiplier = enemyHealthHook; map.luaEnemySpeedMultiplier = enemySpeedHook; map.luaEnemyDamageMultiplier = enemyDamageHook;
             if (spec.objects != null)
             {
-                bundle = AssetBundle.LoadFromFile(bundlePath);
-                if (bundle == null) throw new InvalidDataException("cannot load map object bundle");
                 var placements = new OpenBonkMapObjects.Placement[spec.objects.Length];
                 for (int i = 0; i < placements.Length; i++)
                 {
@@ -302,6 +313,18 @@ internal static class AndroidContentMods
             if (icon != null) UnityEngine.Object.Destroy(icon);
             foreach (var texture in textures.Values) UnityEngine.Object.Destroy(texture);
         }
+    }
+
+    private static GameObject LoadPotVisual(AssetBundle bundle, string name)
+    {
+        if (string.IsNullOrEmpty(name)) return null;
+        if (!Text(name, 120)) throw new InvalidDataException("invalid pot visual name");
+        var visual = bundle.LoadAsset<GameObject>(name);
+        if (visual == null || !visual.activeSelf || visual.transform.childCount != 0 ||
+            visual.GetComponents<Component>().Length != 3 || visual.GetComponent<MeshFilter>()?.sharedMesh == null ||
+            visual.GetComponent<MeshRenderer>()?.sharedMaterial == null)
+            throw new InvalidDataException("pot visuals must be single-mesh prefabs");
+        return visual;
     }
 
     private static Texture2D LoadMapTexture(string folder, Dictionary<string, FileSpec> files,

@@ -514,6 +514,9 @@ map-wide texture. With `replaceDecorations` enabled, the stage omits the
 template's tile props, scattered scenery, grass, and ambient particles.
 Declared `map.objects` still spawn in their assigned stages. The maze,
 encounters, shrines and portal logic are inherited from the template.
+Optional `potVisual` and `silverPotVisual` names refer to Y-up, single-mesh
+prefabs in `map.bundle`. They replace the appearance of normal and silver
+pots in that stage while keeping their interaction, collisions and rewards.
 
 ### Experimental weapon target context
 
