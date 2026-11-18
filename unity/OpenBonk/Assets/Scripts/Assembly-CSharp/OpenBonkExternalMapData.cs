@@ -16,6 +16,10 @@ public sealed class OpenBonkExternalMapData : MapData
         new Dictionary<StageData, (GameObject normal, GameObject silver)>();
     internal GameObject GetPotVisual(StageData stage, bool silver) =>
         stage != null && potVisuals.TryGetValue(stage, out var visuals) ? (silver ? visuals.silver : visuals.normal) : null;
+    internal readonly Dictionary<StageData, OpenBonkRoofLayout.Profile> rooftops =
+        new Dictionary<StageData, OpenBonkRoofLayout.Profile>();
+    internal OpenBonkRoofLayout.Profile GetRooftops(StageData stage) =>
+        stage != null && rooftops.TryGetValue(stage, out var profile) ? profile : null;
     public override string GetName() => displayName ?? string.Empty;
     public override string GetDescription() => description ?? string.Empty;
     public override string GetInternalName() => externalId ?? string.Empty;

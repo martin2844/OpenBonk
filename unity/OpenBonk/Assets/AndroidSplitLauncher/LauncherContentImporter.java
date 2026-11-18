@@ -278,6 +278,15 @@ final class LauncherContentImporter {
                 (entry.has("replaceDecorations") && !(entry.opt("replaceDecorations") instanceof Boolean)))
                 throw new IOException("invalid stage environment");
             int index = entry.optInt("stage") - 1;
+            if (entry.has("rooftops")) {
+                JSONObject layout = entry.optJSONObject("rooftops");
+                if (!entry.optBoolean("replaceDecorations") || layout == null ||
+                    !strictNumber(layout, "roofFraction", .60, .82) ||
+                    !strictNumber(layout, "bridgeFraction", .18, .40) ||
+                    !strictNumber(layout, "riseFraction", .03, .10) ||
+                    layout.optDouble("riseFraction") > (.96 - layout.optDouble("roofFraction")) * .55)
+                    throw new IOException("invalid rooftop dimensions");
+            }
             boolean hasPotVisual = !optionalString(entry, "potVisual").isEmpty() ||
                 !optionalString(entry, "silverPotVisual").isEmpty();
             if (seen[index] || (!entry.optBoolean("replaceDecorations") && optionalString(entry, "groundTexture").isEmpty() &&
@@ -302,6 +311,9 @@ final class LauncherContentImporter {
         return value instanceof String && (((String)value).isEmpty() || text((String)value, limit));
     }
     private static boolean number(JSONObject object, String key, double min, double max) { double value = object.optDouble(key, Double.NaN); return !Double.isNaN(value) && !Double.isInfinite(value) && value >= min && value <= max; }
+    private static boolean strictNumber(JSONObject object, String key, double min, double max) {
+        return object.opt(key) instanceof Number && number(object, key, min, max);
+    }
     private static boolean optionalInteger(JSONObject object, String key, int min, int max) { return !object.has(key) || (number(object, key, min, max) && object.optDouble(key) == object.optInt(key)); }
     private static String hex(byte[] bytes) { StringBuilder out = new StringBuilder(); for (byte b : bytes) out.append(String.format(Locale.ROOT, "%02x", b & 255)); return out.toString(); }
     private static boolean validPath(String path) {

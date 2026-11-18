@@ -518,6 +518,14 @@ Optional `potVisual` and `silverPotVisual` names refer to Y-up, single-mesh
 prefabs in `map.bundle`. They replace the appearance of normal and silver
 pots in that stage while keeping their interaction, collisions and rewards.
 
+Stages with `replaceDecorations: true` can set `rooftops` to generate buildings
+with walkable decks, bridges, and gaps. `roofFraction` (0.60–0.82) is the
+typical deck width, `bridgeFraction` (0.18–0.40) is the bridge width, and
+`riseFraction` (0.03–0.10) is the maximum change in height between linked
+buildings, all relative to one tile. The host also checks the rise against
+the deck width to keep bridges walkable. The original layout seed supplies
+the connected routes. Outer skyline buildings are visual scenery.
+
 ### Experimental weapon target context
 
 On the experimental weapon-context build, an API 3 weapon's `attack(level, target)` callback receives a copied table for the first enemy selected by the host: `enemy` (the built-in enemy enum name), `boss` and `elite` booleans, `target_health`, and `distance` between the player and target transforms. For example:

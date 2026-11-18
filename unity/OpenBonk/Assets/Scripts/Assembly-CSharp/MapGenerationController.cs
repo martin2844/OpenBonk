@@ -3683,7 +3683,9 @@ public class MapGenerationController : MonoBehaviour
 			yield return GenerateProceduralMap(map, stage);
 			yield break;
 		}
-		Vector3 spawnPosition = proceduralTileGeneration.Generate(out Vector3 spawnDirection, stage, stage.mapParameters);
+		var rooftops = (map as OpenBonkExternalMapData)?.GetRooftops(stage);
+		Vector3 spawnPosition = proceduralTileGeneration.Generate(out Vector3 spawnDirection, stage, stage.mapParameters,
+			rooftops: rooftops);
 		tileSpawnPosition = spawnPosition;
 		tileSpawnDir = spawnDirection;
 		Vector3 worldSize = proceduralTileGeneration.GetWorldSize();
@@ -3692,16 +3694,16 @@ public class MapGenerationController : MonoBehaviour
 		Mesh worldMesh = proceduralTileGeneration.collider.GetComponent<MeshFilter>().sharedMesh;
 		if (map.eMap == EMap.Graveyard) CryptGeneration(mapSeed, out spawnPosition, out spawnDirection);
 		Instantiate(spawnPortal, spawnPosition, Quaternion.LookRotation(-spawnDirection)).GetComponent<SpawnPlayerPortal>().StartPortal();
-		if (stage.mapEdgeFillType == MapEdgeFillType.None) mapEdges.Set(worldCenter, worldSize, stage);
+		if (rooftops == null && stage.mapEdgeFillType == MapEdgeFillType.None) mapEdges.Set(worldCenter, worldSize, stage);
 		yield return null;
 		Vector3 worldArea = new Vector3(worldSize.x, 1f, worldSize.z);
 		Vector3 worldAreaCenter = worldCenter + Vector3.up * (worldSize.y * 0.5f + 50f);
 		float worldAreaMagnitude = worldArea.x * worldArea.z;
 		randomObjectPlacer.size = worldArea;
 		randomObjectPlacer.center = worldAreaCenter;
-		randomObjectPlacer.Generate(stage.randomMapObjects, 1f);
+		randomObjectPlacer.Generate(stage.randomMapObjects, 1f, requireValidGround: rooftops != null);
 		yield return null;
-		randomObjectPlacer.GenerateInteractables(map);
+		randomObjectPlacer.GenerateInteractables(map, requireValidGround: rooftops != null);
 		yield return null;
 		interactablesSpawner.SetArea(worldArea, worldAreaCenter, worldAreaMagnitude);
 		interactablesSpawner.SpawnShit();

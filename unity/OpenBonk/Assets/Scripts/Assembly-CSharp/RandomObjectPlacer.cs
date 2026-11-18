@@ -23,23 +23,25 @@ public class RandomObjectPlacer : MonoBehaviour
 
 	private int index;
 
-	public void GenerateInteractables(MapData mapData)
+	public void GenerateInteractables(MapData mapData, bool requireValidGround = false)
 	{
 		if (MapController.HasPlayerInventory() && MapController.GetPlayerInventory(null).itemInventory.GetItem(EItem.Beacon) is ItemBeacon beacon)
 			chargeShrineSpawns.amount += beacon.GetExtraShrines();
 		RandomMapObject[] objects = mapData.randomObjectsOverride.Length == 0 ? randomObjects : mapData.randomObjectsOverride;
-		RandomObjectSpawner(chargeShrineSpawns, mapData.numShrinesPotsAndOtherMultiplier);
-		RandomObjectSpawner(greedShrineSpawns, mapData.numShrinesPotsAndOtherMultiplier);
+		RandomObjectSpawner(chargeShrineSpawns, mapData.numShrinesPotsAndOtherMultiplier, requireValidGround: requireValidGround);
+		RandomObjectSpawner(greedShrineSpawns, mapData.numShrinesPotsAndOtherMultiplier, requireValidGround: requireValidGround);
+		var external = mapData as OpenBonkExternalMapData;
 		foreach (var obj in objects)
-			RandomObjectSpawner(obj, mapData.numShrinesPotsAndOtherMultiplier, mapData as OpenBonkExternalMapData);
+			RandomObjectSpawner(obj, mapData.numShrinesPotsAndOtherMultiplier, external, requireValidGround);
 	}
 
-	public void Generate(RandomMapObject[] objects, float amountMultiplier)
+	public void Generate(RandomMapObject[] objects, float amountMultiplier, bool requireValidGround = false)
 	{
-		foreach (RandomMapObject obj in objects) RandomObjectSpawner(obj, amountMultiplier);
+		foreach (RandomMapObject obj in objects) RandomObjectSpawner(obj, amountMultiplier, requireValidGround: requireValidGround);
 	}
 
-	private void RandomObjectSpawner(RandomMapObject randomObject, float amountMultiplier = 1f, OpenBonkExternalMapData map = null)
+	private void RandomObjectSpawner(RandomMapObject randomObject, float amountMultiplier, OpenBonkExternalMapData map = null,
+		bool requireValidGround = false)
 	{
 		string prefabName = randomObject.prefabs[0].name;
 		if (SaveManager.Instance.config.cfGameSettings.enable_silver_pots == 0 &&
@@ -58,7 +60,7 @@ public class RandomObjectPlacer : MonoBehaviour
 			Vector3 position = SpawnPositions.GetObjectSpawnPosition(center + Vector3.up * 999f, size,
 				randomObject.checkRadius * scale, GameManager.Instance.whatIsGroundAndObjects,
 				out Vector3 normal, 50, true, false, false, randomObject.maxSlopeAngle);
-			if (randomObject is OpenBonkMapObjects.DecorativeObject && position == SpawnPositions.INVALID_POS) continue;
+			if ((requireValidGround || randomObject is OpenBonkMapObjects.DecorativeObject) && position == SpawnPositions.INVALID_POS) continue;
 			GameObject prefab = randomObject.prefabs[Random.Range(0, randomObject.prefabs.Length)];
 			GameObject placed = Instantiate(prefab, position + Vector3.up * randomObject.upOffset * scale, prefab.transform.rotation);
 			Vector3 randomRotation = randomObject.randomRotationVector;

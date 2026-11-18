@@ -34,6 +34,8 @@ public class ProceduralTileGeneration : MonoBehaviour
 
 	private MapParameters currentMapParameters;
 
+	private OpenBonkRoofLayout.Build roofBuild;
+
 	public StageData testStage;
 
 	public MapParameters testMapParameters;
@@ -44,22 +46,35 @@ public class ProceduralTileGeneration : MonoBehaviour
 
 	public ProceduralTile[][] proceduralTiles;
 
-	public Vector3 Generate(out Vector3 firstTileDirection, StageData stageData, MapParameters mapParameters, bool useDebugSeed = false)
+	public Vector3 Generate(out Vector3 firstTileDirection, StageData stageData, MapParameters mapParameters,
+		bool useDebugSeed = false, OpenBonkRoofLayout.Profile rooftops = null)
 	{
 		currentStage = stageData;
 		currentMapParameters = mapParameters;
 		ClearTiles();
+		int seed = useDebugSeed ? debugSeed : Random.Range(0, int.MaxValue);
+		NodeTree root = Maze.Generate(mapParameters.size, mapParameters.size, seed);
+		debugSeed = seed;
+		Vector2Int firstDirection = root.children[0].position - root.position;
+		firstTileDirection = new Vector3(firstDirection.x, 0f, firstDirection.y);
+		if (rooftops != null)
+		{
+			if (tilesParent != null) DestroyImmediate(tilesParent);
+			if (collider != null) DestroyImmediate(collider);
+			roofBuild = OpenBonkRoofLayout.Generate(root, seed, mapParameters, stageData, rooftops);
+			tilesParent = roofBuild.buildings;
+			collider = roofBuild.collider;
+			tiles = flatTiles = roofBuild.anchors;
+			fillTiles = new List<GameObject>();
+			proceduralTiles = null;
+			return roofBuild.anchors[0].transform.position;
+		}
 		proceduralTiles = new ProceduralTile[mapParameters.size][];
 		tiles = new List<GameObject>();
 		flatTiles = new List<GameObject>();
 		for (int i = 0; i < mapParameters.size; i++)
 			proceduralTiles[i] = new ProceduralTile[mapParameters.size];
-		int seed = useDebugSeed ? debugSeed : Random.Range(0, int.MaxValue);
-		NodeTree root = Maze.Generate(mapParameters.size, mapParameters.size, seed);
-		debugSeed = seed;
 		MazeHeightGenerator.GenerateHeight(this, root, seed, mapParameters);
-		Vector2Int firstDirection = root.children[0].position - root.position;
-		firstTileDirection = new Vector3(firstDirection.x, 0f, firstDirection.y);
 		FillHoles();
 		FillEdges();
 		var allTiles = new List<GameObject>(tiles);
@@ -380,7 +395,20 @@ public class ProceduralTileGeneration : MonoBehaviour
 
 	private void ClearTiles()
 	{
+		if (roofBuild != null)
+		{
+			ClearRoofBuild();
+			return;
+		}
 		if (tiles != null)
 			foreach (GameObject tile in tiles) DestroyImmediate(tile);
+	}
+
+	private void OnDestroy() => ClearRoofBuild();
+
+	private void ClearRoofBuild()
+	{
+		roofBuild?.Dispose();
+		roofBuild = null;
 	}
 }

@@ -14,6 +14,7 @@ public sealed class OpenBonkProceduralMapRecipe
         public int stage;
         public Texture groundTexture, wallTexture;
         public GameObject potVisual, silverPotVisual;
+        public OpenBonkRoofLayout.Profile rooftops;
         public bool replaceDecorations;
     }
 
@@ -51,6 +52,7 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
             {
                 if (environment == null || environment.stage < 1 || environment.stage > environments.Length ||
                     environments[environment.stage - 1] != null ||
+                    (environment.rooftops != null && (!environment.replaceDecorations || !environment.rooftops.IsValid())) ||
                     (!environment.replaceDecorations && environment.groundTexture == null && environment.wallTexture == null &&
                         environment.potVisual == null && environment.silverPotVisual == null))
                     throw new ArgumentException("Invalid stage environment");
@@ -77,6 +79,13 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                 var environment = environments[i];
                 if (environment != null && (environment.potVisual != null || environment.silverPotVisual != null))
                     map.potVisuals.Add(stage, (environment.potVisual, environment.silverPotVisual));
+                if (environment?.rooftops != null)
+                {
+                    if (stage.flatMaterials == null || stage.flatMaterials.Length == 0 || stage.flatMaterials[0] == null ||
+                        stage.m_fillMiddle == null || stage.m_fillTop == null || stage.mapParameters.scaledTileWidth < 10)
+                        throw new ArgumentException("Missing rooftop template materials or tile size");
+                    map.rooftops.Add(stage, environment.rooftops);
+                }
                 var ground = environment?.groundTexture ?? groundTexture;
                 var wall = environment?.wallTexture ?? wallTexture;
                 if (ground != null)

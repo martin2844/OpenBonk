@@ -15,6 +15,7 @@ DISTRICTS = (
     ("interchange", (49, 72, 94), (91, 202, 183), (116, 142, 156), (38, 57, 79)),
     ("relay", (73, 71, 106), (237, 123, 107), (127, 115, 152), (51, 45, 78)),
 )
+ROOFTOPS = ((.76, .30, .045), (.71, .27, .065), (.66, .24, .090))
 
 
 def png(size, pixel_at):
@@ -85,9 +86,11 @@ def build(destination, prop_bundle):
         wall = f"textures/{name}-facade.png"
         payloads[ground] = png(128, lambda x, y: roof_pixel(deck, paint, x, y))
         payloads[wall] = png(128, lambda x, y: wall_pixel(concrete, glass, paint, x, y))
+        roof, bridge, rise = ROOFTOPS[stage - 1]
         environments.append({
             "stage": stage, "groundTexture": ground, "wallTexture": wall, "replaceDecorations": True,
             "potVisual": "CargoCapsule", "silverPotVisual": "SilverCargoCapsule",
+            "rooftops": {"roofFraction": roof, "bridgeFraction": bridge, "riseFraction": rise},
         })
 
     manifest = {
@@ -97,7 +100,7 @@ def build(destination, prop_bundle):
         "map": {
             "id": "distrito-nimbo",
             "name": "Distrito Nimbo",
-            "description": "A rooftop district with three surface and facade palettes. Development preview.",
+            "description": "Cross connected roofs through three districts. Development preview.",
             "base": "Forest",
             "icon": "icon.png",
             "tileGridSize": 9,

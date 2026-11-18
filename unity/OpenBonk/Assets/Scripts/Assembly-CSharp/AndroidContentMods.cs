@@ -34,6 +34,7 @@ internal static class AndroidContentMods
         public string groundTexture, wallTexture;
         public bool replaceDecorations;
         public string potVisual, silverPotVisual;
+        public OpenBonkRoofLayout.Profile rooftops;
     }
     private static readonly List<AssetBundle> Bundles = new List<AssetBundle>();
     private static readonly List<OpenBonkProceduralMapBuild> Maps = new List<OpenBonkProceduralMapBuild>();
@@ -279,6 +280,7 @@ internal static class AndroidContentMods
                             wallTexture = LoadMapTexture(folder, files, textures, stage.wallTexture),
                             potVisual = LoadPotVisual(bundle, stage.potVisual),
                             silverPotVisual = LoadPotVisual(bundle, stage.silverPotVisual),
+                            rooftops = stage.rooftops,
                         };
                     }
                 }
