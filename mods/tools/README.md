@@ -83,3 +83,11 @@ least twice the width. Width is the capsule radius in game units.
 
 This does not add custom projectile or weapon behavior, nor establish visual
 or gameplay equivalence. Test each character on the target Android build.
+
+To create a reproducible launcher ZIP for a two-file Lua mod, run:
+
+```sh
+python3 mods/tools/package_mod.py mods/run-metrics /tmp/run-metrics.zip
+```
+
+The archive contains only `manifest.json` and `main.lua`, with fixed timestamps and permissions. Rebuild it with the same Python and zlib versions to reproduce the bytes. The launcher imports a mod disabled; users enable it in Manage mods.
