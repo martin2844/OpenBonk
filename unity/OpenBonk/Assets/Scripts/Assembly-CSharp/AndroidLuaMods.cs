@@ -104,7 +104,7 @@ internal static class AndroidLuaMods
         MyPlayer.A_PlayerInventoryInitialized += Apply;
     }
 
-    private static bool StartupPolicyManifest(Manifest manifest) => manifest != null && manifest.api == 1 && (manifest.hook == "unlock_all" || manifest.hook == "collect_spawned_xp" || manifest.hook == "auto_open_pots" || manifest.hook == "item_lab" || manifest.hook == "chest_tracker" || manifest.hook == "minimap_zoom" || manifest.hook == "toggle_everything") && ValidRefresh(manifest);
+    private static bool StartupPolicyManifest(Manifest manifest) => manifest != null && manifest.api == 1 && (manifest.hook == "unlock_all" || manifest.hook == "collect_spawned_xp" || manifest.hook == "auto_open_pots" || manifest.hook == "item_lab" || manifest.hook == "chest_tracker" || manifest.hook == "minimap_zoom" || manifest.hook == "toggle_everything" || manifest.hook == "run_metrics") && ValidRefresh(manifest);
 
     private static void LoadStartupPolicies()
     {
@@ -115,6 +115,7 @@ internal static class AndroidLuaMods
         OpenBonkChestTracker.SetEnabled(false);
         OpenBonkMinimapPolicy.Reset();
         OpenBonkTogglePolicy.SetEnabled(false);
+        OpenBonkRunMetrics.SetEnabled(false);
         string root = Path.Combine(Application.persistentDataPath, "Mods");
         if (!Directory.Exists(root)) return;
         try

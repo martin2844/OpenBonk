@@ -646,7 +646,7 @@ namespace Assets.Scripts.Actors.Enemies
 
 		public void DamageFromPlayerWeapon(DamageContainer dc)
 		{
-			Damage(dc);
+			Damage(dc, true);
 			if (dc.procCoefficient > 0f) MyPlayer.Instance.inventory.itemInventory.PostDamage(dc);
 		}
 
@@ -674,14 +674,22 @@ namespace Assets.Scripts.Actors.Enemies
 			echoDamage = 0f;
 		}
 
-		private void Damage(DamageContainer dc)
+		private void Damage(DamageContainer dc, bool weaponDamage = false)
 		{
 			if (!CanTakeDamage()) return;
 			if (Mathf.Abs(controlHp - hp) > 2f) A_HpTamper?.Invoke();
 			if (IsElite()) dc.damage *= PlayerStats.GetStat(EStat.EliteDamageMultiplier);
 			if (HasDebuff(EDebuff.Echo)) { echoDamage += dc.damage; return; }
 			if (armor > 0f && (dc.flags & DcFlags.BypassAll) != DcFlags.BypassAll) dc.damage *= 1f - armor;
+#if UNITY_ANDROID || UNITY_EDITOR
+			float previousHp = hp;
+#endif
 			hp = controlHp = Mathf.Clamp(hp - dc.damage, 0f, float.MaxValue);
+#if UNITY_ANDROID && !UNITY_EDITOR
+			if (weaponDamage) AndroidRunMetricsHud.OnDamage(previousHp - hp);
+#elif UNITY_EDITOR
+			if (weaponDamage) OpenBonkRunMetrics.AddDamage(MyTime.time, previousHp - hp);
+#endif
 			if (hp <= 0f) EnemyDied(dc);
 			else
 			{

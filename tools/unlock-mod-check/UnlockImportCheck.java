@@ -17,6 +17,8 @@ public final class UnlockImportCheck {
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","item_lab")), "item lab hook accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","chest_tracker")), "chest tracker hook accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","minimap_zoom")), "minimap zoom accepted");
+        require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","run_metrics")), "run metrics accepted");
+        require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","run_metrics")), "run metrics wrong API rejected");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","toggle_everything")), "toggle everything accepted");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","toggle_everything")), "toggle everything wrong API rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","minimap_zoom")), "minimap zoom wrong API rejected");
@@ -91,6 +93,19 @@ public final class UnlockImportCheck {
             }
             require(LauncherModImporter.install(new ByteArrayInputStream(labBuffer.toByteArray()), root.toFile(), prefs).equals("item-lab"), "item lab package import");
             require(!prefs.getBoolean("item-lab", true), "item lab initially disabled");
+            Path metrics = Paths.get(args[5]);
+            ByteArrayOutputStream metricsBuffer = new ByteArrayOutputStream();
+            try (ZipOutputStream metricsZip = new ZipOutputStream(metricsBuffer)) {
+                for (String name : new String[]{"manifest.json", "main.lua"}) {
+                    metricsZip.putNextEntry(new ZipEntry(name)); metricsZip.write(Files.readAllBytes(metrics.resolve(name))); metricsZip.closeEntry();
+                }
+            }
+            require(LauncherModImporter.install(new ByteArrayInputStream(metricsBuffer.toByteArray()), root.toFile(), prefs).equals("run-metrics"), "run metrics package import");
+            require(!prefs.getBoolean("run-metrics", true), "run metrics initially disabled");
+            prefs.edit().putBoolean("run-metrics", true).commit();
+            require(prefs.getBoolean("run-metrics", false), "run metrics enabled");
+            prefs.edit().putBoolean("run-metrics", false).commit();
+            require(!prefs.getBoolean("run-metrics", true), "run metrics disabled");
             System.out.println("PASS startup hook validation, ZIP imports and enable/disable preferences");
         } finally {
             try (var paths = Files.walk(temporary)) {

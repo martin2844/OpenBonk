@@ -11,5 +11,6 @@ public static class OpenBonkOptionalUiPolicy
         if (!enabled) return;
         if (hook == "item_lab") OpenBonkItemGrantPolicy.SetEnabled(true);
         else if (hook == "chest_tracker") OpenBonkChestTracker.SetEnabled(true);
+        else if (hook == "run_metrics") OpenBonkRunMetrics.SetEnabled(true);
     }
 }

@@ -1,0 +1,6 @@
+{
+  "id": "run-metrics",
+  "api": 1,
+  "enabled": false,
+  "hook": "run_metrics"
+}
