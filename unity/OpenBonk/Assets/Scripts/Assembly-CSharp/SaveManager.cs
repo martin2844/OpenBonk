@@ -126,7 +126,6 @@ public class SaveManager : MonoBehaviour
 				if (string.IsNullOrEmpty(serializedJson)) throw new Exception("Encryption failed");
 			}
 			string temp = filePath + ".tmp";
-			string backup = filePath + ".bak";
 			using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write))
 			using (var writer = new StreamWriter(stream))
 			{
@@ -134,12 +133,39 @@ public class SaveManager : MonoBehaviour
 				writer.Flush();
 				stream.Flush(true);
 			}
-			if (File.Exists(filePath)) File.Replace(temp, filePath, recoveredBackupPaths.Contains(filePath) ? null : backup);
+			if (File.Exists(filePath))
+			{
+				if (!recoveredBackupPaths.Contains(filePath)) TryRotateBackup(filePath);
+				// Keep the old primary in place until a single replacement commits the new save.
+				File.Replace(temp, filePath, null);
+			}
 			else File.Move(temp, filePath);
 			recoveredBackupPaths.Remove(filePath);
 			return true;
 		}
 		catch (Exception e) { Debug.LogError($"Failed to save {filePath}: {e}"); return false; }
+	}
+
+	private static void TryRotateBackup(string filePath)
+	{
+		string backup = filePath + ".bak";
+		string temp = backup + ".tmp";
+		try
+		{
+			using (var source = File.OpenRead(filePath))
+			using (var copy = new FileStream(temp, FileMode.Create, FileAccess.Write))
+			{
+				source.CopyTo(copy);
+				copy.Flush(true);
+			}
+			if (File.Exists(backup)) File.Replace(temp, backup, null);
+			else File.Move(temp, backup);
+		}
+		catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+		{
+			// The previous backup is still available if rotation failed.
+			Debug.LogWarning($"Could not rotate save backup for {Path.GetFileName(filePath)}: {e.GetType().Name}");
+		}
 	}
 
 	private static string GetDataPath()

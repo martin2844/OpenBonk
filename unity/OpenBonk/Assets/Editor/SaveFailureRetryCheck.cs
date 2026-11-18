@@ -68,7 +68,20 @@ public static class SaveFailureRetryCheck
             Directory.Delete(statsPath + ".tmp");
             manager.SaveStats();
             Require(!(bool)statsDirty.GetValue(null) && File.Exists(statsPath), "successful stats retry failed to save or clear dirty state");
-            Debug.Log("SaveFailureRetryCheck PASS: progression and stats failures retain separate dirty state; successful retries write and notify");
+
+            // A blocked backup slot must not prevent a new primary from being saved.
+            File.Delete(path + ".bak");
+            Directory.CreateDirectory(path + ".bak");
+            Directory.CreateDirectory(statsPath + ".bak");
+            manager.progression.silver = 27;
+            MyStats.SetValueForce("save-failure-test", 73f);
+            manager.SaveProgression();
+            manager.SaveStats();
+            var savedProgress = Newtonsoft.Json.JsonConvert.DeserializeObject<ProgressionSaveFile>(SimpleEncryptor.Decrypt(File.ReadAllText(path)));
+            var savedStats = Newtonsoft.Json.JsonConvert.DeserializeObject<StatsSaveFile>(SimpleEncryptor.Decrypt(File.ReadAllText(statsPath)));
+            Require(savedProgress.silver == 27 && savedStats.stats["save-failure-test"].value == 73f,
+                "blocked backup slots left old progression or stats on disk");
+            Debug.Log("SaveFailureRetryCheck PASS: failures retain separate dirty state; retries write, and blocked backups do not prevent new primaries");
         }
         finally
         {
