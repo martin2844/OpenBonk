@@ -1,0 +1,9 @@
+# Offer Tools (experimental)
+
+An independent, limited adaptation of the unlimited refresh, banish and skip features in [SimpleModMenu by Celllnside](https://thunderstore.io/c/megabonk/p/Celllnside/SimpleModMenu/). It contains no upstream code or assets. It does not provide the original mod's in-game menu, separate switches, resource buttons, configurable amount or debugging features.
+
+When enabled, offer screens and chest banishes show at least 9,999 uses and do not consume the underlying available-use counts. The real counts remain intact and become visible again when the mod is disabled and the game restarts. **Uses performed while enabled still increment the game's usage counters**, and the normal increasing gold prices still apply and are charged; gold spent and normal effects of refresh, skip and banish are not undone when disabling the mod. Other gameplay, progress and achievements can change normally.
+
+Requires an OpenBonk host with the `unlimited_offer_tools` hook. OpenBonk 0.1.8 does not support this hook; this package is not in the public catalog. Importing the ZIP leaves it disabled. Enable or disable it in Manage Mods and restart the game.
+
+Unity Editor tests cover virtual and normal counts, real refresh, skip and offer-banish calls, normal gold prices and insufficient funds, the shared chest-banish consumption method, and disabling. On a Xiaomi 22126RN91Y using an isolated Android build, this exact ZIP was imported, enabled alongside Chest Tracker and Run Metrics, and tested with touch in Forest: the first refresh was free, the next cost five gold, the displayed count stayed at 9,999, and an offer was banished. After disabling and restarting, a new run with no underlying uses displayed no virtual tool buttons; the other two mods remained enabled. Chest banish, skip, physical controllers, other encounter types and long sessions have not been tested end to end on device.

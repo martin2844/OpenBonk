@@ -104,7 +104,7 @@ internal static class AndroidLuaMods
         MyPlayer.A_PlayerInventoryInitialized += Apply;
     }
 
-    private static bool StartupPolicyManifest(Manifest manifest) => manifest != null && manifest.api == 1 && (manifest.hook == "unlock_all" || manifest.hook == "collect_spawned_xp" || manifest.hook == "auto_open_pots" || manifest.hook == "item_lab" || manifest.hook == "chest_tracker" || manifest.hook == "minimap_zoom" || manifest.hook == "toggle_everything" || manifest.hook == "run_metrics") && ValidRefresh(manifest);
+    private static bool StartupPolicyManifest(Manifest manifest) => manifest != null && manifest.api == 1 && (manifest.hook == "unlock_all" || manifest.hook == "collect_spawned_xp" || manifest.hook == "auto_open_pots" || manifest.hook == "item_lab" || manifest.hook == "chest_tracker" || manifest.hook == "minimap_zoom" || manifest.hook == "toggle_everything" || manifest.hook == "run_metrics" || manifest.hook == "unlimited_offer_tools") && ValidRefresh(manifest);
 
     private static void LoadStartupPolicies()
     {
@@ -116,6 +116,7 @@ internal static class AndroidLuaMods
         OpenBonkMinimapPolicy.Reset();
         OpenBonkTogglePolicy.SetEnabled(false);
         OpenBonkRunMetrics.SetEnabled(false);
+        OpenBonkOfferTools.SetEnabled(false);
         string root = Path.Combine(Application.persistentDataPath, "Mods");
         if (!Directory.Exists(root)) return;
         try
@@ -147,6 +148,7 @@ internal static class AndroidLuaMods
                     if (result == 1 && manifest.hook == "unlock_all") OpenBonkUnlockPolicy.SetEnabled(true);
                     if (result == 1 && manifest.hook == "collect_spawned_xp") OpenBonkPickupPolicy.SetCollectXpImmediately(true);
                     if (result == 1 && manifest.hook == "auto_open_pots") OpenBonkWorldPolicy.SetAutoOpenPots(true);
+                    if (result == 1 && manifest.hook == "unlimited_offer_tools") OpenBonkOfferTools.SetEnabled(true);
                     OpenBonkOptionalUiPolicy.Apply(manifest.hook, result == 1);
                     if (result == 1 && manifest.hook == "toggle_everything") OpenBonkTogglePolicy.SetEnabled(true);
                     Debug.Log($"Lua startup policy loaded: {manifest.id} hook={manifest.hook} enabled={result == 1}");

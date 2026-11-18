@@ -18,6 +18,8 @@ public final class UnlockImportCheck {
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","chest_tracker")), "chest tracker hook accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","minimap_zoom")), "minimap zoom accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","run_metrics")), "run metrics accepted");
+        require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","unlimited_offer_tools")), "offer tools accepted");
+        require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","unlimited_offer_tools")), "offer tools wrong API rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","run_metrics")), "run metrics wrong API rejected");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","toggle_everything")), "toggle everything accepted");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","toggle_everything")), "toggle everything wrong API rejected");
@@ -106,6 +108,19 @@ public final class UnlockImportCheck {
             require(prefs.getBoolean("run-metrics", false), "run metrics enabled");
             prefs.edit().putBoolean("run-metrics", false).commit();
             require(!prefs.getBoolean("run-metrics", true), "run metrics disabled");
+            Path tools = Paths.get(args[6]);
+            ByteArrayOutputStream toolsBuffer = new ByteArrayOutputStream();
+            try (ZipOutputStream toolsZip = new ZipOutputStream(toolsBuffer)) {
+                for (String name : new String[]{"manifest.json", "main.lua"}) {
+                    toolsZip.putNextEntry(new ZipEntry(name)); toolsZip.write(Files.readAllBytes(tools.resolve(name))); toolsZip.closeEntry();
+                }
+            }
+            require(LauncherModImporter.install(new ByteArrayInputStream(toolsBuffer.toByteArray()), root.toFile(), prefs).equals("offer-tools"), "offer tools package import");
+            require(!prefs.getBoolean("offer-tools", true), "offer tools initially disabled");
+            prefs.edit().putBoolean("offer-tools", true).commit();
+            require(prefs.getBoolean("offer-tools", false), "offer tools enabled");
+            prefs.edit().putBoolean("offer-tools", false).commit();
+            require(!prefs.getBoolean("offer-tools", true), "offer tools disabled");
             System.out.println("PASS startup hook validation, ZIP imports and enable/disable preferences");
         } finally {
             try (var paths = Files.walk(temporary)) {

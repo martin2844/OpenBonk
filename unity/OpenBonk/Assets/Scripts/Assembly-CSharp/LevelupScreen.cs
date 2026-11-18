@@ -63,9 +63,9 @@ public class LevelupScreen : BaseEncounterWindow
 	{
 		if (hasInitedThisStage || MapController.index != 0) return;
 		var inventory = MyPlayer.Instance.inventory;
-		hasBanishes = inventory.banishes > 0;
-		hasRefreshes = inventory.refreshes > 0;
-		hasSkips = inventory.skips > 0;
+		hasBanishes = GetBanishes() > 0;
+		hasRefreshes = GetRefreshes() > 0;
+		hasSkips = GetSkips() > 0;
 		hasInitedThisStage = true;
 	}
 
@@ -149,9 +149,9 @@ public class LevelupScreen : BaseEncounterWindow
 	{
 		var inventory = MyPlayer.Instance.inventory;
 		int price = GetShopToolPrice(inventory.skipsUsed);
-		if (inventory.skips <= 0 || inventory.gold < price) return;
+		if (GetSkips() <= 0 || inventory.gold < price) return;
 		inventory.ChangeGold(-price);
-		inventory.skips--;
+		inventory.skips = OpenBonkOfferTools.Consume(inventory.skips);
 		inventory.skipsUsed++;
 		CloseLevelupScreen();
 	}
@@ -160,9 +160,9 @@ public class LevelupScreen : BaseEncounterWindow
 	{
 		var inventory = MyPlayer.Instance.inventory;
 		int price = GetShopToolPrice(inventory.refreshesUsed);
-		if (inventory.refreshes <= 0 || inventory.gold < price) return;
+		if (GetRefreshes() <= 0 || inventory.gold < price) return;
 		inventory.ChangeGold(-price);
-		inventory.refreshes--;
+		inventory.refreshes = OpenBonkOfferTools.Consume(inventory.refreshes);
 		inventory.refreshesUsed++;
 		RefreshUtilityButtons();
 		upgradePicker.ShuffleUpgrades(encounterType);
@@ -171,7 +171,7 @@ public class LevelupScreen : BaseEncounterWindow
 	public void StartBanish()
 	{
 		var inventory = MyPlayer.Instance.inventory;
-		if (inventory.banishes > 0 && inventory.gold >= GetShopToolPrice(inventory.banishesUsed))
+		if (GetBanishes() > 0 && inventory.gold >= GetShopToolPrice(inventory.banishesUsed))
 			upgradePicker.StartBanishMode();
 	}
 
@@ -179,7 +179,7 @@ public class LevelupScreen : BaseEncounterWindow
 	{
 		var inventory = MyPlayer.Instance.inventory;
 		int price = GetShopToolPrice(inventory.banishesUsed);
-		if (inventory.banishes <= 0 || inventory.gold < price) return;
+		if (GetBanishes() <= 0 || inventory.gold < price) return;
 		inventory.ChangeGold(-price);
 		DecrementBanishes();
 		upgradePicker.StopBanishMode();
@@ -188,17 +188,17 @@ public class LevelupScreen : BaseEncounterWindow
 
 	private int GetSkips()
 	{
-		return MyPlayer.Instance.inventory.skips;
+		return OpenBonkOfferTools.Available(MyPlayer.Instance.inventory.skips);
 	}
 
 	private int GetRefreshes()
 	{
-		return MyPlayer.Instance.inventory.refreshes;
+		return OpenBonkOfferTools.Available(MyPlayer.Instance.inventory.refreshes);
 	}
 
 	public int GetBanishes()
 	{
-		return MyPlayer.Instance.inventory.banishes;
+		return OpenBonkOfferTools.Available(MyPlayer.Instance.inventory.banishes);
 	}
 
 	private int GetSkipsUsed()
@@ -218,16 +218,16 @@ public class LevelupScreen : BaseEncounterWindow
 
 	public void DecrementBanishes()
 	{
-		MyPlayer.Instance.inventory.banishes--;
+		MyPlayer.Instance.inventory.banishes = OpenBonkOfferTools.Consume(MyPlayer.Instance.inventory.banishes);
 		MyPlayer.Instance.inventory.banishesUsed++;
 	}
 
 	private void RefreshUtilityButtons()
 	{
 		var inventory = MyPlayer.Instance.inventory;
-		if (inventory.skips > 0) hasSkips = true;
-		if (inventory.refreshes > 0) hasRefreshes = true;
-		if (inventory.banishes > 0) hasBanishes = true;
+		if (GetSkips() > 0) hasSkips = true;
+		if (GetRefreshes() > 0) hasRefreshes = true;
+		if (GetBanishes() > 0) hasBanishes = true;
 		bool allowTools = encounterType != EEncounter.ShadyGuy;
 		if (b_skip != null) { b_skip.gameObject.SetActive(allowTools && hasSkips); b_skip.SetAmount(GetSkips(), GetShopToolPrice(GetSkipsUsed())); }
 		if (b_refresh != null) { b_refresh.gameObject.SetActive(allowTools && hasRefreshes); b_refresh.SetAmount(GetRefreshes(), GetShopToolPrice(GetRefreshesUsed())); }

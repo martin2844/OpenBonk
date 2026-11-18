@@ -1,0 +1,6 @@
+{
+  "id": "offer-tools",
+  "api": 1,
+  "enabled": false,
+  "hook": "unlimited_offer_tools"
+}
