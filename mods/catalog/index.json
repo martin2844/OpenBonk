@@ -54,6 +54,33 @@
       "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.5-beta/item-lab.zip",
       "size": 504,
       "sha256": "f4d0659bbc4f844122af599b60a6cea8293a32c1937915c55530cf1cdbc75af4"
+    },
+    {
+      "id": "chest-tracker",
+      "name": "Chest Tracker",
+      "description": "Show unopened and total chests; shrine and vendor tracking not included. Requires OpenBonk 0.1.7 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.7-beta/chest-tracker.zip",
+      "size": 451,
+      "sha256": "ef3baee66c22806413446e0c1fd37e4a2bdfe4c6c8b80f5802d5c03a4cf52e93"
+    },
+    {
+      "id": "minimap-zoom",
+      "name": "Minimap Zoom",
+      "description": "Increase minimap coverage; a focused Better Minimap adaptation. Requires OpenBonk 0.1.7 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.7-beta/minimap-zoom.zip",
+      "size": 534,
+      "sha256": "3a098b367ddbee5d1da3eee3a6199b402cb26cb653942e4f6cd5a63bac0d3d77"
+    },
+    {
+      "id": "toggle-everything",
+      "name": "Toggle Everything",
+      "description": "Allow the Toggler to control weapons, tomes and items. Requires OpenBonk 0.1.7 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.7-beta/toggle-everything.zip",
+      "size": 460,
+      "sha256": "26e7a7dbd0534d5efef2f3d782806771e8c5d8783d54c77837de2c7640030992"
     }
   ]
 }
