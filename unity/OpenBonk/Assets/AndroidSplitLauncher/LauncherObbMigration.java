@@ -20,6 +20,23 @@ final class LauncherObbMigration {
 
     static void migrate(Context context, File destination) {
         if (destination == null || destination.exists()) return;
+        if ("c7e714c4fe5be7d147e0225720dd4bc5d6d9f790432a016ab1ac99dedd67f60c".equals(SplitExpectedData.SHA256)) {
+            String target = "c7e714c4fe5be7d147e0225720dd4bc5d6d9f790432a016ab1ac99dedd67f60c";
+            migrateFrom(context, destination, 5, TARGET,
+                "fbd1e512b49d1ebae2c48f42e7bf9b518ee41054603471ab6d28bca9908d63cd",
+                "0.1.4-to-integration015.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 4, OLD,
+                "e0f5c18554d46c1b211d8e2016b7c6ffb8b5f4c1d3b818f863a887d4afadc668",
+                "0.1.3-to-integration015.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 3, OLD,
+                "e0f5c18554d46c1b211d8e2016b7c6ffb8b5f4c1d3b818f863a887d4afadc668",
+                "0.1.3-to-integration015.zst", target, 374365435L);
+            if (!destination.exists()) migrateFrom(context, destination, 2,
+                "c505401a92e8d9533c4d82237340a5d8946364169d8e64322af305d37ffc1afd",
+                "1f14c666658bbe70a0e8b0f0a3027cd99700c35e532d95ee68301d5f04bea42e",
+                "0.1.1-to-integration015.zst", target, 374365435L);
+            return;
+        }
         if (OLD.equals(SplitExpectedData.SHA256)) {
             migrateFrom(context, destination, 2,
                 "c505401a92e8d9533c4d82237340a5d8946364169d8e64322af305d37ffc1afd",

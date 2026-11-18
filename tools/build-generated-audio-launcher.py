@@ -440,6 +440,10 @@ def gradle_command(java, gradle_jar, runner=None, online=False):
 
 
 MIGRATION_PATCHES = {
+    'c7e714c4fe5be7d147e0225720dd4bc5d6d9f790432a016ab1ac99dedd67f60c': (
+        ('0.1.1-to-integration015.zst', '1f14c666658bbe70a0e8b0f0a3027cd99700c35e532d95ee68301d5f04bea42e'),
+        ('0.1.3-to-integration015.zst', 'e0f5c18554d46c1b211d8e2016b7c6ffb8b5f4c1d3b818f863a887d4afadc668'),
+        ('0.1.4-to-integration015.zst', 'fbd1e512b49d1ebae2c48f42e7bf9b518ee41054603471ab6d28bca9908d63cd')),
     '9011ea73423c8418db7f7d0895c515b98a23001e947fd227b83c221a04e37475': (
         ('0.1.1-to-0.1.2.zst', '12ad4f8dbd7a6f62a79ddbcf6039f1f73af5d11cb9ed260b0cd424de6646c7c5'),),
     'c3a42cbb1b38bdf89ee0e8175b81f2f70da4206e9a4862a67b11cda7cf3adf34': (
@@ -452,6 +456,8 @@ def verified_migration_patches(expected_sha, version_code, root=ROOT):
     patches = MIGRATION_PATCHES.get(expected_sha)
     if patches is None:
         raise ValueError('no pinned OBB migration for the expected game data')
+    if len(patches) == 3 and (version_code is None or version_code < 6):
+        raise ValueError('integration 0.1.5 migration requires version code 6 or later')
     if len(patches) == 2 and (version_code is None or version_code < 5):
         raise ValueError('integration migration requires version code 5 or later')
     paths = []

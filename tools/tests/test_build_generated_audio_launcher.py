@@ -21,6 +21,10 @@ class GeneratedAudioBuildTest(unittest.TestCase):
         new_target = 'c3a42cbb1b38bdf89ee0e8175b81f2f70da4206e9a4862a67b11cda7cf3adf34'
         self.assertEqual(len(MODULE.verified_migration_patches(old_target, 2)), 1)
         self.assertEqual(len(MODULE.verified_migration_patches(new_target, 5)), 2)
+        integrated_target = 'c7e714c4fe5be7d147e0225720dd4bc5d6d9f790432a016ab1ac99dedd67f60c'
+        self.assertEqual(len(MODULE.verified_migration_patches(integrated_target, 6)), 3)
+        with self.assertRaisesRegex(ValueError, 'version code'):
+            MODULE.verified_migration_patches(integrated_target, 5)
         with self.assertRaisesRegex(ValueError, 'version code'):
             MODULE.verified_migration_patches(new_target, 4)
         with self.assertRaisesRegex(ValueError, 'no pinned'):
