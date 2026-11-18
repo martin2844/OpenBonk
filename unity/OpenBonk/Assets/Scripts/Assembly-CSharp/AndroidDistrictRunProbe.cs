@@ -142,7 +142,7 @@ internal sealed class AndroidDistrictRunProbe : MonoBehaviour
 
     private static bool StageReady(int index, MyPlayer previous) =>
         MapController.index == index && MapController.currentMap is OpenBonkExternalMapData map &&
-        map.GetInternalName() == "openbonk.distrito-nimbo:distrito-nimbo" && MyPlayer.Instance != null &&
+        map.GetInternalName() == "distrito-nimbo:distrito-nimbo" && MyPlayer.Instance != null &&
         MyPlayer.Instance != previous && MyPlayer.Instance.hasStarted && !MyPlayer.Instance.isTeleporting &&
         MyPlayer.Instance.inventory != null && GameManager.Instance != null && GameManager.Instance.IsPlaying() &&
         !GameManager.Instance.cutscene && EnemyManager.Instance?.summonerController != null;

@@ -144,7 +144,7 @@ def build(destination, prop_bundle):
     manifest = {
         "api": 3,
         "kind": "content",
-        "id": "openbonk.distrito-nimbo",
+        "id": "distrito-nimbo",
         "map": {
             "id": "distrito-nimbo",
             "name": "Distrito Nimbo",
