@@ -1,0 +1,6 @@
+{
+  "id": "minimap-zoom",
+  "api": 1,
+  "enabled": false,
+  "hook": "minimap_zoom"
+}

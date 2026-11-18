@@ -1,6 +1,11 @@
 // Separate opt-in policies; a false result must never enable either feature.
 public static class OpenBonkOptionalUiPolicy
 {
+    public static bool TryApplyMinimap(string hook, double value)
+    {
+        return hook == "minimap_zoom" && OpenBonkMinimapPolicy.TrySetZoom(value);
+    }
+
     public static void Apply(string hook, bool enabled)
     {
         if (!enabled) return;

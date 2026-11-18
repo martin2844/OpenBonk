@@ -38,6 +38,7 @@ namespace Assets.Scripts.Camera
 
 		private void Start()
 		{
+			OpenBonkMinimapPolicy.Apply(minimapCamera);
 			TryFindBossSpawner();
 			Invoke(nameof(TryFindBossSpawner), 2f);
 			Invoke(nameof(TryFindBossSpawner), 5f);

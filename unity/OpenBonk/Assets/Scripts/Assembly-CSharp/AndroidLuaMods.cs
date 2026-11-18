@@ -104,7 +104,7 @@ internal static class AndroidLuaMods
         MyPlayer.A_PlayerInventoryInitialized += Apply;
     }
 
-    private static bool StartupPolicyManifest(Manifest manifest) => manifest != null && manifest.api == 1 && (manifest.hook == "unlock_all" || manifest.hook == "collect_spawned_xp" || manifest.hook == "auto_open_pots" || manifest.hook == "item_lab" || manifest.hook == "chest_tracker") && ValidRefresh(manifest);
+    private static bool StartupPolicyManifest(Manifest manifest) => manifest != null && manifest.api == 1 && (manifest.hook == "unlock_all" || manifest.hook == "collect_spawned_xp" || manifest.hook == "auto_open_pots" || manifest.hook == "item_lab" || manifest.hook == "chest_tracker" || manifest.hook == "minimap_zoom") && ValidRefresh(manifest);
 
     private static void LoadStartupPolicies()
     {
@@ -113,6 +113,7 @@ internal static class AndroidLuaMods
         OpenBonkWorldPolicy.SetAutoOpenPots(false);
         OpenBonkItemGrantPolicy.SetEnabled(false);
         OpenBonkChestTracker.SetEnabled(false);
+        OpenBonkMinimapPolicy.Reset();
         string root = Path.Combine(Application.persistentDataPath, "Mods");
         if (!Directory.Exists(root)) return;
         try
@@ -133,7 +134,14 @@ internal static class AndroidLuaMods
                     if (source.IndexOf('\0') >= 0) throw new InvalidDataException("NUL in script");
                     var error = new byte[256];
                     int status = megabonk_lua_eval(Encoding.UTF8.GetBytes(source + "\0"), out double result, error, (UIntPtr)error.Length);
-                    if (status != 0 || (result != 0 && result != 1)) throw new InvalidDataException("startup policy must return 0 or 1");
+                    if (status != 0) throw new InvalidDataException("Lua startup policy failed");
+                    if (manifest.hook == "minimap_zoom")
+                    {
+                        if (!OpenBonkOptionalUiPolicy.TryApplyMinimap(manifest.hook, result)) throw new InvalidDataException("minimap zoom must be between 1 and 4");
+                        Debug.Log($"Lua minimap zoom loaded: {manifest.id} zoom={result}");
+                        continue;
+                    }
+                    if (result != 0 && result != 1) throw new InvalidDataException("startup policy must return 0 or 1");
                     if (result == 1 && manifest.hook == "unlock_all") OpenBonkUnlockPolicy.SetEnabled(true);
                     if (result == 1 && manifest.hook == "collect_spawned_xp") OpenBonkPickupPolicy.SetCollectXpImmediately(true);
                     if (result == 1 && manifest.hook == "auto_open_pots") OpenBonkWorldPolicy.SetAutoOpenPots(true);

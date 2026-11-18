@@ -1,0 +1,9 @@
+# Minimap Zoom (research prototype)
+
+This independent Lua policy is inspired by the zoom feature in [MegabonkBetterMinimap by wafuruns](https://thunderstore.io/c/megabonk/p/wafuruns/MegabonkBetterMinimap/). No upstream code, assets or license have been incorporated; no upstream license was identified.
+
+It sets the game's minimap camera's orthographic size to a multiplier between 1 and 4; its default is 2. It does not modify the separate full-map camera or saved profile. OpenBonk already provides a minimap size setting and a full map. Disabling the policy and restarting restores the ordinary minimap camera.
+
+This is a limited research adaptation, not a full port: it does not implement the original's live zoom or resize hotkeys, extra icons, pickup statistics, map rating, performance toggles or quick reset. Configuration requires changing the Lua file before import. It needs a future host with the `minimap_zoom` hook and is not in the public catalog; current released APKs cannot run it. Device validation, handling of all map variants, visual fidelity and performance remain untested.
+
+An isolated Xiaomi IL2CPP diagnostic loaded the policy with a test manifest and displayed the zoomed minimap in Forest. The ordinary full map opened from the pause menu and displayed its map and markers. After disabling the test manifest and restarting, a new run showed a visually closer minimap. The enabled and disabled runs used different random maps, so screenshots do not establish an exact zoom ratio; an Editor camera test separately verifies the 2× orthographic-size calculation. The test used an embedded-data diagnostic and did not exercise import, enablement or disablement through the launcher. After the Android test, the numeric dispatch was refactored and verified in Editor, but that final dispatch has not yet been retested on Android. Physical controller and long-run behavior remain untested.
