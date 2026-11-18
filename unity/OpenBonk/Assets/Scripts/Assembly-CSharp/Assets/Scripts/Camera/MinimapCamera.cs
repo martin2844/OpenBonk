@@ -83,7 +83,7 @@ namespace Assets.Scripts.Camera
 				MyPlayer player = MyPlayer.Instance;
 				if (player.inventory != null && player.inventory.playerHealth != null && player.inventory.playerHealth.IsDead())
 				{
-					if (transform.parent != null) transform.parent = null;
+					if (GameManager.Instance?.IsRetryPending != true && transform.parent != null) transform.parent = null;
 					return;
 				}
 				if (player.playerInput != null && playerIcon != null)

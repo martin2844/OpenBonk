@@ -47,6 +47,12 @@ public static class SaveRecoveryPortCheck
             Check((GameManager.A_GameOver?.GetInvocationList().Length ?? 0) == initialGameOverListeners + 1, "encrypted recovery replaces progression listener");
             save.SaveStats(); save.SaveProgression();
             Check(File.ReadAllText(stats + ".bak") == statsBackup && File.ReadAllText(progress + ".bak") == progressionBackup, "first encrypted saves preserve backups");
+            File.Delete(stats); File.Delete(progress); SaveManager.loaded = false;
+            Check(save.Load(0, false, out reason, out failPath), "normal boot recovers missing primary files: " + reason);
+            Check(save.stats.stats["runs"].value == 12 && save.progression.silver == 123, "missing primary recovers real progress before defaults");
+            save.SaveStats(); save.SaveProgression();
+            Check(File.Exists(stats) && File.Exists(progress) && File.ReadAllText(stats + ".bak") == statsBackup &&
+                File.ReadAllText(progress + ".bak") == progressionBackup, "new primaries preserve the recovery copies");
             string[] files = { config, config + ".bak", stats, stats + ".bak", progress, progress + ".bak" }; var before = new string[files.Length];
             for (int i=0; i<files.Length; i++) before[i] = File.ReadAllText(files[i]);
             Action onLoaded = () => { save.SaveConfig(); save.SaveStats(); save.SaveProgression(); };

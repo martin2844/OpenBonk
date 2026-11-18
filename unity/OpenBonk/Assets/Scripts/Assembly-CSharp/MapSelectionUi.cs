@@ -1,6 +1,7 @@
 using System;
 using Assets.Scripts.Managers;
 using Assets.Scripts.Game.Other;
+using Assets.Scripts.Saves___Serialization.Progression;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -72,13 +73,8 @@ public class MapSelectionUi : Window
 		if (mapSelectionGroup != null)
 		{
 			mapSelectionGroup.FindButtons();
-			for (int i = 0; ; i++)
-			{
-				var candidate = mapSelectionGroup.GetButton(i);
-				if (candidate == null) break;
-				var entry = candidate.GetComponent<MapEntry>();
-				if (entry != null && entry.mapData == runConfig.mapData) { mapSelectionGroup.ForceSelect(i); break; }
-			}
+			int index = FindSavedMapIndex(SaveManager.Instance?.progression?.menuMeta);
+			if (index >= 0) mapSelectionGroup.ForceSelect(index);
 		}
 		if (tierSelectionGroup != null) tierSelectionGroup.FindButtons();
 		if (mapStatsWindow != null) mapStatsWindow.RefreshTiers();
@@ -96,6 +92,26 @@ public class MapSelectionUi : Window
 		A_RunConfigChanged?.Invoke(runConfig);
 	}
 
+	private int FindSavedMapIndex(MenuMeta meta)
+	{
+		int fallbackIndex = -1;
+		int savedMapIndex = -1;
+		for (int i = 0; mapSelectionGroup.GetButton(i) is SelectionGroupToggleSingleButton button; i++)
+		{
+			var map = button.GetComponent<MapEntry>()?.mapData;
+			if (!button.canSelect || map?.stages == null || map.stages.Length == 0) continue;
+			if (fallbackIndex < 0 || map == runConfig.mapData) fallbackIndex = i;
+			if (meta == null) continue;
+			if (map is OpenBonkExternalMapData external)
+			{
+				if (!string.IsNullOrEmpty(meta.LastSelectedModMap) && external.externalId == meta.LastSelectedModMap)
+					return i;
+			}
+			else if (map.eMap == meta.lastSelectedMap) savedMapIndex = i;
+		}
+		return savedMapIndex >= 0 ? savedMapIndex : fallbackIndex;
+	}
+
 	private void OnMapSelected(SelectionGroupToggleSingleButton btn)
 	{
 		MapEntry entry = btn == null ? null : btn.GetComponent<MapEntry>();
@@ -104,6 +120,7 @@ public class MapSelectionUi : Window
 		isSelectingMap = true;
 		if (runConfig.mapData != entry.mapData && challengesUi != null) challengesUi.SetNone();
 		mapBtn = btn;
+		startBtn = btn;
 		runConfig.mapData = entry.mapData;
 		if (mapStatsWindow != null) mapStatsWindow.RefreshTiers();
 		int selectedTier = SaveManager.Instance != null && SaveManager.Instance.progression != null

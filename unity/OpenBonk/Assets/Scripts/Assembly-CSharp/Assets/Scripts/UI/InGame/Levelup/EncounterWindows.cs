@@ -111,6 +111,11 @@ namespace Assets.Scripts.UI.InGame.Levelup
 			A_WindowOpened?.Invoke();
 		}
 
+		internal void ResumeQueuedRewards()
+		{
+			if (!encounterInProgress) PopReward();
+		}
+
 		private void OnInventoryInitialized(PlayerInventory inventory)
 		{
 			currentLevel = inventory.playerXp.level;

@@ -15,6 +15,9 @@ namespace Assets.Scripts.Saves___Serialization.Progression
 
 		public EMap lastSelectedMap = EMap.Forest;
 
+		[JsonProperty("lastSelectedModMap", NullValueHandling = NullValueHandling.Ignore), UnityEngine.Scripting.Preserve]
+		internal string LastSelectedModMap { get; private set; }
+
 		public Dictionary<EMap, MapProgress> mapsProgress = new Dictionary<EMap, MapProgress>();
 
 		private int numRunsForUnlocks = 1;
@@ -78,6 +81,18 @@ namespace Assets.Scripts.Saves___Serialization.Progression
 		public void SetTier(EMap map, int tier)
 		{
 			GetMapProgress(map).lastSelectTier = tier;
+		}
+
+		public void RememberRun(MapData map, int tier)
+		{
+			if (map is OpenBonkExternalMapData external)
+				LastSelectedModMap = external.externalId;
+			else
+			{
+				lastSelectedMap = map.eMap;
+				LastSelectedModMap = null;
+			}
+			SetTier(map.eMap, tier);
 		}
 
 		public void SetTierCompletion(EMap map, int tier)

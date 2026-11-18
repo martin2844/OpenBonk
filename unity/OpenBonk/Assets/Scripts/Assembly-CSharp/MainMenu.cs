@@ -144,11 +144,7 @@ public class MainMenu : MonoBehaviour
 		AndroidPerformanceSettings.ConfigureMenuCamera(menuCamera != null ? menuCamera.camera : null);
 		MarkAndroidMenuReady();
 #endif
-		if (SaveManager.loaded && SaveManager.Instance != null)
-		{
-			SaveManager.Instance.SaveProgression();
-			SaveManager.Instance.SaveStats();
-		}
+		if (SaveManager.Instance != null) SaveManager.Instance.SaveProfile();
 		RefreshButtons();
 		if (mapSelectionUi != null)
 		{
@@ -522,6 +518,10 @@ public class MainMenu : MonoBehaviour
 		AlwaysUi.Instance.dynamicWindows.NewWindowPrompt(
 			Assets.Scripts.UI.Localization.LocalizationUtility.GetLocalizedString("Main Menu", "MENU_BUTTON_EXIT_GAME"),
 			Assets.Scripts.UI.Localization.LocalizationUtility.GetLocalizedString("DynamicWindows", "EXIT_GAME"),
-			() => Application.Quit());
+			() =>
+			{
+				if (SaveManager.Instance != null) SaveManager.Instance.FlushSaves();
+				Application.Quit();
+			});
 	}
 }

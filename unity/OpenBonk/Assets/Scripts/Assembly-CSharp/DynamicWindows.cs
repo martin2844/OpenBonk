@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Localization.Settings;
 using Assets.Scripts.UI.DynamicWindows;
 
 public class DynamicWindows : MonoBehaviour
@@ -47,5 +48,21 @@ public class DynamicWindows : MonoBehaviour
 	public void NewWindowPrompt(string header, string content, Action A_Accept)
 	{
 		Instantiate(dynamicWindowPromptPrefab, contentParent).GetComponent<DWindowPrompt>().Set(header, content, A_Accept);
+	}
+
+	internal DWindowPrompt TryShowRunRetry(Action retry, Action endRun)
+	{
+		if (dynamicWindowPromptPrefab == null || contentParent == null) return null;
+		var prompt = Instantiate(dynamicWindowPromptPrefab, contentParent).GetComponent<DWindowPrompt>();
+		bool spanish = LocalizationSettings.SelectedLocale?.Identifier.Code.StartsWith("es", StringComparison.OrdinalIgnoreCase) == true;
+		if (!prompt.SetChoices(spanish ? "Reintentar" : "Retry", spanish ? "Terminar partida" : "End run", endRun))
+		{
+			prompt.gameObject.SetActive(false);
+			Destroy(prompt.gameObject);
+			return null;
+		}
+		prompt.Set(spanish ? "Has caído" : "You died",
+			spanish ? "Reviví con toda la vida y seguí desde donde caíste." : "Revive at full health and continue from where you fell.", retry);
+		return prompt;
 	}
 }

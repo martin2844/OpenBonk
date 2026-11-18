@@ -59,8 +59,11 @@ namespace Assets.Scripts.Managers
 #endif
 		isFinalBossStage = false;
 		currentMap = newRunConfig.mapData;
-		if (currentMap != null && SaveManager.Instance != null && SaveManager.Instance.progression != null)
-			SaveManager.Instance.progression.menuMeta.SetTier(currentMap.eMap, newRunConfig.mapTierIndex);
+		if (currentMap != null && SaveManager.Instance?.progression?.menuMeta != null)
+		{
+			SaveManager.Instance.progression.menuMeta.RememberRun(currentMap, newRunConfig.mapTierIndex);
+			SaveManager.Instance.SaveProgression();
+		}
 		if (newRunConfig.stageData == null && currentMap != null && currentMap.stages != null && currentMap.stages.Length > 0)
 		{
 			newRunConfig.stageData = currentMap.stages[0];

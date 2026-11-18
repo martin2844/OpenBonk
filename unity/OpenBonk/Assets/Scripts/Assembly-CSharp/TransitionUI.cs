@@ -164,6 +164,7 @@ public class TransitionUI : MonoBehaviour
 
 	public void LoadMenu()
 	{
+		if (SaveManager.Instance != null) SaveManager.Instance.SaveProfile();
 		StartLoadingMap(sceneMainMenuName);
 	}
 

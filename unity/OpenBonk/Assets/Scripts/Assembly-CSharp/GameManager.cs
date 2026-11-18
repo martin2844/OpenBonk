@@ -14,6 +14,7 @@ using Assets.Scripts.Saves___Serialization.Progression.Challenges;
 using Assets.Scripts.Game.Spawning;
 using Assets.Scripts.Actors.Enemies;
 using Actors.Enemies;
+using Assets.Scripts.UI.DynamicWindows;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -140,6 +141,14 @@ public class GameManager : MonoBehaviour
 
 	public bool cutscene;
 
+	internal static bool RetryEnabled { get; set; }
+
+	private DWindowPrompt retryPrompt;
+	private PlayerHealth pendingRetry;
+	private bool wasPausedBeforeRetry;
+
+	internal bool IsRetryPending => pendingRetry != null;
+
 	public bool isGameOver { get; private set; }
 
 	public bool isCrypt { get; private set; }
@@ -227,6 +236,7 @@ public class GameManager : MonoBehaviour
 
 	private void OnDestroy()
 	{
+		CloseRetryPrompt();
 		ResumeEnemyGroundCollision();
 		PlayerHealth.A_Died -= OnDied;
 		EnemyManager.A_StageBossDied -= OnStageBossDied;
@@ -262,9 +272,60 @@ public class GameManager : MonoBehaviour
 
 	private void OnDied()
 	{
+		if (isGameOver) return;
+		CloseRetryPrompt();
 		isGameOver = true;
 		A_GameOver?.Invoke();
+		if (SaveManager.Instance != null) SaveManager.Instance.SaveProfile();
 		StartCoroutine(DoDeathAnimation());
+	}
+
+	internal bool TryOfferRetry(PlayerHealth health)
+	{
+		if (pendingRetry != null) return pendingRetry == health;
+		if (!RetryEnabled || !isPlaying || isGameOver || cutscene || GetPlayerInventory()?.playerHealth != health ||
+			health.maxHp <= 0 || MyPlayer.Instance.isTeleporting ||
+			(TransitionUI.Instance != null && TransitionUI.Instance.isTransitioning)) return false;
+
+		var windows = AlwaysUi.Instance != null ? AlwaysUi.Instance.dynamicWindows : null;
+		retryPrompt = windows?.TryShowRunRetry(RetryRun, EndRunAfterRetryOffer);
+		if (retryPrompt == null) return false;
+
+		pendingRetry = health;
+		wasPausedBeforeRetry = MyTime.paused;
+		cutscene = true;
+		if (!wasPausedBeforeRetry) MyTime.Pause();
+		return true;
+	}
+
+	private void RetryRun()
+	{
+		var health = pendingRetry;
+		CloseRetryPrompt();
+		if (health == null) return;
+		cutscene = false;
+		health.RestoreForRetry();
+		if (!wasPausedBeforeRetry) MyTime.Unpause();
+		var encounters = UiManager.Instance != null ? UiManager.Instance.encounterWindows : null;
+		encounters?.ResumeQueuedRewards();
+	}
+
+	private void EndRunAfterRetryOffer()
+	{
+		var health = pendingRetry;
+		CloseRetryPrompt();
+		health?.CompleteDeath();
+	}
+
+	private void CloseRetryPrompt()
+	{
+		pendingRetry = null;
+		if (retryPrompt != null && retryPrompt.gameObject.activeSelf)
+		{
+			retryPrompt.gameObject.SetActive(false);
+			Destroy(retryPrompt.gameObject);
+		}
+		retryPrompt = null;
 	}
 
 	public void OnTeleportAway()
@@ -277,7 +338,6 @@ public class GameManager : MonoBehaviour
 	{
 		cutscene = true;
 		yield return new WaitForSeconds(0.1f);
-		if (SaveManager.Instance != null) { SaveManager.Instance.SaveProgression(); SaveManager.Instance.SaveStats(); }
 		MyPlayer currentPlayer = MyPlayer.Instance;
 		currentPlayer.playerRenderer.ResetMaterial();
 		MyTime.Pause();

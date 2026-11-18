@@ -74,20 +74,27 @@ public class SaveManager : MonoBehaviour
 
 	private void OnApplicationQuit()
 	{
-		SaveConfig();
-		SaveStats();
-		SaveProgression();
+		if (Instance == this) FlushSaves();
 	}
 
 #if UNITY_ANDROID && !UNITY_EDITOR
 	private void OnApplicationPause(bool paused)
 	{
-		if (!paused || Instance != this) return;
-		SaveConfig();
-		SaveStats();
-		SaveProgression();
+		if (paused && Instance == this) FlushSaves();
 	}
 #endif
+
+	internal void FlushSaves()
+	{
+		SaveConfig();
+		SaveProfile();
+	}
+
+	internal void SaveProfile()
+	{
+		SaveProgression();
+		SaveStats();
+	}
 
 	public void SaveConfig()
 	{
@@ -153,6 +160,12 @@ public class SaveManager : MonoBehaviour
 	private static string GetLocalFolder()
 	{
 		return Path.Combine(GetDataPath(), localDirectory);
+	}
+
+	private static string GetReadPath(string path, bool loadBackup)
+	{
+		string backup = path + ".bak";
+		return (loadBackup || !File.Exists(path)) && File.Exists(backup) ? backup : path;
 	}
 
 	private string GetConfigPath()
@@ -244,11 +257,6 @@ public class SaveManager : MonoBehaviour
 		string configPath = GetConfigPath();
 		string statsPath = GetStatsPath();
 		string progressionPath = GetProgressionPath();
-		// When a particular backup does not exist, retain its primary file. A
-		// missing backup must never silently replace an existing save with defaults.
-		string configReadPath = loadBackup && File.Exists(configPath + ".bak") ? configPath + ".bak" : configPath;
-		string statsReadPath = loadBackup && File.Exists(statsPath + ".bak") ? statsPath + ".bak" : statsPath;
-		string progressionReadPath = loadBackup && File.Exists(progressionPath + ".bak") ? progressionPath + ".bak" : progressionPath;
 		try
 		{
 			if (TEST_SAVES && !Directory.Exists(GetDataPath()) && Directory.Exists(GetDataPathDefault()))
@@ -263,6 +271,10 @@ public class SaveManager : MonoBehaviour
 			return false;
 		}
 
+		// Recover a missing primary before considering an empty profile.
+		string configReadPath = GetReadPath(configPath, loadBackup);
+		string statsReadPath = GetReadPath(statsPath, loadBackup);
+		string progressionReadPath = GetReadPath(progressionPath, loadBackup);
 		try
 		{
 			if (File.Exists(configReadPath))

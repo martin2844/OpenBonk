@@ -1,0 +1,6 @@
+{
+  "id": "retry",
+  "api": 1,
+  "enabled": false,
+  "hook": "retry_on_death"
+}

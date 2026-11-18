@@ -29,6 +29,7 @@ public class ResetRunUi : MonoBehaviour
 		var player = MyPlayer.Instance;
 		var windows = UiManager.Instance != null ? UiManager.Instance.encounterWindows : null;
 		if (player == null || player.inventory == null || PlayerInput.IsConsoleOpen() ||
+			GameManager.Instance?.IsRetryPending == true ||
 			windows == null || windows.HasEncounter() || (MyTime.paused && !player.IsDead()) ||
 			TransitionUI.Instance == null || TransitionUI.Instance.isTransitioning)
 		{

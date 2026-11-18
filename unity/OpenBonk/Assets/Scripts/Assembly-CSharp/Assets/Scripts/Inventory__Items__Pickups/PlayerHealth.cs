@@ -267,11 +267,8 @@ namespace Assets.Scripts.Inventory__Items__Pickups
 
 		public void KillPlayer()
 		{
-			if (hp <= 0) return;
-			hp = 0;
-			shield = 0f;
-			overheal = 0f;
-			A_Died?.Invoke();
+			if (hp <= 0 && GameManager.Instance?.IsRetryPending != true) return;
+			CompleteDeath();
 		}
 
 		public bool CheckStopDamage(DamageContainer dc, bool ignoreShield)
@@ -454,7 +451,25 @@ namespace Assets.Scripts.Inventory__Items__Pickups
 			hp = 0;
 			shield = 0f;
 			overheal = 0f;
+			if (GameManager.Instance != null && GameManager.Instance.TryOfferRetry(this)) return;
+			CompleteDeath();
+		}
+
+		internal void CompleteDeath()
+		{
+			hp = 0;
+			shield = 0f;
+			overheal = 0f;
 			A_Died?.Invoke();
+		}
+
+		internal void RestoreForRetry()
+		{
+			hp = maxHp;
+			shield = maxShield;
+			// Give the player time to move away from whatever landed the last hit.
+			damageCooldown = 1f;
+			A_MaxValuesChanged?.Invoke(this);
 		}
 
 		public bool IsDead()
