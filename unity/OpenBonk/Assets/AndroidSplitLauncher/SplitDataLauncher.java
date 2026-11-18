@@ -808,20 +808,12 @@ public final class SplitDataLauncher extends Activity {
             ArrayList<Boolean> defaults = new ArrayList<>();
             ArrayList<Boolean> usesLegacyPreference = new ArrayList<>();
             for (int i = 0; i < folders.length; i++) {
-                File file = new File(folders[i], "manifest.json");
-                if (!file.isFile() || file.length() > 65536) continue;
-                try (InputStream in = new FileInputStream(file); ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
-                    byte[] buffer = new byte[4096]; int read;
-                    while ((read = in.read(buffer)) != -1) {
-                        if (bytes.size() + read > 65536) throw new Exception("manifest too large");
-                        bytes.write(buffer, 0, read);
-                    }
-                    JSONObject manifest = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
-                    String id = manifest.optString("id", "");
-                    if (!id.equals(folders[i].getName()) || !(validModHooks(manifest) || (manifest.optInt("api") == 3 && "content".equals(manifest.optString("kind"))))) continue;
-                    boolean content = manifest.optInt("api") == 3 && "content".equals(manifest.optString("kind"));
-                    ids.add(id); defaults.add(!content && manifest.optBoolean("enabled", false)); usesLegacyPreference.add(!content);
-                } catch (Exception ignored) { }
+                JSONObject manifest = readInstalledMod(folders[i]);
+                if (manifest == null) continue;
+                boolean content = manifest.optInt("api") == 3;
+                ids.add(folders[i].getName());
+                defaults.add(!content && manifest.optBoolean("enabled", false));
+                usesLegacyPreference.add(!content);
             }
             if (ids.isEmpty()) {
                 showDialog(new AlertDialog.Builder(this).setTitle("Mods").setMessage(es ? "No hay mods disponibles." : "No mods available.").setNegativeButton(es ? "Cerrar" : "Close", null).setPositiveButton(es ? "Importar / restaurar" : "Import / restore", (d, w) -> showModActions(modsRoot)).create());
@@ -906,6 +898,23 @@ public final class SplitDataLauncher extends Activity {
     }
 
     static boolean validModHooks(JSONObject manifest) { return LauncherModHookValidation.validModHooks(manifest); }
+
+    private JSONObject readInstalledMod(File folder) {
+        File file = new File(folder, "manifest.json");
+        if (!file.isFile() || file.length() > 65536 || !new File(folder, "main.lua").isFile()) return null;
+        try (InputStream in = new FileInputStream(file); ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                if (bytes.size() + read > 65536) return null;
+                bytes.write(buffer, 0, read);
+            }
+            JSONObject manifest = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
+            if (!folder.getName().equals(manifest.optString("id"))) return null;
+            boolean content = manifest.optInt("api") == 3 && "content".equals(manifest.optString("kind"));
+            return content || validModHooks(manifest) ? manifest : null;
+        } catch (Exception ignored) { return null; }
+    }
 
     private boolean gameZipImported() {
         String generation = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).getString("game_zip_generation", "");
@@ -1239,6 +1248,9 @@ public final class SplitDataLauncher extends Activity {
         int widthDp = getResources().getConfiguration().screenWidthDp;
         int columns = widthDp >= 600 ? 2 : 1;
         int[] page = {0}; int perPage = modPageSize(widthDp >= 620 ? 217 : 253, 50) * columns;
+        File storage = getExternalFilesDir(null);
+        File modsRoot = storage == null ? null : new File(storage, "Mods");
+        Runnable[] refresh = new Runnable[1];
         Runnable render = () -> {
             results.removeAllViews(); String query = search.getText().toString().trim().toLowerCase(Locale.ROOT); ArrayList<JSONObject> matches = new ArrayList<>();
             for (int i = 0; i < entries.length(); i++) {
@@ -1256,17 +1268,58 @@ public final class SplitDataLauncher extends Activity {
                     rowGroup = new LinearLayout(this);
                     results.addView(rowGroup, new LinearLayout.LayoutParams(-1, dp(49)));
                 }
-                JSONObject item = matches.get(i); LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(4), dp(2), dp(4), dp(2));
+                JSONObject item = matches.get(i);
+                String id = item.optString("id");
+                JSONObject installed = modsRoot != null && id.matches("[A-Za-z0-9_-]{1,64}") ? readInstalledMod(new File(modsRoot, id)) : null;
+                String installedVersion = installed == null ? "" : installed.optString("version");
+                String catalogVersion = item.optString("version");
+                boolean hasUpdate = installed != null && newerModVersion(catalogVersion, installedVersion);
+                LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(4), dp(2), dp(4), dp(2));
                 LinearLayout info = new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); row.addView(info, new LinearLayout.LayoutParams(0, -2, 1));
                 TextView title = new TextView(this); title.setText(item.optString("name")); title.setTextColor(INK); title.setTypeface(MEDIUM); title.setSingleLine(true); title.setEllipsize(android.text.TextUtils.TruncateAt.END); info.addView(title);
                 TextView details = new TextView(this); details.setText(item.optString("description")); details.setTextColor(MUTED); details.setTextSize(12); details.setSingleLine(true); details.setEllipsize(android.text.TextUtils.TruncateAt.END); info.addView(details);
-                info.setFocusable(true); info.setOnClickListener(v -> showDialog(new AlertDialog.Builder(this).setTitle(item.optString("name")).setMessage(item.optString("version") + "\n\n" + item.optString("description")).setPositiveButton("OK", null).create()));
-                Button install = new Button(this); install.setText(es ? "Importar" : "Import"); styleButton(install, false);
-                install.setOnClickListener(v -> importOnlineMod(item)); LinearLayout.LayoutParams installParams = new LinearLayout.LayoutParams(dp(82), dp(36)); installParams.leftMargin = dp(6); row.addView(install, installParams); rowGroup.addView(row, new LinearLayout.LayoutParams(0, -1, 1));
+                String installedLabel = es ? "Instalado" : "Installed";
+                info.setFocusable(true);
+                info.setOnClickListener(v -> {
+                    String state = installed == null ? "" : installedLabel
+                        + (installedVersion.isEmpty() ? "" : " " + installedVersion) + "\n";
+                    AlertDialog.Builder detailsDialog = new AlertDialog.Builder(this)
+                        .setTitle(item.optString("name"))
+                        .setMessage(state + (es ? "Versión del catálogo: " : "Catalog version: ") + catalogVersion
+                            + "\n\n" + item.optString("description"))
+                        .setPositiveButton("OK", null);
+                    if (installed != null && installedVersion.isEmpty()) {
+                        detailsDialog.setNeutralButton(es ? "Reemplazar…" : "Replace…",
+                            (dialog, which) -> confirmModReplacement(item, refresh[0]));
+                    }
+                    showDialog(detailsDialog.create());
+                });
+                View action;
+                if (installed == null || hasUpdate) {
+                    Button importButton = new Button(this);
+                    importButton.setText(hasUpdate ? (es ? "Actualizar" : "Update") : (es ? "Importar" : "Import"));
+                    styleButton(importButton, false);
+                    importButton.setOnClickListener(v -> {
+                        if (hasUpdate) confirmModReplacement(item, refresh[0]);
+                        else importOnlineMod(item, refresh[0]);
+                    });
+                    action = importButton;
+                } else {
+                    TextView badge = uiText("✓ " + installedLabel, 12, LIME);
+                    badge.setGravity(Gravity.CENTER);
+                    badge.setTypeface(MEDIUM);
+                    badge.setBackground(shape(0xff32343a, LINE));
+                    action = badge;
+                }
+                LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(dp(88), dp(installed != null && !hasUpdate ? 29 : 36));
+                actionParams.setMarginStart(dp(6));
+                row.addView(action, actionParams);
+                rowGroup.addView(row, new LinearLayout.LayoutParams(0, -1, 1));
             }
             if (matches.isEmpty()) { TextView empty = new TextView(this); empty.setTextColor(Color.WHITE); empty.setText(es ? "No se encontraron mods." : "No mods found."); results.addView(empty); }
             pageLabel.setText((page[0] + 1) + " / " + pages + "  ·  " + matches.size()); previous.setEnabled(page[0] > 0); next.setEnabled(page[0] + 1 < pages);
         };
+        refresh[0] = () -> { if (results.isAttachedToWindow()) render.run(); };
         previous.setOnClickListener(v -> { if (page[0] > 0) { page[0]--; render.run(); } });
         next.setOnClickListener(v -> { page[0]++; render.run(); });
         search.addTextChangedListener(new android.text.TextWatcher() {
@@ -1279,7 +1332,26 @@ public final class SplitDataLauncher extends Activity {
         back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); catalogCard.addView(back, new LinearLayout.LayoutParams(dp(106), dp(36)));
     }
 
-    void importOnlineMod(JSONObject item) {
+    private static boolean newerModVersion(String catalog, String installed) {
+        String numericVersion = "[0-9]{1,9}\\.[0-9]{1,9}\\.[0-9]{1,9}";
+        if (!catalog.matches(numericVersion) || !installed.matches(numericVersion)) return false;
+        String[] remote = catalog.split("\\.");
+        String[] local = installed.split("\\.");
+        for (int i = 0; i < remote.length; i++) {
+            int comparison = Integer.compare(Integer.parseInt(remote[i]), Integer.parseInt(local[i]));
+            if (comparison != 0) return comparison > 0;
+        }
+        return false;
+    }
+
+    private void confirmModReplacement(JSONObject item, Runnable refresh) {
+        showDialog(new AlertDialog.Builder(this).setTitle(item.optString("name"))
+            .setMessage(es ? "Esto reemplaza el mod instalado y lo deja desactivado." : "This replaces the installed mod and leaves it disabled.")
+            .setNegativeButton(es ? "Cancelar" : "Cancel", null)
+            .setPositiveButton(es ? "Reemplazar" : "Replace", (dialog, which) -> importOnlineMod(item, refresh)).create());
+    }
+
+    private void importOnlineMod(JSONObject item, Runnable refresh) {
         if (!IMPORT_GATE.begin()) { modHint.setText(es ? "Ya hay una importación en curso." : "An import is already in progress."); return; }
         setImportBusy(); modHint.setText(es ? "Descargando mod…" : "Downloading mod…");
         final long generation = IMPORT_GATE.generation();
@@ -1297,7 +1369,7 @@ public final class SplitDataLauncher extends Activity {
             IMPORT_GATE.modResult(id, error, false); final String failure = error;
             runOnUiThread(() -> { if (isFinishing() || isDestroyed() || IMPORT_GATE.generation() != generation) return;
                 setReady(dataReady); showModImportResult();
-                if (failure == null) { modCard.setVisibility(View.VISIBLE); catalogCard.setVisibility(View.GONE); }
+                if (failure == null) refresh.run();
                 else showCatalogError(failure);
             });
         }, "openbonk-online-mod");
