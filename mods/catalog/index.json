@@ -27,6 +27,33 @@
       "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.4-beta/instant-collect.zip",
       "size": 509,
       "sha256": "4adc5d73b28766fbd91d63d1eaa6c042341c100f66728f15fee46e399dcb0113"
+    },
+    {
+      "id": "lucky-tome",
+      "name": "Lucky Tome",
+      "description": "Start with a level 99 Luck tome. Requires OpenBonk 0.1.5 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.5-beta/lucky-tome.zip",
+      "size": 513,
+      "sha256": "4085ccf3b6833d9e47429a8b9df7fd99ca5b861e4e694b267467802f5f4dbe4e"
+    },
+    {
+      "id": "auto-pots",
+      "name": "Auto Pots",
+      "description": "Open nearby pots automatically while playing. Requires OpenBonk 0.1.5 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.5-beta/auto-pots.zip",
+      "size": 488,
+      "sha256": "7d70a544e6ac2a6c33414b0acd30f2a27aa4fce0bc56e46cfe66cf07dd1cda95"
+    },
+    {
+      "id": "item-lab",
+      "name": "Item Lab",
+      "description": "Search and add items from the pause menu; can affect progress. Requires OpenBonk 0.1.5 or newer.",
+      "version": "1.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.5-beta/item-lab.zip",
+      "size": 504,
+      "sha256": "f4d0659bbc4f844122af599b60a6cea8293a32c1937915c55530cf1cdbc75af4"
     }
   ]
 }
