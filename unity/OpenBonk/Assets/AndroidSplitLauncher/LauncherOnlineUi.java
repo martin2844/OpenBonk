@@ -22,8 +22,8 @@ final class LauncherOnlineUi {
     private static final java.util.concurrent.atomic.AtomicBoolean DOWNLOADING = new java.util.concurrent.atomic.AtomicBoolean();
     private static boolean alive(SplitDataLauncher a) { return !a.isFinishing() && !a.isDestroyed(); }
     private static void error(SplitDataLauncher a, boolean es, Exception e) {
-        a.runOnUiThread(() -> { if (alive(a)) new AlertDialog.Builder(a).setTitle(es ? "No se pudo completar" : "Could not complete")
-            .setMessage(LauncherImportError.describe(e, es)).setPositiveButton("OK", null).show(); });
+        a.runOnUiThread(() -> { if (alive(a)) a.showDialog(new AlertDialog.Builder(a).setTitle(es ? "No se pudo completar" : "Could not complete")
+            .setMessage(LauncherImportError.describe(e, es)).setPositiveButton("OK", null).create()); });
     }
     static void browse(SplitDataLauncher a, boolean es) {
         a.showCatalogLoading();
@@ -43,20 +43,20 @@ final class LauncherOnlineUi {
                 long version = info.getLong("version_code");
                 long installed = a.getPackageManager().getPackageInfo(a.getPackageName(), 0).versionCode;
                 a.runOnUiThread(() -> { if (!alive(a)) return;
-                    if (version <= installed && !automatic) new AlertDialog.Builder(a).setMessage(es ? "Ya tenés la última versión publicada." : "You have the latest published version.").setPositiveButton("OK", null).show();
-                    else if (version > installed) new AlertDialog.Builder(a).setTitle(es ? "Actualización disponible" : "Update available")
+                    if (version <= installed && !automatic) a.showDialog(new AlertDialog.Builder(a).setMessage(es ? "Ya tenés la última versión publicada." : "You have the latest published version.").setPositiveButton("OK", null).create());
+                    else if (version > installed) a.showDialog(new AlertDialog.Builder(a).setTitle(es ? "Actualización disponible" : "Update available")
                         .setMessage(info.optString("tag") + "\n\n" + (es ? "Android te pedirá confirmar la instalación." : "Android will ask you to confirm installation."))
-                        .setNegativeButton(es ? "Cancelar" : "Cancel", null).setPositiveButton(es ? "Descargar" : "Download", (d, w) -> downloadUpdate(a, es, info)).show();
+                        .setNegativeButton(es ? "Cancelar" : "Cancel", null).setPositiveButton(es ? "Descargar" : "Download", (d, w) -> downloadUpdate(a, es, info)).create());
                 });
             } catch (Exception e) { if (!automatic) error(a, es, e); }
         }, "openbonk-update-check").start();
     }
     static void downloadUpdate(SplitDataLauncher a, boolean es, JSONObject info) {
         if (Build.VERSION.SDK_INT >= 26 && !a.getPackageManager().canRequestPackageInstalls()) {
-            new AlertDialog.Builder(a).setMessage(es ? "Permití que OpenBonk instale actualizaciones y volvé a buscar la actualización." : "Allow OpenBonk to install updates, then check again.")
+            a.showDialog(new AlertDialog.Builder(a).setMessage(es ? "Permití que OpenBonk instale actualizaciones y volvé a buscar la actualización." : "Allow OpenBonk to install updates, then check again.")
                 .setNegativeButton(es ? "Cancelar" : "Cancel", null).setPositiveButton(es ? "Abrir ajustes" : "Open settings", (d, w) -> {
                     try { a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.getPackageName()))); } catch (Exception e) { error(a, es, e); }
-                }).show(); return;
+                }).create()); return;
         }
         if (!DOWNLOADING.compareAndSet(false, true)) return;
         new Thread(() -> {

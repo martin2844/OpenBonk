@@ -42,6 +42,16 @@ import java.util.HashSet;
 
 /** Prototype launcher for the Android build's generated OBB, not PC data. */
 public final class SplitDataLauncher extends Activity {
+    private static final int CANVAS = 0xff190f24;
+    private static final int PANEL = 0xff251831;
+    private static final int INSET = 0xff30203e;
+    private static final int LINE = 0xff493453;
+    private static final int INK = 0xfffaf2ff;
+    private static final int MUTED = 0xffcbbbd4;
+    private static final int GOLD = 0xffffb744;
+    private static final int LIME = 0xffd5f55f;
+    private static final Typeface DISPLAY = Typeface.create("sans-serif-black", Typeface.NORMAL);
+    private static final Typeface MEDIUM = Typeface.create("sans-serif-medium", Typeface.NORMAL);
     private static final int PICK = 461;
     private static final int PICK_STEAM = 462;
     private static final int PICK_PROFILE = 463;
@@ -117,53 +127,75 @@ public final class SplitDataLauncher extends Activity {
         es = Locale.getDefault().getLanguage().equals("es");
         swapMenuButtons = readControlSetting("swap_menu_ab") != 0;
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dp(18), dp(10), dp(18), dp(10)); layout.setBackgroundColor(Color.rgb(25, 8, 39));
-        LinearLayout header = new LinearLayout(this); header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = new TextView(this); title.setText("OPENBONK  ✦"); title.setTextColor(Color.rgb(255, 164, 35)); title.setTextSize(27); title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        boolean wide = getResources().getConfiguration().screenWidthDp >= 620;
+        LinearLayout layout = stack();
+        layout.setBackgroundColor(CANVAS);
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(wide ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(20), dp(6), dp(16), dp(6));
+        header.setBackgroundColor(PANEL);
+        TextView title = uiText("OPENBONK", 22, GOLD);
+        title.setTypeface(DISPLAY);
+        title.setLetterSpacing(0.045f);
+        header.addView(title, new LinearLayout.LayoutParams(wide ? dp(154) : -1, dp(38)));
+        title.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout tabs = new LinearLayout(this);
+        header.addView(tabs, new LinearLayout.LayoutParams(wide ? 0 : -1, dp(44), wide ? 1 : 0));
         layout.addView(header);
-        LinearLayout tabs = new LinearLayout(this); tabs.setOrientation(LinearLayout.HORIZONTAL);
-        layout.addView(tabs, new LinearLayout.LayoutParams(-1, dp(45)));
-        LinearLayout body = new LinearLayout(this); body.setOrientation(LinearLayout.HORIZONTAL); body.setGravity(Gravity.TOP);
-        layout.addView(body, new LinearLayout.LayoutParams(-1, 0, 1));
-        LinearLayout art = new LinearLayout(this); art.setOrientation(LinearLayout.VERTICAL); art.setGravity(Gravity.CENTER);
-        body.addView(art, new LinearLayout.LayoutParams(0, -1, 0.8f));
+        divider(layout, 0);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
+        scroll.setVerticalScrollBarEnabled(false);
+        layout.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(wide ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        body.setGravity(Gravity.TOP);
+        body.setPadding(dp(16), dp(12), dp(16), dp(16));
+        scroll.addView(body, new ScrollView.LayoutParams(-1, -2));
+
+        android.widget.FrameLayout art = new android.widget.FrameLayout(this);
+        GradientDrawable artBackground = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+            new int[]{0xff4e295e, PANEL, CANVAS});
+        artBackground.setCornerRadius(dp(16));
+        art.setBackground(artBackground);
         ImageView mascot = new ImageView(this);
         int mascotId = getResources().getIdentifier("openbonk_mascot", "drawable", getPackageName());
         if (mascotId != 0) mascot.setImageResource(mascotId);
         else try (InputStream in = getAssets().open("openbonk-diagnostic/openbonk_mascot.png")) {
             mascot.setImageDrawable(Drawable.createFromStream(in, null));
         } catch (IOException ignored) { }
-        mascot.setAdjustViewBounds(true); mascot.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        art.addView(mascot, new LinearLayout.LayoutParams(-1, 0, 1));
-        TextView tagline = new TextView(this); tagline.setText(es ? "TU AVENTURA. TUS REGLAS." : "YOUR ADVENTURE. YOUR RULES."); tagline.setTextColor(Color.rgb(213, 245, 95)); tagline.setTextSize(10); tagline.setGravity(Gravity.CENTER); tagline.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        art.addView(tagline);
-        LinearLayout left = new LinearLayout(this); left.setOrientation(LinearLayout.VERTICAL); left.setPadding(dp(8), 0, dp(5), 0);
-        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(0, -2, 1.2f); contentParams.topMargin = dp(24); body.addView(left, contentParams);
-        LinearLayout right = new LinearLayout(this); right.setOrientation(LinearLayout.VERTICAL); right.setPadding(dp(5), 0, 0, 0);
-        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(0, -2, 1f); actionParams.topMargin = dp(24); body.addView(right, actionParams);
+        mascot.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        mascot.setPadding(dp(6), dp(8), dp(6), dp(8));
+        art.addView(mascot, new android.widget.FrameLayout.LayoutParams(-1, -1));
+        body.addView(art, new LinearLayout.LayoutParams(wide ? 0 : -1, dp(wide ? 232 : 140), wide ? 0.85f : 0));
+
+        LinearLayout left = stack();
+        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(wide ? 0 : -1, -2, wide ? 1.48f : 0);
+        body.addView(left, contentParams);
+        LinearLayout right = stack();
+        addColumn(body, right, wide, 0.95f, 12);
         LinearLayout dataCard = card(); left.addView(dataCard);
         LinearLayout dataHeading = new LinearLayout(this); dataHeading.setGravity(Gravity.CENTER_VERTICAL);
-        dataHeading.addView(cardTitle(es ? "DATOS DEL JUEGO" : "GAME DATA"), new LinearLayout.LayoutParams(0, -2, 1));
+        dataHeading.addView(cardTitle(es ? "Datos del juego" : "Game data"), new LinearLayout.LayoutParams(0, -2, 1));
         Button dataHelp = new Button(this); dataHelp.setText("?"); dataHelp.setContentDescription(es ? "Cómo preparar los datos del juego" : "How to prepare game data");
         dataHelp.setOnClickListener(v -> showGameDataHelp()); styleButton(dataHelp, false);
-        dataHeading.addView(dataHelp, new LinearLayout.LayoutParams(dp(40), dp(32))); dataCard.addView(dataHeading);
-        message = new TextView(this); message.setTextColor(Color.rgb(225, 205, 235)); message.setTextSize(12); message.setPadding(0, dp(3), 0, dp(4));
+        dataHeading.addView(dataHelp, new LinearLayout.LayoutParams(dp(40), dp(36))); dataCard.addView(dataHeading);
+        message = new TextView(this); message.setTextColor(MUTED); message.setTextSize(12); message.setPadding(0, dp(3), 0, dp(4));
         message.setText(es ? "Comprobando datos…" : "Checking data…");
         dataCard.addView(message);
         SharedPreferences launcherPrefs = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE);
         controlChanged = launcherPrefs.contains(PENDING_CONTROL);
         touchMode = controlChanged ? launcherPrefs.getInt(PENDING_CONTROL, readTouchMode()) : readTouchMode();
-        controls = new RadioGroup(this); controls.setOrientation(RadioGroup.HORIZONTAL); controls.setGravity(Gravity.CENTER);
+        controls = new RadioGroup(this); controls.setOrientation(RadioGroup.HORIZONTAL); controls.setGravity(Gravity.START);
         RadioButton controller = new RadioButton(this); controller.setId(View.generateViewId()); controller.setText(es ? "Mando" : "Controller");
         RadioButton touch = new RadioButton(this); touch.setId(View.generateViewId()); touch.setText(es ? "Táctil" : "Touch");
         ColorStateList tint = ColorStateList.valueOf(Color.rgb(238, 231, 244));
         controller.setTextColor(tint); controller.setButtonTintList(tint); touch.setTextColor(tint); touch.setButtonTintList(tint);
         controller.setTextSize(13); touch.setTextSize(13); styleControlOption(controller); styleControlOption(touch);
         controller.setPadding(dp(5), 0, dp(5), 0); touch.setPadding(dp(5), 0, dp(5), 0);
-        controls.addView(controller); controls.addView(touch); controls.check(touchMode == 1 ? touch.getId() : controller.getId());
+        addOption(controls, controller); addOption(controls, touch); controls.check(touchMode == 1 ? touch.getId() : controller.getId());
         controls.setOnCheckedChangeListener((group, checked) -> {
             touchMode = checked == touch.getId() ? 1 : 0;
             if (touchSettingsPanel != null) touchSettingsPanel.setVisibility(touchMode == 1 ? View.VISIBLE : View.GONE);
@@ -179,66 +211,77 @@ public final class SplitDataLauncher extends Activity {
         if (embeddedData()) choose.setVisibility(View.GONE);
         chooseSteam = new Button(this); chooseSteam.setText(es ? "ZIP de archivos de Megabonk" : "Megabonk game files ZIP");
         chooseSteam.setOnClickListener(v -> openSteamPicker()); chooseSteam.setEnabled(false);
-        styleButton(chooseSteam, LauncherDiagnosticIntegration.available(this)); dataCard.addView(chooseSteam, buttonParams());
+        styleButton(chooseSteam, true); dataCard.addView(chooseSteam, buttonParams());
         dataCard.addView(choose, buttonParams());
-        LinearLayout inputCard = card(); LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(-1, -2); inputParams.topMargin = dp(7); left.addView(inputCard, inputParams);
-        inputCard.addView(cardTitle(es ? "CONTROLES" : "CONTROLS")); inputCard.addView(controls);
-        TextView controlHint = new TextView(this); controlHint.setTextColor(Color.rgb(225, 205, 235)); controlHint.setTextSize(12);
+        LinearLayout inputCard = card(); left.addView(inputCard);
+        inputCard.addView(cardTitle(es ? "Modo de control" : "Input mode"));
+        TextView controlHint = new TextView(this); controlHint.setTextColor(MUTED); controlHint.setTextSize(12);
         controlHint.setText(es ? "Elegí el modo de control para la partida." : "Choose the control mode for your run.");
         inputCard.addView(controlHint);
+        inputCard.addView(controls, buttonParams());
         touchSettingsPanel = LauncherTouchPanel.create(this, es); inputCard.addView(touchSettingsPanel);
         touchSettingsPanel.setVisibility(touchMode == 1 ? View.VISIBLE : View.GONE);
         chooseProfile = new Button(this); chooseProfile.setText(es ? "Importar perfil ZIP" : "Import profile ZIP");
         chooseProfile.setEnabled(false); chooseProfile.setOnClickListener(v -> confirmProfilePicker());
-        styleButton(chooseProfile, false); dataCard.addView(chooseProfile, buttonParams());
+        divider(dataCard, 7);
+        dataCard.addView(uiText(es ? "Progreso guardado" : "Save profile", 13, MUTED));
+        LinearLayout profileActions = new LinearLayout(this);
+        dataCard.addView(profileActions, buttonParams());
+        styleButton(chooseProfile, false);
+        addAction(profileActions, chooseProfile, 0);
         exportCurrentProfile = new Button(this); exportCurrentProfile.setText(es ? "Exportar perfil" : "Export profile");
         exportCurrentProfile.setEnabled(false); exportCurrentProfile.setOnClickListener(v -> chooseCurrentProfile());
-        styleButton(exportCurrentProfile, false); dataCard.addView(exportCurrentProfile, buttonParams());
+        styleButton(exportCurrentProfile, false); addAction(profileActions, exportCurrentProfile, 6);
         LinearLayout modPage = new LinearLayout(this); modPage.setOrientation(LinearLayout.VERTICAL); left.addView(modPage);
         modCard = card(); modPage.addView(modCard);
         catalogCard = card(); modPage.addView(catalogCard); catalogCard.setVisibility(View.GONE);
-        modCard.addView(cardTitle("MODS  ✦"));
-        modHint = new TextView(this); modHint.setText(es ? "Importá y elegí tus mods Lua" : "Import and choose your Lua mods"); modHint.setTextColor(Color.rgb(225, 205, 235)); modHint.setTextSize(12); modHint.setPadding(0, dp(3), 0, dp(5)); modCard.addView(modHint);
-        importModButton = new Button(this); importModButton.setText(es ? "＋ Importar mod" : "＋ Import mod"); importModButton.setEnabled(false); importModButton.setOnClickListener(v -> openModPicker()); styleButton(importModButton, true); modCard.addView(importModButton, buttonParams());
+        modCard.addView(cardTitle("Mods"));
+        modHint = uiText(es ? "Los cambios se aplican al iniciar el juego." : "Changes apply when you launch the game.", 13, MUTED);
+        modHint.setPadding(0, dp(3), 0, 0);
+        modCard.addView(modHint);
+        importModButton = new Button(this); importModButton.setText(es ? "Importar ZIP" : "Import ZIP"); importModButton.setEnabled(false); importModButton.setOnClickListener(v -> openModPicker()); styleButton(importModButton, false);
         onlineMods = new Button(this); onlineMods.setText(es ? "Buscar mods" : "Browse mods");
-        onlineMods.setOnClickListener(v -> LauncherOnlineUi.browse(this, es)); styleButton(onlineMods, false); modCard.addView(onlineMods, buttonParams());
+        onlineMods.setOnClickListener(v -> LauncherOnlineUi.browse(this, es)); styleButton(onlineMods, true);
         mods = new Button(this); mods.setText(es ? "Gestionar mods" : "Manage mods");
         mods.setEnabled(false); mods.setOnClickListener(v -> showMods());
-        styleButton(mods, false); modCard.addView(mods, buttonParams());
+        styleButton(mods, false);
+        addActionRow(modCard, es ? "Catálogo de OpenBonk" : "OpenBonk catalog",
+            es ? "Encontrá e importá mods publicados por la comunidad." : "Find and import community mods.", onlineMods);
+        addActionRow(modCard, es ? "En este dispositivo" : "Installed on this device",
+            es ? "Activá, desactivá o restaurá mods instalados." : "Enable, disable, or restore installed mods.", mods);
+        addActionRow(modCard, es ? "Archivo local" : "Local file",
+            es ? "Instalá un mod desde un ZIP guardado en tu dispositivo." : "Install a mod from a ZIP on your device.", importModButton);
         LinearLayout settingsCard = card(); left.addView(settingsCard);
-        settingsCard.addView(cardTitle(es ? "Configuración general" : "General settings"));
-        TextView settingsHint = new TextView(this); settingsHint.setTextColor(Color.rgb(225, 205, 235)); settingsHint.setTextSize(12);
-        settingsHint.setText(es ? "Preferencias generales del launcher." : "General launcher preferences."); settingsCard.addView(settingsHint);
-        TextView resolutionLabel = new TextView(this); resolutionLabel.setTextColor(Color.WHITE); resolutionLabel.setTextSize(13);
-        resolutionLabel.setText(es ? "Resolución del juego" : "Game resolution"); settingsCard.addView(resolutionLabel);
+        settingsCard.addView(cardTitle(es ? "Resolución del juego" : "Game resolution"));
+        settingsCard.addView(uiText(es ? "Elegí una escala o una altura fija." : "Choose a scale or a fixed height.", 13, MUTED));
         RadioGroup resolution = new RadioGroup(this); resolution.setOrientation(RadioGroup.HORIZONTAL);
         RadioGroup resolutionPresets = new RadioGroup(this); resolutionPresets.setOrientation(RadioGroup.HORIZONTAL);
         String[] resolutionNames = es ? new String[] { "Juego", "Nativa", "75%", "50%" } : new String[] { "Game", "Native", "75%", "50%" };
         int[] resolutionValues = {0, 100, 75, 50}; int savedResolution = launcherPrefs.getInt("render_resolution_percent", 0);
         for (int i = 0; i < resolutionValues.length; i++) {
             final int value = resolutionValues[i]; RadioButton option = new RadioButton(this); option.setId(View.generateViewId()); option.setText(resolutionNames[i]);
-            option.setTextColor(Color.WHITE); option.setTextSize(12); option.setButtonTintList(ColorStateList.valueOf(Color.rgb(213, 245, 95))); styleControlOption(option);
-            resolution.addView(option, new RadioGroup.LayoutParams(0, -2, 1)); if (value == savedResolution) resolution.check(option.getId());
+            option.setTextColor(Color.WHITE); option.setTextSize(12); option.setButtonTintList(ColorStateList.valueOf(LIME)); styleControlOption(option);
+            addOption(resolution, option); if (value == savedResolution) resolution.check(option.getId());
             option.setOnClickListener(v -> { resolutionPresets.clearCheck(); launcherPrefs.edit().putInt("render_resolution_percent", value).apply(); });
         }
-        settingsCard.addView(resolution);
+        settingsCard.addView(resolution, buttonParams());
         int[] presetHeights = {540, 720, 1080, 1440};
         for (int height : presetHeights) {
             RadioButton option = new RadioButton(this); option.setId(View.generateViewId()); option.setText(height + "p");
-            option.setTextColor(Color.WHITE); option.setTextSize(12); option.setButtonTintList(ColorStateList.valueOf(Color.rgb(213, 245, 95))); styleControlOption(option);
-            resolutionPresets.addView(option, new RadioGroup.LayoutParams(0, -2, 1));
+            option.setTextColor(Color.WHITE); option.setTextSize(12); option.setButtonTintList(ColorStateList.valueOf(LIME)); styleControlOption(option);
+            addOption(resolutionPresets, option);
             if (savedResolution == -height) resolutionPresets.check(option.getId());
             option.setOnClickListener(v -> { resolution.clearCheck(); launcherPrefs.edit().putInt("render_resolution_percent", -height).apply(); });
         }
         if (resolution.getCheckedRadioButtonId() == -1 && resolutionPresets.getCheckedRadioButtonId() == -1 && !(savedResolution <= -240 && savedResolution >= -2160))
             resolution.check(((RadioButton)resolution.getChildAt(0)).getId());
-        settingsCard.addView(resolutionPresets);
+        settingsCard.addView(resolutionPresets, buttonParams());
         LinearLayout customRow = new LinearLayout(this); customRow.setOrientation(LinearLayout.HORIZONTAL); customRow.setGravity(Gravity.CENTER_VERTICAL);
         android.widget.EditText customHeight = new android.widget.EditText(this); customHeight.setSingleLine(true); customHeight.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        customHeight.setTextColor(Color.WHITE); customHeight.setHintTextColor(Color.LTGRAY); customHeight.setTextSize(13);
+        styleField(customHeight);
         customHeight.setHint(es ? "Altura personalizada (240–2160)" : "Custom height (240–2160)");
         if (savedResolution <= -240 && savedResolution >= -2160) customHeight.setText(Integer.toString(-savedResolution));
-        customRow.addView(customHeight, new LinearLayout.LayoutParams(0, -2, 1));
+        customRow.addView(customHeight, new LinearLayout.LayoutParams(0, -1, 1));
         Button applyHeight = new Button(this); applyHeight.setText(es ? "Aplicar" : "Apply"); styleButton(applyHeight, false);
         applyHeight.setOnClickListener(v -> {
             try {
@@ -251,62 +294,104 @@ public final class SplitDataLauncher extends Activity {
                 customHeight.setError(es ? "Usá un valor entre 240 y 2160" : "Enter a value from 240 to 2160");
             }
         });
-        customRow.addView(applyHeight, new LinearLayout.LayoutParams(-2, -2)); settingsCard.addView(customRow);
-        TextView resolutionHint = new TextView(this); resolutionHint.setTextColor(Color.rgb(225, 205, 235)); resolutionHint.setTextSize(12);
+        LinearLayout.LayoutParams applyParams = new LinearLayout.LayoutParams(dp(96), -1);
+        applyParams.leftMargin = dp(6);
+        customRow.addView(applyHeight, applyParams);
+        settingsCard.addView(customRow, buttonParams());
+        TextView resolutionHint = new TextView(this); resolutionHint.setTextColor(MUTED); resolutionHint.setTextSize(12);
         resolutionHint.setText(es ? "Se aplica al iniciar y conserva la proporción de la pantalla. Juego usa el ajuste del menú del juego." : "Applies on launch and keeps the screen's aspect ratio. Game uses the in-game setting."); settingsCard.addView(resolutionHint);
-        android.widget.CheckBox autoUpdates = new android.widget.CheckBox(this); autoUpdates.setTextColor(Color.WHITE);
+        divider(settingsCard, 9);
+        android.widget.CheckBox autoUpdates = new android.widget.CheckBox(this); styleCheckbox(autoUpdates);
         autoUpdates.setText(es ? "Buscar actualizaciones automáticamente" : "Check for updates automatically");
         autoUpdates.setChecked(launcherPrefs.getBoolean("auto_update_checks", true));
         autoUpdates.setOnCheckedChangeListener((v, checked) -> launcherPrefs.edit().putBoolean("auto_update_checks", checked).apply()); settingsCard.addView(autoUpdates);
-        TextView moreSettings = new TextView(this); moreSettings.setTextColor(Color.rgb(225, 205, 235)); moreSettings.setTextSize(12);
-        moreSettings.setText(es ? "Las opciones del juego están en su menú de configuración." : "Game options are available in the in-game settings menu."); settingsCard.addView(moreSettings);
-        LinearLayout updateCard = card(); left.addView(updateCard); updateCard.addView(cardTitle(es ? "Actualizaciones" : "Updates"));
+        LinearLayout updatePage = new LinearLayout(this);
+        updatePage.setOrientation(wide ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        left.addView(updatePage);
+        LinearLayout updateCard = card();
+        addColumn(updatePage, updateCard, wide, 0.78f, 0);
+        updateCard.addView(cardTitle(es ? "Versión de OpenBonk" : "OpenBonk version"));
+        LinearLayout historyCard = card();
+        addColumn(updatePage, historyCard, wide, 1.22f, 12);
         TextView installedVersion = new TextView(this); installedVersion.setTextColor(Color.WHITE); installedVersion.setTextSize(14);
         installedVersion.setText((es ? "Versión instalada: " : "Installed version: ") + installedVersion()); updateCard.addView(installedVersion);
-        updateStatus = new TextView(this); updateStatus.setTextColor(Color.rgb(225, 205, 235)); updateStatus.setTextSize(13);
+        updateStatus = new TextView(this); updateStatus.setTextColor(MUTED); updateStatus.setTextSize(13);
         updateStatus.setText(es ? "Última versión: sin comprobar" : "Latest version: not checked"); updateCard.addView(updateStatus);
-        LinearLayout updateActions = new LinearLayout(this); updateActions.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams updateActionsParams = new LinearLayout.LayoutParams(-1, dp(37)); updateActionsParams.topMargin = dp(6); updateCard.addView(updateActions, updateActionsParams);
         updateButton = new Button(this); updateButton.setText(es ? "Buscar actualización" : "Check for updates");
-        updateButton.setOnClickListener(v -> loadUpdateOverview()); styleButton(updateButton, false); updateActions.addView(updateButton, new LinearLayout.LayoutParams(dp(175), -1));
+        updateButton.setOnClickListener(v -> loadUpdateOverview()); styleButton(updateButton, false); updateCard.addView(updateButton, buttonParams());
         downloadUpdateButton = new Button(this); downloadUpdateButton.setText(es ? "Descargar actualización" : "Download update");
-        styleButton(downloadUpdateButton, true); downloadUpdateButton.setVisibility(View.GONE); LinearLayout.LayoutParams downloadParams = new LinearLayout.LayoutParams(dp(175), -1); downloadParams.leftMargin = dp(6); updateActions.addView(downloadUpdateButton, downloadParams);
-        TextView releaseHeading = cardTitle(es ? "Últimos cambios" : "Recent releases"); releaseHeading.setPadding(0, dp(12), 0, dp(2)); updateCard.addView(releaseHeading);
-        releaseStatus = new TextView(this); releaseStatus.setTextColor(Color.rgb(225, 205, 235)); releaseStatus.setTextSize(12);
-        releaseStatus.setText(es ? "Abrí esta sección para cargar los cambios." : "Open this section to load release notes."); updateCard.addView(releaseStatus);
-        releaseList = new LinearLayout(this); releaseList.setOrientation(LinearLayout.VERTICAL); updateCard.addView(releaseList);
+        styleButton(downloadUpdateButton, true); downloadUpdateButton.setVisibility(View.GONE); updateCard.addView(downloadUpdateButton, buttonParams());
+        historyCard.addView(cardTitle(es ? "Últimos cambios" : "Recent releases"));
+        releaseStatus = new TextView(this); releaseStatus.setTextColor(MUTED); releaseStatus.setTextSize(12);
+        releaseStatus.setText(es ? "Abrí esta sección para cargar los cambios." : "Open this section to load release notes."); historyCard.addView(releaseStatus);
+        releaseList = new LinearLayout(this); releaseList.setOrientation(LinearLayout.VERTICAL); historyCard.addView(releaseList);
         LinearLayout helpCard = card(); left.addView(helpCard); helpCard.addView(cardTitle(es ? "Ayuda y soporte" : "Support & help"));
-        TextView helpHint = new TextView(this); helpHint.setTextColor(Color.rgb(225, 205, 235)); helpHint.setTextSize(12);
-        helpHint.setText(es ? "Compartí ideas o reportá problemas en GitHub. Necesitás una cuenta para enviar comentarios." : "Share ideas or report problems on GitHub. A GitHub account is needed to submit feedback."); helpCard.addView(helpHint);
         Button feedback = new Button(this); feedback.setText(es ? "Enviar comentarios" : "Send feedback");
         feedback.setOnClickListener(v -> {
             try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/martin2844/OpenBonk/issues/new/choose"))); }
             catch (Exception e) { new AlertDialog.Builder(this).setMessage(es ? "No se pudo abrir el navegador." : "Could not open the browser.").setPositiveButton("OK", null).show(); }
         });
-        styleButton(feedback, true); helpCard.addView(feedback, buttonParams());
+        Button dataGuide = new Button(this);
+        dataGuide.setText(es ? "Ver guía" : "View guide");
+        styleButton(dataGuide, false);
+        dataGuide.setOnClickListener(v -> showGameDataHelp());
+        addActionRow(helpCard, es ? "Archivos y progreso" : "Game files and saves",
+            es ? "Qué archivo elegir y cómo transferir tu progreso." : "Which file to choose and how to move your saves.", dataGuide);
+        styleButton(feedback, true);
+        addActionRow(helpCard, es ? "Comentarios" : "Feedback",
+            es ? "Reportá un problema o sugerí una mejora en GitHub." : "Report a problem or suggest an improvement on GitHub.", feedback);
         if (hasTextureNotices()) {
             Button notices = new Button(this); notices.setText(es ? "Avisos" : "Notices");
-            notices.setOnClickListener(v -> showTextureNotices()); styleButton(notices, false); helpCard.addView(notices, buttonParams());
+            notices.setOnClickListener(v -> showTextureNotices()); styleButton(notices, false);
+            addActionRow(helpCard, es ? "Créditos" : "Credits",
+                es ? "Avisos y licencias de terceros." : "Third-party notices and licenses.", notices);
         }
-        LinearLayout[] pages = { dataCard, inputCard, modPage, settingsCard, updateCard, helpCard };
+        LinearLayout[] pages = { dataCard, inputCard, modPage, settingsCard, updatePage, helpCard };
         String[] tabNames = es ? new String[] { "Juego", "Controles", "Mods", "Ajustes", "Actualizar", "Ayuda" } : new String[] { "Game", "Controls", "Mods", "Settings", "Updates", "Help" };
         Button[] tabButtons = new Button[pages.length];
         for (int i = 0; i < pages.length; i++) {
-            final int index = i; Button tab = new Button(this); tab.setText(tabNames[i]); tabButtons[i] = tab;
-            LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(0, dp(37), 1); tabParams.setMargins(dp(2), 0, dp(2), 0); tabs.addView(tab, tabParams);
-            tab.setOnClickListener(v -> { art.setVisibility(index == 0 ? View.VISIBLE : View.GONE); right.setVisibility(index == 0 ? View.VISIBLE : View.GONE); contentParams.topMargin = dp(index == 0 ? 24 : 12); left.setLayoutParams(contentParams); for (int n = 0; n < pages.length; n++) { pages[n].setVisibility(n == index ? View.VISIBLE : View.GONE); styleButton(tabButtons[n], n == index); } if (index == 4 && updateRequest == 0) loadUpdateOverview(); });
+            final int index = i;
+            Button tab = new Button(this);
+            tab.setText(tabNames[i]);
+            tabButtons[i] = tab;
+            tabs.addView(tab, new LinearLayout.LayoutParams(0, -1, 1));
+            tab.setOnClickListener(v -> {
+                boolean game = index == 0;
+                art.setVisibility(game ? View.VISIBLE : View.GONE);
+                right.setVisibility(game ? View.VISIBLE : View.GONE);
+                contentParams.setMarginStart(wide && game ? dp(12) : 0);
+                contentParams.topMargin = !wide && game ? dp(12) : 0;
+                left.setLayoutParams(contentParams);
+                for (int n = 0; n < pages.length; n++) {
+                    pages[n].setVisibility(n == index ? View.VISIBLE : View.GONE);
+                    tabButtons[n].setSelected(n == index);
+                }
+                scroll.scrollTo(0, 0);
+                if (index == 4 && updateRequest == 0) loadUpdateOverview();
+            });
+            styleTab(tab);
         }
-        for (int i = 0; i < pages.length; i++) { pages[i].setVisibility(i == 0 ? View.VISIBLE : View.GONE); styleButton(tabButtons[i], i == 0); }
-        play = new Button(this); play.setText(es ? "▶   JUGAR" : "▶   PLAY"); play.setEnabled(false);
+
+        LinearLayout gameStatusCard = card();
+        right.addView(gameStatusCard);
+        gameStatusCard.addView(cardTitle(es ? "Iniciar partida" : "Launch game"));
+        play = new Button(this);
+        play.setText(es ? "▶   Jugar" : "▶   Play");
+        play.setEnabled(false);
         play.setOnClickListener(v -> launchGame());
-        stylePlay(play); LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, dp(58)); playParams.topMargin = dp(9); right.addView(play, playParams);
-        LinearLayout gameStatusCard = card(); LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2); statusParams.topMargin = dp(10); right.addView(gameStatusCard, statusParams);
-        TextView gameStatusTitle = cardTitle(es ? "Estado" : "Status"); gameStatusCard.addView(gameStatusTitle);
-        gameDataStatus = new TextView(this); gameDataStatus.setTextSize(13); gameDataStatus.setTextColor(Color.rgb(225, 205, 235));
-        gameDataStatus.setText(es ? "◌  Comprobando archivos del juego…" : "◌  Checking game files…"); gameStatusCard.addView(gameDataStatus);
-        TextView gameVersion = new TextView(this); gameVersion.setTextSize(13); gameVersion.setTextColor(Color.rgb(225, 205, 235));
-        gameVersion.setText((es ? "Versión instalada: " : "Installed version: ") + installedVersion()); gameStatusCard.addView(gameVersion);
-        ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.addView(layout); setContentView(scroll);
+        stylePlay(play);
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, dp(49));
+        playParams.topMargin = dp(6);
+        gameStatusCard.addView(play, playParams);
+        divider(gameStatusCard, 10);
+        gameDataStatus = uiText(es ? "◌  Comprobando datos…" : "◌  Checking game files…", 13, MUTED);
+        gameStatusCard.addView(gameDataStatus);
+        TextView gameVersion = uiText((es ? "Versión " : "Version ") + installedVersion(), 12, MUTED);
+        gameVersion.setPadding(0, dp(4), 0, 0);
+        gameStatusCard.addView(gameVersion);
+
+        setContentView(layout);
+        tabButtons[0].performClick();
         checkData();
         long lastCheck = launcherPrefs.getLong("last_update_check", 0);
         if (launcherPrefs.getBoolean("auto_update_checks", true) && System.currentTimeMillis() - lastCheck >= 24L * 60 * 60 * 1000) {
@@ -415,35 +500,174 @@ public final class SplitDataLauncher extends Activity {
         int screenDp = (int)(getResources().getDisplayMetrics().heightPixels / getResources().getDisplayMetrics().density);
         return Math.max(1, Math.min(8, (screenDp - reservedDp) / rowDp));
     }
-    private GradientDrawable shape(int color, int stroke) {
-        GradientDrawable result = new GradientDrawable(); result.setColor(color); result.setCornerRadius(dp(12)); result.setStroke(dp(2), stroke); return result;
+    private LinearLayout stack() {
+        LinearLayout view = new LinearLayout(this);
+        view.setOrientation(LinearLayout.VERTICAL);
+        return view;
     }
+
+    TextView uiText(String text, int size, int color) {
+        TextView view = new TextView(this);
+        view.setText(text);
+        view.setTextSize(size);
+        view.setTextColor(color);
+        return view;
+    }
+
+    private GradientDrawable shape(int fill, int stroke) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(fill);
+        drawable.setCornerRadius(dp(8));
+        if (stroke != Color.TRANSPARENT) drawable.setStroke(dp(1), stroke);
+        return drawable;
+    }
+
     private LinearLayout card() {
-        LinearLayout result = new LinearLayout(this); result.setOrientation(LinearLayout.VERTICAL); result.setPadding(dp(10), dp(8), dp(10), dp(8));
-        result.setBackground(shape(Color.rgb(57, 21, 73), Color.rgb(126, 52, 147))); return result;
+        LinearLayout view = stack();
+        view.setPadding(dp(14), dp(12), dp(14), dp(12));
+        view.setBackground(shape(PANEL, LINE));
+        return view;
     }
+
     TextView cardTitle(String text) {
-        TextView result = new TextView(this); result.setText(text); result.setTextColor(Color.rgb(255, 247, 234)); result.setTypeface(Typeface.DEFAULT, Typeface.BOLD); result.setTextSize(16); return result;
+        TextView view = uiText(text, 18, INK);
+        view.setTypeface(DISPLAY);
+        view.setPadding(0, 0, 0, dp(3));
+        return view;
     }
-    LinearLayout.LayoutParams buttonParams() { LinearLayout.LayoutParams result = new LinearLayout.LayoutParams(-1, dp(37)); result.topMargin = dp(4); return result; }
+
+    void divider(LinearLayout parent, int margin) {
+        View rule = new View(this);
+        rule.setBackgroundColor(LINE);
+        rule.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(1));
+        params.topMargin = params.bottomMargin = dp(margin);
+        parent.addView(rule, params);
+    }
+
+    private void addColumn(LinearLayout parent, View view, boolean wide, float weight, int gap) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(wide ? 0 : -1, -2, wide ? weight : 0);
+        if (wide) params.setMarginStart(dp(gap));
+        else params.topMargin = dp(gap);
+        parent.addView(view, params);
+    }
+
+    private void addActionRow(LinearLayout parent, String title, String description, Button action) {
+        divider(parent, 7);
+        boolean inline = getResources().getConfiguration().screenWidthDp >= 440;
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(inline ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout labels = stack();
+        TextView label = uiText(title, 14, INK);
+        label.setTypeface(MEDIUM);
+        labels.addView(label);
+        labels.addView(uiText(description, 12, MUTED));
+        row.addView(labels, new LinearLayout.LayoutParams(inline ? 0 : -1, -2, inline ? 1 : 0));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(inline ? dp(154) : -1, dp(38));
+        if (inline) params.setMarginStart(dp(12));
+        else params.topMargin = dp(5);
+        row.addView(action, params);
+        parent.addView(row);
+    }
+
+    private void addAction(LinearLayout row, Button button, int gap) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, 1);
+        params.setMarginStart(dp(gap));
+        row.addView(button, params);
+    }
+
+    LinearLayout.LayoutParams buttonParams() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(38));
+        params.topMargin = dp(5);
+        return params;
+    }
+
     private ColorStateList buttonText(int active) {
-        return new ColorStateList(new int[][]{new int[]{-android.R.attr.state_enabled}, new int[]{}},
-            new int[]{Color.rgb(162, 143, 166), active});
+        return new ColorStateList(new int[][]{{-android.R.attr.state_enabled}, {}},
+            new int[]{0xff98869f, active});
     }
-    void styleButton(Button button, boolean accent) {
-        int bg = accent ? Color.rgb(190, 245, 35) : Color.rgb(91, 38, 110);
-        button.setTextColor(buttonText(accent ? Color.rgb(31, 8, 43) : Color.WHITE)); button.setTextSize(12); button.setTypeface(Typeface.DEFAULT, Typeface.BOLD); button.setAllCaps(false); button.setMinHeight(0); button.setMinimumHeight(0); button.setPadding(dp(5), 0, dp(5), 0);
-        StateListDrawable states = new StateListDrawable(); states.addState(new int[]{-android.R.attr.state_enabled}, shape(Color.rgb(58, 43, 63), Color.rgb(96, 76, 101))); states.addState(new int[]{android.R.attr.state_focused}, shape(accent ? Color.rgb(255, 249, 205) : bg, Color.rgb(205, 255, 42))); states.addState(new int[]{}, shape(bg, accent ? Color.rgb(220, 255, 96) : Color.rgb(138, 66, 154))); button.setBackground(states);
+
+    private void configureButton(Button button) {
+        button.setTextSize(13);
+        button.setTypeface(MEDIUM);
+        button.setAllCaps(false);
+        button.setMinHeight(0);
+        button.setMinimumHeight(0);
+        button.setPadding(dp(8), 0, dp(8), 0);
+        button.setStateListAnimator(null);
     }
+
+    private void actionStyle(Button button, int fill, int outline, int text) {
+        configureButton(button);
+        button.setTextColor(buttonText(text));
+        StateListDrawable states = new StateListDrawable();
+        states.addState(new int[]{-android.R.attr.state_enabled}, shape(0xff2c2235, LINE));
+        states.addState(new int[]{android.R.attr.state_focused}, shape(fill, LIME));
+        states.addState(new int[]{android.R.attr.state_pressed}, shape(fill, GOLD));
+        states.addState(new int[]{}, shape(fill, outline));
+        button.setBackground(states);
+    }
+
+    void styleButton(Button button, boolean primary) {
+        actionStyle(button, primary ? LIME : INSET, primary ? Color.TRANSPARENT : LINE, primary ? CANVAS : INK);
+    }
+
     private void stylePlay(Button button) {
-        styleButton(button, true); button.setTextSize(22); button.setTextColor(buttonText(Color.rgb(42, 9, 48)));
-        StateListDrawable states = new StateListDrawable(); states.addState(new int[]{-android.R.attr.state_enabled}, shape(Color.rgb(58, 43, 63), Color.rgb(96, 76, 101))); states.addState(new int[]{android.R.attr.state_focused}, shape(Color.rgb(255, 169, 20), Color.rgb(219, 255, 50))); states.addState(new int[]{}, shape(Color.rgb(255, 169, 20), Color.rgb(255, 217, 105))); button.setBackground(states);
+        actionStyle(button, GOLD, Color.TRANSPARENT, CANVAS);
+        button.setTextSize(19);
+        button.setTypeface(DISPLAY);
+    }
+
+    private void styleTab(Button button) {
+        configureButton(button);
+        button.setPadding(dp(2), 0, dp(2), 0);
+        button.setTextColor(new ColorStateList(new int[][]{{android.R.attr.state_selected}, {}}, new int[]{GOLD, MUTED}));
+        StateListDrawable states = new StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_focused}, shape(INSET, LIME));
+        states.addState(new int[]{android.R.attr.state_selected}, shape(INSET, Color.TRANSPARENT));
+        states.addState(new int[]{android.R.attr.state_pressed}, shape(INSET, LINE));
+        states.addState(new int[]{}, shape(Color.TRANSPARENT, Color.TRANSPARENT));
+        button.setBackground(states);
+    }
+
+    private void styleField(android.widget.EditText field) {
+        field.setTextColor(INK);
+        field.setHintTextColor(MUTED);
+        field.setTextSize(13);
+        StateListDrawable states = new StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_focused}, shape(CANVAS, LIME));
+        states.addState(new int[]{}, shape(CANVAS, LINE));
+        field.setBackground(states);
+        field.setPadding(dp(10), 0, dp(10), 0);
+    }
+
+    private void styleCheckbox(android.widget.CheckBox checkbox) {
+        checkbox.setTextColor(INK);
+        checkbox.setTextSize(13);
+        checkbox.setButtonTintList(ColorStateList.valueOf(LIME));
+        StateListDrawable states = new StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_focused}, shape(INSET, LIME));
+        states.addState(new int[]{}, shape(Color.TRANSPARENT, Color.TRANSPARENT));
+        checkbox.setBackground(states);
+        checkbox.setMinHeight(dp(38));
+    }
+
+    private void addOption(RadioGroup group, RadioButton option) {
+        RadioGroup.LayoutParams params = new RadioGroup.LayoutParams(0, -1, 1);
+        if (group.getChildCount() > 0) params.setMarginStart(dp(6));
+        group.addView(option, params);
     }
 
     private void styleControlOption(RadioButton option) {
+        option.setButtonDrawable((Drawable)null);
+        option.setGravity(Gravity.CENTER);
+        option.setTypeface(MEDIUM);
+        option.setTextColor(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}}, new int[]{LIME, INK}));
         StateListDrawable states = new StateListDrawable();
-        states.addState(new int[]{android.R.attr.state_focused}, shape(Color.rgb(75, 28, 92), Color.rgb(205, 255, 42)));
-        states.addState(new int[]{}, new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+        states.addState(new int[]{android.R.attr.state_focused}, shape(INSET, LIME));
+        states.addState(new int[]{android.R.attr.state_checked}, shape(0xff3b3046, LIME));
+        states.addState(new int[]{}, shape(INSET, LINE));
         option.setBackground(states);
     }
 
@@ -513,12 +737,27 @@ public final class SplitDataLauncher extends Activity {
         return super.dispatchKeyEvent(mapped == null ? event : mapped);
     }
 
-    private void showDialog(AlertDialog dialog) {
+    void showDialog(AlertDialog dialog) {
         dialog.setOnKeyListener((d, code, event) -> {
             KeyEvent mapped = swappedKey(event);
             return mapped != null && dialog.dispatchKeyEvent(mapped);
         });
         dialog.show();
+        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawable(
+            new android.graphics.drawable.InsetDrawable(shape(PANEL, LINE), dp(6)));
+        TextView message = dialog.findViewById(android.R.id.message);
+        if (message != null) {
+            message.setTextSize(14);
+            message.setTextColor(MUTED);
+            message.setTypeface(Typeface.DEFAULT);
+        }
+        for (int which : new int[]{AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL}) {
+            Button button = dialog.getButton(which);
+            if (button != null) {
+                button.setAllCaps(false);
+                button.setTextColor(which == AlertDialog.BUTTON_POSITIVE ? LIME : INK);
+            }
+        }
     }
 
     private static final String NOTICE_DIR = "openbonk-diagnostic/notices";
@@ -615,7 +854,7 @@ public final class SplitDataLauncher extends Activity {
                 for (int i = start; i < end; i++) {
                     final int index = i; android.widget.CheckBox choice = new android.widget.CheckBox(this);
                     choice.setText(ids.get(i)); choice.setTextColor(Color.WHITE); choice.setTextSize(14); choice.setSingleLine(true); choice.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                    choice.setButtonTintList(ColorStateList.valueOf(Color.rgb(213, 245, 95))); choice.setChecked(selected[i]);
+                    styleCheckbox(choice); choice.setChecked(selected[i]);
                     choice.setOnCheckedChangeListener((button, checked) -> selected[index] = checked);
                     results.addView(choice, new LinearLayout.LayoutParams(-1, dp(43)));
                 }
@@ -681,7 +920,7 @@ public final class SplitDataLauncher extends Activity {
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         dataReady = ready;
         gameDataStatus.setText(ready ? (es ? "✓  Archivos del juego: listos" : "✓  Game files: ready") : (es ? "✕  Archivos del juego: faltan" : "✕  Game files: needed"));
-        gameDataStatus.setTextColor(ready ? Color.rgb(213, 245, 95) : Color.rgb(255, 184, 153));
+        gameDataStatus.setTextColor(ready ? LIME : Color.rgb(255, 184, 153));
         if (!ready) {
             if (pendingSteam().isFile() && LauncherDiagnosticIntegration.available(this)) message.setText(es
                 ? "No se encontraron los datos preparados. Volvé a importar tu ZIP de Steam."
@@ -716,7 +955,7 @@ public final class SplitDataLauncher extends Activity {
 
     private void setImportBusy() {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        gameDataStatus.setText(es ? "◌  Preparando archivos…" : "◌  Preparing files…"); gameDataStatus.setTextColor(Color.rgb(225, 205, 235));
+        gameDataStatus.setText(es ? "◌  Preparando archivos…" : "◌  Preparing files…"); gameDataStatus.setTextColor(MUTED);
         choose.setEnabled(false); chooseSteam.setEnabled(false); chooseProfile.setEnabled(false); exportCurrentProfile.setEnabled(false);
         play.setEnabled(false); mods.setEnabled(false); importModButton.setEnabled(false); onlineMods.setEnabled(false); updateButton.setEnabled(false);
     }
@@ -772,20 +1011,43 @@ public final class SplitDataLauncher extends Activity {
             }
             if (!hasApk) continue;
             count++;
-            TextView heading = new TextView(this); heading.setTextColor(Color.rgb(213, 245, 95)); heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD); heading.setTextSize(14);
-            String date = release.optString("published_at", ""); if (date.length() >= 10) date = date.substring(0, 10); else date = "";
-            heading.setText(tag + (date.isEmpty() ? "" : "  ·  " + date)); heading.setPadding(0, dp(8), 0, dp(2)); releaseList.addView(heading);
+            divider(releaseList, 8);
+            LinearLayout releaseHeader = new LinearLayout(this);
+            releaseHeader.setGravity(Gravity.CENTER_VERTICAL);
+            TextView heading = uiText(tag, 15, INK);
+            heading.setTypeface(MEDIUM);
+            releaseHeader.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+            String date = release.optString("published_at", "");
+            if (date.length() >= 10) releaseHeader.addView(uiText(date.substring(0, 10), 12, MUTED));
+            releaseList.addView(releaseHeader);
             String body = release.optString("body", "").trim();
             if (body.isEmpty()) body = es ? "Sin notas para esta versión." : "No release notes provided.";
             if (body.length() > 4000) body = body.substring(0, 4000) + "…";
-            body = body.replace("**", "").replaceAll("(?m)^#{1,6}\\s+", "");
-            TextView notes = new TextView(this); notes.setTextColor(Color.rgb(225, 205, 235)); notes.setTextSize(12); notes.setText(body); releaseList.addView(notes);
-            Button open = new Button(this); open.setText(es ? "Ver en GitHub" : "View on GitHub"); styleButton(open, false);
-            open.setOnClickListener(v -> { try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/martin2844/OpenBonk/releases/tag/" + tag))); } catch (Exception ignored) { } });
-            LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(dp(140), dp(37)); openParams.topMargin = dp(4); releaseList.addView(open, openParams);
+            String notes = body.replace("**", "").replaceAll("(?m)^#{1,6} +", "").replaceAll("(?m)^- ", "• ");
+            String preview = notes.replaceFirst("(?i)^OpenBonk Android beta [^\\n]+\\s*", "");
+            TextView summary = uiText(preview, 13, MUTED);
+            summary.setMaxLines(2);
+            summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            summary.setPadding(0, dp(3), 0, dp(5));
+            releaseList.addView(summary);
+            Button open = new Button(this);
+            open.setText(es ? "Leer cambios" : "Read notes");
+            open.setContentDescription(open.getText() + " " + tag);
+            styleButton(open, false);
+            open.setOnClickListener(v -> showDialog(new AlertDialog.Builder(this).setTitle(tag).setMessage(notes)
+                .setNeutralButton(es ? "Ver en GitHub" : "View on GitHub", (d, w) -> openRelease(tag))
+                .setPositiveButton(es ? "Cerrar" : "Close", null).create()));
+            releaseList.addView(open, new LinearLayout.LayoutParams(dp(114), dp(34)));
         }
         releaseStatus.setVisibility(count == 0 ? View.VISIBLE : View.GONE);
         if (count == 0) releaseStatus.setText(es ? "No hay versiones Android disponibles." : "No Android releases found.");
+    }
+
+    private void openRelease(String tag) {
+        try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/martin2844/OpenBonk/releases/tag/" + tag))); }
+        catch (Exception e) {
+            showDialog(new AlertDialog.Builder(this).setMessage(es ? "No se pudo abrir el navegador." : "Could not open the browser.").setPositiveButton("OK", null).create());
+        }
     }
 
     private void showSteamImportFailure() {
@@ -961,22 +1223,22 @@ public final class SplitDataLauncher extends Activity {
         catalogCard.addView(cardTitle(es ? "No se pudo cargar el catálogo" : "Could not load catalog"));
         TextView text = new TextView(this); text.setTextColor(Color.WHITE); text.setText(error); catalogCard.addView(text);
         Button back = new Button(this); back.setText(es ? "Volver" : "Back"); styleButton(back, false);
-        back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); catalogCard.addView(back, buttonParams());
+        back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); catalogCard.addView(back, new LinearLayout.LayoutParams(dp(106), dp(36)));
     }
     void showCatalog(JSONArray entries) {
         modCard.setVisibility(View.GONE); catalogCard.setVisibility(View.VISIBLE); catalogCard.removeAllViews();
         catalogCard.addView(cardTitle(es ? "Catálogo de mods" : "Mod catalog"));
         android.widget.EditText search = new android.widget.EditText(this); search.setSingleLine(true); search.setTextColor(Color.WHITE);
-        search.setHintTextColor(Color.rgb(184, 163, 192)); search.setTextSize(13); search.setHint(es ? "Buscar mods" : "Search mods"); catalogCard.addView(search, buttonParams());
+        styleField(search); search.setHint(es ? "Buscar mods" : "Search mods"); catalogCard.addView(search, buttonParams());
         LinearLayout results = new LinearLayout(this); results.setOrientation(LinearLayout.VERTICAL); catalogCard.addView(results);
         LinearLayout navigation = new LinearLayout(this); navigation.setGravity(Gravity.CENTER_VERTICAL);
         Button previous = new Button(this); previous.setText("‹"); previous.setContentDescription(es ? "Página anterior" : "Previous page"); styleButton(previous, false);
         TextView pageLabel = new TextView(this); pageLabel.setTextColor(Color.WHITE); pageLabel.setGravity(Gravity.CENTER);
         Button next = new Button(this); next.setText("›"); next.setContentDescription(es ? "Página siguiente" : "Next page"); styleButton(next, false);
         navigation.addView(previous, new LinearLayout.LayoutParams(dp(48), dp(37))); navigation.addView(pageLabel, new LinearLayout.LayoutParams(0, dp(37), 1)); navigation.addView(next, new LinearLayout.LayoutParams(dp(48), dp(37))); catalogCard.addView(navigation);
-        int widthDp = (int)(getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density);
+        int widthDp = getResources().getConfiguration().screenWidthDp;
         int columns = widthDp >= 600 ? 2 : 1;
-        int[] page = {0}; int perPage = modPageSize(240, 48) * columns;
+        int[] page = {0}; int perPage = modPageSize(widthDp >= 620 ? 217 : 253, 50) * columns;
         Runnable render = () -> {
             results.removeAllViews(); String query = search.getText().toString().trim().toLowerCase(Locale.ROOT); ArrayList<JSONObject> matches = new ArrayList<>();
             for (int i = 0; i < entries.length(); i++) {
@@ -989,14 +1251,18 @@ public final class SplitDataLauncher extends Activity {
             int start = page[0] * perPage, end = Math.min(matches.size(), start + perPage);
             LinearLayout rowGroup = null;
             for (int i = start; i < end; i++) {
-                if ((i - start) % columns == 0) { rowGroup = new LinearLayout(this); rowGroup.setOrientation(LinearLayout.HORIZONTAL); results.addView(rowGroup, new LinearLayout.LayoutParams(-1, dp(48))); }
+                if ((i - start) % columns == 0) {
+                    divider(results, 0);
+                    rowGroup = new LinearLayout(this);
+                    results.addView(rowGroup, new LinearLayout.LayoutParams(-1, dp(49)));
+                }
                 JSONObject item = matches.get(i); LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(4), dp(2), dp(4), dp(2));
                 LinearLayout info = new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); row.addView(info, new LinearLayout.LayoutParams(0, -2, 1));
-                TextView title = new TextView(this); title.setText(item.optString("name") + "  ·  " + item.optString("version")); title.setTextColor(Color.WHITE); title.setTypeface(Typeface.DEFAULT, Typeface.BOLD); title.setSingleLine(true); title.setEllipsize(android.text.TextUtils.TruncateAt.END); info.addView(title);
-                TextView details = new TextView(this); details.setText(item.optString("description")); details.setTextColor(Color.rgb(225, 205, 235)); details.setTextSize(12); details.setSingleLine(true); details.setEllipsize(android.text.TextUtils.TruncateAt.END); info.addView(details);
-                info.setFocusable(true); info.setOnClickListener(v -> showDialog(new AlertDialog.Builder(this).setTitle(item.optString("name")).setMessage(item.optString("description")).setPositiveButton("OK", null).create()));
-                Button install = new Button(this); install.setText(es ? "Importar mod" : "Import mod"); styleButton(install, true);
-                install.setOnClickListener(v -> importOnlineMod(item)); LinearLayout.LayoutParams installParams = new LinearLayout.LayoutParams(dp(112), dp(37)); installParams.leftMargin = dp(6); row.addView(install, installParams); rowGroup.addView(row, new LinearLayout.LayoutParams(0, -1, 1));
+                TextView title = new TextView(this); title.setText(item.optString("name")); title.setTextColor(INK); title.setTypeface(MEDIUM); title.setSingleLine(true); title.setEllipsize(android.text.TextUtils.TruncateAt.END); info.addView(title);
+                TextView details = new TextView(this); details.setText(item.optString("description")); details.setTextColor(MUTED); details.setTextSize(12); details.setSingleLine(true); details.setEllipsize(android.text.TextUtils.TruncateAt.END); info.addView(details);
+                info.setFocusable(true); info.setOnClickListener(v -> showDialog(new AlertDialog.Builder(this).setTitle(item.optString("name")).setMessage(item.optString("version") + "\n\n" + item.optString("description")).setPositiveButton("OK", null).create()));
+                Button install = new Button(this); install.setText(es ? "Importar" : "Import"); styleButton(install, false);
+                install.setOnClickListener(v -> importOnlineMod(item)); LinearLayout.LayoutParams installParams = new LinearLayout.LayoutParams(dp(82), dp(36)); installParams.leftMargin = dp(6); row.addView(install, installParams); rowGroup.addView(row, new LinearLayout.LayoutParams(0, -1, 1));
             }
             if (matches.isEmpty()) { TextView empty = new TextView(this); empty.setTextColor(Color.WHITE); empty.setText(es ? "No se encontraron mods." : "No mods found."); results.addView(empty); }
             pageLabel.setText((page[0] + 1) + " / " + pages + "  ·  " + matches.size()); previous.setEnabled(page[0] > 0); next.setEnabled(page[0] + 1 < pages);
@@ -1010,7 +1276,7 @@ public final class SplitDataLauncher extends Activity {
         });
         render.run();
         Button back = new Button(this); back.setText(es ? "Volver" : "Back"); styleButton(back, false);
-        back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); catalogCard.addView(back, buttonParams());
+        back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); catalogCard.addView(back, new LinearLayout.LayoutParams(dp(106), dp(36)));
     }
 
     void importOnlineMod(JSONObject item) {

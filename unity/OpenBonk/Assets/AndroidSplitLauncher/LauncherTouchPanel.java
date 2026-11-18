@@ -35,6 +35,7 @@ final class LauncherTouchPanel {
     private View build() { render(); return panel; }
     private void render() {
         panel.removeAllViews();
+        activity.divider(panel, 10);
         panel.addView(activity.cardTitle(spanish ? "Perfiles táctiles" : "Touch profiles"));
         panel.addView(text(spanish ? "Editá los controles visualmente durante una partida." : "Edit controls visually during a run."));
         if (!settings.hasSnapshot()) panel.addView(text(spanish
@@ -45,11 +46,14 @@ final class LauncherTouchPanel {
         Button save = button(spanish ? "Guardar" : "Save", () -> showResult(settings.saveProfile(slot), false));
         save.setEnabled(settings.hasSnapshot());
         Button load = button(spanish ? "Cargar" : "Load", () -> showResult(settings.loadProfile(slot), true));
-        row.addView(select, new LinearLayout.LayoutParams(0, activity.dp(37), 1));
-        row.addView(save, new LinearLayout.LayoutParams(0, activity.dp(37), 1));
-        row.addView(load, new LinearLayout.LayoutParams(0, activity.dp(37), 1));
-        panel.addView(row);
+        for (Button action : new Button[]{select, save, load}) {
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, 1);
+            if (row.getChildCount() > 0) params.setMarginStart(activity.dp(6));
+            row.addView(action, params);
+        }
+        panel.addView(row, activity.buttonParams());
         status = text(settings.profileExists(slot) ? (spanish ? "Perfil guardado" : "Saved profile") : (spanish ? "Perfil vacío" : "Empty profile"));
+        status.setPadding(0, activity.dp(5), 0, 0);
         panel.addView(status);
     }
     private void showResult(boolean success, boolean loaded) {
