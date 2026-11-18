@@ -1,0 +1,6 @@
+{
+  "id": "toggle-everything",
+  "api": 1,
+  "enabled": false,
+  "hook": "toggle_everything"
+}

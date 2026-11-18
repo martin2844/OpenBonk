@@ -207,14 +207,14 @@ namespace Assets.Scripts.Saves___Serialization.Progression.Unlocks
 
 		public static bool IsAvailable(UnlockableBase unlockable)
 		{
-			if (OpenBonkUnlockPolicy.Enabled) return true;
+			if (OpenBonkUnlockPolicy.Enabled) return !OpenBonkTogglePolicy.Enabled || IsActivated(unlockable);
 			return IsPurchased(unlockable) && IsActivated(unlockable) && IsUnlocked(unlockable, out _);
 		}
 
 		public static bool IsActivated(UnlockableBase unlockable)
 		{
 			if (unlockable == null || !unlockable.isEnabled) return false;
-			if ((unlockable.GetPrice() > 0 && unlockable.GetUnlockRequirement() != null) || unlockable.canAlwaysToggle)
+			if ((unlockable.GetPrice() > 0 && unlockable.GetUnlockRequirement() != null) || OpenBonkTogglePolicy.AlwaysToggle(unlockable))
 				return !SaveManager.Instance.progression.inactivated.Contains(unlockable.GetInternalName());
 			return true;
 		}
@@ -223,7 +223,7 @@ namespace Assets.Scripts.Saves___Serialization.Progression.Unlocks
 		{
 			if (unlockable == null || SaveManager.Instance?.progression?.shopItems == null ||
 				!SaveManager.Instance.progression.shopItems.TryGetValue(Assets.Scripts._Data.ShopItems.EShopItem.Toggler, out int level) || level <= 0) return false;
-			if (unlockable.canAlwaysToggle) return true;
+			if (OpenBonkTogglePolicy.AlwaysToggle(unlockable)) return true;
 			return unlockable.GetPrice() > 0 && unlockable.GetUnlockRequirement() != null && !(unlockable is CharacterData) && !(unlockable is HatData);
 		}
 

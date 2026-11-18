@@ -17,6 +17,8 @@ public final class UnlockImportCheck {
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","item_lab")), "item lab hook accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","chest_tracker")), "chest tracker hook accepted");
         require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","minimap_zoom")), "minimap zoom accepted");
+        require(LauncherModHookValidation.validModHooks(new JSONObject().put("api",1).put("hook","toggle_everything")), "toggle everything accepted");
+        require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","toggle_everything")), "toggle everything wrong API rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","minimap_zoom")), "minimap zoom wrong API rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","chest_tracker")), "chest tracker wrong API rejected");
         require(!LauncherModHookValidation.validModHooks(new JSONObject().put("api",2).put("hook","item_lab")), "item lab wrong API rejected");
