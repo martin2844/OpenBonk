@@ -201,6 +201,37 @@ namespace Assets.Scripts.Game.Spawning
 			return INVALID_POS;
 		}
 
+		public static Vector3 GetProceduralObjectivePosition(Collider terrain, Collider perimeter, float waterHeight, int layerMask)
+		{
+			const float radius = 5f;
+			// Leave room for the whole ground check and for the player to approach the portal.
+			const float margin = 2f * radius;
+			Bounds bounds = terrain.bounds;
+			Vector3 min = bounds.min;
+			Vector3 max = bounds.max;
+			float top = max.y;
+			if (perimeter != null)
+			{
+				Bounds edge = perimeter.bounds;
+				min = Vector3.Max(min, edge.min);
+				max = Vector3.Min(max, edge.max);
+				top = Mathf.Max(top, edge.max.y);
+			}
+			if (max.x - min.x <= 2f * margin || max.z - min.z <= 2f * margin) return INVALID_POS;
+
+			float rayHeight = top + radius + 1f;
+			float distance = rayHeight - bounds.min.y;
+			for (int i = 0; i < 9999; i++)
+			{
+				var origin = new Vector3(Random.Range(min.x + margin, max.x - margin), rayHeight,
+					Random.Range(min.z + margin, max.z - margin));
+				if (!Physics.SphereCast(origin, radius, Vector3.down, out RaycastHit hit, distance, layerMask, QueryTriggerInteraction.Ignore)) continue;
+				if (hit.collider == terrain && hit.point.y >= waterHeight && Vector3.Angle(Vector3.up, hit.normal) <= 10f)
+					return hit.point;
+			}
+			return INVALID_POS;
+		}
+
 		private static bool TryGetPosition(Vector3 pos, float checkRadius, int layerMask, out Vector3 hitPoint, out Vector3 normal, bool onlyUseGroundLayer = true, bool canSpawnInWater = false, float maxSlopeAngle = 90f)
 		{
 			hitPoint = Vector3.zero;

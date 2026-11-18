@@ -3601,6 +3601,13 @@ public class MapGenerationController : MonoBehaviour
 #endif
 		MapDisplay display = proceduralMapMeshGenerator.display;
 		Mesh worldMesh = display.meshFilter.sharedMesh;
+		Collider perimeter = null;
+		if (proceduralMapWorldEdges != null && !stage.proceduralTerrainData.useFalloff)
+		{
+			proceduralMapWorldEdges.transform.localScale *= stage.proceduralMapScale;
+			proceduralMapWorldEdges.SetActive(true);
+			perimeter = proceduralMapWorldEdges.GetComponent<Collider>();
+		}
 		Physics.SyncTransforms();
 		Bounds bounds = display.meshCollider.bounds;
 		Vector3 worldSize = bounds.size;
@@ -3609,11 +3616,14 @@ public class MapGenerationController : MonoBehaviour
 		proceduralMeshRenderer.sharedMaterial = stage.triplanarMaterial;
 		yield return null;
 
-		Vector3 spawnPosition = SpawnPositions.GetObjectSpawnPosition(worldCenter + Vector3.up * 999f, worldSize,
-			5f, gameManager.whatIsGroundAndObjects, out _, 9999, true, false, false, 10f);
-		if ((spawnPosition - SpawnPositions.INVALID_POS).sqrMagnitude < 1e-10f)
+		// The water plane is enabled later, so use its height even when no collider can be hit.
+		float minimumGroundHeight = water != null && stage.waterMaterial != null
+			? water.transform.position.y + 0.25f : float.NegativeInfinity;
+		Vector3 spawnGround = SpawnPositions.GetProceduralObjectivePosition(display.meshCollider, perimeter,
+			minimumGroundHeight, gameManager.whatIsGroundAndObjects);
+		if (spawnGround == SpawnPositions.INVALID_POS)
 			throw new InvalidOperationException("Could not find a suitable procedural map spawn position.");
-		spawnPosition += Vector3.up * 2f;
+		Vector3 spawnPosition = spawnGround + Vector3.up * 2f;
 		Vector3 spawnDirection = UnityEngine.Random.insideUnitSphere;
 		spawnDirection.y = 0f;
 		if (spawnDirection.sqrMagnitude < 0.0001f) spawnDirection = Vector3.forward;
@@ -3631,13 +3641,12 @@ public class MapGenerationController : MonoBehaviour
 		yield return null;
 		randomObjectPlacer.GenerateInteractables(map);
 		yield return null;
-		Vector3 bossPosition = SpawnPositions.GetObjectSpawnPosition(worldCenter + Vector3.up * 999f, worldSize,
-			5f, gameManager.whatIsGroundAndObjects, out _, 9999, true, false, false, 10f);
-		if ((bossPosition - SpawnPositions.INVALID_POS).sqrMagnitude >= 1e-10f)
-		{
-			GameObject bossPrefab = MapController.IsLastStage() ? bossPortalFinal : bossPortal;
-			if (bossPrefab != null) Instantiate(bossPrefab, bossPosition, bossPrefab.transform.rotation);
-		}
+		Vector3 bossPosition = SpawnPositions.GetProceduralObjectivePosition(display.meshCollider, perimeter,
+			minimumGroundHeight, gameManager.whatIsGroundAndObjects);
+		// Every run needs an objective. The player entry already has verified ground.
+		if (bossPosition == SpawnPositions.INVALID_POS) bossPosition = spawnGround;
+		GameObject bossPrefab = MapController.IsLastStage() ? bossPortalFinal : bossPortal;
+		if (bossPrefab != null) Instantiate(bossPrefab, bossPosition, bossPrefab.transform.rotation);
 		interactablesSpawner.SetArea(area, areaCenter, area.x * area.z);
 		interactablesSpawner.SpawnShit();
 		if (stage.grassMaterial != null && stage.grassPerChunk > 0)
@@ -3646,11 +3655,6 @@ public class MapGenerationController : MonoBehaviour
 			grassRenderer.gameObject.SetActive(true);
 		}
 		if (water != null && stage.waterMaterial != null) { water.gameObject.SetActive(true); water.Set(map, stage); }
-		if (proceduralMapWorldEdges != null && !stage.proceduralTerrainData.useFalloff)
-		{
-			proceduralMapWorldEdges.SetActive(true);
-			proceduralMapWorldEdges.transform.localScale *= stage.proceduralMapScale;
-		}
 		colliderBox.transform.position = worldCenter + Vector3.down * (worldSize.y * 0.5f + 20f);
 		colliderBox.transform.localScale = (worldSize + Vector3.up * 200f) * 1.55f;
 		MapInfo.mapBoundsLower = worldCenter - worldSize * 0.5f;
