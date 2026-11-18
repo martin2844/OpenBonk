@@ -67,6 +67,10 @@ public final class SplitDataLauncher extends Activity {
     private Button mods;
     private Button importModButton;
     private Button onlineMods, updateButton;
+    private Button downloadUpdateButton;
+    private TextView gameDataStatus, updateStatus, releaseStatus;
+    private LinearLayout releaseList;
+    private int updateRequest;
     private LinearLayout modCard, catalogCard;
     private View touchSettingsPanel;
     private RadioGroup controls;
@@ -257,10 +261,20 @@ public final class SplitDataLauncher extends Activity {
         TextView moreSettings = new TextView(this); moreSettings.setTextColor(Color.rgb(225, 205, 235)); moreSettings.setTextSize(12);
         moreSettings.setText(es ? "Las opciones del juego están en su menú de configuración." : "Game options are available in the in-game settings menu."); settingsCard.addView(moreSettings);
         LinearLayout updateCard = card(); left.addView(updateCard); updateCard.addView(cardTitle(es ? "Actualizaciones" : "Updates"));
-        TextView updateHint = new TextView(this); updateHint.setTextColor(Color.rgb(225, 205, 235)); updateHint.setTextSize(12);
-        updateHint.setText(es ? "Buscá nuevas versiones oficiales de OpenBonk." : "Check for new official OpenBonk releases."); updateCard.addView(updateHint);
+        TextView installedVersion = new TextView(this); installedVersion.setTextColor(Color.WHITE); installedVersion.setTextSize(14);
+        installedVersion.setText((es ? "Versión instalada: " : "Installed version: ") + installedVersion()); updateCard.addView(installedVersion);
+        updateStatus = new TextView(this); updateStatus.setTextColor(Color.rgb(225, 205, 235)); updateStatus.setTextSize(13);
+        updateStatus.setText(es ? "Última versión: sin comprobar" : "Latest version: not checked"); updateCard.addView(updateStatus);
+        LinearLayout updateActions = new LinearLayout(this); updateActions.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams updateActionsParams = new LinearLayout.LayoutParams(-1, dp(37)); updateActionsParams.topMargin = dp(6); updateCard.addView(updateActions, updateActionsParams);
         updateButton = new Button(this); updateButton.setText(es ? "Buscar actualización" : "Check for updates");
-        updateButton.setOnClickListener(v -> LauncherOnlineUi.checkUpdate(this, es)); styleButton(updateButton, true); updateCard.addView(updateButton, buttonParams());
+        updateButton.setOnClickListener(v -> loadUpdateOverview()); styleButton(updateButton, false); updateActions.addView(updateButton, new LinearLayout.LayoutParams(dp(175), -1));
+        downloadUpdateButton = new Button(this); downloadUpdateButton.setText(es ? "Descargar actualización" : "Download update");
+        styleButton(downloadUpdateButton, true); downloadUpdateButton.setVisibility(View.GONE); LinearLayout.LayoutParams downloadParams = new LinearLayout.LayoutParams(dp(175), -1); downloadParams.leftMargin = dp(6); updateActions.addView(downloadUpdateButton, downloadParams);
+        TextView releaseHeading = cardTitle(es ? "Últimos cambios" : "Recent releases"); releaseHeading.setPadding(0, dp(12), 0, dp(2)); updateCard.addView(releaseHeading);
+        releaseStatus = new TextView(this); releaseStatus.setTextColor(Color.rgb(225, 205, 235)); releaseStatus.setTextSize(12);
+        releaseStatus.setText(es ? "Abrí esta sección para cargar los cambios." : "Open this section to load release notes."); updateCard.addView(releaseStatus);
+        releaseList = new LinearLayout(this); releaseList.setOrientation(LinearLayout.VERTICAL); updateCard.addView(releaseList);
         LinearLayout helpCard = card(); left.addView(helpCard); helpCard.addView(cardTitle(es ? "Ayuda y soporte" : "Support & help"));
         TextView helpHint = new TextView(this); helpHint.setTextColor(Color.rgb(225, 205, 235)); helpHint.setTextSize(12);
         helpHint.setText(es ? "Compartí ideas o reportá problemas en GitHub. Necesitás una cuenta para enviar comentarios." : "Share ideas or report problems on GitHub. A GitHub account is needed to submit feedback."); helpCard.addView(helpHint);
@@ -280,12 +294,18 @@ public final class SplitDataLauncher extends Activity {
         for (int i = 0; i < pages.length; i++) {
             final int index = i; Button tab = new Button(this); tab.setText(tabNames[i]); tabButtons[i] = tab;
             LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(0, dp(37), 1); tabParams.setMargins(dp(2), 0, dp(2), 0); tabs.addView(tab, tabParams);
-            tab.setOnClickListener(v -> { art.setVisibility(index == 0 ? View.VISIBLE : View.GONE); right.setVisibility(index == 0 ? View.VISIBLE : View.GONE); contentParams.topMargin = dp(index == 0 ? 24 : 12); left.setLayoutParams(contentParams); for (int n = 0; n < pages.length; n++) { pages[n].setVisibility(n == index ? View.VISIBLE : View.GONE); styleButton(tabButtons[n], n == index); } });
+            tab.setOnClickListener(v -> { art.setVisibility(index == 0 ? View.VISIBLE : View.GONE); right.setVisibility(index == 0 ? View.VISIBLE : View.GONE); contentParams.topMargin = dp(index == 0 ? 24 : 12); left.setLayoutParams(contentParams); for (int n = 0; n < pages.length; n++) { pages[n].setVisibility(n == index ? View.VISIBLE : View.GONE); styleButton(tabButtons[n], n == index); } if (index == 4 && updateRequest == 0) loadUpdateOverview(); });
         }
         for (int i = 0; i < pages.length; i++) { pages[i].setVisibility(i == 0 ? View.VISIBLE : View.GONE); styleButton(tabButtons[i], i == 0); }
         play = new Button(this); play.setText(es ? "▶   JUGAR" : "▶   PLAY"); play.setEnabled(false);
         play.setOnClickListener(v -> launchGame());
         stylePlay(play); LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, dp(58)); playParams.topMargin = dp(9); right.addView(play, playParams);
+        LinearLayout gameStatusCard = card(); LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2); statusParams.topMargin = dp(10); right.addView(gameStatusCard, statusParams);
+        TextView gameStatusTitle = cardTitle(es ? "Estado" : "Status"); gameStatusCard.addView(gameStatusTitle);
+        gameDataStatus = new TextView(this); gameDataStatus.setTextSize(13); gameDataStatus.setTextColor(Color.rgb(225, 205, 235));
+        gameDataStatus.setText(es ? "◌  Comprobando archivos del juego…" : "◌  Checking game files…"); gameStatusCard.addView(gameDataStatus);
+        TextView gameVersion = new TextView(this); gameVersion.setTextSize(13); gameVersion.setTextColor(Color.rgb(225, 205, 235));
+        gameVersion.setText((es ? "Versión instalada: " : "Installed version: ") + installedVersion()); gameStatusCard.addView(gameVersion);
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.addView(layout); setContentView(scroll);
         checkData();
         long lastCheck = launcherPrefs.getLong("last_update_check", 0);
@@ -660,6 +680,8 @@ public final class SplitDataLauncher extends Activity {
     private void setReady(boolean ready) {
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         dataReady = ready;
+        gameDataStatus.setText(ready ? (es ? "✓  Archivos del juego: listos" : "✓  Game files: ready") : (es ? "✕  Archivos del juego: faltan" : "✕  Game files: needed"));
+        gameDataStatus.setTextColor(ready ? Color.rgb(213, 245, 95) : Color.rgb(255, 184, 153));
         if (!ready) {
             if (pendingSteam().isFile() && LauncherDiagnosticIntegration.available(this)) message.setText(es
                 ? "No se encontraron los datos preparados. Volvé a importar tu ZIP de Steam."
@@ -694,8 +716,76 @@ public final class SplitDataLauncher extends Activity {
 
     private void setImportBusy() {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        gameDataStatus.setText(es ? "◌  Preparando archivos…" : "◌  Preparing files…"); gameDataStatus.setTextColor(Color.rgb(225, 205, 235));
         choose.setEnabled(false); chooseSteam.setEnabled(false); chooseProfile.setEnabled(false); exportCurrentProfile.setEnabled(false);
         play.setEnabled(false); mods.setEnabled(false); importModButton.setEnabled(false); onlineMods.setEnabled(false); updateButton.setEnabled(false);
+    }
+
+    private String installedVersion() {
+        try { String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; return version == null || version.isEmpty() ? "—" : version; }
+        catch (Exception e) { return "—"; }
+    }
+
+    private void loadUpdateOverview() {
+        final int request = ++updateRequest;
+        updateStatus.setText(es ? "Buscando la última versión…" : "Checking the latest version…");
+        releaseStatus.setVisibility(View.VISIBLE); releaseStatus.setText(es ? "Cargando novedades…" : "Loading release notes…"); releaseList.removeAllViews();
+        downloadUpdateButton.setVisibility(View.GONE);
+        new Thread(() -> {
+            try {
+                JSONObject info = LauncherOnline.metadata(LauncherOnline.UPDATES);
+                long remote = info.getLong("version_code");
+                if (remote <= 0 || info.optString("tag").isEmpty()) throw new IOException("invalid update metadata");
+                long installed = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed() || request != updateRequest) return;
+                    String status = remote > installed ? (es ? "Actualización disponible" : "Update available") : (es ? "Estás al día" : "Up to date");
+                    updateStatus.setText((es ? "Última versión: " : "Latest version: ") + info.optString("tag") + "  ·  " + status);
+                    if (remote > installed) {
+                        downloadUpdateButton.setVisibility(View.VISIBLE);
+                        downloadUpdateButton.setOnClickListener(v -> LauncherOnlineUi.downloadUpdate(this, es, info));
+                    }
+                });
+            } catch (Exception e) { runOnUiThread(() -> {
+                if (!isFinishing() && !isDestroyed() && request == updateRequest) updateStatus.setText(es ? "No se pudo comprobar la última versión. Intentá de nuevo." : "Could not check the latest version. Try again.");
+            }); }
+        }, "openbonk-update-overview").start();
+        new Thread(() -> {
+            try {
+                JSONArray history = LauncherOnline.releases();
+                runOnUiThread(() -> { if (!isFinishing() && !isDestroyed() && request == updateRequest) showReleaseHistory(history); });
+            } catch (Exception e) { runOnUiThread(() -> {
+                if (!isFinishing() && !isDestroyed() && request == updateRequest) releaseStatus.setText(es ? "No se pudieron cargar las novedades. Intentá de nuevo." : "Could not load release notes. Try again.");
+            }); }
+        }, "openbonk-release-history").start();
+    }
+
+    private void showReleaseHistory(JSONArray history) {
+        releaseList.removeAllViews(); int count = 0;
+        for (int i = 0; i < history.length() && count < 3; i++) {
+            JSONObject release = history.optJSONObject(i); if (release == null || release.optBoolean("draft")) continue;
+            String tag = release.optString("tag_name", "");
+            if (!tag.matches("v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[A-Za-z0-9.]+)?")) continue;
+            JSONArray assets = release.optJSONArray("assets"); boolean hasApk = false;
+            if (assets != null) for (int j = 0; j < assets.length(); j++) {
+                JSONObject asset = assets.optJSONObject(j); if (asset != null && "OpenBonk.apk".equals(asset.optString("name"))) { hasApk = true; break; }
+            }
+            if (!hasApk) continue;
+            count++;
+            TextView heading = new TextView(this); heading.setTextColor(Color.rgb(213, 245, 95)); heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD); heading.setTextSize(14);
+            String date = release.optString("published_at", ""); if (date.length() >= 10) date = date.substring(0, 10); else date = "";
+            heading.setText(tag + (date.isEmpty() ? "" : "  ·  " + date)); heading.setPadding(0, dp(8), 0, dp(2)); releaseList.addView(heading);
+            String body = release.optString("body", "").trim();
+            if (body.isEmpty()) body = es ? "Sin notas para esta versión." : "No release notes provided.";
+            if (body.length() > 4000) body = body.substring(0, 4000) + "…";
+            body = body.replace("**", "").replaceAll("(?m)^#{1,6}\\s+", "");
+            TextView notes = new TextView(this); notes.setTextColor(Color.rgb(225, 205, 235)); notes.setTextSize(12); notes.setText(body); releaseList.addView(notes);
+            Button open = new Button(this); open.setText(es ? "Ver en GitHub" : "View on GitHub"); styleButton(open, false);
+            open.setOnClickListener(v -> { try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/martin2844/OpenBonk/releases/tag/" + tag))); } catch (Exception ignored) { } });
+            LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(dp(140), dp(37)); openParams.topMargin = dp(4); releaseList.addView(open, openParams);
+        }
+        releaseStatus.setVisibility(count == 0 ? View.VISIBLE : View.GONE);
+        if (count == 0) releaseStatus.setText(es ? "No hay versiones Android disponibles." : "No Android releases found.");
     }
 
     private void showSteamImportFailure() {
@@ -854,13 +944,10 @@ public final class SplitDataLauncher extends Activity {
     }
 
     private void showGameDataHelp() {
-        String instructions = embeddedData() ? (es
-            ? "Esta compilación ya incluye datos del juego. Podés seleccionar un ZIP de Steam compatible para importar textos y texturas adicionales."
-            : "This build already includes game data. You can select a compatible Steam ZIP to import additional text and textures.") : LauncherDiagnosticIntegration.available(this) ? (es
-            ? "En tu PC, abrí la carpeta de Megabonk desde Steam y comprimí la carpeta Megabonk_Data en un archivo ZIP. Copiá el ZIP a este dispositivo y elegilo en «Importar juego de Steam».\n\nSe necesita una copia y versión compatibles. La preparación puede tardar y necesita espacio libre adicional. El ZIP contiene archivos del juego; mantenelo para uso personal."
-            : "On your PC, open the Megabonk folder from Steam and compress the Megabonk_Data folder into a ZIP file. Copy the ZIP to this device and choose it under ‘Import Steam game’.\n\nA compatible game copy and version are required. Preparation can take time and needs extra free space. The ZIP contains game files; keep it for personal use.") : (es
-            ? "Esta versión necesita un paquete Android preparado en la PC. Seleccionalo con «Seleccionar datos». También podés elegir el ZIP de Steam para importar textos y texturas.\n\nSe necesita una copia y versión compatibles; mantené los archivos del juego para uso personal."
-            : "This build needs an Android data package prepared on a PC. Select it using ‘Choose data’. You can also choose a Steam ZIP to import text and textures.\n\nA compatible game copy and version are required; keep game files for personal use.");
+        String instructions = es
+            ? "ZIP de archivos de Megabonk: elegí un ZIP de la carpeta Megabonk_Data de tu copia compatible. OpenBonk prepara los datos del juego en el dispositivo. La preparación puede tardar y necesita espacio libre.\n\nImportar datos Android preparados: alternativa para usar un paquete OpenBonk-data.zip o archivo OBB compatible ya convertido en una PC. La mayoría de los jugadores puede usar la primera opción.\n\nImportar perfil ZIP: importa progreso guardado; no instala el juego.\n\nExportar perfil: guarda una copia de tu progreso en un ZIP.\n\nEl estado junto a Jugar indica si los datos del juego están listos."
+            : "Megabonk game files ZIP: select a ZIP of the Megabonk_Data folder from your compatible game copy. OpenBonk prepares the game data on this device. Preparation can take time and needs free storage.\n\nImport prepared Android data: an alternative for an OpenBonk-data.zip or compatible OBB already converted on a PC. Most players can use the first option.\n\nImport profile ZIP: imports saved progress; it does not install the game.\n\nExport profile: saves a copy of your progress to a ZIP.\n\nThe status beside Play shows whether game data is ready.";
+        if (embeddedData()) instructions = (es ? "Esta compilación incluye datos del juego.\n\n" : "This build includes game data.\n\n") + instructions;
         showDialog(new AlertDialog.Builder(this).setTitle(es ? "Preparar datos del juego" : "Prepare game data").setMessage(instructions).setPositiveButton("OK", null).create());
     }
 

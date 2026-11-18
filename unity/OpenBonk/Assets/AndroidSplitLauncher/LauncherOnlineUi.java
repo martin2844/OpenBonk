@@ -51,7 +51,7 @@ final class LauncherOnlineUi {
             } catch (Exception e) { if (!automatic) error(a, es, e); }
         }, "openbonk-update-check").start();
     }
-    private static void downloadUpdate(SplitDataLauncher a, boolean es, JSONObject info) {
+    static void downloadUpdate(SplitDataLauncher a, boolean es, JSONObject info) {
         if (Build.VERSION.SDK_INT >= 26 && !a.getPackageManager().canRequestPackageInstalls()) {
             new AlertDialog.Builder(a).setMessage(es ? "Permití que OpenBonk instale actualizaciones y volvé a buscar la actualización." : "Allow OpenBonk to install updates, then check again.")
                 .setNegativeButton(es ? "Cancelar" : "Cancel", null).setPositiveButton(es ? "Abrir ajustes" : "Open settings", (d, w) -> {

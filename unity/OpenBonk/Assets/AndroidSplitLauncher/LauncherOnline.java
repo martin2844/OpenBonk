@@ -13,21 +13,24 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import javax.net.ssl.HttpsURLConnection;
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 /** Public metadata and downloads only; game data and profiles are never uploaded. */
 final class LauncherOnline {
     static final String ROOT = "https://raw.githubusercontent.com/martin2844/OpenBonk/main/";
     static final String CATALOG = ROOT + "mods/catalog/index.json", UPDATES = ROOT + "updates/android.json";
+    static final String RELEASES = "https://api.github.com/repos/martin2844/OpenBonk/releases?per_page=10";
     private static HttpsURLConnection connect(String address) throws Exception {
         for (int redirect = 0; redirect < 6; redirect++) {
             URL url = new URL(address);
             String host = url.getHost().toLowerCase(java.util.Locale.ROOT);
             if (!url.getProtocol().equals("https") || url.getUserInfo() != null || url.getPort() != -1 ||
-                !(host.equals("github.com") || host.equals("raw.githubusercontent.com") || host.equals("release-assets.githubusercontent.com") || host.equals("objects.githubusercontent.com")))
+                !(host.equals("github.com") || host.equals("api.github.com") || host.equals("raw.githubusercontent.com") || host.equals("release-assets.githubusercontent.com") || host.equals("objects.githubusercontent.com")))
                 throw new IOException("untrusted download URL");
             HttpsURLConnection c = (HttpsURLConnection) url.openConnection();
             c.setInstanceFollowRedirects(false); c.setConnectTimeout(15000); c.setReadTimeout(30000);
-            c.setRequestProperty("Accept", "application/octet-stream");
+            c.setRequestProperty("Accept", host.equals("api.github.com") ? "application/vnd.github+json" : "application/octet-stream");
+            c.setRequestProperty("User-Agent", "OpenBonk-Android");
             int code = c.getResponseCode();
             if (code >= 300 && code < 400) {
                 String location = c.getHeaderField("Location"); c.disconnect();
@@ -47,6 +50,14 @@ final class LauncherOnline {
             JSONObject result = new JSONObject(new String(out.toByteArray(), "UTF-8"));
             if (result.optInt("schema") != 1) throw new IOException("unsupported metadata version");
             return result;
+        } finally { c.disconnect(); }
+    }
+    static JSONArray releases() throws Exception {
+        HttpsURLConnection c = connect(RELEASES);
+        try (InputStream in = c.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] b = new byte[4096]; int n, total = 0;
+            while ((n = in.read(b)) != -1) { total += n; if (total > 524288) throw new IOException("release history too large"); out.write(b, 0, n); }
+            return new JSONArray(new String(out.toByteArray(), "UTF-8"));
         } finally { c.disconnect(); }
     }
     static void download(JSONObject info, File dest, long limit) throws Exception {
