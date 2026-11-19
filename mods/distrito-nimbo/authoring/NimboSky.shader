@@ -45,6 +45,14 @@ Shader "OpenBonk/NimboDaySky"
                 float clouds = noise(p * 2 + 4) * .65 + noise(p * 5) * .28 + noise(p * 11 + 3) * .07;
                 float mask = smoothstep(.62, .75, clouds) * smoothstep(.04, .21, up);
                 half3 color = lerp(sky, half3(.97, .97, .94), mask * .83);
+                // The sun sits along the prop shader's key light so shading agrees.
+                half3 sunDirection = normalize(half3(.45, 1, .3));
+                half sun = saturate(dot(dir, sunDirection));
+                color += half3(1, .92, .74) * (pow(sun, 320) * .95 + pow(sun, 12) * .10);
+                // A warm horizon band toward the sun keeps the sky sunny even when
+                // the steep chase camera leaves the disc out of frame.
+                float toward = saturate(dot(normalize(float3(dir.x, 0, dir.z)), normalize(float3(sunDirection.x, 0, sunDirection.z))));
+                color += half3(1, .82, .55) * pow(toward, 3) * .12 * saturate(1 - up * 1.6);
                 #ifndef UNITY_COLORSPACE_GAMMA
                 color = GammaToLinearSpace(color);
                 #endif

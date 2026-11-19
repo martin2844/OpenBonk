@@ -33,7 +33,11 @@ Shader "OpenBonk/NimboProp"
                 half illumination = saturate(dot(normal, lightDirection));
                 half3 viewDirection = normalize(WorldSpaceViewDir(input.position));
                 half highlight = pow(saturate(dot(normal, normalize(lightDirection + viewDirection))), 20);
-                output.color = fixed4(input.color.rgb * (.56 + illumination * .44) + highlight * _Glaze * .38, 1);
+                // A broad rim keeps pale creatures readable against the pale plaza
+                // even from the steep chase camera, where grazing angles are rare.
+                half rim = pow(1 - saturate(dot(normal, viewDirection)), 1.6) * .5;
+                half3 shade = input.color.rgb * (.56 + illumination * .44) + highlight * _Glaze * .38;
+                output.color = fixed4(shade + rim * lerp(input.color.rgb, half3(1, 1, 1), .55), 1);
                 UNITY_TRANSFER_FOG(output, output.position);
                 return output;
             }

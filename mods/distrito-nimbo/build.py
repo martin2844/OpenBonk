@@ -41,14 +41,19 @@ def shift(color, amount):
 
 
 def roof_pixel(base, paint, x, y):
-    if (x in range(7, 11) or x in range(117, 121)) and (y % 32) < 24:
-        return paint
-    # Staggered concrete slabs, with the seams less bright than the route marks.
-    if y % 32 == 0 or (x + (16 if y // 32 % 2 else 0)) % 32 == 0:
-        return shift(base, -20)
+    if (x in range(6, 11) or x in range(117, 122)) and (y % 32) < 24:
+        # Route marks: brightened so avenues read at chase-camera distance.
+        return shift(paint, 36)
+    staggered = x + (16 if y // 32 % 2 else 0)
+    # Staggered concrete slabs with a curb-dark seam and a bevel highlight.
+    if y % 32 == 0 or staggered % 32 == 0:
+        return shift(base, -34)
+    if y % 32 == 1 or staggered % 32 == 1:
+        return shift(base, -2)
     grain = (x * 17 + y * 23 + x * y * 3) % 6
-    variation = ((x + (16 if y // 32 % 2 else 0)) // 32 + y // 32 * 2) % 4
-    return shift(base, grain + 3 * variation - 8)
+    slab = (staggered // 32 + y // 32 * 2) % 4
+    stain = -13 if (staggered // 32 * 7 + y // 32 * 3) % 5 == 0 else 0
+    return shift(base, grain + 4 * slab - 10 + stain)
 
 
 def wall_pixel(base, glass, sign, x, y):
@@ -64,7 +69,9 @@ def wall_pixel(base, glass, sign, x, y):
             return shift(glass, 32)
         if (x // 32 + 2 * (y // 32)) % 11 == 6:
             return shift(sign, -9 if floor >= 18 else 0)
-        return shift(glass, 10 if floor < 14 else -11)
+        # Slight per-window tint jitter breaks up the flat glass grid.
+        cell = (x // 32) * 3 + (y // 32) * 7
+        return shift(glass, (10 if floor < 14 else -11) + (cell % 5) - 2)
     if 6 <= bay <= 25 and floor == 24:
         return shift(base, -25)
     brick = 5 if (y % 8 == 0 or (x + 7 * (y // 8 % 2)) % 14 == 0) else 0
