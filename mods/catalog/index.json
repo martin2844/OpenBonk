@@ -103,11 +103,11 @@
     {
       "id": "distrito-nimbo",
       "name": "Distrito Nimbo",
-      "description": "Rooftop city map with three districts, colored Pokémon mobs and bosses, ball capsules, textured rooftops and a sunny sky. Requires OpenBonk 0.1.14 or newer; contains third-party Pokémon models.",
-      "version": "1.2.0",
-      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.14-beta/distrito-nimbo-pokemon-local.zip",
-      "size": 8065180,
-      "sha256": "34010e196af42074d14f68cfab6761e305dcae7b1e263eeb945cfa572446f895"
+      "description": "Rooftop city map with three districts, giant bosses that hurl elemental volleys, colored Pokémon mobs, ball capsules, textured rooftops and a sunny sky. Requires OpenBonk 0.1.15 or newer; contains third-party Pokémon models.",
+      "version": "1.3.1",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.15-beta/distrito-nimbo-pokemon-local.zip",
+      "size": 8065440,
+      "sha256": "d85b6da3bfec78f30f698fa0bfdd0053bcd496ecf8352afff12ca98afe34f08b"
     },
     {
       "id": "offer-tools",

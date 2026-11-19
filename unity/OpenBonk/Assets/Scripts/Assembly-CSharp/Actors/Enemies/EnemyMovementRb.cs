@@ -108,6 +108,7 @@ namespace Actors.Enemies
 
 		private OpenBonkEnemyCharge customCharge;
 		private OpenBonkBossHazard customHazard;
+		private OpenBonkBossVolley customVolley;
 		private bool hasCustomIdle;
 
 		public bool grounded { get; private set; } = true;
@@ -122,7 +123,7 @@ namespace Actors.Enemies
 			MyTime.A_TimeScaleChange -= TimescaleVelocity;
 		}
 
-		private void OnDisable() => customHazard?.Cancel();
+		private void OnDisable() { customHazard?.Cancel(); customVolley?.Cancel(); }
 
 		public void Init()
 		{
@@ -154,6 +155,9 @@ namespace Actors.Enemies
 			customHazard?.Cancel();
 			customHazard = custom?.hazardMaterial != null && enemy.IsStageBoss()
 				? new OpenBonkBossHazard(enemy, custom.sweepAttack, custom.hazardMaterial) : null;
+			customVolley?.Cancel();
+			customVolley = custom?.volleyAttack == true && enemy.IsStageBoss()
+				? new OpenBonkBossVolley(enemy, custom) : null;
 			hasCustomIdle = custom?.hasIdle == true;
 		}
 
@@ -164,11 +168,19 @@ namespace Actors.Enemies
 				totalSuckTime += MyTime.fixedDeltaTime;
 				if (totalSuckTime > totalSuckTimeMax) state = State.Normal;
 			}
-			if (!enemy.CanMove()) { customHazard?.Cancel(); return; }
+			if (!enemy.CanMove()) { customHazard?.Cancel(); customVolley?.Cancel(); return; }
 			if (MyTime.time >= nextStepTime) FindNextPosition();
 			if (customCharge != null && customCharge.Step(this)) return;
-			if (state == State.Normal) customHazard?.Step();
-			else customHazard?.Cancel();
+			if (state == State.Normal)
+			{
+				customHazard?.Step();
+				customVolley?.Step();
+			}
+			else
+			{
+				customHazard?.Cancel();
+				customVolley?.Cancel();
+			}
 			float vertical = enemy.enemyData.isFlying ? desiredVelocity.y : rb.velocity.y;
 			if (enemy.enemyData.isFlying && flyingKnockupVel > 0f)
 			{

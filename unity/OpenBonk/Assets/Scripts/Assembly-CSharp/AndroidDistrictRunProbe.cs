@@ -97,6 +97,16 @@ internal sealed class AndroidDistrictRunProbe : MonoBehaviour
             }
             if (boss == null) { Fail("no fightable local boss", index); yield break; }
             string bossName = boss.enemyData.GetName();
+            bool volley = false;
+            until = Time.realtimeSinceStartup + 12f;
+            while (!volley && Time.realtimeSinceStartup < until)
+            {
+                AcceptPendingReward();
+                volley = GameObject.Find("NimboBossCharge") != null || GameObject.Find("NimboBossBolt") != null;
+                yield return null;
+            }
+            if (!volley) { Fail("boss did not wind up a volley", index); yield break; }
+            Debug.Log($"District probe volley: boss={bossName} projectile=true");
             if (index > 0)
             {
                 string warning = index == 1 ? "Sweep warning" : "Pulse warning";

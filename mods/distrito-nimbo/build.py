@@ -111,13 +111,14 @@ def reward_pixel(stage, x, y):
     return (48, 59, 83)
 
 
-def enemy(identifier, name, mesh_prefix, movement, *, hp, damage, xp, speed, cost, scale, radius, attack=None):
+def enemy(identifier, name, mesh_prefix, movement, *, hp, damage, xp, speed, cost, scale, radius, attack=None, volley=None):
     clips = ("walk", "idle", "charge") if movement == "charge" else ("walk", "idle")
     return {
         "id": identifier, "name": name, "material": "NimboProp", "movement": movement,
         "hp": hp, "damage": damage, "xp": xp, "speed": speed, "cost": cost,
         "scale": scale, "radius": radius, "fps": 12,
         **({"attack": attack, "attackMaterial": "NimboWarning"} if attack else {}),
+        **({"volley": volley} if volley else {}),
         **{clip: {"prefix": mesh_prefix + clip.title(), "frames": 12} for clip in clips},
     }
 
@@ -153,7 +154,7 @@ def build(destination, prop_bundle):
         "kind": "content",
         "id": "distrito-nimbo",
         # The launcher compares this against the catalog to offer updates.
-        "version": "1.2.0",
+        "version": "1.3.1",
         "map": {
             "id": "distrito-nimbo",
             "name": "Distrito Nimbo",
@@ -173,21 +174,24 @@ def build(destination, prop_bundle):
                 enemy("pidgey", "Pidgey", "Pidgey", "fly",
                       hp=6, damage=9, xp=1, speed=6, cost=.9, scale=1.7, radius=.24),
                 enemy("charizard", "Charizard", "Charizard", "charge",
-                      hp=160, damage=24, xp=8, speed=5.4, cost=9, scale=2.9, radius=.70),
+                      hp=160, damage=24, xp=8, speed=5.4, cost=9, scale=4.4, radius=.85,
+                      volley={"color": "#FF7A2E", "count": 3, "spread": 26, "speed": 20, "radius": 1.7, "cooldown": 3.2}),
                 enemy("rattata", "Rattata", "Rattata", "ground",
                       hp=16, damage=15, xp=2, speed=6.7, cost=1.1, scale=1.75, radius=.36),
                 enemy("gyarados", "Gyarados", "Gyarados", "fly",
-                      hp=230, damage=25, xp=11, speed=4.5, cost=10, scale=2.26, radius=.30, attack="sweep"),
+                      hp=230, damage=25, xp=11, speed=4.5, cost=10, scale=3.8, radius=.55, attack="sweep",
+                      volley={"color": "#38C6FF", "count": 5, "spread": 34, "speed": 17, "radius": 1.5, "cooldown": 3.6}),
                 enemy("raticate", "Raticate", "Raticate", "ground",
                       hp=18, damage=18, xp=2, speed=6.3, cost=1.3, scale=1.65, radius=.32),
                 enemy("rhydon", "Rhydon", "Rhydon", "ground",
-                      hp=340, damage=31, xp=15, speed=4.5, cost=12, scale=2.7, radius=.69, attack="pulse"),
+                      hp=340, damage=31, xp=15, speed=4.5, cost=12, scale=4.6, radius=.85, attack="pulse",
+                      volley={"color": "#D8A24A", "count": 2, "spread": 16, "speed": 15, "radius": 2.2, "cooldown": 4.0}),
                 enemy("fearow", "Fearow", "Fearow", "fly",
-                      hp=72, damage=18, xp=5, speed=6.4, cost=5, scale=2.2, radius=.45),
+                      hp=72, damage=18, xp=5, speed=6.4, cost=5, scale=2.8, radius=.45),
                 enemy("arbok", "Arbok", "Arbok", "charge",
-                      hp=105, damage=23, xp=6, speed=5.8, cost=6, scale=2.35, radius=.57),
+                      hp=105, damage=23, xp=6, speed=5.8, cost=6, scale=3.0, radius=.57),
                 enemy("nidoking", "Nidoking", "Nidoking", "charge",
-                      hp=150, damage=28, xp=8, speed=5.1, cost=7, scale=2.6, radius=.68),
+                      hp=150, damage=28, xp=8, speed=5.1, cost=7, scale=3.3, radius=.68),
             ],
             "encounters": [{
                 "stage": 1,

@@ -20,6 +20,15 @@ internal sealed class OpenBonkMapEncounterBuild : IDisposable
         public int hp, damage, xp, fps;
         public float speed, cost, scale, radius;
         public ClipSpec walk, idle, charge;
+        public VolleySpec volley;
+    }
+
+    [Serializable, UnityEngine.Scripting.Preserve]
+    internal sealed class VolleySpec
+    {
+        public string color;
+        public int count;
+        public float spread, speed, radius, cooldown;
     }
 
     [Serializable, UnityEngine.Scripting.Preserve]
@@ -121,6 +130,10 @@ internal sealed class OpenBonkMapEncounterBuild : IDisposable
             (spec.movement == "charge") != (spec.charge != null) ||
             (string.IsNullOrEmpty(spec.attack) != string.IsNullOrEmpty(spec.attackMaterial)) ||
             (!string.IsNullOrEmpty(spec.attack) && (!Text(spec.attackMaterial, 120) || (spec.attack != "pulse" && spec.attack != "sweep"))) ||
+            (spec.volley != null && (!TryHexColor(spec.volley.color, out _) ||
+                !Range(spec.volley.count, 1f, 9f) || !Range(spec.volley.spread, 0f, 180f) ||
+                !Range(spec.volley.speed, 3f, 60f) || !Range(spec.volley.radius, .3f, 5f) ||
+                !Range(spec.volley.cooldown, .5f, 20f))) ||
             !Range(spec.hp, 1, 1000000) || !Range(spec.damage, 1, 10000) || !Range(spec.xp, 0, 1000) ||
             !Range(spec.fps, 4, 24) || !Range(spec.speed, .1f, 40f) || !Range(spec.cost, .1f, 30f) ||
             !Range(spec.scale, .25f, 12f) || !Range(spec.radius, .1f, 8f))
@@ -163,6 +176,21 @@ internal sealed class OpenBonkMapEncounterBuild : IDisposable
             if (enemy.hazardMaterial == null || enemy.hazardMaterial.shader == null)
                 throw new InvalidDataException("Missing enemy attack material");
             enemy.sweepAttack = spec.attack == "sweep";
+        }
+        if (spec.volley != null)
+        {
+            enemy.volleyMaterial = enemy.hazardMaterial != null
+                ? enemy.hazardMaterial
+                : bundle.LoadAsset<Material>("NimboWarning");
+            if (enemy.volleyMaterial == null || enemy.volleyMaterial.shader == null)
+                throw new InvalidDataException("Missing enemy volley material");
+            TryHexColor(spec.volley.color, out enemy.volleyColor);
+            enemy.volleyAttack = true;
+            enemy.volleyCount = spec.volley.count;
+            enemy.volleySpread = spec.volley.spread;
+            enemy.volleySpeed = spec.volley.speed;
+            enemy.volleyRadius = spec.volley.radius;
+            enemy.volleyCooldown = spec.volley.cooldown;
         }
         enemy.creditCost = spec.cost;
         enemy.canBeElite = true;
@@ -238,6 +266,17 @@ internal sealed class OpenBonkMapEncounterBuild : IDisposable
     private static bool Text(string value, int max) =>
         !string.IsNullOrWhiteSpace(value) && value.Length <= max && value.IndexOf('\0') < 0;
     private static bool Range(float value, float min, float max) => value >= min && value <= max;
+
+    private static bool TryHexColor(string value, out Color color)
+    {
+        color = Color.white;
+        if (string.IsNullOrEmpty(value) || value.Length != 7 || value[0] != '#') return false;
+        int packed;
+        if (!int.TryParse(value.Substring(1), System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out packed)) return false;
+        color = new Color(((packed >> 16) & 255) / 255f, ((packed >> 8) & 255) / 255f, (packed & 255) / 255f, 1f);
+        return true;
+    }
     private T Own<T>(T obj) where T : Object { owned.Add(obj); return obj; }
 
     public void Dispose()
