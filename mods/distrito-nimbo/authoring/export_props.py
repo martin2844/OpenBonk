@@ -41,19 +41,19 @@ def bake(name, objects, pivot, collide, material_colors=None):
     return dict(name=name, points=points, normals=normals, colors=colors, collide=collide)
 
 
-def capsule(name, clasp):
+def capsule(name, dome):
+    # A recognizable capsule ball: even shell halves, a dark equatorial band
+    # and a round release button facing the street on both sides.
     radius, sides = .67, 28
-    # A shallow diagonal join exposes the ivory shell at chase-camera height.
-    latitudes = (-87, -73, -58, -44, -29, -16, -7, -5, 8, 22, 37, 53, 69, 83)
+    latitudes = (-85, -75, -65, -55, -45, -35, -25, -15, -5, 5, 15, 25, 35, 45, 55, 65, 75, 85)
     points = []
     for degrees in latitudes:
         latitude = math.radians(degrees)
         for index in range(sides):
             angle = math.tau * index / sides
-            tilted = latitude + .22 * math.sin(angle) * math.cos(latitude)
-            points.append((radius * math.cos(tilted) * math.cos(angle),
-                           radius * math.cos(tilted) * math.sin(angle),
-                           radius * (1 + math.sin(tilted))))
+            points.append((radius * math.cos(latitude) * math.cos(angle),
+                           radius * math.cos(latitude) * math.sin(angle),
+                           radius * (1 + math.sin(latitude))))
     faces = [tuple(reversed(range(sides)))]
     for ring in range(len(latitudes) - 1):
         start = ring * sides
@@ -64,18 +64,29 @@ def capsule(name, clasp):
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(points, [], faces)
     mesh.update()
-    for label, rgba in (("Pearl", (.97, .97, .94, 1)), ("Join", (.48, .095, .115, 1)),
-                        ("Scarlet", (.96, .025, .042, 1)), ("Inset", clasp)):
+    for label, rgba in (("Shell", (.96, .95, .92, 1)), ("Band", (.05, .05, .06, 1)),
+                        ("Dome", dome), ("Button", (.08, .08, .09, 1))):
         material = bpy.data.materials.new(label)
         material.diffuse_color = rgba
         mesh.materials.append(material)
+    # Band rows sit between latitudes -15 and 15; the release button is a
+    # diamond of shell faces centered on the band at sides 7 and 21.
+    band_rows = (7, 8, 9)
     for face in mesh.polygons:
         if face.index == 0:
             continue
         ring, side = divmod(face.index - 1, sides)
-        face.material_index = 0 if ring < 6 else 1 if ring == 6 else 2
-        if ring == 7 and side in (6, 7, 20, 21):
-            face.material_index = 3
+        if ring in band_rows:
+            material_index = 1
+        elif ring < band_rows[0]:
+            material_index = 0
+        else:
+            material_index = 2
+        for center in (7, 21):
+            distance = min((side - center) % sides, sides - (side - center) % sides)
+            if ring in band_rows and distance <= 2 - abs(ring - 8):
+                material_index = 3 if (ring == 8 and distance == 0) else 0
+        face.material_index = material_index
         face.use_smooth = 0 < face.index < len(faces) - 1
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
@@ -154,8 +165,8 @@ def main():
         bake("TerminalHeatPump", air_conditioner, Vector((6.5, 4.7, 7.16)), True),
         bake("SignalAntenna", antenna, Vector((5.5, 20.1, 11.3)), False),
         bake("BasaltHead", head, Vector((-19.9, 1.6, 5.51)), True, terracotta),
-        capsule("CargoCapsule", (.96, .58, .17, 1)),
-        capsule("SilverCargoCapsule", (.53, .75, .92, 1)),
+        capsule("CargoCapsule", (.83, .03, .06, 1)),
+        capsule("SilverCargoCapsule", (.16, .35, .74, 1)),
         access_house("SageAccessHouse", (.96, .76, .35, 1), (.29, .59, .39, 1)),
         access_house("LilacAccessHouse", (.95, .85, .63, 1), (.47, .40, .69, 1)),
     ]

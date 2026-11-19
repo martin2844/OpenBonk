@@ -302,13 +302,13 @@ public static class OpenBonkRoofLayout
 
     private static readonly Color[] FacadeColors =
     {
-        new Color(1f, .97f, .86f), new Color(1f, .94f, .66f), new Color(.82f, .96f, .88f),
-        new Color(.96f, .89f, 1f), new Color(1f, .89f, .79f),
+        new Color(.72f, .32f, .26f), new Color(.23f, .48f, .45f), new Color(.78f, .60f, .38f),
+        new Color(.36f, .42f, .58f), new Color(.60f, .52f, .32f),
     };
     private static readonly Color[] RoofColors =
     {
-        new Color(.81f, .94f, .82f), new Color(.80f, .98f, .83f), new Color(.80f, .91f, 1f),
-        new Color(.96f, .84f, 1f), new Color(1f, .90f, .74f),
+        new Color(.26f, .30f, .34f), new Color(.14f, .36f, .34f), new Color(.50f, .24f, .20f),
+        new Color(.22f, .23f, .28f), new Color(.46f, .30f, .20f),
     };
 
     private sealed class SurfaceMesh
