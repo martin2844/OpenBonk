@@ -59,9 +59,11 @@ final class LauncherContentImporter {
         byte[] manifest = readSmall(zip, manifestEntry, 65536);
         JSONObject json = new JSONObject(utf8(manifest));
         String id = json.optString("id", "");
-        if (json.optInt("api") != 3 || !json.optString("kind").equals("content") || !id.matches("[a-z0-9][a-z0-9._-]{0,63}")) throw new IOException("unsupported content package");
+        int api = json.optInt("api");
+        if ((api != 3 && api != 4) || !json.optString("kind").equals("content") || !id.matches("[a-z0-9][a-z0-9._-]{0,63}")) throw new IOException("unsupported content package");
         JSONObject character = json.optJSONObject("character"), weapon = json.optJSONObject("weapon"), item = json.optJSONObject("item"), map = json.optJSONObject("map");
         JSONObject passive = json.optJSONObject("passive");
+        if (api == 4 && map == null) throw new IOException("API 4 requires a map package");
         JSONArray stageEnvironments = map == null ? null : map.optJSONArray("stageEnvironments");
         String mapBundle = null;
         if (json.has("passive") && !json.isNull("passive") && passive == null)
@@ -81,7 +83,7 @@ final class LauncherContentImporter {
                 if (!number(map, "noiseScale", 25, 250) || !number(map, "heightMultiplier", 1, 20) || !number(map, "mapScale", .75, 1.25))
                     throw new IOException("unsupported mesh recipe");
             } else throw new IOException("unsupported map template");
-            boolean needsMapBundle = map.has("stageEnvironments") && validateStageEnvironments(base, map, stageEnvironments);
+            boolean needsMapBundle = map.has("stageEnvironments") && validateStageEnvironments(api, base, map, stageEnvironments);
             if (map.has("enemies") || map.has("encounters")) {
                 validateMapEncounters(map.optJSONArray("enemies"), map.optJSONArray("encounters"));
                 needsMapBundle = true;
@@ -278,7 +280,15 @@ final class LauncherContentImporter {
     }
     private static String utf8(byte[] bytes) throws Exception { return StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString(); }
     private static boolean contentId(String value) { return value.matches("[a-z0-9][a-z0-9._-]{0,63}"); }
-    private static boolean validateStageEnvironments(String base, JSONObject map, JSONArray environments) throws IOException {
+    private static boolean blankStreetName(String name) {
+        // Match .NET IsNullOrWhiteSpace, including non-breaking spaces and NEL.
+        for (int i = 0; i < name.length(); i++) {
+            char ch = name.charAt(i);
+            if (!Character.isWhitespace(ch) && !Character.isSpaceChar(ch) && ch != 0x85) return false;
+        }
+        return true;
+    }
+    private static boolean validateStageEnvironments(int api, String base, JSONObject map, JSONArray environments) throws IOException {
         if (!"Forest".equals(base) || environments == null || environments.length() < 1 || environments.length() > 3)
             throw new IOException("unsupported stage environments");
         boolean[] seen = new boolean[3];
@@ -309,6 +319,25 @@ final class LauncherContentImporter {
                     !strictNumber(layout, "riseFraction", .03, .10) ||
                     layout.optDouble("riseFraction") > (.96 - layout.optDouble("roofFraction")) * .55)
                     throw new IOException("invalid rooftop dimensions");
+            }
+            if (entry.has("streetscape")) {
+                if (api != 4) throw new IOException("streetscapes require content API 4 and OpenBonk 0.1.17 or newer");
+                JSONObject street = entry.optJSONObject("streetscape");
+                JSONArray frontages = street == null ? null : street.optJSONArray("frontages");
+                if (!entry.optBoolean("replaceDecorations") || !architecture || entry.has("rooftops") || street == null ||
+                    !strictNumber(street, "tileWidth", 20, 40) || street.optDouble("tileWidth") != street.optInt("tileWidth") ||
+                    !strictNumber(street, "stepHeight", 2, 12) || street.optDouble("stepHeight") != street.optInt("stepHeight") ||
+                    street.optDouble("stepHeight") > street.optDouble("tileWidth") * .4 ||
+                    !strictNumber(street, "coverage", 0, 1) || frontages == null || frontages.length() < 1 || frontages.length() > 8)
+                    throw new IOException("invalid streetscape profile");
+                Set<String> streetNames = new HashSet<>();
+                for (int f = 0; f < frontages.length(); f++) {
+                    Object name = frontages.opt(f);
+                    if (!(name instanceof String) || blankStreetName((String)name) || ((String)name).length() > 120 ||
+                        ((String)name).indexOf('\0') >= 0 || !streetNames.add((String)name))
+                        throw new IOException("invalid street frontage");
+                }
+                needsBundle = true;
             }
             boolean landmark = !optionalString(entry, "arenaLandmark").isEmpty();
             if (landmark && (entry.has("rooftops") || !entry.optBoolean("replaceDecorations")))

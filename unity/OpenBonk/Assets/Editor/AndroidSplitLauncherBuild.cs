@@ -58,6 +58,21 @@ internal sealed class AndroidSplitLauncherBuild : IPostGenerateGradleAndroidProj
         // Only the launcher in this app should start Unity. Exporting this
         // activity lets other apps bypass data checks and supply intent extras.
         Set(unityActivity, "exported", "false", android);
+        // SAF imports and app-owned runtime files are prepared by the launcher.
+        // Unity's automatic storage dialog can pause GameActivity while its
+        // accessibility initialization waits on the UI thread, deadlocking startup.
+        // Keep declared permissions intact for existing Android installations.
+        XmlElement skipPermissions = null;
+        foreach (XmlNode node in unityActivity.SelectNodes("meta-data"))
+            if (node is XmlElement element && element.GetAttribute("name", android) == "unityplayer.SkipPermissionsDialog")
+                skipPermissions = element;
+        if (skipPermissions == null)
+        {
+            skipPermissions = doc.CreateElement("meta-data");
+            Set(skipPermissions, "name", "unityplayer.SkipPermissionsDialog", android);
+            unityActivity.AppendChild(skipPermissions);
+        }
+        Set(skipPermissions, "value", "true", android);
         var filters = unityActivity.SelectNodes("intent-filter");
         for (int i = filters.Count - 1; i >= 0; i--)
             if (filters[i].InnerXml.Contains("android.intent.action.MAIN")) unityActivity.RemoveChild(filters[i]);

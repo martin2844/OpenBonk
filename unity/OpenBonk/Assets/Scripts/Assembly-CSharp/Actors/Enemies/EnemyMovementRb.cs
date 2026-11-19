@@ -159,6 +159,7 @@ namespace Actors.Enemies
 			customVolley = custom?.volleyAttack == true && enemy.IsStageBoss()
 				? new OpenBonkBossVolley(enemy, custom) : null;
 			hasCustomIdle = custom?.hasIdle == true;
+			if (custom != null) enemy.animatedMesh.ConfigureExternalPlayback(enemy.id);
 		}
 
 		public void MyFixedUpdate()
@@ -197,7 +198,16 @@ namespace Actors.Enemies
 			}
 			rb.velocity = new Vector3(desiredVelocity.x + knockbackVelocity.x, vertical, desiredVelocity.z + knockbackVelocity.z);
 			if (hasCustomIdle)
-				enemy.animatedMesh.SelectClip(new Vector2(rb.velocity.x, rb.velocity.z).sqrMagnitude > .25f ? "walk" : "idle");
+			{
+				// baseVelocity already includes speed modifiers, but not global time
+				// scaling or knockback. MyTime applies slow motion to animation once.
+				float pace = Mathf.Sqrt(baseVelocity.x * baseVelocity.x + baseVelocity.z * baseVelocity.z);
+				bool moving = pace > .5f;
+				enemy.animatedMesh.SelectClip(moving ? "walk" : "idle");
+				// Hovering birds must keep flapping; walking gait follows locomotion.
+				float rate = moving && !enemy.enemyData.isFlying ? Mathf.Clamp(pace / Mathf.Max(.1f, enemy.enemyData.speed), .55f, 1.8f) : 1f;
+				enemy.animatedMesh.SetPlaybackSpeed(rate);
+			}
 			if ((state == State.Normal || state == State.Charmed) && canRotate &&
 				Mathf.Abs(desiredRotation.eulerAngles.y - rb.rotation.eulerAngles.y) > 8f)
 				rb.MoveRotation(Quaternion.Lerp(rb.rotation, desiredRotation, Time.deltaTime * rotationSpeed));

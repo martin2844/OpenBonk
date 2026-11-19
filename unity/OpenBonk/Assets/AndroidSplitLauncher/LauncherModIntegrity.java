@@ -26,7 +26,7 @@ final class LauncherModIntegrity {
             if (!id.equals(manifest.optString("id", ""))) return false;
             int api = manifest.optInt("api", 0);
             if (api == 1 || api == 2) return true; // Legacy manifests do not include file hashes.
-            if (api != 3 || !"content".equals(manifest.optString("kind", ""))) return false;
+            if ((api != 3 && api != 4) || !"content".equals(manifest.optString("kind", ""))) return false;
             JSONArray files = manifest.optJSONArray("files");
             if (files == null || files.length() < 2 || files.length() > 64) return false;
             String root = directory.getCanonicalPath() + File.separator;

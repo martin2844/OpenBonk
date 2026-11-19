@@ -46,6 +46,7 @@ internal static class AndroidContentMods
         public bool replaceDecorations;
         public string potVisual, silverPotVisual, arenaLandmark, potBreakFx;
         public OpenBonkRoofLayout.Profile rooftops;
+        public OpenBonkStreetLayout.Spec streetscape;
     }
     private static readonly List<AssetBundle> Bundles = new List<AssetBundle>();
     private static readonly List<OpenBonkProceduralMapBuild> Maps = new List<OpenBonkProceduralMapBuild>();
@@ -104,15 +105,49 @@ internal static class AndroidContentMods
         }
         catch (Exception e) { Debug.LogWarning($"Could not schedule mod loading error: {e.Message}"); }
     }
+    private static void ValidateStreetscapeJson(Newtonsoft.Json.Linq.JObject manifest)
+    {
+        // Preserve the launcher's strict numeric/type contract even for folders
+        // restored outside its ZIP importer. Json.NET otherwise coerces strings.
+        if (manifest["map"] is not Newtonsoft.Json.Linq.JObject map ||
+            map["stageEnvironments"] is not Newtonsoft.Json.Linq.JArray environments) return;
+        foreach (var entry in environments)
+        {
+            if (entry is not Newtonsoft.Json.Linq.JObject environment || environment.Property("streetscape") == null) continue;
+            if ((int?)manifest["api"] != 4 || environment["replaceDecorations"]?.Type != Newtonsoft.Json.Linq.JTokenType.Boolean ||
+                (bool)environment["replaceDecorations"] != true ||
+                environment["streetscape"] is not Newtonsoft.Json.Linq.JObject street ||
+                !StreetNumber(street["tileWidth"], 20, 40, true) || !StreetNumber(street["stepHeight"], 2, 12, true) ||
+                (double)street["stepHeight"] > (double)street["tileWidth"] * .4 ||
+                !StreetNumber(street["coverage"], 0, 1, false) ||
+                street["frontages"] is not Newtonsoft.Json.Linq.JArray frontages || frontages.Count < 1 || frontages.Count > 8 ||
+                environment.Property("rooftops") != null)
+                throw new InvalidDataException("invalid streetscape profile");
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var name in frontages)
+                if (name.Type != Newtonsoft.Json.Linq.JTokenType.String || string.IsNullOrWhiteSpace((string)name) ||
+                    ((string)name).Length > 120 || ((string)name).IndexOf('\0') >= 0 || !names.Add((string)name))
+                    throw new InvalidDataException("invalid street frontage");
+        }
+    }
+    private static bool StreetNumber(Newtonsoft.Json.Linq.JToken value, double min, double max, bool integer)
+    {
+        if (value == null || (value.Type != Newtonsoft.Json.Linq.JTokenType.Integer && value.Type != Newtonsoft.Json.Linq.JTokenType.Float)) return false;
+        double number = (double)value;
+        return !double.IsNaN(number) && !double.IsInfinity(number) && number >= min && number <= max && (!integer || number == Math.Floor(number));
+    }
     private static void LoadPackage(string folder, string id)
     {
         string manifestPath = Path.Combine(folder, "manifest.json");
         if (!File.Exists(manifestPath) || new FileInfo(manifestPath).Length > 65536) return;
         // JsonUtility creates empty instances for omitted nested classes; API 3
         // uses absence to distinguish item-only and character packages.
-        var manifest = JsonConvert.DeserializeObject<Manifest>(Utf8.GetString(File.ReadAllBytes(manifestPath)));
+        var json = Newtonsoft.Json.Linq.JObject.Parse(Utf8.GetString(File.ReadAllBytes(manifestPath)));
+        ValidateStreetscapeJson(json);
+        var manifest = json.ToObject<Manifest>();
         // Other API versions are handled by AndroidLuaMods.
-        if (manifest == null || manifest.api != 3 || manifest.kind != "content") return;
+        if (manifest == null || (manifest.api != 3 && manifest.api != 4) || manifest.kind != "content") return;
+        if (manifest.api == 4 && manifest.map == null) throw new InvalidDataException("API 4 requires a map package");
         if (manifest.id != id || manifest.files == null || manifest.files.Length < 2 || manifest.files.Length > 64) throw new InvalidDataException("invalid manifest");
         if (manifest.map != null)
         {
@@ -245,7 +280,7 @@ internal static class AndroidContentMods
             Array.Exists(spec.stageEnvironments, stage => stage != null &&
                 (!string.IsNullOrEmpty(stage.potVisual) || !string.IsNullOrEmpty(stage.silverPotVisual) ||
                  !string.IsNullOrEmpty(stage.architectureMaterial) || !string.IsNullOrEmpty(stage.skyMaterial) ||
-                 !string.IsNullOrEmpty(stage.arenaLandmark) || !string.IsNullOrEmpty(stage.potBreakFx))));
+                 !string.IsNullOrEmpty(stage.arenaLandmark) || !string.IsNullOrEmpty(stage.potBreakFx) || stage.streetscape != null)));
         if ((spec.objects != null && (spec.objects.Length == 0 || spec.objects.Length > 8)) ||
             (needsBundle ? !Text(spec.bundle, 120) : !string.IsNullOrEmpty(spec.bundle)))
             throw new InvalidDataException("invalid map bundle");
@@ -299,6 +334,7 @@ internal static class AndroidContentMods
                             arenaLandmark = LoadArenaLandmark(bundle, stage.arenaLandmark),
                             potBreakFx = LoadPotBreakFx(bundle, stage.potBreakFx),
                             rooftops = stage.rooftops,
+                            streetscape = LoadStreetscape(bundle, stage.streetscape),
                             architectureMaterial = LoadMapMaterial(bundle, stage.architectureMaterial),
                             skyMaterial = LoadMapMaterial(bundle, stage.skyMaterial),
                         };
@@ -350,6 +386,15 @@ internal static class AndroidContentMods
         if (material == null || material.shader == null)
             throw new InvalidDataException($"missing architecture material {name}");
         return material;
+    }
+
+    private static OpenBonkStreetLayout.Profile LoadStreetscape(AssetBundle bundle, OpenBonkStreetLayout.Spec spec)
+    {
+        if (spec == null) return null;
+        if (!spec.IsValid() || bundle == null) throw new InvalidDataException("Invalid streetscape profile");
+        var prefabs = new GameObject[spec.frontages.Length];
+        for (int i = 0; i < prefabs.Length; i++) prefabs[i] = bundle.LoadAsset<GameObject>(spec.frontages[i]);
+        return new OpenBonkStreetLayout.Profile((int)spec.tileWidth, (int)spec.stepHeight, spec.coverage, prefabs);
     }
 
     private static GameObject LoadPotVisual(AssetBundle bundle, string name)

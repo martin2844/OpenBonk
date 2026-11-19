@@ -831,7 +831,7 @@ public final class SplitDataLauncher extends Activity {
             for (int i = 0; i < folders.length; i++) {
                 JSONObject manifest = readInstalledMod(folders[i]);
                 if (manifest == null) continue;
-                boolean content = manifest.optInt("api") == 3;
+                boolean content = (manifest.optInt("api") == 3 || manifest.optInt("api") == 4);
                 ids.add(folders[i].getName());
                 defaults.add(!content && manifest.optBoolean("enabled", false));
                 usesLegacyPreference.add(!content);
@@ -932,7 +932,7 @@ public final class SplitDataLauncher extends Activity {
             }
             JSONObject manifest = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
             if (!folder.getName().equals(manifest.optString("id"))) return null;
-            boolean content = manifest.optInt("api") == 3 && "content".equals(manifest.optString("kind"));
+            boolean content = (manifest.optInt("api") == 3 || manifest.optInt("api") == 4) && "content".equals(manifest.optString("kind"));
             return content || validModHooks(manifest) ? manifest : null;
         } catch (Exception ignored) { return null; }
     }
@@ -942,7 +942,7 @@ public final class SplitDataLauncher extends Activity {
     private void enableContentMod(File root, String id) {
         if (root == null || id == null) return;
         JSONObject manifest = readInstalledMod(new File(new File(root, "Mods"), id));
-        if (manifest != null && manifest.optInt("api") == 3)
+        if (manifest != null && (manifest.optInt("api") == 3 || manifest.optInt("api") == 4))
             getSharedPreferences("megabonk_mod_state", MODE_PRIVATE).edit().putBoolean(id, true).commit();
     }
 

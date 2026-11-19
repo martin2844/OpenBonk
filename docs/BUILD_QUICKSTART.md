@@ -228,6 +228,51 @@ To check the workspace's managed and native binary files against its local expor
 
 The check flags workspace binary files that differ from or have no corresponding local input, as well as missing generated plugins and missing exported binaries. It permits the known Unity package duplicates removed by workspace preparation. It does not validate the creation of those inputs, Unity package-cache binaries, provenance, redistribution rights or behavior of the resulting APK.
 
+## Android startup permissions
+
+The split launcher build callback adds
+`unityplayer.SkipPermissionsDialog=true` to `UnityPlayerGameActivity`. Keep this
+metadata when reusing a Gradle project. It prevents Unity's automatic storage
+permission request from pausing the game during accessibility initialization;
+on Android 15 this can deadlock the UI and Unity threads before graphics starts.
+Unity documents this [manifest setting](https://docs.unity3d.com/2023.2/Documentation/Manual/android-permissions-in-unity.html).
+
+Game, mod and profile imports use Android's document picker and its URI grants.
+The launcher copies accepted data into this app's storage, and the runtime loads
+its imported files there. This change does not remove permission declarations,
+change existing grants, or replace the import flow on older Android versions.
+Any future feature requiring a dangerous permission must request it explicitly
+when that feature is used, outside Unity's startup initialization.
+
+## Refreshing a preserved launcher runtime
+
+When reusing a packaged Gradle project after exporting updated Unity code, use
+the bounded refresh helper from the checkout root. It requires `rsync` and
+validates every expected input before changing files:
+
+```sh
+python3 tools/refresh-preserved-runtime.py \
+  /path/to/new-export/android/OpenBonk-gradle-project \
+  /path/to/preserved/gradle \
+  unity/OpenBonk/Assets --dry-run
+```
+
+Remove `--dry-run` to apply the refresh. It synchronizes only
+`Il2CppOutputProject`, the matching `global-metadata.dat`,
+`RuntimeInitializeOnLoads.json` and `ScriptingAssemblies.json`, and these four
+launcher implementations: `LauncherContentImporter`, `LauncherModImporter`,
+`LauncherModIntegrity` and `SplitDataLauncher`. Then run the existing Gradle
+build and signing steps for that project.
+
+The preserved project's generated `SplitExpectedData.java` must contain a real
+SHA-256. Copying the checkout's `EMBEDDED` placeholder over it makes the launcher
+skip imported OBB validation and migration, which can leave the game without its
+assets after a version update. The helper rejects that state before copying and
+retains generated configuration, game assets, OBB identity, manifests, version
+settings and signing configuration. Restore the original generated checksum
+configuration if validation fails. This helper does not rebuild import plans or
+establish compatibility with a different game-data set.
+
 ## Profile compatibility
 
 Keep the exported profile ZIP independent of the APK version. It uses the same

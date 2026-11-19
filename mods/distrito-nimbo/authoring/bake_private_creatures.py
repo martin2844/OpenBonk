@@ -109,49 +109,33 @@ def pose(rigs, source_id, clip, phase):
     bpy.context.view_layer.update()
 
 
-def texture_sampler():
-    cache = {}
-    def sample(material, uv):
-        if material and material.use_nodes:
-            for node in material.node_tree.nodes:
-                if node.type != 'TEX_IMAGE' or not node.image:
-                    continue
-                image = node.image
-                if image.name not in cache:
-                    cache[image.name] = (tuple(image.size), image.channels, list(image.pixels))
-                (width, height), channels, pixels = cache[image.name]
-                if width and height:
-                    x = min(width - 1, max(0, int((uv.x % 1) * width)))
-                    y = min(height - 1, max(0, int((uv.y % 1) * height)))
-                    start = (y * width + x) * channels
-                    if len(pixels) >= start + 3:
-                        return dict(zip('rgba', (*pixels[start:start + 3], 1.0)))
-        color = material.diffuse_color if material else (1, 1, 1, 1)
-        return dict(zip('rgba', (float(color[0]), float(color[1]), float(color[2]), 1.0)))
-    return sample
+# Species-wide triangle budgets: bosses retain their silhouette at close range.
+BUDGETS = {'15': 1600, '16': 1400, '19': 1200, '20': 1400, '22': 1600,
+           '24': 1800, '34': 2200, '6': 3200, '112': 3000, '130': 3200}
 
 
 def prepare(source):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=str(source))
-    # Clear active/NLA actions before posing; source timing must never overwrite
-    # procedural joint transforms on depsgraph evaluation.
     for obj in bpy.data.objects:
         obj.animation_data_clear()
-        # Keep the imported basis: glTF coordinate-conversion transforms may
-        # live on the root pose bone even when there is no animation.
     bpy.context.view_layer.update()
-    meshes = [o for o in bpy.data.objects if o.type == 'MESH' and len(o.data.vertices) >= 100]
+    # Source helper Icospheres have no materials. Keep every actual textured
+    # component, including Beedrill's previously discarded 98-vertex piece.
+    meshes = sorted((o for o in bpy.data.objects if o.type == 'MESH' and len(o.data.polygons) and len(o.data.materials)), key=lambda o: o.name)
     if not meshes:
         raise ValueError(f'No renderable geometry: {source}')
-    # Apply simplification ONCE in bind pose before skinning. Decimating after
-    # every posed sample can change topology, making both motion and colors pop.
+    budget = BUDGETS[source.stem]
+    small = sum(len(o.data.polygons) for o in meshes if len(o.data.polygons) <= 250)
+    large = sum(len(o.data.polygons) for o in meshes if len(o.data.polygons) > 250)
+    ratio = min(1.0, max(.1, (budget - small) / max(1, large)))
     for obj in meshes:
-        if len(obj.data.polygons) > 600:
+        if len(obj.data.polygons) > 250 and ratio < 1:
             bpy.context.view_layer.objects.active = obj
             obj.select_set(True)
-            modifier = obj.modifiers.new('Mobile topology', 'DECIMATE')
-            modifier.ratio = 600 / len(obj.data.polygons)
+            modifier = obj.modifiers.new('Silhouette budget', 'DECIMATE')
+            modifier.ratio = ratio
+            modifier.use_collapse_triangulate = True
             bpy.ops.object.modifier_move_to_index(modifier=modifier.name, index=0)
             bpy.ops.object.modifier_apply(modifier=modifier.name)
             obj.select_set(False)
@@ -161,26 +145,113 @@ def prepare(source):
     return meshes, rigs
 
 
-def geometry(meshes, sample=None):
-    result = []
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    for obj in meshes:
-        evaluated = obj.evaluated_get(depsgraph)
-        mesh = evaluated.to_mesh()
+def material_image(material):
+    if material and material.use_nodes:
+        bsdf = next((n for n in material.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+        if bsdf:
+            pending = [link.from_node for link in bsdf.inputs['Base Color'].links]
+            seen = set()
+            while pending:
+                node = pending.pop()
+                if node in seen: continue
+                seen.add(node)
+                if node.type == 'TEX_IMAGE' and node.image: return node.image
+                for socket in node.inputs:
+                    pending.extend(link.from_node for link in socket.links)
+    return None
+
+
+def atlas(meshes, destination, boss):
+    import numpy as np
+    materials = sorted({m for o in meshes for m in o.data.materials}, key=lambda m: m.name)
+    side = 1024 if boss else 512
+    pad = 4
+    tiles = []
+    alpha_clip = False
+    for material in materials:
+        image = material_image(material)
+        if image:
+            width, height = image.size
+            pixels = np.array(image.pixels[:], dtype=np.float32).reshape(height, width, image.channels)
+            # Preserve full native face textures; body maps on common mobs may
+            # be halved to keep their complete material atlas at 512x512.
+            maximum = 512 if boss else 248
+            factor = min(1, maximum / max(width, height))
+            w, h = max(1, round(width*factor)), max(1, round(height*factor))
+            pixels = pixels[(np.arange(h)*height//h)[:,None], (np.arange(w)*width//w)[None,:]]
+            if pixels.shape[2] < 4:
+                pixels = np.concatenate((pixels[:,:,:3], np.ones((h,w,1),dtype=np.float32)),axis=2)
+        else:
+            w=h=4
+            pixels=np.tile(np.array(material.diffuse_color,dtype=np.float32),(h,w,1))
+        if destination.stem == 'CharizardAtlas' and material.name in ('Material_15', 'Material_16'):
+            # These two source flame layers contain grayscale intensity masks,
+            # exported as base color with no emission/color factors. Reconstruct
+            # their fire palette without recoloring the body, wings or eyes.
+            intensity = np.clip(pixels[:,:,:3].mean(axis=2), 0, 1)
+            pixels[:,:,0] = .95 + .05 * intensity
+            pixels[:,:,1] = .055 + .84 * intensity**1.15
+            pixels[:,:,2] = .008 + .06 * intensity**2
+        # Only the imported iris overlays opt into transparency. Body maps
+        # contain transparent backgrounds even though their glTF is OPAQUE.
+        masked = material.use_nodes and any(n.type == 'BSDF_PRINCIPLED' and n.inputs['Alpha'].is_linked for n in material.node_tree.nodes)
+        if masked: alpha_clip = True
+        else: pixels[:,:,3]=1
+        tiles.append((material.name,w,h,pixels))
+    tiles.sort(key=lambda t: (-t[2], -t[1], t[0]))
+    x=y=0; rowheight=0; usedwidth=usedheight=0; placed=[]
+    for name,w,h,pixels in tiles:
+        if x+w+2*pad > side:
+            x=0;y+=rowheight;rowheight=0
+        if y+h+2*pad > side: raise ValueError('Atlas exceeds budget: '+destination.name)
+        placed.append((name,x+pad,y+pad,w,h,pixels))
+        x+=w+2*pad;rowheight=max(rowheight,h+2*pad)
+        usedwidth=max(usedwidth,x);usedheight=max(usedheight,y+rowheight)
+    width=2**math.ceil(math.log2(max(2,usedwidth)))
+    height=2**math.ceil(math.log2(max(2,usedheight)))
+    canvas=np.ones((height,width,4),dtype=np.float32)
+    rects={}
+    for name,x,y,w,h,pixels in placed:
+        canvas[y-pad:y+h+pad,x-pad:x+w+pad]=np.pad(pixels,((pad,pad),(pad,pad),(0,0)),mode='edge')
+        rects[name]=(x,y,w,h,width,height)
+    image=bpy.data.images.new(destination.stem,width=width,height=height,alpha=alpha_clip)
+    image.colorspace_settings.name='sRGB'
+    image.pixels.foreach_set(canvas.ravel());image.filepath_raw=str(destination);image.file_format='PNG';image.save()
+    return rects, [width,height], alpha_clip
+
+
+def geometry(meshes):
+    result=[]
+    depsgraph=bpy.context.evaluated_depsgraph_get()
+    for object_index,obj in enumerate(meshes):
+        evaluated=obj.evaluated_get(depsgraph);mesh=evaluated.to_mesh()
         try:
-            mesh.calc_loop_triangles()
-            uv_layer = mesh.uv_layers.active
-            normal_matrix = evaluated.matrix_world.to_3x3().inverted().transposed()
+            mesh.calc_loop_triangles();uv_layer=mesh.uv_layers.active
+            normal_matrix=evaluated.matrix_world.to_3x3().inverted().transposed()
             for triangle in mesh.loop_triangles:
-                material = mesh.materials[triangle.material_index] if triangle.material_index < len(mesh.materials) else None
-                for vertex, loop in zip(triangle.vertices, triangle.loops):
-                    point = evaluated.matrix_world @ mesh.vertices[vertex].co
-                    normal = (normal_matrix @ mesh.corner_normals[loop].vector).normalized()
-                    color = sample(material, uv_layer.data[loop].uv if uv_layer else Vector((0, 0))) if sample else None
-                    result.append((point, normal, color))
-        finally:
-            evaluated.to_mesh_clear()
+                material=mesh.materials[triangle.material_index]
+                for vertex,loop in zip(triangle.vertices,triangle.loops):
+                    point=evaluated.matrix_world @ mesh.vertices[vertex].co
+                    normal=(normal_matrix @ mesh.corner_normals[loop].vector).normalized()
+                    uv=uv_layer.data[loop].uv.copy() if uv_layer else Vector((.5,.5))
+                    result.append((point,normal,uv,material.name,object_index,vertex))
+        finally:evaluated.to_mesh_clear()
     return result
+
+
+def indexed_bind(bind, rects):
+    mapping={};representatives=[];indices=[];uvs=[];regions=[]
+    for i,(point,normal,uv,material,obj,vertex) in enumerate(bind):
+        key=(obj,vertex,tuple(round(n,5) for n in normal),tuple(round(v,7) for v in uv),material)
+        if key not in mapping:
+            mapping[key]=len(representatives);representatives.append(i)
+            x,y,w,h,aw,ah=rects[material]
+            # Keep repeated source UVs; shader wraps inside this material's
+            # padded atlas region (Raticate eyes use UV coordinates above 1).
+            uvs.append(dict(x=uv.x,y=uv.y))
+            regions.append(dict(x=(x+.5)/aw,y=(y+.5)/ah,z=(w-1)/aw,w=(h-1)/ah))
+        indices.append(mapping[key])
+    return representatives,indices,uvs,regions
 
 
 def validate(clips, source_id):
@@ -220,39 +291,43 @@ def validate(clips, source_id):
 def bake(root, source_id):
     prefix, charger = ROSTER[source_id]
     meshes, rigs = prepare(root / 'decoded' / f'{source_id}.glb')
-    bind = geometry(meshes, texture_sampler())
-    low = min(p.z for p, _, _ in bind)
-    height = max(p.z for p, _, _ in bind) - low
-    center_x = (min(p.x for p, _, _ in bind) + max(p.x for p, _, _ in bind)) / 2
-    center_y = (min(p.y for p, _, _ in bind) + max(p.y for p, _, _ in bind)) / 2
-    scale = 1.8 / max(.001, height)
-    colors = [color for _, _, color in bind]
-    clips = []
-    for clip in (('walk', 'idle', 'charge') if charger else ('walk', 'idle')):
-        frames = []
+    double_sided = any(not m.use_backface_culling for o in meshes for m in o.data.materials)
+    destination=root/'creatures'/f'{source_id}.json';destination.parent.mkdir(exist_ok=True)
+    texture=destination.with_name(f'{prefix}Atlas.png')
+    rects,texture_size,alpha_clip=atlas(meshes,texture,source_id == '6')
+    bind=geometry(meshes)
+    representatives,indices,uvs,regions=indexed_bind(bind,rects)
+    low=min(v[0].z for v in bind);height=max(v[0].z for v in bind)-low
+    center_x=(min(v[0].x for v in bind)+max(v[0].x for v in bind))/2
+    center_y=(min(v[0].y for v in bind)+max(v[0].y for v in bind))/2
+    scale=1.8/max(.001,height);clips=[]
+    for clip in (('walk','idle','charge') if charger else ('walk','idle')):
+        frames=[]
         for frame in range(FRAMES):
-            phase = frame * math.tau / FRAMES
-            pose(rigs, source_id, clip, phase)
-            posed = geometry(meshes)
-            if len(posed) != len(bind):
-                raise ValueError('Skinning changed mesh topology')
-            bob = (.025 if clip == 'idle' else .055) * (1 - math.cos(2 * phase))
-            points = [dict(x=(p.x-center_x)*scale, y=(p.z-low)*scale+bob, z=-(p.y-center_y)*scale) for p, _, _ in posed]
-            normals = [dict(x=n.x, y=n.z, z=-n.y) for _, n, _ in posed]
-            frames.append(dict(name=f'{prefix}{clip.title()}{frame:02}', points=points, normals=normals, colors=colors, collide=False))
-        clips.append(dict(name=clip, frames=frames))
-    metrics = validate(clips, source_id)
-    destination = root / 'creatures' / f'{source_id}.json'
-    destination.parent.mkdir(exist_ok=True)
-    destination.write_text(json.dumps(dict(fps=12, clips=clips), separators=(',', ':')) + '\n')
-    print('ARTICULATION PASS', prefix, json.dumps(metrics), flush=True)
+            phase=frame*math.tau/FRAMES;pose(rigs,source_id,clip,phase);posed=geometry(meshes)
+            if len(posed)!=len(bind):raise ValueError('Skinning changed mesh topology')
+            bob=(.025 if clip=='idle' else .055)*(1-math.cos(2*phase))
+            # Reflect into Unity's handedness; keep front +Z and texture detail
+            # in its original left/right orientation. Builder fixes winding.
+            points=[dict(x=-(posed[i][0].x-center_x)*scale,y=(posed[i][0].z-low)*scale+bob,z=-(posed[i][0].y-center_y)*scale) for i in representatives]
+            normals=[dict(x=-posed[i][1].x,y=posed[i][1].z,z=-posed[i][1].y) for i in representatives]
+            if not all(math.isfinite(v) for p in points+normals for v in p.values()):raise ValueError('Nonfinite frame')
+            frames.append(dict(name=f'{prefix}{clip.title()}{frame:02}',points=points,normals=normals,uv=uvs,atlasRects=regions,indices=indices,collide=False))
+        clips.append(dict(name=clip,frames=frames))
+    metrics=validate(clips,source_id)
+    metrics['mesh']=dict(vertices=len(representatives),triangles=len(indices)//3,source_components=len(meshes),atlas=texture_size,alpha_clip=alpha_clip,double_sided=double_sided,
+                         raw_mesh_bytes=len(clips)*FRAMES*(len(representatives)*48+len(indices)*2))
+    destination.write_text(json.dumps(dict(fps=12,material='Nimbo'+prefix,texture=texture.name,alphaClip=alpha_clip,doubleSided=double_sided,clips=clips),separators=(',',':'))+'\n')
+    print('TEXTURED ARTICULATION PASS',prefix,json.dumps(metrics),flush=True)
     return metrics
 
 
 def main():
     args = sys.argv[sys.argv.index('--') + 1:]
     root = Path(args[0])
-    results = {source_id: bake(root, source_id) for source_id in (args[1:] or ROSTER)}
+    receipt = root / 'animation-validation.json'
+    results = json.loads(receipt.read_text()) if args[1:] and receipt.exists() else {}
+    results.update({source_id: bake(root, source_id) for source_id in (args[1:] or ROSTER)})
     (root / 'animation-validation.json').write_text(json.dumps(results, indent=2) + '\n')
 
 

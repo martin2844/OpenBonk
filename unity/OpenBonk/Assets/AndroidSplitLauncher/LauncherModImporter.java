@@ -39,7 +39,7 @@ final class LauncherModImporter {
                 if (entry != null && entry.getSize() > 0 && entry.getSize() <= FILE_LIMIT) {
                     byte[] bytes = readEntry(candidate, entry, FILE_LIMIT);
                     JSONObject json = new JSONObject(utf8(bytes));
-                    if (json.optInt("api", 0) == 3) return LauncherContentImporter.install(candidate, root, prefs, contentPrefix);
+                    if (json.optInt("api", 0) == 3 || json.optInt("api", 0) == 4) return LauncherContentImporter.install(candidate, root, prefs, contentPrefix);
                 }
             }
             if (temporary.length() > LEGACY_ZIP_LIMIT) throw new IOException("package too large");

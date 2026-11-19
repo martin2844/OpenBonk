@@ -27,7 +27,8 @@ namespace Assets.Scripts.MapGeneration.ProceduralTiles
 			result.AddComponent<MeshCollider>().sharedMesh = mesh;
 			result.SetActive(true);
 			result.layer = LayerMask.NameToLayer("Ground");
-			foreach (MeshCollider collider in colliders) Object.Destroy(collider);
+			foreach (MeshCollider collider in colliders)
+                if (Application.isPlaying) Object.Destroy(collider); else Object.DestroyImmediate(collider);
 			return result;
 		}
 

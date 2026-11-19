@@ -3684,13 +3684,15 @@ public class MapGenerationController : MonoBehaviour
 			yield break;
 		}
 		var rooftops = (map as OpenBonkExternalMapData)?.GetRooftops(stage);
+		var streetscape = (map as OpenBonkExternalMapData)?.GetStreetscape(stage);
 		Vector3 spawnPosition = proceduralTileGeneration.Generate(out Vector3 spawnDirection, stage, stage.mapParameters,
-			rooftops: rooftops);
+			rooftops: rooftops, streetscape: streetscape);
 		tileSpawnPosition = spawnPosition;
 		tileSpawnDir = spawnDirection;
 		Vector3 worldSize = proceduralTileGeneration.GetWorldSize();
 		Vector3 worldCenter = proceduralTileGeneration.GetWorldCenter();
 		RandomTileObjects.Generate(proceduralTileGeneration.flatTiles, stage);
+		if (streetscape != null) OpenBonkStreetLayout.Generate(proceduralTileGeneration, streetscape);
 		Mesh worldMesh = proceduralTileGeneration.collider.GetComponent<MeshFilter>().sharedMesh;
 		if (map.eMap == EMap.Graveyard) CryptGeneration(mapSeed, out spawnPosition, out spawnDirection);
 		Instantiate(spawnPortal, spawnPosition, Quaternion.LookRotation(-spawnDirection)).GetComponent<SpawnPlayerPortal>().StartPortal();
@@ -3701,9 +3703,9 @@ public class MapGenerationController : MonoBehaviour
 		float worldAreaMagnitude = worldArea.x * worldArea.z;
 		randomObjectPlacer.size = worldArea;
 		randomObjectPlacer.center = worldAreaCenter;
-		randomObjectPlacer.Generate(stage.randomMapObjects, 1f, requireValidGround: rooftops != null);
+		randomObjectPlacer.Generate(stage.randomMapObjects, 1f, requireValidGround: rooftops != null || streetscape != null);
 		yield return null;
-		randomObjectPlacer.GenerateInteractables(map, requireValidGround: rooftops != null);
+		randomObjectPlacer.GenerateInteractables(map, requireValidGround: rooftops != null || streetscape != null);
 		yield return null;
 		interactablesSpawner.SetArea(worldArea, worldAreaCenter, worldAreaMagnitude);
 		interactablesSpawner.SpawnShit();

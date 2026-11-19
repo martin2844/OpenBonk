@@ -20,6 +20,9 @@ public sealed class OpenBonkExternalMapData : MapData
     internal readonly Dictionary<StageData, GameObject> potEffects = new Dictionary<StageData, GameObject>();
     internal readonly Dictionary<StageData, GameObject> arenaLandmarks = new Dictionary<StageData, GameObject>();
     internal readonly Dictionary<StageData, EItem> bossRewards = new Dictionary<StageData, EItem>();
+    internal readonly Dictionary<StageData, OpenBonkStreetLayout.Profile> streetscapes = new Dictionary<StageData, OpenBonkStreetLayout.Profile>();
+    internal OpenBonkStreetLayout.Profile GetStreetscape(StageData stage) =>
+        stage != null && streetscapes.TryGetValue(stage, out var profile) ? profile : null;
     internal readonly Dictionary<StageData, OpenBonkRoofLayout.Profile> rooftops =
         new Dictionary<StageData, OpenBonkRoofLayout.Profile>();
     internal OpenBonkRoofLayout.Profile GetRooftops(StageData stage) =>

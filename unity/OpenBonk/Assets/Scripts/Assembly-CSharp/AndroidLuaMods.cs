@@ -259,7 +259,7 @@ internal static class AndroidLuaMods
             Manifest manifest = JsonUtility.FromJson<Manifest>(File.ReadAllText(manifestPath));
             if (manifest == null || manifest.id == null || !Enabled(manifest)) return;
             if (StartupPolicyManifest(manifest)) return; // Evaluated before the first scene.
-            if (manifest.api == 3) return; // Registered separately at data-load time.
+            if (manifest.api == 3 || manifest.api == 4) return; // Registered separately at data-load time.
             if (!ValidRefresh(manifest) || !AndroidModHooks.TryGetStats(manifest.api, manifest.hook, manifest.hooks, out EStat[] stats) || manifest.id != name)
                 throw new InvalidDataException("invalid id, API version, or hook");
             string scriptPath = Path.Combine(folder, "main.lua");

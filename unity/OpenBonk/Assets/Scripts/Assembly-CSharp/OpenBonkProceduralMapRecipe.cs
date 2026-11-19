@@ -16,6 +16,7 @@ public sealed class OpenBonkProceduralMapRecipe
         public Material architectureMaterial, skyMaterial;
         public GameObject potVisual, silverPotVisual, arenaLandmark, potBreakFx;
         public OpenBonkRoofLayout.Profile rooftops;
+        public OpenBonkStreetLayout.Profile streetscape;
         public bool replaceDecorations;
     }
 
@@ -55,6 +56,8 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                     environments[environment.stage - 1] != null ||
                     (environment.arenaLandmark != null && (environment.rooftops != null || !environment.replaceDecorations)) ||
                     (environment.rooftops != null && (!environment.replaceDecorations || !environment.rooftops.IsValid())) ||
+                    (environment.streetscape != null && (!environment.replaceDecorations || environment.rooftops != null ||
+                        environment.architectureMaterial == null || environment.skyMaterial == null)) ||
                     ((environment.architectureMaterial != null || environment.skyMaterial != null) &&
                         (environment.architectureMaterial == null || environment.skyMaterial == null)) ||
                     (!environment.replaceDecorations && environment.groundTexture == null && environment.wallTexture == null &&
@@ -82,6 +85,14 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                 var stage = result.Own(Object.Instantiate(template.stages[i]));
                 var parameters = result.Own(Object.Instantiate(stage.mapParameters));
                 var environment = environments[i];
+                if (environment?.streetscape != null)
+                {
+                    // Set dimensions before material-grid setup. Prefab geometry
+                    // uses the matching opt-in nonuniform transform at generation.
+                    parameters.scaledTileWidth = environment.streetscape.tileWidth;
+                    parameters.scaledTileHeight = environment.streetscape.stepHeight;
+                    map.streetscapes.Add(stage, environment.streetscape);
+                }
                 if (environment != null && (environment.potVisual != null || environment.silverPotVisual != null))
                     map.potVisuals.Add(stage, (environment.potVisual, environment.silverPotVisual));
                 if (environment?.arenaLandmark != null) map.arenaLandmarks.Add(stage, environment.arenaLandmark);

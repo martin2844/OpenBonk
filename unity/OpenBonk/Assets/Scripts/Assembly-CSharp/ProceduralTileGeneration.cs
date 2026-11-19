@@ -35,6 +35,7 @@ public class ProceduralTileGeneration : MonoBehaviour
 	private MapParameters currentMapParameters;
 
 	private OpenBonkRoofLayout.Build roofBuild;
+	private OpenBonkStreetLayout.Profile streetProfile;
 
 	public StageData testStage;
 
@@ -47,9 +48,13 @@ public class ProceduralTileGeneration : MonoBehaviour
 	public ProceduralTile[][] proceduralTiles;
 
 	public Vector3 Generate(out Vector3 firstTileDirection, StageData stageData, MapParameters mapParameters,
-		bool useDebugSeed = false, OpenBonkRoofLayout.Profile rooftops = null)
+		bool useDebugSeed = false, OpenBonkRoofLayout.Profile rooftops = null, OpenBonkStreetLayout.Profile streetscape = null)
 	{
+        if (streetscape != null && (rooftops != null || mapParameters.scaledTileWidth != streetscape.tileWidth ||
+            mapParameters.scaledTileHeight != streetscape.stepHeight))
+            throw new System.ArgumentException("Streetscape geometry must match its stage dimensions");
 		currentStage = stageData;
+		streetProfile = streetscape;
 		currentMapParameters = mapParameters;
 		ClearTiles();
 		int seed = useDebugSeed ? debugSeed : Random.Range(0, int.MaxValue);
@@ -91,7 +96,8 @@ public class ProceduralTileGeneration : MonoBehaviour
 	public Vector3 TilePositionToWorldPosition(Vector2Int pos)
 	{
 		int width = currentMapParameters.scaledTileWidth;
-		int offset = width / 2 - (currentMapParameters.size * width) / 2;
+		float offset = streetProfile == null ? width / 2 - (currentMapParameters.size * width) / 2
+            : width * .5f - currentMapParameters.size * width * .5f;
 		return new Vector3(pos.x * width + offset, 0f, pos.y * width + offset);
 	}
 
@@ -223,7 +229,8 @@ public class ProceduralTileGeneration : MonoBehaviour
 	public GameObject InstantiateTile(Vector2Int pos, int height, GameObject tilePrefab, Vector3 direction, Vector3 parentDir)
 	{
 		int width = currentMapParameters.scaledTileWidth;
-		int offset = width / 2 - (currentMapParameters.size * width) / 2;
+		float offset = streetProfile == null ? width / 2 - (currentMapParameters.size * width) / 2
+            : width * .5f - currentMapParameters.size * width * .5f;
 		Vector3 position = new Vector3(pos.x * width + offset,
 			height * currentMapParameters.scaledTileHeight, pos.y * width + offset);
 		bool isFlat = tilePrefab == flatTile;
@@ -232,7 +239,8 @@ public class ProceduralTileGeneration : MonoBehaviour
 		proceduralTiles[pos.x][pos.y] = tile.GetComponent<ProceduralTile>();
 		proceduralTiles[pos.x][pos.y].SetPosY(height, currentStage, isFlat, direction, parentDir);
 		tiles.Add(tile);
-		tile.transform.localScale = tilePrefab.transform.localScale * currentMapParameters.scale;
+		tile.transform.localScale = streetProfile == null ? tilePrefab.transform.localScale * currentMapParameters.scale
+            : Vector3.Scale(tilePrefab.transform.localScale, new Vector3(streetProfile.tileWidth * .5f, streetProfile.stepHeight, streetProfile.tileWidth * .5f));
 		if (tilePrefab == flatTile) flatTiles.Add(tile);
 		if (!isFlat && currentStage.m_stairs != null && tilePrefab != ceilingTile)
 		{
@@ -254,14 +262,18 @@ public class ProceduralTileGeneration : MonoBehaviour
 	{
 		int scale = currentMapParameters.scale;
 		int width = currentMapParameters.scaledTileWidth;
-		int offset = width / 2 - (currentMapParameters.size * width) / 2;
-		Vector3 position = new Vector3(pos.x * width + globalDirection.x * scale + offset,
-			height * scale, pos.y * width + globalDirection.y * scale + offset);
+		float offset = streetProfile == null ? width / 2 - (currentMapParameters.size * width) / 2
+            : width * .5f - currentMapParameters.size * width * .5f;
+		float halfWidth = streetProfile == null ? scale : streetProfile.tileWidth * .5f;
+        float step = streetProfile == null ? scale : streetProfile.stepHeight;
+        Vector3 position = new Vector3(pos.x * width + globalDirection.x * halfWidth + offset,
+            height * step, pos.y * width + globalDirection.y * halfWidth + offset);
 		GameObject tile = Instantiate(tilePrefab, position,
 			Quaternion.LookRotation(new Vector3(direction.x, 0f, direction.y)));
 		tile.GetComponent<FillTile>().SetFillType(fillType, currentStage, useEdgeTexture);
 		fillTiles.Add(tile);
-		Vector3 localScale = tilePrefab.transform.localScale * scale;
+		Vector3 localScale = streetProfile == null ? tilePrefab.transform.localScale * scale
+            : Vector3.Scale(tilePrefab.transform.localScale, new Vector3(halfWidth, step, halfWidth));
 		if (flip) localScale.x = -localScale.x;
 		tile.transform.localScale = localScale;
 	}
@@ -362,7 +374,8 @@ public class ProceduralTileGeneration : MonoBehaviour
 	private Vector3 GetMapToZeroPositionOffset()
 	{
 		int width = currentMapParameters.scaledTileWidth;
-		int offset = width / 2 - (currentMapParameters.size * width) / 2;
+		float offset = streetProfile == null ? width / 2 - (currentMapParameters.size * width) / 2
+            : width * .5f - currentMapParameters.size * width * .5f;
 		return new Vector3(offset, 0f, offset);
 	}
 

@@ -11,13 +11,18 @@ public static class BuildDistrictBundle
     private const string BundleName = "nimbo-props";
 
     [Serializable] private sealed class Package { public Prop[] props; }
-    [Serializable] private sealed class Creature { public Clip[] clips; }
+    [Serializable] private sealed class Creature { public string material, texture; public bool alphaClip, doubleSided; public Clip[] clips; }
     [Serializable] private sealed class Clip { public string name; public Prop[] frames; }
+    [Serializable] private sealed class BoxSpec { public Vector3 center, size; }
     [Serializable] private sealed class Prop
     {
         public string name;
         public Vector3[] points, normals;
         public Color[] colors;
+        public Vector2[] uv;
+        public Vector4[] atlasRects;
+        public int[] indices;
+        public BoxSpec[] colliders;
         public bool collide;
     }
 
@@ -47,6 +52,7 @@ public static class BuildDistrictBundle
             packed.Add(SaveProp(prop, prop.name.EndsWith("Capsule", StringComparison.Ordinal) ? capsuleMaterial : material));
         packed.Add(SaveCapsuleEffect(material));
         var frames = new List<string>();
+        var creatures = new List<Creature>();
         if (!string.IsNullOrEmpty(creaturePath))
         {
             var inputs = Directory.Exists(creaturePath) ? Directory.GetFiles(creaturePath, "*.json") : new[] { creaturePath };
@@ -56,6 +62,7 @@ public static class BuildDistrictBundle
                 var creature = JsonUtility.FromJson<Creature>(File.ReadAllText(path));
                 if (creature?.clips == null || creature.clips.Length < 2 || creature.clips.Length > 3)
                     throw new InvalidDataException($"Missing creature clips in {path}");
+                if (!string.IsNullOrEmpty(creature.material)) { SaveCreatureMaterial(creature, path, packed); creatures.Add(creature); }
                 foreach (var clip in creature.clips)
                 {
                     if (clip.frames == null || clip.frames.Length != 12) throw new InvalidDataException($"Missing {clip.name} frames");
@@ -69,6 +76,7 @@ public static class BuildDistrictBundle
             }
         }
         AssetDatabase.SaveAssets();
+        RequireDrawModes(name => AssetDatabase.LoadAssetAtPath<Material>($"{AssetRoot}/{name}.mat"), creatures);
         Directory.CreateDirectory(output);
         var build = new AssetBundleBuild { assetBundleName = BundleName, assetNames = packed.ToArray() };
         var result = BuildPipeline.BuildAssetBundles(output, new[] { build },
@@ -81,6 +89,9 @@ public static class BuildDistrictBundle
         if (bundle == null) throw new IOException("Could not reopen Android prop bundle");
         try
         {
+            // Check serialized flags before replacing unsupported Android shaders
+            // with their Editor equivalents for the later property inspection.
+            RequireDrawModes(name => bundle.LoadAsset<Material>(name), creatures);
             foreach (string materialName in new[] { "NimboProp", "NimboArchitecture", "NimboTerrain", "NimboDaySky" })
                 if (bundle.LoadAsset<Material>(materialName) == null)
                     throw new InvalidDataException($"Missing {materialName} material");
@@ -88,17 +99,55 @@ public static class BuildDistrictBundle
             {
                 var loaded = bundle.LoadAsset<GameObject>(prop.name);
                 if (loaded == null || loaded.GetComponent<MeshFilter>()?.sharedMesh == null ||
-                    (loaded.GetComponent<BoxCollider>() != null) != prop.collide)
+                    loaded.GetComponents<BoxCollider>().Length != (prop.colliders != null ? prop.colliders.Length : prop.collide ? 1 : 0))
                     throw new InvalidDataException($"Incomplete packed prop {prop.name}");
+                RequireInstancing(loaded.GetComponent<MeshRenderer>()?.sharedMaterial, false, prop.name);
+            }
+            foreach (var creature in creatures)
+            {
+                var loaded = bundle.LoadAsset<Material>(creature.material);
+                // Android shader programs cannot run in the desktop Editor.
+                // Rebind to the same source shader to inspect serialized material properties.
+                if (loaded != null) loaded.shader = AssetDatabase.LoadAssetAtPath<Shader>("Assets/NimboCreature.shader");
+                if (loaded == null || !(loaded.mainTexture is Texture2D atlas) || atlas.width < 128 || atlas.height < 128 ||
+                    loaded.IsKeywordEnabled("_NIMBO_ALPHA_CLIP") != creature.alphaClip ||
+                    loaded.GetFloat("_Cull") != (creature.doubleSided ? 0 : 2))
+                    throw new InvalidDataException("Incomplete creature material " + creature.material);
+                Debug.Log($"Packed {creature.material}: {atlas.width}x{atlas.height} {atlas.format}, {atlas.mipmapCount} mips");
             }
             foreach (string frame in frames)
-                if (bundle.LoadAsset<Mesh>(Path.GetFileNameWithoutExtension(frame)) == null)
-                    throw new InvalidDataException($"Missing creature frame {frame}");
+            {
+                var loaded = bundle.LoadAsset<Mesh>(Path.GetFileNameWithoutExtension(frame));
+                var regions = new List<Vector4>(); if (loaded != null) loaded.GetUVs(1, regions);
+                if (loaded == null || (creatures.Count > 0 && (loaded.uv.Length != loaded.vertexCount || regions.Count != loaded.vertexCount)))
+                    throw new InvalidDataException($"Missing creature frame/UVs {frame}");
+            }
             if (bundle.LoadAsset<GameObject>("NimboCapsuleBurst")?.GetComponent<ParticleSystem>() == null)
                 throw new InvalidDataException("Missing capsule burst");
         }
         finally { bundle.Unload(true); }
+        foreach (var path in packed)
+        {
+            var checkedMaterial = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (checkedMaterial != null && ShaderUtil.ShaderHasError(checkedMaterial.shader))
+                throw new InvalidDataException("Shader compilation failed: " + checkedMaterial.shader.name);
+        }
         Debug.Log("Distrito Nimbo Android prop bundle PASS");
+    }
+
+    private static void RequireDrawModes(Func<string, Material> load, List<Creature> creatures)
+    {
+        RequireInstancing(load("NimboProp"), false, "NimboProp");
+        RequireInstancing(load("NimboCapsule"), false, "NimboCapsule");
+        RequireInstancing(load("NimboTerrain"), true, "NimboTerrain");
+        foreach (var creature in creatures)
+            RequireInstancing(load(creature.material), false, creature.material);
+    }
+
+    private static void RequireInstancing(Material material, bool expected, string name)
+    {
+        if (material == null || material.enableInstancing != expected)
+            throw new InvalidDataException($"Incorrect GPU instancing mode for {name}: expected {expected}");
     }
 
     private static string SaveCapsuleEffect(Material material)
@@ -152,7 +201,12 @@ public static class BuildDistrictBundle
         var shader = Shader.Find(shaderName);
         if (shader == null) throw new InvalidDataException($"Import the shader {shaderName} before building");
         string path = $"{AssetRoot}/{name}.mat";
-        var material = new Material(shader);
+        var material = new Material(shader)
+        {
+            // Keep repeated prop/creature draws independent on GLES devices;
+            // terrain retains its bounded instancing path.
+            enableInstancing = shaderName != "OpenBonk/NimboProp" && shaderName != "OpenBonk/NimboCreature",
+        };
         AssetDatabase.DeleteAsset(path);
         AssetDatabase.CreateAsset(material, path);
         assets.Add(path);
@@ -162,16 +216,78 @@ public static class BuildDistrictBundle
     private static string SaveMesh(Prop prop)
     {
         int count = prop.points.Length;
-        if (count == 0 || count > 65535 || count % 3 != 0 ||
-            prop.normals.Length != count || prop.colors.Length != count)
+        bool indexed = prop.indices != null;
+        if (count == 0 || count > 65535 || (!indexed && count % 3 != 0) ||
+            prop.normals.Length != count || (prop.colors != null && prop.colors.Length != count) ||
+            (prop.uv != null && prop.uv.Length != count) ||
+            (prop.atlasRects != null && prop.atlasRects.Length != count) ||
+            (indexed && (prop.uv == null || prop.indices.Length == 0 || prop.indices.Length % 3 != 0)))
             throw new InvalidDataException($"Invalid source mesh for {prop.name}");
-        var mesh = new Mesh { name = prop.name, vertices = prop.points, normals = prop.normals, colors = prop.colors };
-        mesh.triangles = OutwardTriangles(prop.points, prop.normals);
+        var mesh = new Mesh { name = prop.name, vertices = prop.points, normals = prop.normals };
+        if (prop.colors != null) mesh.colors = prop.colors;
+        if (prop.uv != null) mesh.uv = prop.uv;
+        if (prop.atlasRects != null) mesh.SetUVs(1, new List<Vector4>(prop.atlasRects));
+        mesh.triangles = indexed ? IndexedOutwardTriangles(prop.points, prop.normals, prop.indices) : OutwardTriangles(prop.points, prop.normals);
         mesh.RecalculateBounds();
         string path = $"{AssetRoot}/{prop.name}.asset";
         AssetDatabase.DeleteAsset(path);
         AssetDatabase.CreateAsset(mesh, path);
         return path;
+    }
+
+    private static int[] IndexedOutwardTriangles(Vector3[] points, Vector3[] normals, int[] input)
+    {
+        var indices = (int[])input.Clone();
+        for (int i = 0; i < indices.Length; i += 3)
+        {
+            int a = indices[i], b = indices[i + 1], c = indices[i + 2];
+            if (a < 0 || b < 0 || c < 0 || a >= points.Length || b >= points.Length || c >= points.Length)
+                throw new InvalidDataException("Creature triangle index out of range");
+            if (Vector3.Dot(Vector3.Cross(points[b] - points[a], points[c] - points[a]), normals[a] + normals[b] + normals[c]) < 0)
+            { indices[i + 1] = c; indices[i + 2] = b; }
+        }
+        return indices;
+    }
+
+    private static void SaveCreatureMaterial(Creature creature, string sourcePath, List<string> packed)
+    {
+        if (string.IsNullOrEmpty(creature.texture) || Path.GetFileName(creature.texture) != creature.texture ||
+            Path.GetFileName(creature.material) != creature.material)
+            throw new InvalidDataException("Invalid creature texture/material name");
+        string texturePath = $"{AssetRoot}/{creature.texture}";
+        File.Copy(Path.Combine(Path.GetDirectoryName(sourcePath), creature.texture), texturePath, true);
+        AssetDatabase.ImportAsset(texturePath, ImportAssetOptions.ForceSynchronousImport);
+        var importer = (TextureImporter)AssetImporter.GetAtPath(texturePath);
+        importer.textureType = TextureImporterType.Default;
+        importer.sRGBTexture = true;
+        importer.alphaSource = creature.alphaClip ? TextureImporterAlphaSource.FromInput : TextureImporterAlphaSource.None;
+        importer.alphaIsTransparency = creature.alphaClip;
+        importer.mipmapEnabled = true;
+        importer.mipMapsPreserveCoverage = creature.alphaClip;
+        importer.alphaTestReferenceValue = .5f;
+        importer.wrapMode = TextureWrapMode.Clamp;
+        importer.filterMode = FilterMode.Bilinear;
+        importer.maxTextureSize = 1024;
+        importer.textureCompression = TextureImporterCompression.CompressedHQ;
+        importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings
+        {
+            name = "Android", overridden = true, maxTextureSize = 1024,
+            format = creature.alphaClip ? TextureImporterFormat.ETC2_RGBA8 : TextureImporterFormat.ETC2_RGB4,
+            compressionQuality = 100,
+        });
+        importer.SaveAndReimport();
+        var material = SaveMaterial(creature.material, "OpenBonk/NimboCreature", packed);
+        material.SetFloat("_Cull", creature.doubleSided ? 0 : 2);
+        if (creature.alphaClip)
+        {
+            material.SetFloat("_AlphaClip", 1);
+            material.EnableKeyword("_NIMBO_ALPHA_CLIP");
+        }
+        material.mainTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+        if (material.mainTexture == null) throw new InvalidDataException("Missing creature texture " + texturePath);
+        material.enableInstancing = false;
+        EditorUtility.SetDirty(material);
+        packed.Add(texturePath);
     }
 
     internal static int[] OutwardTriangles(Vector3[] points, Vector3[] normals)
@@ -191,6 +307,8 @@ public static class BuildDistrictBundle
         return indices;
     }
 
+    private static bool Finite(Vector3 v) => !float.IsNaN(v.x) && !float.IsInfinity(v.x) && !float.IsNaN(v.y) && !float.IsInfinity(v.y) && !float.IsNaN(v.z) && !float.IsInfinity(v.z);
+
     private static string SaveProp(Prop prop, Material material)
     {
         var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(SaveMesh(prop));
@@ -200,14 +318,26 @@ public static class BuildDistrictBundle
             instance.isStatic = !prop.name.EndsWith("Capsule", StringComparison.Ordinal);
             instance.AddComponent<MeshFilter>().sharedMesh = mesh;
             instance.AddComponent<MeshRenderer>().sharedMaterial = material;
-            if (prop.collide)
+            var boxes = prop.colliders ?? (prop.collide
+                ? new[] { new BoxSpec { center = mesh.bounds.center, size = mesh.bounds.size } }
+                : Array.Empty<BoxSpec>());
+            if (boxes.Length > 16) throw new InvalidDataException("Too many solid boxes for " + prop.name);
+            if (boxes.Length > 0)
             {
                 int layer = LayerMask.NameToLayer("Object");
                 if (layer < 0) throw new InvalidDataException("OpenBonk Object layer is missing");
                 instance.layer = layer;
-                var collider = instance.AddComponent<BoxCollider>();
-                collider.center = mesh.bounds.center;
-                collider.size = mesh.bounds.size;
+                var envelope = mesh.bounds; envelope.Expand(.25f);
+                foreach (var box in boxes)
+                {
+                    if (box == null || !Finite(box.center) || !Finite(box.size) ||
+                        box.size.x <= 0 || box.size.y <= 0 || box.size.z <= 0 ||
+                        !envelope.Contains(box.center - box.size * .5f) || !envelope.Contains(box.center + box.size * .5f))
+                        throw new InvalidDataException("Invalid solid box for " + prop.name);
+                    var collider = instance.AddComponent<BoxCollider>();
+                    collider.center = box.center;
+                    collider.size = box.size;
+                }
             }
             string path = $"{AssetRoot}/{prop.name}.prefab";
             PrefabUtility.SaveAsPrefabAsset(instance, path);
