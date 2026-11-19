@@ -152,6 +152,8 @@ def build(destination, prop_bundle):
         "api": 3,
         "kind": "content",
         "id": "distrito-nimbo",
+        # The launcher compares this against the catalog to offer updates.
+        "version": "1.2.0",
         "map": {
             "id": "distrito-nimbo",
             "name": "Distrito Nimbo",
