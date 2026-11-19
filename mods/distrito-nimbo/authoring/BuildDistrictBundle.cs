@@ -166,20 +166,29 @@ public static class BuildDistrictBundle
             prop.normals.Length != count || prop.colors.Length != count)
             throw new InvalidDataException($"Invalid source mesh for {prop.name}");
         var mesh = new Mesh { name = prop.name, vertices = prop.points, normals = prop.normals, colors = prop.colors };
-        var indices = new int[count];
-        // The Blender bake uses counterclockwise front faces. Unity uses clockwise.
-        for (int i = 0; i < count; i += 3)
-        {
-            indices[i] = i;
-            indices[i + 1] = i + 2;
-            indices[i + 2] = i + 1;
-        }
-        mesh.triangles = indices;
+        mesh.triangles = OutwardTriangles(prop.points, prop.normals);
         mesh.RecalculateBounds();
         string path = $"{AssetRoot}/{prop.name}.asset";
         AssetDatabase.DeleteAsset(path);
         AssetDatabase.CreateAsset(mesh, path);
         return path;
+    }
+
+    internal static int[] OutwardTriangles(Vector3[] points, Vector3[] normals)
+    {
+        var indices = new int[points.Length];
+        for (int i = 0; i < points.Length; i += 3)
+        {
+            // The prop exporter rotates (x, y, z) to (x, z, -y), while other
+            // sources can reflect an axis. Match the baked outward normals
+            // instead of reversing every source as if all changed handedness.
+            var face = Vector3.Cross(points[i + 1] - points[i], points[i + 2] - points[i]);
+            bool reverse = Vector3.Dot(face, normals[i] + normals[i + 1] + normals[i + 2]) < 0;
+            indices[i] = i;
+            indices[i + 1] = i + (reverse ? 2 : 1);
+            indices[i + 2] = i + (reverse ? 1 : 2);
+        }
+        return indices;
     }
 
     private static string SaveProp(Prop prop, Material material)

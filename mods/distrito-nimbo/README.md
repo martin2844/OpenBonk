@@ -51,3 +51,41 @@ blender -b authoring/river-manta.blend --python authoring/export_beetle.py -- /t
 blender -b authoring/glass-spark.blend --python authoring/export_beetle.py -- /tmp/nimbo-creatures/spark.json "Glass spark" GlassSpark
 blender -b authoring/relay-keeper.blend --python authoring/export_beetle.py -- /tmp/nimbo-creatures/keeper.json "Relay keeper" RelayKeeper
 ```
+
+### Locally supplied Pokémon rigs
+
+For the optional Pokémon package, place the decoded skinned GLBs in
+`PRIVATE_ROOT/decoded/{15,16,19,20,22,24,34,6,112,130}.glb`, then run:
+
+```sh
+blender -b --python authoring/bake_private_creatures.py -- /path/to/PRIVATE_ROOT
+```
+
+This writes `PRIVATE_ROOT/creatures/*.json` for `OPENBONK_NIMBO_CREATURE`.
+Optional model IDs after the root restrict the bake. The baker poses the
+weighted skeleton for every frame: birds flap during flight and hovering,
+land creatures move their legs, arms, heads and tails, and serpents bend
+through their spine chains. Mesh simplification happens once before skinning
+so all frames preserve topology and vertex colors.
+
+Every baked clip must change distances between mesh vertices; a translated or
+rotated static mesh fails this check. Pidgey and Fearow must also have at least
+0.4 model units of wingtip travel relative to the torso, while never dipping
+more than 0.1 below the initial frame's floor. The baker writes
+`animation-validation.json` with the measured deformation for all clips.
+Rebuild the Android bundle after rebaking. For the published Pokémon variant,
+replace the existing ZIP's `assets/nimbo-props` bundle, preserve its Pokémon
+manifest and gameplay settings, and advance the package version.
+
+### Building visibility regression check
+
+`BuildDistrictBundle` matches triangle winding to the supplied outward normals;
+it must not reverse every triangle. The prop exporter uses a rotation, not a
+reflection, so unconditional reversal hid the near walls of small houses.
+
+Copy `CheckDistrictMeshWinding.cs` into the authoring project's `Assets/Editor`.
+With graphics enabled, set `OPENBONK_NIMBO_PROPS` to the prop JSON and
+`OPENBONK_NIMBO_WINDING_CHECK` to an output directory, then execute
+`CheckDistrictMeshWinding.Run`. It renders both sides of the actual access
+houses and checks that a near wall occludes a far wall, including reflected
+source coordinates.
