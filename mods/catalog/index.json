@@ -103,11 +103,11 @@
     {
       "id": "distrito-nimbo",
       "name": "Distrito Nimbo",
-      "description": "Three-district rooftop city with articulated Pokémon, flapping birds, solid buildings and giant bosses with elemental attacks. Requires OpenBonk 0.1.15 or newer; contains third-party Pokémon models.",
-      "version": "1.4.0",
-      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.16-beta/distrito-nimbo-pokemon-1.4.0.zip",
-      "size": 8303916,
-      "sha256": "55778b89982fe8ec22a7ffb1dfe63d68787913c84f09891106cd66008edd4f16"
+      "description": "Sunny Japanese neighborhood with ramen shops, vending machines, gachapon, lanterns, signs and shrines. Smaller blocks, gentler hills and textured, articulated Pokémon. Requires OpenBonk 0.1.17 or newer; contains third-party Pokémon models.",
+      "version": "2.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.17-beta/distrito-nimbo-pokemon-2.0.0.zip",
+      "size": 19459525,
+      "sha256": "2be530d1eba900face0fd6d65c755bccb4f5f96a457934ec026a858d94b204eb"
     },
     {
       "id": "offer-tools",
