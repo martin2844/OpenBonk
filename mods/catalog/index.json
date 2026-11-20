@@ -103,11 +103,11 @@
     {
       "id": "distrito-nimbo",
       "name": "Distrito Nimbo",
-      "description": "Sunny Japanese neighborhood with ramen shops, vending machines, gachapon, lanterns, signs and shrines. Smaller blocks, gentler hills and textured, articulated Pokémon. Requires OpenBonk 0.1.17 or newer; contains third-party Pokémon models.",
-      "version": "2.0.0",
-      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.17-beta/distrito-nimbo-pokemon-2.0.0.zip",
-      "size": 19459525,
-      "sha256": "2be530d1eba900face0fd6d65c755bccb4f5f96a457934ec026a858d94b204eb"
+      "description": "Sunny Japanese neighborhood with terraced streets, shops, vending machines, gachapon, lanterns and Mewtwo shrine statues. Three nine-minute stages with textured, articulated Pokémon. Requires OpenBonk 0.1.18 or newer; contains third-party Pokémon models.",
+      "version": "2.1.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.18-beta/distrito-nimbo-pokemon-2.1.0.zip",
+      "size": 19650070,
+      "sha256": "faeceb59555c2f653a7ef8910a6fbac1bd1455f903c937b2704111b6e4dd1133"
     },
     {
       "id": "offer-tools",
