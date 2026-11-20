@@ -18,6 +18,7 @@ public sealed class OpenBonkExternalMapData : MapData
     internal GameObject GetPotVisual(StageData stage, bool silver) =>
         stage != null && potVisuals.TryGetValue(stage, out var visuals) ? (silver ? visuals.silver : visuals.normal) : null;
     internal readonly Dictionary<StageData, GameObject> moaiVisuals = new Dictionary<StageData, GameObject>();
+    internal readonly Dictionary<StageData, GameObject> balanceVisuals = new Dictionary<StageData, GameObject>();
     internal readonly Dictionary<StageData, GameObject> potEffects = new Dictionary<StageData, GameObject>();
     internal readonly Dictionary<StageData, GameObject> arenaLandmarks = new Dictionary<StageData, GameObject>();
     internal readonly Dictionary<StageData, EItem> bossRewards = new Dictionary<StageData, EItem>();

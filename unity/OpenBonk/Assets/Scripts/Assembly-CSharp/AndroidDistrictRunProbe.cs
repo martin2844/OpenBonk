@@ -12,7 +12,7 @@ using UnityEngine;
 
 internal sealed class AndroidDistrictRunProbe : MonoBehaviour
 {
-    private bool moaiPassed;
+    private bool moaiPassed, balancePassed;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Install()
     {
@@ -92,6 +92,11 @@ internal sealed class AndroidDistrictRunProbe : MonoBehaviour
                 {
                     yield return CheckMoaiVisualAndReward(player);
                     if (!moaiPassed) yield break;
+                }
+                if (map.balanceVisuals.ContainsKey(stage))
+                {
+                    yield return CheckBalanceVisualAndReward(player);
+                    if (!balancePassed) yield break;
                 }
             }
 
@@ -260,6 +265,95 @@ internal sealed class AndroidDistrictRunProbe : MonoBehaviour
         { Fail("Moai reward or single-use cleanup did not finish", 0); yield break; }
         moaiPassed = true;
         Debug.Log("District probe Moai PASS: external statue visible/ground-aligned, original head hidden, native icons/collider retained, firstInteraction=true secondInteraction=false, native reward accepted");
+    }
+
+    private IEnumerator CheckBalanceVisualAndReward(MyPlayer player)
+    {
+        var windows = UiManager.Instance?.encounterWindows;
+        if (windows == null) { Fail("missing reward windows for the Bald Head", 0); yield break; }
+        float until = Time.realtimeSinceStartup + 8f;
+        while (windows.HasEncounter() && Time.realtimeSinceStartup < until)
+        {
+            AcceptPendingReward();
+            yield return null;
+        }
+        if (windows.HasEncounter()) { Fail("earlier reward blocked the Bald Head check", 0); yield break; }
+
+        InteractableShrineBalance shrine = null;
+        float nearest = float.PositiveInfinity;
+        foreach (var candidate in FindObjectsOfType<InteractableShrineBalance>())
+        {
+            float distance = (candidate.transform.position - player.transform.position).sqrMagnitude;
+            if (candidate.done || distance >= nearest) continue;
+            shrine = candidate; nearest = distance;
+        }
+        if (shrine == null) { Fail("declared Bald Head visual has no shrine", 0); yield break; }
+        var visual = shrine.transform.Find("ExternalBalanceVisual");
+        var head = shrine.GetComponent<MeshRenderer>();
+        var renderer = visual != null ? visual.GetComponent<MeshRenderer>() : null;
+        // Native shrine +Z follows the sampled ground normal, including ramps.
+        // Imported +Y must follow that axis, rather than world-up on every seed.
+        float alignment = visual == null ? -1f : Vector3.Dot(visual.up, shrine.transform.forward);
+        float groundAngle = Vector3.Angle(shrine.transform.forward, Vector3.up);
+        if (renderer == null || !renderer.enabled || !visual.gameObject.activeInHierarchy ||
+            head == null || head.enabled || alignment < .999f || groundAngle > 44.1f)
+        { Fail($"Bald Head override: visual={visual != null} renderer={renderer != null && renderer.enabled} nativeHead={head == null || head.enabled} groundAlignment={alignment:F4} groundAngle={groundAngle:F2}", 0); yield break; }
+        var icon = shrine.minimapIcon; var alert = shrine.alertIcon;
+        if (icon == null || alert == null || shrine.GetComponent<Collider>() == null)
+        { Fail("Bald Head lost native icons or collision", 0); yield break; }
+
+        var bounds = renderer.bounds;
+        var outward = visual.forward; outward.y = 0; outward.Normalize();
+        if (outward.sqrMagnitude < .5f) outward = Vector3.forward;
+        var approach = bounds.center + outward * Mathf.Max(5f, bounds.size.y * .75f);
+        approach.y = bounds.min.y + .5f;
+        player.playerMovement.TeleportPlayerBackToBounds(approach);
+        player.playerInput.SetSpawnDirection(-outward, -8f);
+        Physics.SyncTransforms();
+        until = Time.realtimeSinceStartup + 2f;
+        while (Time.realtimeSinceStartup < until)
+        {
+            AcceptPendingReward();
+            yield return null;
+        }
+        yield return new WaitForEndOfFrame();
+        var camera = PlayerCamera.Instance != null ? PlayerCamera.Instance.camera : Camera.main;
+        if (camera == null || !GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(camera), bounds))
+        { Fail("Moai statue outside capture camera", 0); yield break; }
+        string capture = System.IO.Path.Combine(Application.persistentDataPath, "mewtwo-bald-head.png");
+        ScreenCapture.CaptureScreenshot("mewtwo-bald-head.png");
+        Debug.Log($"District probe Bald Head visual: groundAligned=true alignment={alignment:F4} groundAngle={groundAngle:F2} nativeHeadVisible=false visible={renderer.isVisible} bounds={bounds} capture={capture}");
+        yield return new WaitForEndOfFrame();
+        yield return null;
+
+        until = Time.realtimeSinceStartup + 8f;
+        while (windows.HasEncounter() && Time.realtimeSinceStartup < until)
+        {
+            AcceptPendingReward();
+            yield return null;
+        }
+        if (windows.HasEncounter()) { Fail("reward blocked Bald Head interaction", 0); yield break; }
+
+        bool first = shrine.Interact();
+        bool second = shrine.Interact();
+        if (!first || second || !shrine.done)
+        { Fail("Bald Head interaction must succeed exactly once", 0); yield break; }
+        // Balance uses the generic encounter window rather than the level-up one.
+        var generic = windows.genericEncounterWindow as EncounterUi;
+        if (generic == null || !generic.gameObject.activeInHierarchy)
+        { Fail("Bald Head did not open its native reward prompt", 0); yield break; }
+        yield return new WaitForEndOfFrame();
+        generic.ChooseOffer(0);
+        until = Time.realtimeSinceStartup + 8f;
+        do
+        {
+            AcceptPendingReward();
+            yield return null;
+        } while (windows.HasEncounter() && Time.realtimeSinceStartup < until);
+        if (windows.HasEncounter() || icon != null || alert != null || shrine != null)
+        { Fail("Bald Head reward or single-use cleanup did not finish", 0); yield break; }
+        balancePassed = true;
+        Debug.Log("District probe Bald Head PASS: external statue visible/ground-aligned, original head hidden, native icons/collider retained, firstInteraction=true secondInteraction=false, native reward accepted");
     }
 
     private static bool StageReady(int index, MyPlayer previous) =>

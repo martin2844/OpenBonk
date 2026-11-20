@@ -12,6 +12,25 @@ public class InteractableShrineBalance : BaseInteractable
 
 	public static string debugName = "Bald Heads";
 
+    private bool visualReplaced;
+
+    protected new void Start()
+    {
+        if (Assets.Scripts.Managers.MapController.currentMap is OpenBonkExternalMapData map &&
+            Assets.Scripts.Managers.MapController.currentStage != null &&
+            map.balanceVisuals.TryGetValue(Assets.Scripts.Managers.MapController.currentStage, out var visual))
+            ReplaceVisual(visual);
+        base.Start();
+    }
+
+    internal GameObject ReplaceVisual(GameObject visual)
+    {
+        if (visual == null || visualReplaced) return null;
+        var instance = OpenBonkShrineVisual.Replace(this, visual, "ExternalBalanceVisual");
+        if (instance != null) visualReplaced = true;
+        return instance;
+    }
+
 	public override bool Interact()
 	{
 		if (done) return false;

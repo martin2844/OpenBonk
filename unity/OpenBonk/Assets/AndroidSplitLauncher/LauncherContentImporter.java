@@ -176,7 +176,13 @@ final class LauncherContentImporter {
             !number(weapon, "damage", 0, 10000) ||
             !number(weapon, "cooldown", .05, 100) || !number(weapon, "range", .1, 100) ||
             !number(weapon, "chainRange", 0, 100) || !number(weapon, "chainProc", 0, 1) ||
-            !number(weapon, "bounces", 0, 16) || weapon.optDouble("bounces", -1) != weapon.optInt("bounces", -2))
+            !number(weapon, "bounces", 0, 16) || weapon.optDouble("bounces", -1) != weapon.optInt("bounces", -2) ||
+            (weapon.has("chargeSeconds") && !number(weapon, "chargeSeconds", 0, 60)) ||
+            (weapon.has("dischargeRadius") && !number(weapon, "dischargeRadius", 0, 60)) ||
+            (weapon.has("dischargeDamage") && !number(weapon, "dischargeDamage", 0, 20)) ||
+            (weapon.has("dischargeOnAim") && !(weapon.opt("dischargeOnAim") instanceof Boolean)) ||
+            (weapon.optBoolean("dischargeOnAim", false) && (!"lightning".equals(weapon.optString("effect")) ||
+                weapon.optDouble("chargeSeconds", 0) <= 0 || weapon.optDouble("dischargeRadius", 0) < 1)))
             throw new IOException("unsupported content definition");
         if (character != null) {
             for (String key : Arrays.asList("idle", "run", "jump", "surf", "surfboard"))
@@ -312,6 +318,7 @@ final class LauncherContentImporter {
                 !optionalText(entry, "silverPotVisual", 120) || !optionalText(entry, "architectureMaterial", 120) ||
                 !optionalText(entry, "skyMaterial", 120) || !optionalText(entry, "arenaLandmark", 120) ||
                 !optionalText(entry, "potBreakFx", 120) || !optionalText(entry, "moaiVisual", 120) ||
+                !optionalText(entry, "balanceVisual", 120) ||
                 (entry.has("replaceDecorations") && !(entry.opt("replaceDecorations") instanceof Boolean)))
                 throw new IOException("invalid stage environment");
             int index = entry.optInt("stage") - 1;

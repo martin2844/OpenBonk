@@ -4,6 +4,8 @@ using System.Text;
 using Assets.Scripts.Actors.Player;
 using Assets.Scripts.Game.Combat;
 using Assets.Scripts.Inventory__Items__Pickups.Weapons;
+using Assets.Scripts.Managers;
+using Assets.Scripts.Utility;
 using Assets.Scripts.Menu.Shop;
 using UnityEngine;
 
@@ -77,6 +79,63 @@ internal sealed class OpenBonkLuaWeaponSession : IDisposable
         }
         catch (Exception e) { unavailable = true; Debug.LogWarning("Lua weapon stopped: " + e.Message); Dispose(); }
     }
+    // Charged lightning weapon: build up, then release a nova when the player
+    // presses the aim button. Reuses the plug burst and the lightning strikes.
+    private float charge;
+    private bool wasAiming, readyAnnounced;
+
+    public void Tick(WeaponBase weapon)
+    {
+        if (unavailable || state == IntPtr.Zero || MyPlayer.Instance == null || weapon == null || data.chargeSeconds <= 0f) return;
+        var player = MyPlayer.Instance;
+        var input = player.playerInput;
+        bool aiming = input != null && input.IsAiming();
+        if (charge < data.chargeSeconds)
+        {
+            charge = Mathf.Min(data.chargeSeconds, charge + MyTime.deltaTime);
+            if (charge >= data.chargeSeconds) AnnounceReady();
+        }
+        if (charge >= data.chargeSeconds && aiming && !wasAiming)
+        {
+            Discharge(weapon);
+            charge = 0f;
+            readyAnnounced = false;
+        }
+        wasAiming = aiming;
+    }
+
+    private void AnnounceReady()
+    {
+        if (readyAnnounced) return;
+        readyAnnounced = true;
+        if (EffectManager.Instance != null && EffectManager.Instance.electricPlugFx != null)
+            EffectManager.Instance.ElectricalPlugEffect();
+    }
+
+    private void Discharge(WeaponBase weapon)
+    {
+        var player = MyPlayer.Instance;
+        float radius = data.dischargeRadius * WeaponUtility.GetAttackSizeMultiplier(weapon);
+        int found = EnemyTargeting.GetEnemiesInRadiusSafe(this, player.transform.position, radius, out Collider[] colliders);
+        float baseDamage = weapon.GetValue(EStat.DamageMultiplier) * Mathf.Max(.1f, data.dischargeDamage);
+        int bounces = Mathf.Clamp(WeaponUtility.GetProjectileBounces(weapon), 0, 16);
+        int hits = 0;
+        for (int i = 0; i < found; i++)
+        {
+            if (!EnemyManager.Instance.GetEnemy(colliders[i], out var enemy) || enemy == null) continue;
+            Vector3 direction = enemy.GetCenterPosition() - player.transform.position;
+            var damage = WeaponUtility.GetDamageContainer(weapon, null, enemy, direction, baseDamage);
+            damage.element = EElement.Lightning;
+            WeaponUtility.LightningStrike(enemy, bounces, damage,
+                data.chainRange * WeaponUtility.GetAttackSizeMultiplier(weapon), data.chainProcCoefficient,
+                data.hasLightningColor ? (Color?)data.lightningColor : null, data.lightningSound);
+            hits++;
+        }
+        if (EffectManager.Instance != null && EffectManager.Instance.electricPlugFx != null)
+            EffectManager.Instance.ElectricalPlugEffect();
+        Debug.Log($"Thunderbolt discharge: hits={hits} radius={radius:0.0}");
+    }
+
     private static string Error(byte[] buffer)
     {
         int end = Array.IndexOf(buffer, (byte)0); return Encoding.UTF8.GetString(buffer, 0, end < 0 ? buffer.Length : end);

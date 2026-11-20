@@ -21,7 +21,7 @@ internal static class AndroidContentMods
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class FileSpec { public string path, sha256; public long size; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class CharacterSpec { public string id, name, description, bundle, model, walk, idle, run, jump, surf, surfboard, portrait; public float scale; public HatSpec hat; public OpenBonkCharacterBaseConfig.StatSpec[] baseStats; public OpenBonkCharacterBaseConfig.ColliderSpec collider; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class HatSpec { public string bone; public float offsetX, offsetY, offsetZ, scale; }
-    [Serializable, UnityEngine.Scripting.Preserve] private sealed class WeaponSpec { public string id, name, description, effect, icon, lightningColor, soundClip; public float damage, cooldown, range, chainRange, chainProc; public int bounces; }
+    [Serializable, UnityEngine.Scripting.Preserve] private sealed class WeaponSpec { public string id, name, description, effect, icon, lightningColor, soundClip; public float damage, cooldown, range, chainRange, chainProc, chargeSeconds, dischargeRadius, dischargeDamage; public int bounces; public bool dischargeOnAim; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class PassiveSpec { public string name, description; public PerLevelSpec[] perLevel; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class PerLevelSpec { public string stat; public float amount; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class ItemSpec { public string id, name, description, icon, rarity; public bool inPool; public int maxAmount, maxAmountPerRun; public ItemBonusSpec[] bonuses; public string[] hooks; }
@@ -45,7 +45,7 @@ internal static class AndroidContentMods
         public string groundTexture, wallTexture;
         public string architectureMaterial, skyMaterial;
         public bool replaceDecorations;
-        public string potVisual, silverPotVisual, arenaLandmark, potBreakFx, moaiVisual;
+        public string potVisual, silverPotVisual, arenaLandmark, potBreakFx, moaiVisual, balanceVisual;
         public OpenBonkRoofLayout.Profile rooftops;
         public OpenBonkStreetLayout.Spec streetscape;
     }
@@ -290,7 +290,7 @@ internal static class AndroidContentMods
             Array.Exists(spec.stageEnvironments, stage => stage != null &&
                 (!string.IsNullOrEmpty(stage.potVisual) || !string.IsNullOrEmpty(stage.silverPotVisual) ||
                  !string.IsNullOrEmpty(stage.architectureMaterial) || !string.IsNullOrEmpty(stage.skyMaterial) ||
-                 !string.IsNullOrEmpty(stage.moaiVisual) || !string.IsNullOrEmpty(stage.arenaLandmark) || !string.IsNullOrEmpty(stage.potBreakFx) || stage.streetscape != null)));
+                 !string.IsNullOrEmpty(stage.moaiVisual) || !string.IsNullOrEmpty(stage.balanceVisual) || !string.IsNullOrEmpty(stage.arenaLandmark) || !string.IsNullOrEmpty(stage.potBreakFx) || stage.streetscape != null)));
         if ((spec.objects != null && (spec.objects.Length == 0 || spec.objects.Length > 8)) ||
             (needsBundle ? !Text(spec.bundle, 120) : !string.IsNullOrEmpty(spec.bundle)))
             throw new InvalidDataException("invalid map bundle");
@@ -340,6 +340,7 @@ internal static class AndroidContentMods
                             groundTexture = LoadMapTexture(folder, files, textures, stage.groundTexture),
                             wallTexture = LoadMapTexture(folder, files, textures, stage.wallTexture),
                             moaiVisual = LoadPotVisual(bundle, stage.moaiVisual),
+                            balanceVisual = LoadPotVisual(bundle, stage.balanceVisual),
                             potVisual = LoadPotVisual(bundle, stage.potVisual),
                             silverPotVisual = LoadPotVisual(bundle, stage.silverPotVisual),
                             arenaLandmark = LoadArenaLandmark(bundle, stage.arenaLandmark),
@@ -465,7 +466,9 @@ internal static class AndroidContentMods
         OpenBonkContentIds.Weapon(id, w.id);
         if (!Text(w.name, 80) || !Text(w.description, 500) || (w.effect != "lightning" && w.effect != "fireball" && w.effect != "arrow") ||
             !Finite(w.damage, 0f, 10000f) || !Finite(w.cooldown, .05f, 100f) || !Finite(w.range, .1f, 100f) ||
-            !Finite(w.chainRange, 0f, 100f) || !Finite(w.chainProc, 0f, 1f) || w.bounces < 0 || w.bounces > 16)
+            !Finite(w.chainRange, 0f, 100f) || !Finite(w.chainProc, 0f, 1f) || w.bounces < 0 || w.bounces > 16 ||
+            !Finite(w.chargeSeconds, 0f, 60f) || !Finite(w.dischargeRadius, 0f, 60f) || !Finite(w.dischargeDamage, 0f, 20f) ||
+            (w.dischargeOnAim && (w.effect != "lightning" || w.chargeSeconds <= 0f || w.dischargeRadius < 1f)))
             throw new InvalidDataException("invalid weapon definition");
         var files = new Dictionary<string, FileSpec>(StringComparer.Ordinal);
         foreach (var f in manifest.files)
@@ -497,6 +500,8 @@ internal static class AndroidContentMods
         weapon.effect = w.effect; weapon.icon = icon; weapon.upgradeData = OpenBonkLuaWeaponData.CreateUpgrades(baseWeapon.upgradeData, projectile); weapon.damage = w.damage; weapon.projectiles = 1;
         weapon.projectileBounces = w.bounces; weapon.attackDuration = 1f; weapon.projectileSpeed = 1f; weapon.endCooldown = w.cooldown;
         weapon.element = EElement.Lightning; weapon.procCoefficient = 1f; weapon.spawnProjectileRange = w.range; weapon.chainRange = w.chainRange; weapon.chainProcCoefficient = w.chainProc; weapon.luaSource = source;
+        weapon.chargeSeconds = w.chargeSeconds; weapon.dischargeRadius = w.dischargeRadius; weapon.dischargeDamage = w.dischargeDamage > 0f ? w.dischargeDamage : 1f; weapon.dischargeOnAim = w.dischargeOnAim;
+        if (w.dischargeOnAim) weapon.hasCrosshair = true;
         if (!string.IsNullOrEmpty(w.lightningColor))
         {
             if (projectile || w.lightningColor.Length != 7 || w.lightningColor[0] != '#' || !ColorUtility.TryParseHtmlString(w.lightningColor, out Color color)) throw new InvalidDataException("invalid lightning color");

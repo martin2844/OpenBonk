@@ -4,11 +4,11 @@
     {
       "id": "pikachu",
       "name": "Pikachu",
-      "description": "Pikachu joins the adventure with Thunderbolt.",
-      "version": "1.0.0",
-      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.0-beta/Pikachu-mod.zip",
-      "size": 411262,
-      "sha256": "200bcd95347c695b75f464aa0f824d8d2e2fb21d069fb0c713eb5d6d67bc611c"
+      "description": "Pikachu joins the adventure with a charged Thunderbolt that discharges blue lightning when you aim.",
+      "version": "2.0.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.21-beta/Pikachu-mod.zip",
+      "size": 411270,
+      "sha256": "ed683abdfc7da0f8941be45dfed2e9ddd554abfbd85bf35864baace6f6ebab55"
     },
     {
       "id": "retry",
@@ -103,11 +103,11 @@
     {
       "id": "distrito-nimbo",
       "name": "Nimbo District",
-      "description": "Sunny Japanese neighborhood with hillside streets, tall shops and apartments, gray roads, grassy pockets and dirt paths. Native 10/9/8-minute stages, animated Pok\u00e9mon, Fearow whirlwinds and Mewtwo shrine statues. Requires OpenBonk 0.1.20 or newer; contains third-party Pok\u00e9mon models.",
-      "version": "2.2.0",
-      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.20-beta/nimbo-district-pokemon-2.2.0.zip",
-      "size": 19752988,
-      "sha256": "d43a974c0327776643faaf5f391bcc097041aed882b466758cef0f9c4282733d"
+      "description": "Sunny Japanese neighborhood with hillside streets, tall shops and apartments, gray roads, native moai shrines, Mewtwo bald-head statues, animated Pok\u00e9mon and Fearow whirlwinds. Requires OpenBonk 0.1.21 or newer; contains third-party Pok\u00e9mon models.",
+      "version": "2.3.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.21-beta/nimbo-district-pokemon-2.3.0.zip",
+      "size": 19752990,
+      "sha256": "58b56d149efee018e88c46f1f836a627b2307cbd9e01b888c64652405566967a"
     },
     {
       "id": "offer-tools",

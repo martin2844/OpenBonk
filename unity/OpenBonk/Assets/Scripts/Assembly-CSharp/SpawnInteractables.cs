@@ -76,6 +76,12 @@ public class SpawnInteractables : MonoBehaviour
 			available.Add(shrine);
 		}
 		if (available.Count == 0) return;
+		// A map that supplies a Bald Head statue also gets one Bald Head shrine
+		// in every stage, so the encounter is not left to a random roll.
+		GameObject guaranteed = null;
+		if (MapController.currentMap is OpenBonkExternalMapData external && external.balanceVisuals.ContainsKey(MapController.currentStage))
+			foreach (GameObject shrine in available)
+				if (shrine.GetComponentInChildren<InteractableShrineBalance>() != null) { guaranteed = shrine; break; }
 		int total = (int)(numShrines * MapController.currentMap.numShrinesMultiplier);
 		int spawned = 0;
 		for (int i = 0; i < total; i++)
@@ -83,7 +89,7 @@ public class SpawnInteractables : MonoBehaviour
 			Vector3 position = SpawnPositions.GetObjectSpawnPosition(worldCenter, worldArea, 0.5f,
 				GameManager.Instance.whatIsGroundAndObjects, out Vector3 normal, 50, true, true, false, 44f);
 			if ((position - SpawnPositions.INVALID_POS).sqrMagnitude < 1e-10f) continue;
-			GameObject prefab = available[global::Utility.MyRandom.random.Next(available.Count)];
+			GameObject prefab = guaranteed != null && spawned == 0 ? guaranteed : available[global::Utility.MyRandom.random.Next(available.Count)];
 			GameObject placed = Instantiate(prefab, position, chest.transform.rotation);
 			spawned++;
 			placed.transform.rotation = Quaternion.LookRotation(normal);

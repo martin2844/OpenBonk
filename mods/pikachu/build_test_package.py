@@ -21,15 +21,16 @@ files = {
     'assets/thunderbolt-icon.png': root / 'content/thunderbolt-icon.png',
 }
 manifest = {
-    'api': 3, 'kind': 'content', 'id': 'pikachu',
+    'api': 3, 'kind': 'content', 'id': 'pikachu', 'version': '2.0.0',
     'files': [{'path': name, 'size': path.stat().st_size, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()} for name, path in files.items()],
     'character': {'id': 'pikachu', 'name': 'Pikachu', 'description': 'An energetic Pokémon that battles with Thunderbolt.',
                   'bundle': 'assets/pikachu-model', 'model': 'pikachu-study', 'walk': 'Armature|OpenBonk walk study',
                   'idle': 'Armature|OpenBonk idle', 'run': 'Armature|OpenBonk run', 'jump': 'Armature|OpenBonk jump', 'surf': 'Armature|OpenBonk surf', 'surfboard': 'OpenBonkSurfboard',
                   'portrait': 'assets/portrait.png', 'scale': .24},
-    'weapon': {'id': 'thunderbolt', 'name': 'Thunderbolt', 'description': 'Strikes an enemy and chains lightning; every second strike is stronger.',
+    'weapon': {'id': 'thunderbolt', 'name': 'Thunderbolt', 'description': 'Charges for 5 seconds; press aim to discharge blue lightning around Pikachu.',
                'effect': 'lightning', 'icon': 'assets/thunderbolt-icon.png', 'lightningColor': '#3DC9FF', 'soundClip': 'thunderbolt-zap',
-               'damage': 14, 'cooldown': 1.1, 'range': 24, 'chainRange': 7, 'chainProc': .5, 'bounces': 2},
+               'damage': 18, 'cooldown': 1.1, 'range': 24, 'chainRange': 7, 'chainProc': .5, 'bounces': 2,
+               'chargeSeconds': 5, 'dischargeOnAim': True, 'dischargeRadius': 7.5, 'dischargeDamage': 1.6},
     'passive': {'name': 'Electric Energy', 'description': 'Gain 1% power-up drop chance and 1% duration per level gained.',
                 'perLevel': [{'stat': 'PowerupChance', 'amount': .01}, {'stat': 'DurationMultiplier', 'amount': .01}]},
 }

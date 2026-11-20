@@ -17,6 +17,9 @@ public sealed class OpenBonkLuaWeaponData : WeaponData
     public float chainProcCoefficient = .5f;
     public bool hasLightningColor;
     public Color lightningColor = Color.white;
+    // Optional charged attack: hold charge, then discharge around the player.
+    public float chargeSeconds, dischargeRadius = 7f, dischargeDamage = 1f;
+    public bool dischargeOnAim;
     public AudioClip lightningSound;
     public override string GetName() => displayName ?? string.Empty;
     public override string GetDescription() => description ?? string.Empty;

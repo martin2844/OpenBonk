@@ -14,7 +14,7 @@ public sealed class OpenBonkProceduralMapRecipe
         public int stage;
         public Texture groundTexture, wallTexture;
         public Material architectureMaterial, skyMaterial;
-        public GameObject potVisual, silverPotVisual, arenaLandmark, potBreakFx, moaiVisual;
+        public GameObject potVisual, silverPotVisual, arenaLandmark, potBreakFx, moaiVisual, balanceVisual;
         public OpenBonkRoofLayout.Profile rooftops;
         public OpenBonkStreetLayout.Profile streetscape;
         public bool replaceDecorations;
@@ -25,6 +25,7 @@ public sealed class OpenBonkProceduralMapRecipe
     public float volatility, slopeStrength, flatMapBias, stageDuration;
     public float[] stageDurations;
     public StageEnvironment[] stageEnvironments;
+
 }
 
 // Owns cloned map objects and materials, never shared assets or supplied textures.
@@ -35,6 +36,22 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
     private T Own<T>(T value) where T : Object { owned.Add(value); return value; }
     private OpenBonkProceduralMapBuild() { }
 
+    // Forest has no Bald Head shrine, so a map that supplies its statue borrows
+    // the Graveyard's ShrineBalance prefab and appends it to the native list.
+    private static GameObject[] Shrines(GameObject[] template, OpenBonkProceduralMapRecipe.StageEnvironment[] environments)
+    {
+        var shrines = new List<GameObject>(template ?? Array.Empty<GameObject>());
+        if (environments == null || !Array.Exists(environments, e => e != null && e.balanceVisual != null))
+            return shrines.ToArray();
+        foreach (var shrine in shrines)
+            if (shrine != null && shrine.GetComponentInChildren<InteractableShrineBalance>() != null) return shrines.ToArray();
+        var data = DataManager.Instance;
+        var source = data != null && data.GetMap(EMap.Graveyard) != null ? data.GetMap(EMap.Graveyard).shrines : null;
+        if (source != null)
+            foreach (var shrine in source)
+                if (shrine != null && shrine.GetComponentInChildren<InteractableShrineBalance>() != null) { shrines.Add(shrine); break; }
+        return shrines.ToArray();
+    }
     public static OpenBonkProceduralMapBuild Create(MapData template, OpenBonkProceduralMapRecipe recipe, Texture icon, Texture groundTexture = null, Texture wallTexture = null)
     {
         if (template == null || template.eMap != EMap.Forest || template.mapType != EMapType.Tiles ||
@@ -65,7 +82,7 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                     ((environment.architectureMaterial != null || environment.skyMaterial != null) &&
                         (environment.architectureMaterial == null || environment.skyMaterial == null)) ||
                     (!environment.replaceDecorations && environment.groundTexture == null && environment.wallTexture == null &&
-                        environment.moaiVisual == null && environment.potVisual == null && environment.silverPotVisual == null && environment.potBreakFx == null &&
+                        environment.moaiVisual == null && environment.balanceVisual == null && environment.potVisual == null && environment.silverPotVisual == null && environment.potBreakFx == null &&
                         environment.architectureMaterial == null))
                     throw new ArgumentException("Invalid stage environment");
                 environments[environment.stage - 1] = environment;
@@ -77,7 +94,7 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
             var map = result.Own(ScriptableObject.CreateInstance<OpenBonkExternalMapData>());
             result.Map = map; map.isEnabled = true; map.displayName = recipe.name; map.description = recipe.description; map.enemyPoolMap = template.eMap;
             map.icon = icon; map.mapIconBig = icon; map.mapType = template.mapType; map.unlockOrder = template.unlockOrder;
-            map.shrines = template.shrines; map.randomObjectsOverride = template.randomObjectsOverride;
+            map.shrines = Shrines(template.shrines, environments); map.randomObjectsOverride = template.randomObjectsOverride;
             map.numShrinesMultiplier = template.numShrinesMultiplier; map.numChestsMultiplier = template.numChestsMultiplier;
             map.numShrinesPotsAndOtherMultiplier = template.numShrinesPotsAndOtherMultiplier; map.stageDuration = recipe.stageDuration;
             map.ambience = template.ambience; map.musicTracks = template.musicTracks; map.bossTrack = template.bossTrack;
@@ -100,6 +117,7 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                 if (environment != null && (environment.potVisual != null || environment.silverPotVisual != null))
                     map.potVisuals.Add(stage, (environment.potVisual, environment.silverPotVisual));
                 if (environment?.moaiVisual != null) map.moaiVisuals.Add(stage, environment.moaiVisual);
+                if (environment?.balanceVisual != null) map.balanceVisuals.Add(stage, environment.balanceVisual);
                 if (environment?.arenaLandmark != null) map.arenaLandmarks.Add(stage, environment.arenaLandmark);
                 if (environment?.potBreakFx != null) map.potEffects.Add(stage, environment.potBreakFx);
                 if (environment?.rooftops != null)

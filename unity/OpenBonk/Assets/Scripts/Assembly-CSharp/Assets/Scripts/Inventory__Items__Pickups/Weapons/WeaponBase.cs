@@ -56,7 +56,13 @@ namespace Assets.Scripts.Inventory__Items__Pickups.Weapons
 
 		public void Use()
 		{
-			if (!enabled || IsCooldown()) return;
+			if (!enabled) return;
+			if (weaponData is OpenBonkLuaWeaponData external && external.dischargeOnAim)
+			{
+				externalSession?.Tick(this);
+				return;
+			}
+			if (IsCooldown()) return;
 			if (weaponData is OpenBonkLuaWeaponData) externalSession?.Attack(this);
 			else WeaponUtility.WeaponAttack(this);
 			usedWeaponAtTime = MyTime.time;

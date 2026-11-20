@@ -1441,7 +1441,10 @@ public final class SplitDataLauncher extends Activity {
                 JSONObject item = matches.get(i);
                 String id = item.optString("id");
                 JSONObject installed = modsRoot != null && id.matches("[A-Za-z0-9_-]{1,64}") ? readInstalledMod(new File(modsRoot, id)) : null;
-                String installedVersion = installed == null ? "" : installed.optString("version");
+                String manifestVersion = installed == null ? "" : installed.optString("version");
+                String installedVersion = manifestVersion.isEmpty() && installed != null
+                    ? getSharedPreferences("megabonk_mod_version", MODE_PRIVATE).getString(id, "")
+                    : manifestVersion;
                 String catalogVersion = item.optString("version");
                 boolean hasUpdate = installed != null && modHasUpdate(catalogVersion, installedVersion);
                 LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(4), dp(2), dp(4), dp(2));
@@ -1501,12 +1504,9 @@ public final class SplitDataLauncher extends Activity {
         back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); catalogCard.addView(back, new LinearLayout.LayoutParams(dp(106), dp(36)));
     }
 
-    // A catalog entry newer than the installed manifest, or an installed copy
-    // that never declared a version (older packages), offers an update.
+    // Only offer an update when both versions are known: a package without a
+    // version is treated as current instead of prompting forever.
     private static boolean modHasUpdate(String catalog, String installed) {
-        String numericVersion = "[0-9]{1,9}\\.[0-9]{1,9}\\.[0-9]{1,9}";
-        if (catalog.isEmpty()) return false;
-        if (installed.isEmpty() || !installed.matches(numericVersion) || !catalog.matches(numericVersion)) return true;
         return newerModVersion(catalog, installed);
     }
 
@@ -1551,6 +1551,8 @@ public final class SplitDataLauncher extends Activity {
                     File root = getExternalFilesDir(null); if (root == null) throw new IOException("storage unavailable");
                     try (InputStream in = new FileInputStream(file)) { id = LauncherModImporter.install(in, new File(root, "Mods"), getSharedPreferences("megabonk_mod_state", MODE_PRIVATE)); }
                 enableContentMod(root, id);
+                if (id != null && !item.optString("version").isEmpty())
+                    getSharedPreferences("megabonk_mod_version", MODE_PRIVATE).edit().putString(id, item.optString("version")).commit();
                 }
             } catch (Exception e) { error = LauncherImportError.describe(e, es); }
             finally { if (file != null) file.delete(); }

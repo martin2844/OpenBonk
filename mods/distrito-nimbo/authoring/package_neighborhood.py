@@ -88,7 +88,7 @@ def upgrade_manifest(original):
     if len(enemies) != len(SPECIES) or {enemy.get("name") for enemy in enemies} != SPECIES:
         raise ValueError("Expected the ten-species Pokémon roster")
     manifest["api"] = 4
-    manifest["version"] = "2.2.0"
+    manifest["version"] = "2.3.0"
     world["name"] = "Nimbo District"
     # Preserve Forest's exact stage clocks and event cadence. The map-level
     # duration also drives native enemy density, whose denominator is 600.
@@ -103,7 +103,7 @@ def upgrade_manifest(original):
         width, rise, coverage, frontages = PROFILES[environment["stage"]]
         environment["streetscape"] = {"tileWidth": width, "stepHeight": rise, "coverage": coverage,
                                      "frontages": ["Nimbo" + name for name in frontages]}
-        environment["moaiVisual"] = "MewtwoStatue"
+        environment["balanceVisual"] = "MewtwoStatue"
     for enemy in enemies:
         enemy["material"] = "Nimbo" + enemy["name"]
         if enemy["id"] == "fearow":
