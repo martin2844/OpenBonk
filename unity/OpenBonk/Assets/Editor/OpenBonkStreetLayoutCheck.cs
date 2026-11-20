@@ -44,13 +44,14 @@ public static class OpenBonkStreetLayoutCheck
                 {
                     stage = stage + 1, architectureMaterial = material, skyMaterial = material,
                     groundTexture = texture, wallTexture = texture, replaceDecorations = true,
-                    streetscape = new OpenBonkStreetLayout.Profile(26 + stage * 2, 6 + stage, .85f, new[] { frontage }),
+                    streetscape = new OpenBonkStreetLayout.Profile(28 + stage * 2, 8 + stage, .85f, new[] { frontage }),
                 };
             }
             var recipe = new OpenBonkProceduralMapRecipe
             {
                 name = "Street test", description = "Street test", tileGridSize = 15,
-                volatility = .8f, slopeStrength = 0, flatMapBias = 0, stageDuration = 540,
+                volatility = .8f, slopeStrength = 0, flatMapBias = 0, stageDuration = 600,
+                stageDurations = new[] { 600f, 540f, 480f },
                 stageEnvironments = environments,
             };
             using var build = OpenBonkProceduralMapBuild.Create(forest, recipe, texture);
@@ -59,16 +60,15 @@ public static class OpenBonkStreetLayoutCheck
                 var data = build.Map.stages[stage]; var profile = environments[stage].streetscape;
                 Require(data.mapParameters.scaledTileWidth == profile.tileWidth && data.mapParameters.scaledTileHeight == profile.stepHeight, "cloned dimensions");
                 Require(forest.stages[stage].mapParameters.scaledTileWidth == originalWidth[stage] && forest.stages[stage].mapParameters.scaledTileHeight == originalHeight[stage], "Forest dimensions preserved");
-                Require(data.stageTimeline.stageTime == 540 && forest.stages[stage].stageTimeline.stageTime == 600 - stage * 60,
-                    "nine minute districts preserve native ten/nine/eight minute Forest stages");
-                float timeScale = 540f / forest.stages[stage].stageTimeline.stageTime;
-                Require(Mathf.Approximately(data.stageTimeline.checkNewEnemyInterval, 60 * timeScale), "reinforcement pacing follows stage duration");
+                Require(data.stageTimeline.stageTime == 600 - stage * 60 && forest.stages[stage].stageTimeline.stageTime == 600 - stage * 60,
+                    "districts preserve native ten/nine/eight minute Forest stages");
+                Require(Mathf.Approximately(data.stageTimeline.checkNewEnemyInterval, 60), "native reinforcement pacing");
                 for (int i = 0; i < data.stageTimeline.events.Count; i++)
                 {
                     var sourceEvent = forest.stages[stage].stageTimeline.events[i];
                     var districtEvent = data.stageTimeline.events[i];
-                    Require(Mathf.Approximately(districtEvent.timeMinutes, sourceEvent.timeMinutes * timeScale) &&
-                        Mathf.Approximately(districtEvent.duration, sourceEvent.duration * timeScale), "wave time and duration scale together");
+                    Require(Mathf.Approximately(districtEvent.timeMinutes, sourceEvent.timeMinutes) &&
+                        Mathf.Approximately(districtEvent.duration, sourceEvent.duration), "native event time and duration");
                 }
                 foreach (int seed in new[] { 0, 42, 731, 20261119 })
                 {
@@ -109,6 +109,7 @@ public static class OpenBonkStreetLayoutCheck
                         Require(Vector3.Dot(p.rotation * Vector3.forward, inward) > 0 && p.scale == 1f, "full-size frontage faces street");
                     }
                     placed += first.Count;
+                    if (seed == 42 && stage == 1) CheckLandscapePlacement(generator, profile, frontage, material, terrain);
                     ReleaseCollisionMesh(generator);
                     if (seed == 42)
                     {
@@ -177,8 +178,53 @@ public static class OpenBonkStreetLayoutCheck
             if (level.Value >= 10) populated++;
             minimum = Math.Min(minimum, level.Key); maximum = Math.Max(maximum, level.Key);
         }
-        Require(populated >= 4 && maximum - minimum >= 4 && minimum >= -4 && maximum <= 4,
+        Require(populated >= 4 && maximum - minimum >= 4 && minimum >= -5 && maximum <= 5,
             $"seed {seed} needs several inhabited, bounded elevation districts");
+    }
+
+    private static void CheckLandscapePlacement(ProceduralTileGeneration generator, OpenBonkStreetLayout.Profile profile,
+        GameObject shop, Material material, MeshCollider terrain)
+    {
+        var tall = new GameObject("Street check apartment");
+        var grass = new GameObject("Street check grass patch");
+        var tallMesh = Box(new Vector3(6.2f, 20f, 5.6f));
+        var grassMesh = Box(new Vector3(6.4f, .58f, 4.6f));
+        try
+        {
+            tall.AddComponent<MeshFilter>().sharedMesh = tallMesh;
+            tall.AddComponent<MeshRenderer>().sharedMaterial = material;
+            var solid = tall.AddComponent<BoxCollider>(); solid.center = tallMesh.bounds.center; solid.size = tallMesh.bounds.size;
+            grass.AddComponent<MeshFilter>().sharedMesh = grassMesh;
+            grass.AddComponent<MeshRenderer>().sharedMaterial = material;
+            var mixed = new OpenBonkStreetLayout.Profile(profile.tileWidth, profile.stepHeight, .95f, new[] { shop, tall, grass });
+            var placements = OpenBonkStreetLayout.Plan(generator.flatTiles, mixed, 42, terrain);
+            int shops = 0, towers = 0, patches = 0;
+            foreach (var placement in placements)
+            {
+                Vector3 center = generator.flatTiles[placement.tileIndex].transform.position;
+                float green = OpenBonkStreetLayout.GreenDistrictWeight(center, profile.tileWidth);
+                Require(Mathf.Abs(placement.worldBounds.min.y-center.y) < .01f, "tall buildings and grass remain grounded");
+                if (placement.prefab == tall)
+                {
+                    towers++;
+                    Require(green <= .2f && placement.worldBounds.size.y > 19.9f && placement.scale == 1,
+                        "full-height apartments occupy built-up street blocks");
+                }
+                else if (placement.prefab == grass) patches++;
+                else shops++;
+                if (green > .5f) Require(placement.prefab == grass, "green pocket corners remain planted");
+                var min = placement.worldBounds.min-center; var max = placement.worldBounds.max-center;
+                Require((min.x >= 6f || max.x <= -6f) && (min.z >= 6f || max.z <= -6f),
+                    "tall buildings and grass preserve the full combat crossing");
+            }
+            Require(shops > 5 && towers > 5 && patches > 5, "mixed district contains shops, taller buildings and grass pockets");
+            Debug.Log($"Nimbo landscape placement PASS: {shops} low-rise shops, {towers} tall buildings, {patches} grass patches");
+        }
+        finally
+        {
+            Object.DestroyImmediate(tall); Object.DestroyImmediate(grass);
+            Object.DestroyImmediate(tallMesh); Object.DestroyImmediate(grassMesh);
+        }
     }
 
     private static string TerrainSignature(ProceduralTileGeneration generator)

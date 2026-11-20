@@ -129,7 +129,8 @@ internal sealed class OpenBonkMapEncounterBuild : IDisposable
             (spec.movement != "ground" && spec.movement != "fly" && spec.movement != "charge") ||
             (spec.movement == "charge") != (spec.charge != null) ||
             (string.IsNullOrEmpty(spec.attack) != string.IsNullOrEmpty(spec.attackMaterial)) ||
-            (!string.IsNullOrEmpty(spec.attack) && (!Text(spec.attackMaterial, 120) || (spec.attack != "pulse" && spec.attack != "sweep"))) ||
+            (!string.IsNullOrEmpty(spec.attack) && (!Text(spec.attackMaterial, 120) ||
+                (spec.attack != "pulse" && spec.attack != "sweep" && spec.attack != "whirlwind"))) ||
             (spec.volley != null && (!TryHexColor(spec.volley.color, out _) ||
                 !Range(spec.volley.count, 1f, 9f) || !Range(spec.volley.spread, 0f, 180f) ||
                 !Range(spec.volley.speed, 3f, 60f) || !Range(spec.volley.radius, .3f, 5f) ||
@@ -176,6 +177,14 @@ internal sealed class OpenBonkMapEncounterBuild : IDisposable
             if (enemy.hazardMaterial == null || enemy.hazardMaterial.shader == null)
                 throw new InvalidDataException("Missing enemy attack material");
             enemy.sweepAttack = spec.attack == "sweep";
+            enemy.whirlwindAttack = spec.attack == "whirlwind";
+            if (enemy.whirlwindAttack)
+            {
+                // Use the native ranged-enemy spacing so a flyer does not
+                // spend its whole cooldown pressed against the player's body.
+                enemy.minStayAtDistance = 8f;
+                enemy.maxStayAtDistance = 13f;
+            }
         }
         if (spec.volley != null)
         {

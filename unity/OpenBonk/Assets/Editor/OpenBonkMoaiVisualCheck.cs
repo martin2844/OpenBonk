@@ -49,6 +49,23 @@ public static class OpenBonkMoaiVisualCheck
                     CheckReplacement(prefab, source, map, overrides, forest, yaw);
                     cases++;
                 }
+                // SpawnShrines aligns native +Z with the sampled floor normal
+                // and rolls around that axis. Exercise all actual city grades,
+                // both slope directions and the placement system's 44° limit.
+                var normals = new[]
+                {
+                    new Vector3(-8f, 28f, 0).normalized,
+                    new Vector3(0, 30f, 9f).normalized,
+                    new Vector3(10f, 32f, 0).normalized,
+                    Quaternion.AngleAxis(44f, Vector3.right) * Vector3.up,
+                    Quaternion.AngleAxis(-44f, Vector3.forward) * Vector3.up,
+                };
+                foreach (var normal in normals)
+                foreach (float roll in new[] { 19f, 137f })
+                {
+                    CheckReplacement(prefab, source, map, overrides, forest, roll, normal);
+                    cases++;
+                }
             }
             string realPath = Environment.GetEnvironmentVariable("OPENBONK_MOAI_VISUAL");
             if (!string.IsNullOrEmpty(realPath))
@@ -62,7 +79,7 @@ public static class OpenBonkMoaiVisualCheck
                 "native prefab renderer and shared mesh unchanged");
             Require(originalFile.SequenceEqual(File.ReadAllBytes(ShrinePath)) && EditorUtility.IsDirty(prefab) == originalDirty,
                 "native prefab bytes and dirty state unchanged");
-            Debug.Log($"OpenBonk Moai visual PASS: {cases} native-prefab fits, +Y upright and floor aligned, collider references/bounds and icons preserved, Forest/undeclared stage unchanged, duplicate replacement rejected, source/prefab unchanged");
+            Debug.Log($"OpenBonk Moai visual PASS: {cases} native-prefab fits including city ramps/44-degree limit, imported +Y aligned to native +Z/floor normal, local base aligned, collider references/bounds and icons preserved, Forest/undeclared stage unchanged, duplicate replacement rejected, source/prefab unchanged");
         }
         finally
         {
@@ -74,13 +91,18 @@ public static class OpenBonkMoaiVisualCheck
     }
 
     private static void CheckReplacement(GameObject prefab, GameObject source, OpenBonkExternalMapData map,
-        IDictionary overrides, MapData forest, float yaw)
+        IDictionary overrides, MapData forest, float yaw, Vector3? floorNormal = null)
     {
         var instance = Object.Instantiate(prefab);
         try
         {
             instance.transform.position = new Vector3(12, 7, -9);
-            instance.transform.rotation = Quaternion.AngleAxis(yaw, Vector3.up) * prefab.transform.rotation;
+            if (floorNormal.HasValue)
+            {
+                instance.transform.rotation = Quaternion.LookRotation(floorNormal.Value);
+                instance.transform.Rotate(instance.transform.forward, yaw, Space.World);
+            }
+            else instance.transform.rotation = Quaternion.AngleAxis(yaw, Vector3.up) * prefab.transform.rotation;
             instance.transform.localScale = new Vector3(1.4f, .8f, 1.2f);
             var shrine = instance.GetComponent<InteractableShrineMoai>();
             var original = instance.GetComponent<MeshRenderer>();
@@ -111,15 +133,49 @@ public static class OpenBonkMoaiVisualCheck
             StartShrine.Invoke(shrine, null);
             Require(original.enabled && instance.GetComponentsInChildren<Transform>(true).Length == transforms.Length, "undeclared stage must not replace head");
             overrides.Add(forest.stages[0], source);
+            string candidates = string.Join(" | ", instance.GetComponentsInChildren<MeshFilter>().Select(filter =>
+            {
+                var candidateRenderer = filter.GetComponent<MeshRenderer>();
+                var worldSize = candidateRenderer != null ? candidateRenderer.bounds.size : Vector3.zero;
+                var meshSize = filter.sharedMesh != null ? filter.sharedMesh.bounds.size : Vector3.zero;
+                return $"{filter.name}: enabled={candidateRenderer != null && candidateRenderer.enabled}, " +
+                    $"worldVolume={worldSize.x*worldSize.y*worldSize.z:F6}, localVolume={meshSize.x*meshSize.y*meshSize.z:F6}, " +
+                    $"worldSize={worldSize.ToString("F4")}, localSize={meshSize.ToString("F4")}";
+            }));
             StartShrine.Invoke(shrine, null);
             var visual = instance.GetComponentsInChildren<Transform>(true).Single(t => t.name == "ExternalMoaiVisual");
             var renderer = visual.GetComponent<MeshRenderer>();
-            Require(renderer != null && renderer.enabled && visual.gameObject.activeInHierarchy && !original.enabled, "external visual shown and native head hidden");
-            Require(Vector3.Dot(visual.up, Vector3.up) > .9999f, "+Y statue must remain upright under native +Z transform");
+            Require(renderer != null && renderer.enabled && visual.gameObject.activeInHierarchy && !original.enabled,
+                $"external visual shown and native head hidden; sourceSize={sourceBounds.size.ToString("F4")}, " +
+                $"normal={(floorNormal.HasValue ? floorNormal.Value.ToString("F5") : "flat")}, roll={yaw}, " +
+                $"selectedParent={visual.parent.name}, headEnabled={original.enabled}; candidates: {candidates}");
+            Require(Vector3.Dot(visual.up, instance.transform.forward) > .9999f,
+                "imported +Y must align with native +Z, including ground-normal placement on ramps");
+            if (floorNormal.HasValue)
+                Require(Vector3.Dot(visual.up, floorNormal.Value) > .9999f && Vector3.Angle(Vector3.up, visual.up) <= 44.01f,
+                    "statue follows the accepted floor normal without extra tilt");
+            else Require(Vector3.Dot(visual.up, Vector3.up) > .9999f, "flat-ground statue remains world-up");
             Require(Vector3.Distance(renderer.bounds.min, renderer.bounds.max) > .1f, "nondegenerate visual");
             var tolerance = envelope; tolerance.Expand(.004f);
             Require(tolerance.Contains(renderer.bounds.min) && tolerance.Contains(renderer.bounds.max), "world bounds fit native envelope");
-            Require(Mathf.Abs(renderer.bounds.min.y - envelope.min.y) < .002f, "statue rests at native floor height");
+            // On a slope the smallest world-Y AABB corner is not the shrine's
+            // local floor. Verify the native +Z base plane in its own frame.
+            var sourceBoundsForBase = source.GetComponent<MeshFilter>().sharedMesh.bounds;
+            var visualInNative = new Bounds();
+            bool firstCorner = true;
+            foreach (float x in new[] { sourceBoundsForBase.min.x, sourceBoundsForBase.max.x })
+            foreach (float y in new[] { sourceBoundsForBase.min.y, sourceBoundsForBase.max.y })
+            foreach (float z in new[] { sourceBoundsForBase.min.z, sourceBoundsForBase.max.z })
+            {
+                Vector3 corner = instance.transform.InverseTransformPoint(visual.TransformPoint(new Vector3(x,y,z)));
+                if (firstCorner) { visualInNative = new Bounds(corner, Vector3.zero); firstCorner = false; }
+                else visualInNative.Encapsulate(corner);
+            }
+            var nativeFloor = instance.GetComponent<MeshFilter>().sharedMesh.bounds;
+            Require(Mathf.Abs(visualInNative.min.z-nativeFloor.min.z) < .002f,
+                "statue base remains aligned with the native local floor plane");
+            if (!floorNormal.HasValue)
+                Require(Mathf.Abs(renderer.bounds.min.y-envelope.min.y) < .002f, "flat-ground statue rests at native world floor height");
             Require(visual.gameObject.layer == original.gameObject.layer, "native rendering layer retained");
             Require(visual.GetComponent<MeshFilter>().sharedMesh == sourceMesh, "shared statue mesh retained");
             int children = instance.GetComponentsInChildren<Transform>(true).Length;

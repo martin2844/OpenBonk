@@ -2,7 +2,7 @@
 """Upgrade the optional Pokémon 1.4.0 ZIP with a reviewed neighborhood bundle.
 
 Usage: python3 package_neighborhood.py OLD_1_4_ZIP BUILT_BUNDLE OUTPUT_ZIP
-Requires OpenBonk 0.1.18-beta or newer for terraced elevation (content API 4). Existing output files
+Requires OpenBonk 0.1.20-beta or newer for per-stage timing and enemy whirlwinds (content API 4). Existing output files
 are never overwritten. The original ZIP and built bundle are read only.
 """
 import argparse
@@ -22,9 +22,9 @@ FIXED_TIMESTAMP = (2020, 1, 1, 0, 0, 0)
 SPECIES = {"Beedrill", "Pidgey", "Rattata", "Raticate", "Fearow", "Arbok",
            "Nidoking", "Charizard", "Rhydon", "Gyarados"}
 PROFILES = {
-    1: (26, 6, .95, ("VendingCorner", "GachaCorner", "RamenFront", "PosterGarden")),
-    2: (28, 7, .90, ("VendingCorner", "GachaCorner", "RamenFront", "LanternGate", "PosterGarden")),
-    3: (30, 8, .85, ("RamenFront", "LanternGate", "PosterGarden", "ShrineCorner")),
+    1: (28, 8, .95, ("VendingCorner", "GachaCorner", "RamenFront", "PosterGarden", "ApartmentCorner", "GrassPatch")),
+    2: (30, 9, .90, ("VendingCorner", "GachaCorner", "RamenFront", "LanternGate", "PosterGarden", "ApartmentCorner", "ShopTower", "GrassPatch")),
+    3: (32, 10, .85, ("RamenFront", "LanternGate", "PosterGarden", "ShrineCorner", "ApartmentCorner", "ShopTower", "GrassPatch")),
 }
 
 
@@ -74,7 +74,7 @@ def read_package(source):
 def upgrade_manifest(original):
     if original.get("api") != 3 or original.get("kind") != "content" or \
             original.get("id") != "distrito-nimbo" or original.get("version") != "1.4.0":
-        raise ValueError("Expected the Distrito Nimbo Pokémon 1.4.0 API 3 package")
+        raise ValueError("Expected the original Nimbo District Pokémon 1.4.0 API 3 package")
     manifest = copy.deepcopy(original)
     world = manifest.get("map", {})
     if world.get("id") != "distrito-nimbo" or world.get("base") != "Forest" or \
@@ -88,13 +88,14 @@ def upgrade_manifest(original):
     if len(enemies) != len(SPECIES) or {enemy.get("name") for enemy in enemies} != SPECIES:
         raise ValueError("Expected the ten-species Pokémon roster")
     manifest["api"] = 4
-    manifest["version"] = "2.1.0"
-    # Forest lasts 10/9/8 minutes; nine minutes per district restores the same
-    # 27-minute total. The runtime scales each inherited stage's wave times,
-    # wave durations and reinforcement checks by .9/1/1.125 respectively.
-    world["stageDuration"] = 540
-    world["description"] = ("Explore a sunny Japanese neighborhood with terraced streets, shops, "
-                            "vending machines, gachapon, lanterns and signs across three Pokémon districts.")
+    manifest["version"] = "2.2.0"
+    world["name"] = "Nimbo District"
+    # Preserve Forest's exact stage clocks and event cadence. The map-level
+    # duration also drives native enemy density, whose denominator is 600.
+    world["stageDuration"] = 600
+    world["stageDurations"] = [600, 540, 480]
+    world["description"] = ("Explore a sunny Japanese neighborhood of hillside streets, tall shops and apartments, "
+                            "grassy pockets and winding paths. Watch for Fearow whirlwinds across three Pokémon districts.")
     for environment in environments:
         if environment.get("replaceDecorations") is not True or not environment.get("architectureMaterial") or \
                 "rooftops" in environment:
@@ -105,6 +106,9 @@ def upgrade_manifest(original):
         environment["moaiVisual"] = "MewtwoStatue"
     for enemy in enemies:
         enemy["material"] = "Nimbo" + enemy["name"]
+        if enemy["id"] == "fearow":
+            enemy["attack"] = "whirlwind"
+            enemy["attackMaterial"] = "NimboWarning"
     # Absence means no random placement. Empty arrays are rejected by both
     # importers, and the old houses must not obstruct the new street fronts.
     world.pop("objects", None)
@@ -159,6 +163,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("old_zip", type=Path, help="existing optional Pokémon 1.4.0 ZIP")
     parser.add_argument("bundle", type=Path, help="reviewed Android nimbo-props bundle")
-    parser.add_argument("output_zip", type=Path, help="new 2.1.0 ZIP path")
+    parser.add_argument("output_zip", type=Path, help="new 2.2.0 ZIP path")
     args = parser.parse_args()
     build(args.old_zip, args.bundle, args.output_zip)

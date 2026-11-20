@@ -68,7 +68,16 @@ public class StreetProfileCheck {
             m -> environment(m).remove("architectureMaterial"),
             m -> environment(m).put("moaiVisual", 123),
             m -> environment(m).put("moaiVisual", new JSONObject().put("prefab", "MewtwoStatue")),
-            m -> environment(m).put("moaiVisual", "M".repeat(121)));
+            m -> environment(m).put("moaiVisual", "M".repeat(121)),
+            m -> m.getJSONObject("map").put("stageDurations", JSONObject.NULL),
+            m -> m.getJSONObject("map").put("stageDurations", "600,540,480"),
+            m -> m.getJSONObject("map").put("stageDurations", new JSONArray()),
+            m -> m.getJSONObject("map").put("stageDurations", new JSONArray().put(600).put(540)),
+            m -> m.getJSONObject("map").put("stageDurations", new JSONArray().put(600).put(540).put(480).put(420)),
+            m -> m.getJSONObject("map").put("stageDurations", new JSONArray().put("600").put(540).put(480)),
+            m -> m.getJSONObject("map").put("stageDurations", new JSONArray().put(true).put(540).put(480)),
+            m -> m.getJSONObject("map").put("stageDurations", new JSONArray().put(600).put(59).put(480)),
+            m -> m.getJSONObject("map").put("stageDurations", new JSONArray().put(600).put(540).put(1801)));
         for (var mutation : invalid) {
             boolean rejected = false;
             try { install(rewrite(valid, scratch.resolve("invalid.zip"), mutation), root, prefs); }

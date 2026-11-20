@@ -36,6 +36,7 @@ internal static class AndroidContentMods
         public OpenBonkMapEncounterBuild.StageSpec[] encounters;
         public int tileGridSize;
         public float volatility, slopeStrength, flatMapBias, stageDuration, noiseScale, heightMultiplier, mapScale;
+        public float[] stageDurations;
     }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class MapObjectSpec { public string prefab; public int amount; public int[] stages; public float scaleMin, scaleMax, checkRadius, maxSlopeAngle, upOffset; }
     [Serializable, UnityEngine.Scripting.Preserve] private sealed class StageEnvironmentSpec
@@ -130,6 +131,14 @@ internal static class AndroidContentMods
                     throw new InvalidDataException("invalid street frontage");
         }
     }
+    private static void ValidateMapScheduleJson(Newtonsoft.Json.Linq.JObject manifest)
+    {
+        if (manifest["map"] is not Newtonsoft.Json.Linq.JObject map || map.Property("stageDurations") == null) return;
+        if ((string)map["base"] != "Forest" || map["stageDurations"] is not Newtonsoft.Json.Linq.JArray durations || durations.Count != 3)
+            throw new InvalidDataException("invalid per-stage durations");
+        foreach (var duration in durations)
+            if (!StreetNumber(duration, 60, 1800, false)) throw new InvalidDataException("invalid per-stage duration");
+    }
     private static bool StreetNumber(Newtonsoft.Json.Linq.JToken value, double min, double max, bool integer)
     {
         if (value == null || (value.Type != Newtonsoft.Json.Linq.JTokenType.Integer && value.Type != Newtonsoft.Json.Linq.JTokenType.Float)) return false;
@@ -144,6 +153,7 @@ internal static class AndroidContentMods
         // uses absence to distinguish item-only and character packages.
         var json = Newtonsoft.Json.Linq.JObject.Parse(Utf8.GetString(File.ReadAllBytes(manifestPath)));
         ValidateStreetscapeJson(json);
+        ValidateMapScheduleJson(json);
         var manifest = json.ToObject<Manifest>();
         // Other API versions are handled by AndroidLuaMods.
         if (manifest == null || (manifest.api != 3 && manifest.api != 4) || manifest.kind != "content") return;
@@ -316,7 +326,7 @@ internal static class AndroidContentMods
             }
             else
             {
-                var recipe = new OpenBonkProceduralMapRecipe { name = spec.name, description = spec.description, tileGridSize = spec.tileGridSize, volatility = spec.volatility, slopeStrength = spec.slopeStrength, flatMapBias = spec.flatMapBias, stageDuration = spec.stageDuration };
+                var recipe = new OpenBonkProceduralMapRecipe { name = spec.name, description = spec.description, tileGridSize = spec.tileGridSize, volatility = spec.volatility, slopeStrength = spec.slopeStrength, flatMapBias = spec.flatMapBias, stageDuration = spec.stageDuration, stageDurations = spec.stageDurations };
                 if (spec.stageEnvironments != null)
                 {
                     recipe.stageEnvironments = new OpenBonkProceduralMapRecipe.StageEnvironment[spec.stageEnvironments.Length];

@@ -34,8 +34,11 @@ public class InteractableShrineMoai : BaseInteractable
         {
             var renderer = filter.GetComponent<MeshRenderer>();
             if (filter.sharedMesh == null || renderer == null || !renderer.enabled) continue;
-            var size = renderer.bounds.size;
-            float candidate = size.x * size.y * size.z;
+            // Rotated icon quads acquire a large world-space AABB on slopes.
+            // Rank solid mesh bounds instead, so an icon cannot become the head.
+            var size = filter.sharedMesh.bounds.size;
+            var meshScale = filter.transform.lossyScale;
+            float candidate = Mathf.Abs(size.x * size.y * size.z * meshScale.x * meshScale.y * meshScale.z);
             if (candidate > volume) { original = filter; volume = candidate; }
         }
         var source = visual.GetComponent<MeshFilter>()?.sharedMesh;

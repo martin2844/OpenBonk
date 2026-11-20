@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Nimbo 1.4→2.1 updates, 540-second stages, shrine visuals and auto-enable."""
+"""Validate Nimbo 1.4/2.1→2.2 updates, native stage clocks, whirlwinds and auto-enable."""
 import argparse
 import hashlib
 import os
@@ -8,8 +8,8 @@ import subprocess
 import tempfile
 
 p = argparse.ArgumentParser(description=__doc__)
-p.add_argument('legacy_zip', type=Path, help='actual optional Pokémon 1.4.0 API 3 ZIP')
-p.add_argument('release_zip', type=Path, help='actual optional Pokémon 2.1.0 API 4 ZIP with 540-second stages and MewtwoStatue')
+p.add_argument('legacy_zip', type=Path, help='actual optional Pokémon 1.4.0 API 3 or 2.1.0 API 4 ZIP')
+p.add_argument('release_zip', type=Path, help='actual optional Pokémon 2.2.0 API 4 ZIP with per-stage timing and Fearow whirlwinds')
 p.add_argument('--java-home', type=Path, default=os.environ.get('OPENBONK_JAVA_HOME'))
 p.add_argument('--json-jar', type=Path, default=os.environ.get('OPENBONK_TEST_JSON_JAR'))
 a = p.parse_args()

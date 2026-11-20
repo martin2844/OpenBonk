@@ -1,4 +1,4 @@
-# Distrito Nimbo
+# Nimbo District
 
 Development package for a terraced city in OpenBonk. Three districts have
 distinct palettes, arena landmarks, local encounters, and boss rewards.
@@ -27,7 +27,7 @@ crosswalks, flat tiles are plazas, and cliffs use architectural facades.
 4. Run `python3 build.py /tmp/distrito-nimbo.zip --props /path/to/nimbo-props`.
 
 Import the ZIP through **Mods** in a development APK with tiled architecture and
-map encounter support, enable the package, and select **Distrito Nimbo** in the
+map encounter support, enable the package, and select **Nimbo District** in the
 game's map menu.
 
 The current roster uses original models. Terminal features the Coil
@@ -116,8 +116,8 @@ any retained CPU copies.
 For actual Unity rendering, copy `ReviewNimboAssets.cs` into the authoring
 project's `Assets/Editor`, set `OPENBONK_NIMBO_REVIEW` to an output directory,
 and run `-executeMethod ReviewNimboAssets.Run` with graphics enabled. It
-renders all ten species in four poses from front/side cameras and all six
-Japanese prop prefabs from four directions, with the saved materials,
+renders all ten species in four poses from front/side cameras and the
+Japanese props, landscape additions and Mewtwo statue from four directions, with the saved materials,
 daylight and shadows. Contact sheets, individual PNGs, `index.html` and
 `review.json` record the results. Optionally set
 `OPENBONK_NIMBO_REVIEW_BUNDLE` to a bundle path to review reopened assets
@@ -126,133 +126,114 @@ instead of the saved authoring assets.
 Rebuild the Android bundle after rebaking. The optional neighborhood upgrade
 below packages these species materials with the new street profiles.
 
-## Japanese neighborhood 2.1
+## Japanese neighborhood 2.2
 
-The optional Pokémon neighborhood package uses **content API 4** and requires
-**OpenBonk 0.1.18-beta or newer** for the terrace generator and Mewtwo shrine
-visual. APKs earlier than 0.1.17 reject API 4; 0.1.17 can import this format but
-does not implement those two additions. Its sunny Japanese streets combine
-shops, vending machines, gachapon, lanterns, notice boards and a shrine, with
-gentle ramps, sustained upper and lower districts, and distinct frontage sets.
-The earlier `build.py` instructions and original-roster authoring section remain
-the base-package workflow; this upgrade starts from the existing optional
-Pokémon **1.4.0 ZIP**.
+The optional Pokémon package uses **content API 4** and requires **OpenBonk
+0.1.20-beta or newer**. Its displayed name is **Nimbo District**; the internal
+`distrito-nimbo` identity stays stable so existing installations update in place.
+Install the APK before updating the mod. Earlier importers reject the new
+`whirlwind` attack, avoiding a silent fallback to incorrect stage timings.
 
-From this directory, generate the editable Japanese kit and prepare the merged
-prop input. `NIMBO_PRIVATE` contains the previously exported
-`nimbo-props-pokeballs.json` and the locally supplied Pokémon rigs.
+The sunny Japanese environment mixes shops, vending machines, gachapon,
+lanterns and Mewtwo shrines with 17 m apartments, 20.5 m shop towers, grassy
+pockets and dirt paths. Roads use neutral-gray asphalt. Larger terrain rises
+and a more varied height field create sustained upper and lower neighborhoods.
+The center crossing stays 12 m wide, and spawn/boss tiles remain clear.
 
-```sh
-NIMBO_PRIVATE=/path/to/private-pokemon
-NIMBO_STUDY=/path/to/japan-study
-NIMBO_NEIGHBORHOOD=/path/to/neighborhood
-blender -b --python authoring/japanese_streetscape.py -- "$NIMBO_STUDY"
-blender -b --python authoring/prepare_neighborhood.py -- \
-  --input-old "$NIMBO_PRIVATE/nimbo-props-pokeballs.json" \
-  --input-new "$NIMBO_STUDY/japanese-props.json" \
-  --collision "$NIMBO_STUDY/collision-contract.json" \
-  --output "$NIMBO_NEIGHBORHOOD/props.json"
-blender -b --python authoring/bake_private_creatures.py -- "$NIMBO_PRIVATE"
-```
+### Rebuild the bundle and package
 
-Preparation preserves the ten legacy props and all new mesh geometry. It adds
-solid-part collision boxes, keeps the lantern gate's 3.4 m opening clear, and
-bakes vertex ambient occlusion on the six Japanese clusters. The adjacent
-`props.validation.json` records input hashes, collision envelopes, opaque
-colors and AO measurements.
-
-Create the shrine visual from the supplied regular Mewtwo GLB using the
-[statue source and reproduction notes](authoring/MewtwoStatue.SOURCE.md).
-After decoding the source GLB, export and merge its collision-free visual:
+The upgrade still starts from the optional Pokémon **1.4.0 ZIP**. The original
+kit and creatures retain their previously reviewed sources. To reproduce that
+base, use `japanese_streetscape.py`, `prepare_neighborhood.py`,
+`bake_private_creatures.py` and the [Mewtwo source notes](authoring/MewtwoStatue.SOURCE.md).
+The existing merged `props.json` must include the six Japanese frontages and
+`MewtwoStatue`. Add the new landscape kit without modifying those meshes:
 
 ```sh
-blender -b --python authoring/mewtwo_statue.py -- /path/to/150-decoded.glb "$NIMBO_STUDY/mewtwo" --render
-python3 - "$NIMBO_NEIGHBORHOOD/props.json" "$NIMBO_STUDY/mewtwo/MewtwoStatue.json" <<'PYMERGE'
+blender -b --python authoring/landscape_additions.py -- /path/to/landscape
+python3 - /path/to/existing/props.json /path/to/landscape/landscape-props.json /path/to/new/props.json <<'PYMERGE'
 import json, pathlib, sys
-output, source = map(pathlib.Path, sys.argv[1:])
-kit, statue = json.loads(output.read_text()), json.loads(source.read_text())
-assert [p["name"] for p in statue["props"]] == ["MewtwoStatue"]
-kit["props"] = [p for p in kit["props"] if p["name"] != "MewtwoStatue"] + statue["props"]
-output.write_text(json.dumps(kit, separators=(",", ":"), allow_nan=False))
+old, additions, output = map(pathlib.Path, sys.argv[1:])
+kit, extra = json.loads(old.read_text()), json.loads(additions.read_text())
+assert not ({p["name"] for p in kit["props"]} & {p["name"] for p in extra["props"]})
+kit["props"] += extra["props"]
+output.parent.mkdir(parents=True, exist_ok=True)
+with output.open("x") as stream:
+    json.dump(kit, stream, separators=(",", ":"), allow_nan=False)
 PYMERGE
 ```
 
-The six-frontage preparation receipt describes the pre-statue input; the
-statue's own receipt records its geometry and native-shrine fit. For a focused
-Unity review, set `OPENBONK_NIMBO_REVIEW_ONLY=MewtwoStatue` with
-`OPENBONK_NIMBO_REVIEW` and run `ReviewNimboAssets.Run`.
+The helper saves editable `NimboLandscapeKit.blend`, `landscape-props.json`
+and a geometry receipt. Apartment/shop floors, balconies, roof caps and service
+rooms are modeled separately; their solid colliders keep overhangs clear. The
+grass patch is low, opaque and collision-free.
 
-Import the current builder and shaders into the dedicated Unity authoring
-project described above. Set `OPENBONK_NIMBO_PROPS` to the merged `props.json`,
-`OPENBONK_NIMBO_CREATURE` to `NIMBO_PRIVATE/creatures`, and
-`OPENBONK_NIMBO_BUNDLE` to `NIMBO_NEIGHBORHOOD/bundle`. Run
-`BuildDistrictBundle.Run` for Android, then inspect the resulting props and
-textured creatures in Unity before packaging. The bundle must also contain
-the reviewed `MewtwoStatue` prefab, which all three stages reference as their
-moai shrine visual. This replaces only the shrine's appearance; its interaction,
-collider and rewards retain the game's existing behavior.
+Copy the current `BuildDistrictBundle.cs`, `ReviewNimboAssets.cs` and shaders
+into the dedicated Unity authoring project. Set `OPENBONK_NIMBO_PROPS` to the
+merged JSON, `OPENBONK_NIMBO_CREATURE` to the existing creature directory, and
+`OPENBONK_NIMBO_BUNDLE` to an output directory. Run `BuildDistrictBundle.Run`
+for Android. In a fresh process, run `ReviewNimboAssets.Run` with
+`OPENBONK_NIMBO_REVIEW` set to a review directory and
+`OPENBONK_NIMBO_REVIEW_ONLY=NimboApartmentCorner,NimboShopTower,NimboGrassPatch`
+for four views of each added asset.
 
 ```sh
 python3 authoring/package_neighborhood.py \
-  "$NIMBO_PRIVATE/distrito-nimbo-pokemon-1.4.0.zip" \
-  "$NIMBO_NEIGHBORHOOD/bundle/nimbo-props" \
-  "$NIMBO_NEIGHBORHOOD/distrito-nimbo-pokemon-2.1.0.zip"
+  /path/to/private-pokemon/distrito-nimbo-pokemon-1.4.0.zip \
+  /path/to/bundle/nimbo-props \
+  /path/to/nimbo-district-pokemon-2.2.0.zip
 ```
 
-The packager sets API 4/version 2.1.0 and a 540-second stage duration, replaces
-the bundle and file hashes, assigns each enemy its `Nimbo` + species material,
-and adds `moaiVisual: "MewtwoStatue"` to each stage environment. It preserves
-encounter rosters, enemy statistics, attacks, rewards, scripts and other payloads. Random object
-placements are removed so old houses do not obstruct the new street fronts;
-the optional `objects` property is omitted because the importers reject an
-empty array. ZIP entries use sorted names and fixed timestamps, and an existing
-output ZIP is never overwritten.
+The packager sets API 4/version 2.2.0, the English display name, explicit
+stage clocks and Fearow's whirlwind attack. It replaces bundle hashes,
+assigns species materials and retains Mewtwo shrine visuals. Encounter
+rosters, enemy statistics, rewards, Lua and other payloads remain unchanged.
+Old scattered-house placements are omitted to keep streets unobstructed.
+ZIP entries have stable names/timestamps; existing output ZIPs are not replaced.
 
-| District | Tile width | Elevation step | Coverage | Frontages (`Nimbo` prefix) |
+| District | Tile width | Elevation step | Coverage | Added frontages |
 |---|---:|---:|---:|---|
-| Terminal | 26 m | 6 m | 0.95 | VendingCorner, GachaCorner, RamenFront, PosterGarden |
-| Interchange | 28 m | 7 m | 0.90 | VendingCorner, GachaCorner, RamenFront, LanternGate, PosterGarden |
-| Relay | 30 m | 8 m | 0.85 | RamenFront, LanternGate, PosterGarden, ShrineCorner |
+| Terminal | 28 m | 8 m | 0.95 | ApartmentCorner, GrassPatch |
+| Interchange | 30 m | 9 m | 0.90 | ApartmentCorner, ShopTower, GrassPatch |
+| Relay | 32 m | 10 m | 0.85 | ApartmentCorner, ShopTower, GrassPatch |
 
-### Pacing and elevation
+Each stage retains its existing curated shops and landmarks. The planner
+matches grass placements to the terrain shader's continuous green-pocket
+pattern; built-up areas mix taller blocks with the original low-rise shops.
+Elevation targets are bounded to five steps above/below the entry level.
+Ramps occur only on eligible connected maze segments; native Forest generation
+and maps without street profiles keep their original behavior.
 
-Forest's three stage clocks are 10/9/8 minutes. Nimbo 2.0 shortened them to
-7/7/7 minutes; 2.1 uses 9/9/9 minutes, restoring the same 27-minute total
-scheduled stage time as Forest. Pauses and the player's choice of when to fight
-the boss still affect actual run length.
+### Pacing and Fearow attacks
 
-The existing map recipe scales inherited event times, event durations and
-reinforcement intervals together. Against Forest, the three Nimbo stages use
-factors of 0.9, 1 and 1.125:
+Nimbo 2.1 used nine minutes for every stage. Although that matched Forest's
+27-minute total, it shifted the first and third stages' events. Version 2.2
+uses `stageDurations: [600, 540, 480]` and `stageDuration: 600`, preserving both
+native event times and the map-level enemy-density denominator.
 
-| District | Stage clock | Swarm times | Miniboss times | Reinforcement check |
-|---|---|---|---|---|
-| Terminal | 9:00 | 3:36, 6:18 | 2:42, 7:12 | 54 s |
-| Interchange | 9:00 | 3:00, 6:00 | 2:00, 7:00 | 60 s |
-| Relay | 9:00 | 2:49, 4:30 | 1:41, 5:38 | 67.5 s |
+| District | Stage clock | Swarms (elapsed) | Minibosses (elapsed) |
+|---|---|---|---|
+| Terminal | 10:00 | 4:00, 7:00 | 3:00, 8:00 |
+| Interchange | 9:00 | 3:00, 6:00 | 2:00, 7:00 |
+| Relay | 8:00 | 2:30, 4:00 | 1:30, 5:00 |
 
-The streetscape-only generator follows a seeded, broad height field bounded
-to four steps above or below the entry level. Elevation persists through turns
-and branch junctions. Ramps occupy only straight, single-child maze tiles,
-preserving all connected routes and the 12 m clear street crossing. The
-6/7/8 m rises above are unchanged; variety comes from sustained elevation
-districts. Forest and maps without a streetscape retain the native generator.
+Reinforcement checks remain every 60 seconds; event durations match Forest.
+The HUD counts down, while the table counts up. Main bosses still begin when
+the player activates their altar, and boss death retains the native transition
+to the final swarm. Pauses freeze the stage clock.
 
-`OpenBonkStreetLayoutCheck.Run` exercises the actual combined terrain collider,
-spawn/boss clearance, deterministic elevations and frontages, native Forest
-regression, and the scaled nine-minute timelines. See
-[the 2.1 validation receipt](study/nimbo-2.1-validation.md) for measured results
-and final release validation.
+Fearow uses `attack: "whirlwind"` and the native player tornado's visual. Its
+independent enemy behavior provides a warning before a fixed-direction,
+dodgeable whirlwind. It keeps distance to cast, does not inherit player weapon
+scripts/damage callbacks, and cleans up when its owner dies or leaves play.
+Other enemies and the player's tornado retain their existing behavior.
 
-### Building visibility regression check
-
-`BuildDistrictBundle` matches triangle winding to the supplied outward normals;
-it must not reverse every triangle. The prop exporter uses a rotation, not a
-reflection, so unconditional reversal hid the near walls of small houses.
-
-Copy `CheckDistrictMeshWinding.cs` into the authoring project's `Assets/Editor`.
-With graphics enabled, set `OPENBONK_NIMBO_PROPS` to the prop JSON and
-`OPENBONK_NIMBO_WINDING_CHECK` to an output directory, then execute
-`CheckDistrictMeshWinding.Run`. It renders both sides of the actual access
-houses and checks that a near wall occludes a far wall, including reflected
-source coordinates.
+`OpenBonkStreetLayoutCheck.Run` checks real combined terrain collision,
+connections, spawn/boss clearance, deterministic placement and native Forest
+regressions. `OpenBonkMapScheduleCheck.Run` checks exact clocks/events,
+independent cloned timelines, legacy scalar recipes and malformed duration
+arrays. `EnemyWhirlwindCheck.Run` checks the enemy-owned tornado behavior.
+The opt-in Android schedule, Fearow and district campaign probes exercise the
+loaded package and gameplay. See [2.2 validation](study/nimbo-2.2-validation.md)
+for final results and limits; [2.1 validation](study/nimbo-2.1-validation.md)
+is retained as historical evidence.

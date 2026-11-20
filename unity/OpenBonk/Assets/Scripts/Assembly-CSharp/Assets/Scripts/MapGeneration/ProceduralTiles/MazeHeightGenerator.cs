@@ -23,12 +23,12 @@ namespace Assets.Scripts.MapGeneration.ProceduralTiles
 		}
 
 		// Opt-in street districts retain their elevation through turns and branch
-		// junctions. A broad, seeded height field creates upper and lower districts
+		// junctions. A seeded height field creates upper and lower districts
 		// instead of pulling every new ramp run back towards sea level. Only
 		// straight, single-child tiles can ramp, preserving every maze connection.
 		public static void GenerateHeightTerraces(ProceduralTileGeneration generator, NodeTree startNode, int seed, MapParameters parameters)
 		{
-			const int maximumLevel = 4;
+			const int maximumLevel = 5;
 			var random = new System.Random(seed ^ 0x54455252);
 			double phaseX = random.NextDouble() * System.Math.PI * 2;
 			double phaseZ = random.NextDouble() * System.Math.PI * 2;
@@ -60,8 +60,8 @@ namespace Assets.Scripts.MapGeneration.ProceduralTiles
 					double u = (current.position.x + .5) / parameters.size;
 					double v = (current.position.y + .5) / parameters.size;
 					int target = (int)System.Math.Round(maximumLevel *
-						(.65 * System.Math.Sin(u * System.Math.PI * 2 + phaseX) +
-						 .35 * System.Math.Sin(v * System.Math.PI * 2 + phaseZ)));
+						(.60 * System.Math.Sin(u * System.Math.PI * 2.4 + phaseX) +
+						 .40 * System.Math.Sin(v * System.Math.PI * 2 + phaseZ)));
 					slope = System.Math.Sign(target - height);
 					height += slope;
 					if (slope < 0) tileHeight = height;

@@ -132,7 +132,7 @@ public static class BuildDistrictBundle
             if (checkedMaterial != null && ShaderUtil.ShaderHasError(checkedMaterial.shader))
                 throw new InvalidDataException("Shader compilation failed: " + checkedMaterial.shader.name);
         }
-        Debug.Log("Distrito Nimbo Android prop bundle PASS");
+        Debug.Log("Nimbo District Android prop bundle PASS");
     }
 
     private static void RequireDrawModes(Func<string, Material> load, List<Creature> creatures)

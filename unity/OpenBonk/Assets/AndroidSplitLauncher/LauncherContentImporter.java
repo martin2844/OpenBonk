@@ -83,6 +83,17 @@ final class LauncherContentImporter {
                 if (!number(map, "noiseScale", 25, 250) || !number(map, "heightMultiplier", 1, 20) || !number(map, "mapScale", .75, 1.25))
                     throw new IOException("unsupported mesh recipe");
             } else throw new IOException("unsupported map template");
+            if (map.has("stageDurations")) {
+                JSONArray durations = map.optJSONArray("stageDurations");
+                if (!"Forest".equals(base) || durations == null || durations.length() != 3)
+                    throw new IOException("invalid per-stage durations");
+                for (int i = 0; i < durations.length(); i++) {
+                    Object value = durations.opt(i);
+                    if (!(value instanceof Number) || !Double.isFinite(((Number)value).doubleValue()) ||
+                        ((Number)value).doubleValue() < 60 || ((Number)value).doubleValue() > 1800)
+                        throw new IOException("invalid per-stage duration");
+                }
+            }
             boolean needsMapBundle = map.has("stageEnvironments") && validateStageEnvironments(api, base, map, stageEnvironments);
             if (map.has("enemies") || map.has("encounters")) {
                 validateMapEncounters(map.optJSONArray("enemies"), map.optJSONArray("encounters"));
@@ -374,7 +385,7 @@ final class LauncherContentImporter {
                 throw new IOException("invalid enemy attack");
             String attack = optionalString(enemy, "attack");
             if (attack.isEmpty() != optionalString(enemy, "attackMaterial").isEmpty() ||
-                (!attack.isEmpty() && !"sweep".equals(attack) && !"pulse".equals(attack)))
+                (!attack.isEmpty() && !"sweep".equals(attack) && !"pulse".equals(attack) && !"whirlwind".equals(attack)))
                 throw new IOException("unsupported enemy attack");
             boolean charge = "charge".equals(movement);
             if (!("ground".equals(movement) || "fly".equals(movement) || charge) ||

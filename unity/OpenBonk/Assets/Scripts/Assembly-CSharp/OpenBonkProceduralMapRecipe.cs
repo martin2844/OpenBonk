@@ -23,6 +23,7 @@ public sealed class OpenBonkProceduralMapRecipe
     public string name, description;
     public int tileGridSize;
     public float volatility, slopeStrength, flatMapBias, stageDuration;
+    public float[] stageDurations;
     public StageEnvironment[] stageEnvironments;
 }
 
@@ -42,6 +43,9 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
             recipe.tileGridSize < 7 || recipe.tileGridSize > 20 || !Range(recipe.volatility, 0, 2) ||
             !Range(recipe.slopeStrength, -1, 1) || !Range(recipe.flatMapBias, -1, 1) || !Range(recipe.stageDuration, 60, 1800))
             throw new ArgumentException("Invalid procedural map recipe");
+        if (recipe.stageDurations != null && (recipe.stageDurations.Length != template.stages.Length ||
+            Array.Exists(recipe.stageDurations, duration => !Range(duration, 60, 1800))))
+            throw new ArgumentException("Invalid per-stage durations");
         foreach (var stage in template.stages)
             if (stage == null || stage.mapParameters == null || stage.stageTilePrefabs == null || stage.stageTimeline == null || !Range(stage.stageTimeline.stageTime, 1, 100000))
                 throw new ArgumentException("Incomplete procedural map template");
@@ -160,8 +164,9 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                 // Forest's challenge definitions explicitly target Forest, not this map.
                 stage.challenges = Array.Empty<ChallengeData>();
                 // StageTimeline is serialized inline, so Instantiate creates independent events.
-                float timeScale = recipe.stageDuration / stage.stageTimeline.stageTime;
-                stage.stageTimeline.stageTime = recipe.stageDuration;
+                float stageDuration = recipe.stageDurations == null ? recipe.stageDuration : recipe.stageDurations[i];
+                float timeScale = stageDuration / stage.stageTimeline.stageTime;
+                stage.stageTimeline.stageTime = stageDuration;
                 stage.stageTimeline.checkNewEnemyInterval *= timeScale;
                 if (stage.stageTimeline.events != null)
                     foreach (var timelineEvent in stage.stageTimeline.events)

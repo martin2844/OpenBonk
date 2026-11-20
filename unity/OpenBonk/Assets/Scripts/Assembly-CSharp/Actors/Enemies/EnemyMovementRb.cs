@@ -109,6 +109,7 @@ namespace Actors.Enemies
 		private OpenBonkEnemyCharge customCharge;
 		private OpenBonkBossHazard customHazard;
 		private OpenBonkBossVolley customVolley;
+		private OpenBonkEnemyWhirlwind customWhirlwind;
 		private bool hasCustomIdle;
 
 		public bool grounded { get; private set; } = true;
@@ -121,9 +122,10 @@ namespace Actors.Enemies
 		private void OnDestroy()
 		{
 			MyTime.A_TimeScaleChange -= TimescaleVelocity;
+			customWhirlwind?.Cancel();
 		}
 
-		private void OnDisable() { customHazard?.Cancel(); customVolley?.Cancel(); }
+		private void OnDisable() { customHazard?.Cancel(); customVolley?.Cancel(); customWhirlwind?.Cancel(); }
 
 		public void Init()
 		{
@@ -153,11 +155,14 @@ namespace Actors.Enemies
 			var custom = enemy.enemyData as OpenBonkMapEnemyData;
 			customCharge = custom?.charges == true ? new OpenBonkEnemyCharge() : null;
 			customHazard?.Cancel();
-			customHazard = custom?.hazardMaterial != null && enemy.IsStageBoss()
+			customHazard = custom?.hazardMaterial != null && !custom.whirlwindAttack && enemy.IsStageBoss()
 				? new OpenBonkBossHazard(enemy, custom.sweepAttack, custom.hazardMaterial) : null;
 			customVolley?.Cancel();
 			customVolley = custom?.volleyAttack == true && enemy.IsStageBoss()
 				? new OpenBonkBossVolley(enemy, custom) : null;
+			customWhirlwind?.Cancel();
+			customWhirlwind = custom?.whirlwindAttack == true
+				? new OpenBonkEnemyWhirlwind(enemy, custom.hazardMaterial) : null;
 			hasCustomIdle = custom?.hasIdle == true;
 			if (custom != null) enemy.animatedMesh.ConfigureExternalPlayback(enemy.id);
 		}
@@ -169,18 +174,20 @@ namespace Actors.Enemies
 				totalSuckTime += MyTime.fixedDeltaTime;
 				if (totalSuckTime > totalSuckTimeMax) state = State.Normal;
 			}
-			if (!enemy.CanMove()) { customHazard?.Cancel(); customVolley?.Cancel(); return; }
+			if (!enemy.CanMove()) { customHazard?.Cancel(); customVolley?.Cancel(); customWhirlwind?.Cancel(); return; }
 			if (MyTime.time >= nextStepTime) FindNextPosition();
 			if (customCharge != null && customCharge.Step(this)) return;
 			if (state == State.Normal)
 			{
 				customHazard?.Step();
 				customVolley?.Step();
+				customWhirlwind?.Step();
 			}
 			else
 			{
 				customHazard?.Cancel();
 				customVolley?.Cancel();
+				customWhirlwind?.Cancel();
 			}
 			float vertical = enemy.enemyData.isFlying ? desiredVelocity.y : rb.velocity.y;
 			if (enemy.enemyData.isFlying && flyingKnockupVel > 0f)

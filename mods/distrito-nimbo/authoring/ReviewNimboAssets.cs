@@ -17,7 +17,7 @@ public static class ReviewNimboAssets
     private const string AssetRoot = "Assets/NimboAuthoring/";
     private const int Layer = 30, Tile = 384;
     private static readonly string[] Species = { "Beedrill", "Pidgey", "Rattata", "Raticate", "Fearow", "Arbok", "Nidoking", "Charizard", "Rhydon", "Gyarados" };
-    private static readonly string[] Props = { "NimboVendingCorner", "NimboGachaCorner", "NimboRamenFront", "NimboLanternGate", "NimboPosterGarden", "NimboShrineCorner", "MewtwoStatue" };
+    private static readonly string[] Props = { "NimboVendingCorner", "NimboGachaCorner", "NimboRamenFront", "NimboLanternGate", "NimboPosterGarden", "NimboShrineCorner", "MewtwoStatue", "NimboApartmentCorner", "NimboShopTower", "NimboGrassPatch" };
     private static readonly int[] Poses = { 0, 3, 6, 9 };
     [Serializable] private sealed class Receipt { public string source, graphicsDevice; public List<Record> assets = new List<Record>(); }
     [Serializable] private sealed class Record
@@ -33,6 +33,7 @@ public static class ReviewNimboAssets
         if (string.IsNullOrEmpty(output)) throw new ArgumentException("Set OPENBONK_NIMBO_REVIEW to the screenshot directory");
         Directory.CreateDirectory(output);
         string only = Environment.GetEnvironmentVariable("OPENBONK_NIMBO_REVIEW_ONLY");
+        var selected = string.IsNullOrEmpty(only) ? null : new HashSet<string>(only.Split(','), StringComparer.Ordinal);
         string bundlePath = Environment.GetEnvironmentVariable("OPENBONK_NIMBO_REVIEW_BUNDLE");
         AssetBundle bundle = null;
         if (!string.IsNullOrEmpty(bundlePath))
@@ -97,7 +98,7 @@ public static class ReviewNimboAssets
 
             foreach (string species in Species)
             {
-                if (!string.IsNullOrEmpty(only) && only != species) continue;
+                if (selected != null && !selected.Contains(species)) continue;
                 var material = Load<Material>(bundle, "Nimbo" + species, ".mat");
                 CheckMaterial(material);
                 if (material.mainTexture == null) throw new InvalidDataException(species + " has no atlas");
@@ -143,7 +144,7 @@ public static class ReviewNimboAssets
 
             foreach (string name in Props)
             {
-                if (!string.IsNullOrEmpty(only) && only != name) continue;
+                if (selected != null && !selected.Contains(name)) continue;
                 var model = Object.Instantiate(Load<GameObject>(bundle, name, ".prefab"));
                 var renderers = model.GetComponentsInChildren<Renderer>();
                 if (renderers.Length == 0) throw new InvalidDataException(name + " has no renderers");

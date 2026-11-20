@@ -61,7 +61,7 @@ public static class OpenBonkStreetLayout
                 }
                 var b = mesh.bounds;
                 if (!Finite(b.center) || !Finite(b.size) || b.size.x < .1f || b.size.z < .1f || b.size.y < .1f ||
-                    b.size.x > 8f || b.size.z > 8f || b.size.y > 8f || Mathf.Abs(b.min.y) > .25f)
+                    b.size.x > 8f || b.size.z > 8f || b.size.y > 24f || Mathf.Abs(b.min.y) > .25f)
                     throw new ArgumentException("Street frontage bounds exceed the placement envelope");
                 bounds[i] = b;
             }
@@ -101,7 +101,7 @@ public static class OpenBonkStreetLayout
             for (int corner = 0; corner < 2; corner++)
             {
                 int xSign = corner == 0 ? -1 : 1, zSign = xSign * diagonal;
-                int selected = random.Next(profile.frontages.Length);
+                int selected = SelectFrontage(profile, center, random);
                 var b = profile.bounds[selected];
                 float scale = Mathf.Min(1f, cornerSize / Mathf.Max(b.size.x, b.size.z));
                 // At the smallest accepted block dimensions the frontage would
@@ -121,6 +121,36 @@ public static class OpenBonkStreetLayout
             }
         }
         return result;
+    }
+
+    // The same continuous field is used by NimboTerrain. It groups lawns and
+    // walking paths into coherent pockets instead of changing surface at every
+    // tile seam. Absolute world coordinates also work on odd-width/even grids.
+    public static float GreenDistrictWeight(Vector3 position, float tileWidth)
+    {
+        float x = position.x / tileWidth, z = position.z / tileWidth;
+        float field = .55f * Mathf.Sin(x * .77f + .8f) + .35f * Mathf.Sin(z * .91f - 1.1f) +
+            .25f * Mathf.Sin((x + z) * .48f + .4f);
+        return Mathf.SmoothStep(0, 1, Mathf.InverseLerp(.15f, .65f, field));
+    }
+
+    private static int SelectFrontage(Profile profile, Vector3 center, System.Random random)
+    {
+        float green = GreenDistrictWeight(center, profile.tileWidth);
+        bool hasGroundCover = false;
+        foreach (Bounds bounds in profile.bounds) hasGroundCover |= bounds.size.y <= 1.2f;
+        var choices = new List<int>(profile.bounds.Length);
+        for (int i = 0; i < profile.bounds.Length; i++)
+        {
+            float height = profile.bounds[i].size.y;
+            // Low vegetation owns park corners. Taller apartments stay in
+            // built-up streets, with small shops along the transition edges.
+            if (green > .5f && hasGroundCover ? height <= 1.2f :
+                green > .2f ? height <= 8f : height > 1.2f || !hasGroundCover)
+                choices.Add(i);
+        }
+        // Legacy/custom profiles can contain only one category of frontage.
+        return choices.Count == 0 ? random.Next(profile.frontages.Length) : choices[random.Next(choices.Count)];
     }
 
     private static bool Supported(MeshCollider terrain, Bounds footprint, float height)

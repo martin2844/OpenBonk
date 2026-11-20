@@ -938,6 +938,7 @@ public final class SplitDataLauncher extends Activity {
             if (folders == null) folders = new File[0];
             Arrays.sort(folders, Comparator.comparing(File::getName));
             ArrayList<String> ids = new ArrayList<>();
+            ArrayList<String> names = new ArrayList<>();
             ArrayList<Boolean> defaults = new ArrayList<>();
             ArrayList<Boolean> usesLegacyPreference = new ArrayList<>();
             for (int i = 0; i < folders.length; i++) {
@@ -945,6 +946,7 @@ public final class SplitDataLauncher extends Activity {
                 if (manifest == null) continue;
                 boolean content = (manifest.optInt("api") == 3 || manifest.optInt("api") == 4);
                 ids.add(folders[i].getName());
+                names.add(modDisplayName(manifest, folders[i].getName()));
                 defaults.add(!content && manifest.optBoolean("enabled", false));
                 usesLegacyPreference.add(!content);
             }
@@ -979,7 +981,7 @@ public final class SplitDataLauncher extends Activity {
                 int start = page[0] * perPage, end = Math.min(ids.size(), start + perPage);
                 for (int i = start; i < end; i++) {
                     final int index = i; android.widget.CheckBox choice = new android.widget.CheckBox(this);
-                    choice.setText(ids.get(i)); choice.setTextColor(Color.WHITE); choice.setTextSize(14); choice.setSingleLine(true); choice.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    choice.setText(names.get(i)); choice.setTextColor(Color.WHITE); choice.setTextSize(14); choice.setSingleLine(true); choice.setEllipsize(android.text.TextUtils.TruncateAt.END);
                     styleCheckbox(choice); choice.setChecked(selected[i]);
                     choice.setOnCheckedChangeListener((button, checked) -> selected[index] = checked);
                     results.addView(choice, new LinearLayout.LayoutParams(-1, dp(43)));
@@ -1032,6 +1034,19 @@ public final class SplitDataLauncher extends Activity {
     }
 
     static boolean validModHooks(JSONObject manifest) { return LauncherModHookValidation.validModHooks(manifest); }
+
+    private static String modDisplayName(JSONObject manifest, String id) {
+        if (manifest == null) return id;
+        JSONObject map = manifest.optJSONObject("map");
+        String name = map == null ? manifest.optString("name", "") : map.optString("name", "");
+        name = name.trim();
+        return name.isEmpty() ? id : name;
+    }
+
+    private String installedModDisplayName(String id) {
+        File root = getExternalFilesDir(null);
+        return root == null || id == null ? id : modDisplayName(readInstalledMod(new File(new File(root, "Mods"), id)), id);
+    }
 
     private JSONObject readInstalledMod(File folder) {
         File file = new File(folder, "manifest.json");
@@ -1228,7 +1243,7 @@ public final class SplitDataLauncher extends Activity {
             importModButton.requestFocus();
         } else if (installed != null) {
             modHint.setText((restoration ? (es ? "Versión anterior restaurada y desactivada: " : "Previous version restored and disabled: ")
-                    : (es ? "Mod importado o actualizado: " : "Mod imported or updated: ")) + installed);
+                    : (es ? "Mod importado o actualizado: " : "Mod imported or updated: ")) + installedModDisplayName(installed));
             mods.requestFocus();
         }
     }
@@ -1591,7 +1606,7 @@ public final class SplitDataLauncher extends Activity {
                 if (isFinishing() || isDestroyed() || IMPORT_GATE.generation() != generation) return;
                 setReady(dataReady);
                 showModImportResult();
-                showDialog(new AlertDialog.Builder(this).setTitle("Mods").setMessage(failure == null ? (es ? "Importado o actualizado: " : "Imported or updated: ") + installed : (es ? "No se pudo importar: " : "Import failed: ") + failure).setPositiveButton("OK", (d, w) -> showMods()).create());
+                showDialog(new AlertDialog.Builder(this).setTitle("Mods").setMessage(failure == null ? (es ? "Importado o actualizado: " : "Imported or updated: ") + installedModDisplayName(installed) : (es ? "No se pudo importar: " : "Import failed: ") + failure).setPositiveButton("OK", (d, w) -> showMods()).create());
             });
         }, "openbonk-mod-import");
     }

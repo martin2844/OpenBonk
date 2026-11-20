@@ -198,9 +198,13 @@ internal sealed class AndroidDistrictRunProbe : MonoBehaviour
         var visual = shrine.transform.Find("ExternalMoaiVisual");
         var head = shrine.GetComponent<MeshRenderer>();
         var renderer = visual != null ? visual.GetComponent<MeshRenderer>() : null;
+        // Native shrine +Z follows the sampled ground normal, including ramps.
+        // Imported +Y must follow that axis, rather than world-up on every seed.
+        float alignment = visual == null ? -1f : Vector3.Dot(visual.up, shrine.transform.forward);
+        float groundAngle = Vector3.Angle(shrine.transform.forward, Vector3.up);
         if (renderer == null || !renderer.enabled || !visual.gameObject.activeInHierarchy ||
-            head == null || head.enabled || Vector3.Dot(visual.up, Vector3.up) < .99f)
-        { Fail("Moai override missing, tilted, or native head still visible", 0); yield break; }
+            head == null || head.enabled || alignment < .999f || groundAngle > 44.1f)
+        { Fail($"Moai override: visual={visual != null} renderer={renderer != null && renderer.enabled} nativeHead={head == null || head.enabled} groundAlignment={alignment:F4} groundAngle={groundAngle:F2}", 0); yield break; }
         var icon = shrine.minimapIcon; var alert = shrine.alertIcon;
         if (icon == null || alert == null || shrine.GetComponent<Collider>() == null)
         { Fail("Moai lost native icons or collision", 0); yield break; }
@@ -225,7 +229,7 @@ internal sealed class AndroidDistrictRunProbe : MonoBehaviour
         { Fail("Moai statue outside capture camera", 0); yield break; }
         string capture = System.IO.Path.Combine(Application.persistentDataPath, "mewtwo-statue.png");
         ScreenCapture.CaptureScreenshot("mewtwo-statue.png");
-        Debug.Log($"District probe Moai visual: upright=true nativeHeadVisible=false visible={renderer.isVisible} bounds={bounds} capture={capture}");
+        Debug.Log($"District probe Moai visual: groundAligned=true alignment={alignment:F4} groundAngle={groundAngle:F2} nativeHeadVisible=false visible={renderer.isVisible} bounds={bounds} capture={capture}");
         yield return new WaitForEndOfFrame();
         yield return null;
 
@@ -255,7 +259,7 @@ internal sealed class AndroidDistrictRunProbe : MonoBehaviour
         if (windows.HasEncounter() || icon != null || alert != null || shrine != null)
         { Fail("Moai reward or single-use cleanup did not finish", 0); yield break; }
         moaiPassed = true;
-        Debug.Log("District probe Moai PASS: external statue visible/upright, original head hidden, native icons/collider retained, firstInteraction=true secondInteraction=false, native reward accepted");
+        Debug.Log("District probe Moai PASS: external statue visible/ground-aligned, original head hidden, native icons/collider retained, firstInteraction=true secondInteraction=false, native reward accepted");
     }
 
     private static bool StageReady(int index, MyPlayer previous) =>

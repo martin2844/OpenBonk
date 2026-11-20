@@ -157,7 +157,7 @@ def build(destination, prop_bundle):
         "version": "1.3.1",
         "map": {
             "id": "distrito-nimbo",
-            "name": "Distrito Nimbo",
+            "name": "Nimbo District",
             "description": "Climb switchback streets and cross terraced plazas through three city districts.",
             "base": "Forest",
             "icon": "icon.png",

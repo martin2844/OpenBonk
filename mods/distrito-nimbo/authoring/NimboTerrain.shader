@@ -80,12 +80,37 @@ Shader "OpenBonk/NimboTerrain"
                 half east = step(abs(input.normal.z), abs(input.normal.x));
                 float across = lerp(metres.x, metres.y, east);
                 float along = lerp(metres.y, metres.x, east);
-                half slope = 1 - smoothstep(.92, .965, input.normal.y);
+                // The approved city ramps are deliberately shallow. Detect
+                // their geometric normal rather than treating them as flats.
+                half slope = 1 - step(.999, input.normal.y);
                 float distanceToStreet = lerp(min(abs(metres.x), abs(metres.y)), abs(across), slope);
                 half asphalt = 1 - smoothstep(5.35, 5.55, distanceToStreet);
                 half curb = smoothstep(5.55, 5.65, distanceToStreet) * (1 - smoothstep(6.0, 6.12, distanceToStreet));
-                half3 surface = lerp(pavement * blockShade, palette(half3(.22, .32, .36)), asphalt);
-                surface = lerp(surface, palette(half3(.87, .84, .72)), curb);
+                // Neutral asphalt is deliberately distinct from warm paving
+                // and the green park pockets; it no longer reads as blue water.
+                half roadGrain = lerp(.96, 1.02, frac(dot(floor(input.world.xz * 3), float2(.37,.61))));
+                half3 surface = lerp(pavement * blockShade, palette(half3(.30, .305, .31)) * roadGrain, asphalt);
+                surface = lerp(surface, palette(half3(.81, .81, .77)), curb);
+
+                // Keep this continuous world field in sync with
+                // OpenBonkStreetLayout.GreenDistrictWeight: no tile-edge cuts,
+                // and buildings stay out of the planted park corners.
+                float2 district = input.world.xz / width;
+                half green = smoothstep(.15, .65,
+                    .55 * sin(district.x * .77 + .8) + .35 * sin(district.y * .91 - 1.1) +
+                    .25 * sin((district.x + district.y) * .48 + .4));
+                float2 patch = floor(input.world.xz / 1.4);
+                half patchTone = frac(dot(patch, float2(.37,.61)));
+                half patchShape = smoothstep(-.22,.18,
+                    sin(patch.x * .71) * sin(patch.y * .59) + .28 * sin((patch.x-patch.y)*.83));
+                half3 grass = lerp(palette(half3(.25,.43,.17)), palette(half3(.43,.60,.25)), patchShape);
+                grass *= lerp(.94,1.04,patchTone);
+                half path = 1 - smoothstep(3.0, 3.45, distanceToStreet);
+                half pathEdge = 1 - smoothstep(2.45, 3.2, distanceToStreet);
+                half3 dirt = lerp(palette(half3(.53,.47,.32)), palette(half3(.69,.62,.45)), pathEdge);
+                half gravel = step(.91, frac(dot(floor(input.world.xz * 2.5), float2(.47,.73))));
+                dirt = lerp(dirt, palette(half3(.76,.73,.61)), gravel * .18);
+                surface = lerp(surface, lerp(grass, dirt, path), green);
                 half lineX = (1 - smoothstep(.05, .09, abs(metres.x))) * step(.4, frac(input.world.z / 3));
                 half lineZ = (1 - smoothstep(.05, .09, abs(metres.y))) * step(.4, frac(input.world.x / 3));
                 half inCrossing = (1 - smoothstep(5.5, 5.7, abs(metres.x))) * (1 - smoothstep(5.5, 5.7, abs(metres.y)));
@@ -94,7 +119,7 @@ Shader "OpenBonk/NimboTerrain"
                 half crossX = (1-smoothstep(.6,.8,abs(abs(metres.x)-edge))) * (1-smoothstep(4.5,4.7,abs(metres.y))) * step(.45,frac(metres.y/1.15));
                 half crossZ = (1-smoothstep(.6,.8,abs(abs(metres.y)-edge))) * (1-smoothstep(4.5,4.7,abs(metres.x))) * step(.45,frac(metres.x/1.15));
                 half crosswalk = lerp(max(crossX,crossZ), lerp(crossZ,crossX,east), slope);
-                return lerp(surface, palette(half3(.98,.94,.78)), saturate(laneMarking+crosswalk));
+                return lerp(surface, palette(half3(.95,.94,.86)), saturate(laneMarking+crosswalk) * (1-green));
             }
 
             half3 facadeColor(Fragment input)

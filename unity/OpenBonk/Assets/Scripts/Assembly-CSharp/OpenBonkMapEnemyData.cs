@@ -3,6 +3,7 @@ public sealed class OpenBonkMapEnemyData : EnemyData
     internal string displayName;
     internal bool charges, hasIdle;
     internal bool sweepAttack;
+    internal bool whirlwindAttack;
     internal UnityEngine.Material hazardMaterial;
     internal bool volleyAttack;
     internal UnityEngine.Material volleyMaterial;
