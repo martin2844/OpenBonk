@@ -6,14 +6,14 @@ OpenBonk's mod API is experimental and specific to OpenBonk. Mods can use suppor
 
 1. Download or build a compatible mod ZIP and copy it to the Android device.
 2. Open the OpenBonk **launcher** and choose **Import mod**. Select the ZIP using Android's file picker.
-3. Open **Manage mods** and enable the imported mod. New imports and updates start disabled.
-4. Press **Play** and start a new run. If you update a mod, enable it again in **Manage mods**.
+3. Content mods are enabled automatically; Lua mods keep the `enabled` value from their manifest. You can change any mod in **Manage mods**.
+4. Press **Play** and start a new run. Updating a content mod from the catalog keeps it enabled.
 
 The [Pikachu example](../mods/pikachu/README.md) adds an experimental character and weapon. Its guide links to the downloadable ZIP and explains how to build it from the checked-in files; the mod is not built into the APK. Additional examples are under [`mods/`](../mods/).
 
 ## Online catalog
 
-In beta 0.1.2, the launcher's **Mods → Browse mods** can search the curated [mod catalog](../mods/catalog/index.json), download a selected ZIP, check its size and SHA-256, and pass it through the normal mod importer. Imports start disabled: enable them under **Manage mods**. A checksum detects corrupt or unexpected downloads; it does not make a mod trustworthy.
+In beta 0.1.2, the launcher's **Mods → Browse mods** can search the curated [mod catalog](../mods/catalog/index.json), download a selected ZIP, check its size and SHA-256, and pass it through the normal mod importer. Installed mods sort first, a newer version shows **Update**, and a content mod is enabled after installing or updating. A checksum detects corrupt or unexpected downloads; it does not make a mod trustworthy.
 
 To propose a catalog entry, open a pull request updating the index with the mod ID, name, description, version, GitHub release ZIP URL, exact byte size and SHA-256. The ZIP must use the documented mod format and its manifest ID must match the entry. Downloads currently support GitHub release assets only. Keep old release assets available for reproducibility.
 

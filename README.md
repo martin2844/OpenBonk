@@ -3,14 +3,15 @@
 [![Release](https://img.shields.io/github/v/release/martin2844/OpenBonk?include_prereleases&label=release&color=ff9f0a)](https://github.com/martin2844/OpenBonk/releases)
 [![Status: beta](https://img.shields.io/badge/status-beta-8b5cf6)](https://github.com/martin2844/OpenBonk/releases)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3ddc84?logo=android&logoColor=white)](#start-playing)
+[![Content mods: experimental](https://img.shields.io/badge/content%20mods-experimental-8b5cf6)](docs/MODDING.md)
 [![Lua mods: experimental](https://img.shields.io/badge/Lua%20mods-experimental-5468ff?logo=lua&logoColor=white)](docs/MODDING.md)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/martin2844)
 
-**Play Megabonk on Android with a native launcher, controller or touch input, and experimental Lua mods.**
+**Play Megabonk on Android with a native launcher, controller or touch input, a PC-style 16:9 render mode and a mod catalog with maps, bosses, characters and Lua weapons.**
 
 OpenBonk is an unofficial community project in beta. Bring your own compatible Steam copy of Megabonk: the launcher prepares its data on your Android device.
 
-[Download the beta](https://github.com/martin2844/OpenBonk/releases) · [Installation guides](#installation-guides) · [Install with an AI agent](#install-with-an-ai-agent) · [Lua modding](docs/MODDING.md) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues) · [Support](#support-the-project)
+[Download the beta](https://github.com/martin2844/OpenBonk/releases) · [Installation guides](#installation-guides) · [Install with an AI agent](#install-with-an-ai-agent) · [Mods](#mods) · [Display and performance](#display-and-performance) · [Build from source](docs/BUILD_QUICKSTART.md) · [Report a problem](https://github.com/martin2844/OpenBonk/issues) · [Support](#support-the-project)
 
 ## Support the project
 
@@ -24,16 +25,30 @@ If you enjoy OpenBonk and would like to support its development, you can [buy Ma
 | --- | --- |
 | ![The Controls tab with touch and controller options](docs/screenshots/launcher-controls.png) | ![The paginated mod catalog in the OpenBonk launcher](docs/screenshots/launcher-mods.png) |
 
+![Game resolution, scale and PC-style 16:9 aspect settings](docs/screenshots/launcher-settings.png)
+
+The launcher handles the whole device-side flow: it verifies and migrates the prepared game data, keeps a save profile you can export and restore, applies the display and performance settings before the game starts, and manages mods from a curated catalog.
+
+## What's in the beta
+
+- **Native Android launcher** in English and Spanish, with game-data import and migration, profile export/import, update checks and mod management.
+- **Touch or controller**: on-screen sticks and buttons with a layout editor (visibility, opacity, snapping and saved profiles) or a gamepad.
+- **Render resolution and PC aspect**: choose a scale or a fixed height, plus a **16:9 (PC)** mode that keeps the desktop framing on tall 20:9 phones.
+- **Mod catalog**: installed first, one-tap **Update** when a newer version exists, and content mods are enabled automatically after installing or updating.
+- **Content mods (API 4)**: procedural maps with streetscapes, stage environments, custom enemies and bosses, rewards and level-4 attack options such as elemental volleys.
+- **Lua mods (API 1–3)**: stat hooks, items, characters and weapons, including the charged Thunderbolt in the Pikachu mod.
+- **Built-in QA probes**: intent-gated checks that drive real runs and verify encounters, bosses, rewards, saves, mods and rendering on an emulator.
+
 ## Start playing
 
-1. Download `OpenBonk.apk` from the newest [beta release](https://github.com/martin2844/OpenBonk/releases). The ZIP helpers referenced in the guides are available in the [0.1.2 beta package](https://github.com/martin2844/OpenBonk/releases/tag/v0.1.2-beta); use the APK from the newest release.
+1. Download `OpenBonk.apk` from the newest [beta release](https://github.com/martin2844/OpenBonk/releases).
 2. Create a ZIP containing the `Megabonk_Data` folder from your own compatible Steam installation. The ZIP must be no larger than **1 GiB**; the guide explains how to create a smaller ZIP if necessary.
 3. Copy `OpenBonk.apk` and your private game-data ZIP to Android. Install and open the APK, choose **Megabonk game files ZIP**, and wait for **Data ready**.
 4. Choose **Touch** or **Controller** in **Controls**, then return to **Game** and press **Play**.
 
 OpenBonk requires **64-bit Android 8 or later**. It has been tested on a Retroid Pocket 5, an iPlay 70 mini Pro and a Xiaomi phone. Device compatibility is still being established. Back up existing progress before replacing or uninstalling an app.
 
-Install newer official APKs over your existing app to keep your profile. A ZIP saved with **Export profile** can also be restored with **Import profile ZIP** on a newer release. Keep a pre-update export if you plan to return to an older build.
+Install newer official APKs over your existing app to keep your profile. The launcher migrates the previous version's game data and clears the Unity metadata cache on the normal **Play** path, so always start the game from the launcher after an update. A ZIP saved with **Export profile** can also be restored with **Import profile ZIP** on a newer release. Keep a pre-update export if you plan to return to an older build.
 
 ![OpenBonk gameplay in Forest using touch controls](docs/screenshots/gameplay.png)
 
@@ -91,25 +106,44 @@ anything. If a step fails, explain what happened and help me troubleshoot.
 
 The beta includes an in-game layout editor with individual visibility and opacity, grid snapping, saved profiles and optional auto-run. Tap **Edit** at the bottom of the game screen to open it, then tap **Done** to return to play. See the [touch controls guide](docs/TOUCH_CONTROLS.md).
 
+Touch controls follow the same actions as a controller, including **Aim**, which the charged weapons use. The overlay hides while menus or reward windows are open.
+
+## Display and performance
+
+Open **Settings → Game resolution** in the launcher:
+
+- **Game** keeps the game's own resolution selection; **Native**, **75%** and **50%** scale the whole screen, and **540p / 720p / 1080p / 1440p** set a fixed height. A custom height from 240 to 2160 is also available.
+- **Screen / 16:9 (PC) / 4:3** chooses the render aspect. **16:9 (PC)** renders a 16:9 backbuffer at the selected height (for example 1280×720) and lets the display stretch it to fill a tall phone, so menus, HUD and gameplay keep the desktop framing instead of looking small on a 20:9 panel.
+
+The launcher applies these settings before the first scene. Lower heights help on weaker GPUs; the 16:9 mode trades a little horizontal stretch for the PC layout.
+
 ## Mods
 
-Open **Mods** in the launcher and choose **Browse mods** or **Import ZIP**. Enable the mods you want in **Manage mods**. New imports and updates start disabled.
+Open **Mods** in the launcher and choose **Browse mods** or **Import ZIP**.
 
-[Retry](mods/retry/) lets you revive in the same run and requires beta 0.1.11 or newer. The [Lua modding guide](docs/MODDING.md) covers the package format and includes examples such as the experimental [Pikachu mod](mods/pikachu/README.md).
+- The catalog lists **installed mods first**. An installed mod with a newer catalog version shows **Update**; one tap downloads, verifies the size and SHA-256, replaces it and leaves it **enabled**.
+- **Content mods** (maps, enemies, bosses, characters) are enabled automatically when installed or updated. **Lua mods** keep the default declared in their manifest; legacy packages without a version show **✓ Installed** and can be replaced from the mod details dialog.
+- **Manage mods** still lets you enable or disable any installed mod and restore the previous version.
 
-![Pikachu selected in the OpenBonk character menu](docs/screenshots/pikachu.png)
+Examples in this repository:
 
-The Lua interface is under development. It offers specific stat hooks and experimental content callbacks; it does not yet expose every game system or provide automatic compatibility with other recomp projects. Install mods from sources you trust: the current sandbox is not a security boundary.
+- [Distrito Nimbo / Nimbo District](mods/distrito-nimbo/) — a procedurally generated Japanese neighborhood with hillside streets, shops, vending machines, gachapon, lanterns, moai shrines, Mewtwo bald-head statues, ten animated Pokémon species and three huge bosses that throw elemental volleys.
+- [Pikachu](mods/pikachu/) — an API 3 character with the charged **Thunderbolt**: five seconds of charge, then press **Aim** to discharge blue lightning around Pikachu.
+- [Retry](mods/retry/), [Lucky Tome](mods/lucky-tome/), [Offer Tools](mods/offer-tools/) and other small stat and item mods.
+
+![Nimbo District's Shrine of Balance using the stone Mewtwo statue](docs/screenshots/nimbo.png)
+
+The Lua interface is under development. It offers specific stat hooks and experimental content callbacks; it does not yet expose every game system or provide automatic compatibility with other recomp projects. Package IDs, supported hooks and limits are documented in the [modding guide](docs/MODDING.md). Install mods from sources you trust: the current sandbox is not a security boundary.
 
 ## Source and development
 
-The repository contains reconstructed C# game scripts, the Android launcher and import code, a native Lua bridge, shaders and development tools. The code is a reconstruction, not a byte-for-byte decompilation.
+The repository contains reconstructed C# game scripts, the Android launcher and import code, a native Lua bridge, shaders, authoring tools and 250+ intent-gated QA probes. The code is a reconstruction, not a byte-for-byte decompilation.
 
 - [Local build quickstart](docs/BUILD_QUICKSTART.md) — create a private research APK using compatible local game files and the required tools.
 - [Build status and limitations](docs/BUILDING.md) — dependencies, verification results and known gaps.
 - [Unity source](unity/OpenBonk/Assets/) · [Lua runtime](native/lua/) · [Mod examples](mods/) · [Preparation tools](tools/)
 
-Building Android requires a compatible local Steam installation, Unity with Android support, AssetRipper and other dependencies; generated game data and signing keys are not included. A fresh clone has produced a playable Android build, but the exact published APK has not yet been independently rebuilt from scratch. See [Android build instructions](docs/BUILDING.md).
+Building Android requires a compatible local Steam installation, Unity 2023.2 with Android support, AssetRipper, the NDK and other dependencies; generated game data, the game OBB and signing keys are not included. A fresh clone has produced a playable Android build, but the exact published APK has not yet been independently rebuilt from scratch. See [Android build instructions](docs/BUILDING.md).
 
 ## Privacy and attribution
 
