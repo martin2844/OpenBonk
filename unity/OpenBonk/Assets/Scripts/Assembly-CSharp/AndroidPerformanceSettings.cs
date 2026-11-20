@@ -13,12 +13,20 @@ internal static class AndroidPerformanceSettings
     // requested short side in pixels without invalidating existing settings.
     internal static bool UsesLauncherResolution(int value) => value == 50 || value == 75 || value == 100 || (value <= -240 && value >= -2160);
 
-    internal static Vector2Int ScaledSize(int width, int height, int percent)
+    // aspect is 0 for the device ratio, or a width ratio over height 9
+    // (16 = 16:9 like the PC version, 12 = 4:3). The display stretches the
+    // smaller backbuffer to fill the screen.
+    internal static Vector2Int ScaledSize(int width, int height, int percent, int aspect = 0)
     {
         if (width <= 0 || height <= 0 || !UsesLauncherResolution(percent)) return Vector2Int.zero;
         int longSide = Mathf.Max(width, height), shortSide = Mathf.Min(width, height);
         int scaledWidth = percent < 0 ? (int)((long)longSide * -percent / shortSide) : (int)((long)longSide * percent / 100);
         int scaledHeight = percent < 0 ? -percent : shortSide * percent / 100;
+        if (aspect > 0)
+        {
+            scaledHeight = percent < 0 ? -percent : shortSide * percent / 100;
+            scaledWidth = (int)((long)scaledHeight * aspect / 9);
+        }
         scaledWidth = Mathf.Max(2, scaledWidth & ~1);
         scaledHeight = Mathf.Max(2, scaledHeight & ~1);
         return new Vector2Int(scaledWidth, scaledHeight);
@@ -45,15 +53,16 @@ internal static class AndroidPerformanceSettings
             using var activity = unity.GetStatic<AndroidJavaObject>("currentActivity");
             using var prefs = activity.Call<AndroidJavaObject>("getSharedPreferences", "openbonk_launcher", 0);
             int percent = prefs.Call<int>("getInt", "render_resolution_percent", 0);
+            int aspect = prefs.Call<int>("getInt", "render_aspect", 0);
             OverrideActive = UsesLauncherResolution(percent);
             if (!OverrideActive) return;
             Resolution physical = Screen.currentResolution;
             int width = physical.width > 0 ? physical.width : Screen.width;
             int height = physical.height > 0 ? physical.height : Screen.height;
-            Vector2Int size = ScaledSize(width, height, percent);
+            Vector2Int size = ScaledSize(width, height, percent, aspect);
             if (size == Vector2Int.zero) { OverrideActive = false; return; }
             Screen.SetResolution(size.x, size.y, FullScreenMode.FullScreenWindow);
-            Debug.Log("OpenBonk render resolution requested: " + size.x + "x" + size.y + " (setting " + percent + ")");
+            Debug.Log("OpenBonk render resolution requested: " + size.x + "x" + size.y + " (setting " + percent + ", aspect " + aspect + ")");
             var reporter = new GameObject("Android resolution report"); Object.DontDestroyOnLoad(reporter);
             reporter.AddComponent<AndroidResolutionReport>();
         }

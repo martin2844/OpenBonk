@@ -304,6 +304,16 @@ public final class SplitDataLauncher extends Activity {
         if (resolution.getCheckedRadioButtonId() == -1 && resolutionPresets.getCheckedRadioButtonId() == -1 && !(savedResolution <= -240 && savedResolution >= -2160))
             resolution.check(((RadioButton)resolution.getChildAt(0)).getId());
         settingsCard.addView(resolutionPresets, buttonParams());
+        RadioGroup aspect = new RadioGroup(this); aspect.setOrientation(RadioGroup.HORIZONTAL);
+        String[] aspectNames = es ? new String[] { "Pantalla", "16:9 (PC)", "4:3" } : new String[] { "Screen", "16:9 (PC)", "4:3" };
+        int[] aspectValues = { 0, 16, 12 }; int savedAspect = launcherPrefs.getInt("render_aspect", 0);
+        for (int i = 0; i < aspectValues.length; i++) {
+            final int value = aspectValues[i]; RadioButton option = new RadioButton(this); option.setId(View.generateViewId()); option.setText(aspectNames[i]);
+            option.setTextColor(Color.WHITE); option.setTextSize(12); option.setButtonTintList(ColorStateList.valueOf(LIME)); styleControlOption(option);
+            addOption(aspect, option); if (value == savedAspect) aspect.check(option.getId());
+            option.setOnClickListener(v -> launcherPrefs.edit().putInt("render_aspect", value).apply());
+        }
+        settingsCard.addView(aspect, buttonParams());
         LinearLayout customRow = new LinearLayout(this); customRow.setOrientation(LinearLayout.HORIZONTAL); customRow.setGravity(Gravity.CENTER_VERTICAL);
         android.widget.EditText customHeight = new android.widget.EditText(this); customHeight.setSingleLine(true); customHeight.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
         styleField(customHeight);
@@ -327,7 +337,7 @@ public final class SplitDataLauncher extends Activity {
         customRow.addView(applyHeight, applyParams);
         settingsCard.addView(customRow, buttonParams());
         TextView resolutionHint = new TextView(this); resolutionHint.setTextColor(MUTED); resolutionHint.setTextSize(12);
-        resolutionHint.setText(es ? "Se aplica al iniciar y conserva la proporción de la pantalla. Juego usa el ajuste del menú del juego." : "Applies on launch and keeps the screen's aspect ratio. Game uses the in-game setting."); settingsCard.addView(resolutionHint);
+        resolutionHint.setText(es ? "Se aplica al iniciar. 16:9 renderiza como la versión de PC y deja que la pantalla lo estire; Pantalla conserva la proporción del dispositivo. Juego usa el ajuste del menú del juego." : "Applies on launch. 16:9 renders like the PC version and lets the display stretch it; Screen keeps the device aspect. Game uses the in-game setting."); settingsCard.addView(resolutionHint);
         divider(settingsCard, 9);
         android.widget.CheckBox autoUpdates = new android.widget.CheckBox(this); styleCheckbox(autoUpdates);
         autoUpdates.setText(es ? "Buscar actualizaciones automáticamente" : "Check for updates automatically");
