@@ -44,7 +44,7 @@ internal static class AndroidContentMods
         public string groundTexture, wallTexture;
         public string architectureMaterial, skyMaterial;
         public bool replaceDecorations;
-        public string potVisual, silverPotVisual, arenaLandmark, potBreakFx;
+        public string potVisual, silverPotVisual, arenaLandmark, potBreakFx, moaiVisual;
         public OpenBonkRoofLayout.Profile rooftops;
         public OpenBonkStreetLayout.Spec streetscape;
     }
@@ -280,7 +280,7 @@ internal static class AndroidContentMods
             Array.Exists(spec.stageEnvironments, stage => stage != null &&
                 (!string.IsNullOrEmpty(stage.potVisual) || !string.IsNullOrEmpty(stage.silverPotVisual) ||
                  !string.IsNullOrEmpty(stage.architectureMaterial) || !string.IsNullOrEmpty(stage.skyMaterial) ||
-                 !string.IsNullOrEmpty(stage.arenaLandmark) || !string.IsNullOrEmpty(stage.potBreakFx) || stage.streetscape != null)));
+                 !string.IsNullOrEmpty(stage.moaiVisual) || !string.IsNullOrEmpty(stage.arenaLandmark) || !string.IsNullOrEmpty(stage.potBreakFx) || stage.streetscape != null)));
         if ((spec.objects != null && (spec.objects.Length == 0 || spec.objects.Length > 8)) ||
             (needsBundle ? !Text(spec.bundle, 120) : !string.IsNullOrEmpty(spec.bundle)))
             throw new InvalidDataException("invalid map bundle");
@@ -329,6 +329,7 @@ internal static class AndroidContentMods
                             replaceDecorations = stage.replaceDecorations,
                             groundTexture = LoadMapTexture(folder, files, textures, stage.groundTexture),
                             wallTexture = LoadMapTexture(folder, files, textures, stage.wallTexture),
+                            moaiVisual = LoadPotVisual(bundle, stage.moaiVisual),
                             potVisual = LoadPotVisual(bundle, stage.potVisual),
                             silverPotVisual = LoadPotVisual(bundle, stage.silverPotVisual),
                             arenaLandmark = LoadArenaLandmark(bundle, stage.arenaLandmark),

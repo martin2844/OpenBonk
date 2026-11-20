@@ -79,7 +79,8 @@ public class ProceduralTileGeneration : MonoBehaviour
 		flatTiles = new List<GameObject>();
 		for (int i = 0; i < mapParameters.size; i++)
 			proceduralTiles[i] = new ProceduralTile[mapParameters.size];
-		MazeHeightGenerator.GenerateHeight(this, root, seed, mapParameters);
+		if (streetProfile != null) MazeHeightGenerator.GenerateHeightTerraces(this, root, seed, mapParameters);
+		else MazeHeightGenerator.GenerateHeight(this, root, seed, mapParameters);
 		FillHoles();
 		FillEdges();
 		var allTiles = new List<GameObject>(tiles);

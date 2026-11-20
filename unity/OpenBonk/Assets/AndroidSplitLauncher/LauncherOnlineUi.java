@@ -19,7 +19,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 final class LauncherOnlineUi {
-    private static final java.util.concurrent.atomic.AtomicBoolean DOWNLOADING = new java.util.concurrent.atomic.AtomicBoolean();
+    static final LauncherTransferState UPDATE = new LauncherTransferState();
+    private static JSONObject updateInfo;
+    static JSONObject updateInfo() { return updateInfo; }
     private static boolean alive(SplitDataLauncher a) { return !a.isFinishing() && !a.isDestroyed(); }
     private static void error(SplitDataLauncher a, boolean es, Exception e) {
         a.runOnUiThread(() -> { if (alive(a)) a.showDialog(new AlertDialog.Builder(a).setTitle(es ? "No se pudo completar" : "Could not complete")
@@ -44,9 +46,12 @@ final class LauncherOnlineUi {
                 long installed = a.getPackageManager().getPackageInfo(a.getPackageName(), 0).versionCode;
                 a.runOnUiThread(() -> { if (!alive(a)) return;
                     if (version <= installed && !automatic) a.showDialog(new AlertDialog.Builder(a).setMessage(es ? "Ya tenés la última versión publicada." : "You have the latest published version.").setPositiveButton("OK", null).create());
-                    else if (version > installed) a.showDialog(new AlertDialog.Builder(a).setTitle(es ? "Actualización disponible" : "Update available")
+                    else if (version > installed) {
+                        AlertDialog dialog = new AlertDialog.Builder(a).setTitle(es ? "Actualización disponible" : "Update available")
                         .setMessage(info.optString("tag") + "\n\n" + (es ? "Android te pedirá confirmar la instalación." : "Android will ask you to confirm installation."))
-                        .setNegativeButton(es ? "Cancelar" : "Cancel", null).setPositiveButton(es ? "Descargar" : "Download", (d, w) -> downloadUpdate(a, es, info)).create());
+                        .setNegativeButton(es ? "Cancelar" : "Cancel", null).setPositiveButton(es ? "Actualizar" : "Update", (d, w) -> downloadUpdate(a, es, info)).create();
+                        a.showDialog(dialog); a.styleUpdateButton(dialog.getButton(AlertDialog.BUTTON_POSITIVE));
+                    }
                 });
             } catch (Exception e) { if (!automatic) error(a, es, e); }
         }, "openbonk-update-check").start();
@@ -58,20 +63,41 @@ final class LauncherOnlineUi {
                     try { a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.getPackageName()))); } catch (Exception e) { error(a, es, e); }
                 }).create()); return;
         }
-        if (!DOWNLOADING.compareAndSet(false, true)) return;
-        new Thread(() -> {
+        long generation = UPDATE.begin("app", true);
+        if (generation == 0) { a.showAppUpdateProgress(); return; }
+        updateInfo = info;
+        a.showAppUpdateProgress();
+        try { new Thread(() -> {
             File temp = null;
             try {
                 temp = File.createTempFile("openbonk-update-", ".apk", a.getCacheDir());
-                LauncherOnline.download(info, temp, 512L * 1024 * 1024); LauncherOnline.checkApk(a, temp, info.getLong("version_code"));
+                LauncherOnline.download(info, temp, 512L * 1024 * 1024);
+                UPDATE.phase(generation, LauncherTransferState.Phase.VERIFY);
+                LauncherOnline.checkApk(a, temp, info.getLong("version_code"));
                 File dest = new File(a.getCacheDir(), "openbonk-update.apk");
                 if (!temp.renameTo(dest)) throw new IOException("cannot prepare update"); temp = null;
-                a.runOnUiThread(() -> { if (!alive(a)) return;
+                UPDATE.phase(generation, LauncherTransferState.Phase.INSTALL);
+                a.runOnUiThread(() -> { if (!alive(a)) {
+                    UPDATE.finish(generation, es
+                        ? "Descarga completa, pero el instalador no se abrió. Volvé a Actualizar para reintentar."
+                        : "Download complete, but the installer did not open. Return to Updates and retry.");
+                    return;
+                }
                     Intent install = new Intent(Intent.ACTION_VIEW); install.setDataAndType(Uri.parse("content://" + a.getPackageName() + ".openbonk.updates/update.apk"), "application/vnd.android.package-archive");
                     install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    try { a.startActivity(install); } catch (Exception e) { error(a, es, e); }
+                    try { a.startActivity(install); UPDATE.finish(generation, null); }
+                    catch (Exception e) { UPDATE.finish(generation, LauncherImportError.describe(e, es)); error(a, es, e); }
+                    finally { a.refreshTransferUi(); }
                 });
-            } catch (Exception e) { error(a, es, e); } finally { if (temp != null) temp.delete(); DOWNLOADING.set(false); }
+            } catch (Exception e) {
+                UPDATE.finish(generation, LauncherImportError.describe(e, es));
+                a.runOnUiThread(() -> { if (alive(a)) a.refreshTransferUi(); });
+                error(a, es, e);
+            } finally { if (temp != null) temp.delete(); }
         }, "openbonk-update-download").start();
+        } catch (RuntimeException e) {
+            UPDATE.finish(generation, LauncherImportError.describe(e, es));
+            a.refreshTransferUi(); error(a, es, e);
+        }
     }
 }

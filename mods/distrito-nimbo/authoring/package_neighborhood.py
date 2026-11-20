@@ -2,7 +2,7 @@
 """Upgrade the optional Pokémon 1.4.0 ZIP with a reviewed neighborhood bundle.
 
 Usage: python3 package_neighborhood.py OLD_1_4_ZIP BUILT_BUNDLE OUTPUT_ZIP
-Requires OpenBonk 0.1.17-beta or newer (content API 4). Existing output files
+Requires OpenBonk 0.1.18-beta or newer for terraced elevation (content API 4). Existing output files
 are never overwritten. The original ZIP and built bundle are read only.
 """
 import argparse
@@ -88,7 +88,11 @@ def upgrade_manifest(original):
     if len(enemies) != len(SPECIES) or {enemy.get("name") for enemy in enemies} != SPECIES:
         raise ValueError("Expected the ten-species Pokémon roster")
     manifest["api"] = 4
-    manifest["version"] = "2.0.0"
+    manifest["version"] = "2.1.0"
+    # Forest lasts 10/9/8 minutes; nine minutes per district restores the same
+    # 27-minute total. The runtime scales each inherited stage's wave times,
+    # wave durations and reinforcement checks by .9/1/1.125 respectively.
+    world["stageDuration"] = 540
     world["description"] = ("Explore a sunny Japanese neighborhood with terraced streets, shops, "
                             "vending machines, gachapon, lanterns and signs across three Pokémon districts.")
     for environment in environments:
@@ -98,6 +102,7 @@ def upgrade_manifest(original):
         width, rise, coverage, frontages = PROFILES[environment["stage"]]
         environment["streetscape"] = {"tileWidth": width, "stepHeight": rise, "coverage": coverage,
                                      "frontages": ["Nimbo" + name for name in frontages]}
+        environment["moaiVisual"] = "MewtwoStatue"
     for enemy in enemies:
         enemy["material"] = "Nimbo" + enemy["name"]
     # Absence means no random placement. Empty arrays are rejected by both
@@ -154,6 +159,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("old_zip", type=Path, help="existing optional Pokémon 1.4.0 ZIP")
     parser.add_argument("bundle", type=Path, help="reviewed Android nimbo-props bundle")
-    parser.add_argument("output_zip", type=Path, help="new 2.0.0 ZIP path")
+    parser.add_argument("output_zip", type=Path, help="new 2.1.0 ZIP path")
     args = parser.parse_args()
     build(args.old_zip, args.bundle, args.output_zip)

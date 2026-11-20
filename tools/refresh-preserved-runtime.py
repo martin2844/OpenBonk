@@ -20,8 +20,11 @@ LAUNCHER_SOURCES = (
     "LauncherContentImporter.java",
     "LauncherModImporter.java",
     "LauncherModIntegrity.java",
+    "LauncherOnlineUi.java",
+    "LauncherTransferState.java",
     "SplitDataLauncher.java",
 )
+NEW_LAUNCHER_SOURCES = {"LauncherTransferState.java"}
 MAIN = Path("unityLibrary/src/main")
 JAVA = Path("java/com/megabonk/launcher")
 
@@ -55,7 +58,10 @@ def refresh(exported_project, preserved_project, assets_root, *, dry_run=False):
     copies += [(assets_root / "AndroidSplitLauncher" / name, target / JAVA / name) for name in LAUNCHER_SOURCES]
     for origin, destination in copies:
         require_file(origin)
-        require_file(destination)
+        # This explicitly added helper has no counterpart in older preserved
+        # launchers. All existing runtime files must still be present.
+        if destination.name not in NEW_LAUNCHER_SOURCES or destination.exists() or destination.is_symlink():
+            require_file(destination)
         # Copying through a redirected ancestor could replace generated data.
         for path in (origin, destination):
             if any(parent.is_symlink() for parent in path.parents):

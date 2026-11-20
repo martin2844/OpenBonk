@@ -14,7 +14,7 @@ public sealed class OpenBonkProceduralMapRecipe
         public int stage;
         public Texture groundTexture, wallTexture;
         public Material architectureMaterial, skyMaterial;
-        public GameObject potVisual, silverPotVisual, arenaLandmark, potBreakFx;
+        public GameObject potVisual, silverPotVisual, arenaLandmark, potBreakFx, moaiVisual;
         public OpenBonkRoofLayout.Profile rooftops;
         public OpenBonkStreetLayout.Profile streetscape;
         public bool replaceDecorations;
@@ -61,7 +61,7 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                     ((environment.architectureMaterial != null || environment.skyMaterial != null) &&
                         (environment.architectureMaterial == null || environment.skyMaterial == null)) ||
                     (!environment.replaceDecorations && environment.groundTexture == null && environment.wallTexture == null &&
-                        environment.potVisual == null && environment.silverPotVisual == null && environment.potBreakFx == null &&
+                        environment.moaiVisual == null && environment.potVisual == null && environment.silverPotVisual == null && environment.potBreakFx == null &&
                         environment.architectureMaterial == null))
                     throw new ArgumentException("Invalid stage environment");
                 environments[environment.stage - 1] = environment;
@@ -95,6 +95,7 @@ public sealed class OpenBonkProceduralMapBuild : IDisposable
                 }
                 if (environment != null && (environment.potVisual != null || environment.silverPotVisual != null))
                     map.potVisuals.Add(stage, (environment.potVisual, environment.silverPotVisual));
+                if (environment?.moaiVisual != null) map.moaiVisuals.Add(stage, environment.moaiVisual);
                 if (environment?.arenaLandmark != null) map.arenaLandmarks.Add(stage, environment.arenaLandmark);
                 if (environment?.potBreakFx != null) map.potEffects.Add(stage, environment.potBreakFx);
                 if (environment?.rooftops != null)

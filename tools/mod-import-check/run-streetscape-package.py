@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
-"""Validate actual Nimbo releases and the activity's current auto-enable methods."""
+"""Validate Nimbo 1.4→2.1 updates, 540-second stages, shrine visuals and auto-enable."""
 import argparse
+import hashlib
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 
-p = argparse.ArgumentParser()
-p.add_argument('legacy_zip', type=Path)
-p.add_argument('release_zip', type=Path)
+p = argparse.ArgumentParser(description=__doc__)
+p.add_argument('legacy_zip', type=Path, help='actual optional Pokémon 1.4.0 API 3 ZIP')
+p.add_argument('release_zip', type=Path, help='actual optional Pokémon 2.1.0 API 4 ZIP with 540-second stages and MewtwoStatue')
 p.add_argument('--java-home', type=Path, default=os.environ.get('OPENBONK_JAVA_HOME'))
 p.add_argument('--json-jar', type=Path, default=os.environ.get('OPENBONK_TEST_JSON_JAR'))
 a = p.parse_args()
 if a.java_home is None or a.json_jar is None:
     p.error('--java-home and --json-jar are required (or OPENBONK_JAVA_HOME / OPENBONK_TEST_JSON_JAR)')
+for label, path in (('Legacy ZIP', a.legacy_zip), ('Release ZIP', a.release_zip)):
+    print(f'{label}: {path.resolve()} SHA256={hashlib.sha256(path.read_bytes()).hexdigest()}', flush=True)
 repo = Path(__file__).resolve().parents[2]
 source = repo / 'unity/OpenBonk/Assets/AndroidSplitLauncher'
 text = (source / 'SplitDataLauncher.java').read_text()
@@ -28,7 +31,7 @@ def method(signature):
         end += 1
     return text[start:end]
 # Both real UI entry points must call the helper after importer success.
-for signature in ('private void importMod(android.net.Uri uri)', 'private void importOnlineMod(JSONObject item, Runnable refresh)'):
+for signature in ('private void importMod(android.net.Uri uri)', 'private void importOnlineMod(JSONObject item)'):
     body = method(signature)
     assert body.index('LauncherModImporter.install(') < body.index('enableContentMod(root, id)'), signature
 with tempfile.TemporaryDirectory(prefix='actual-street-java-') as temp:

@@ -32,7 +32,8 @@ class PreservedRuntimeRefreshTest(unittest.TestCase):
             self.put(self.target / "assets/bin/Data" / name, "old " + name)
         for name in MODULE.LAUNCHER_SOURCES:
             self.put(self.assets / "AndroidSplitLauncher" / name, "new " + name)
-            self.put(self.target / MODULE.JAVA / name, "old " + name)
+            if name not in MODULE.NEW_LAUNCHER_SOURCES:
+                self.put(self.target / MODULE.JAVA / name, "old " + name)
         # A broad source overlay would overwrite both of these sentinels.
         self.put(self.assets / "AndroidSplitLauncher/SplitExpectedData.java", 'SHA256 = "EMBEDDED";')
         self.put(self.assets / "AndroidSplitLauncher/Unrelated.java", "checkout unrelated")
@@ -84,6 +85,20 @@ class PreservedRuntimeRefreshTest(unittest.TestCase):
 
     def test_missing_source_fails_before_any_mutation(self):
         (self.assets / "AndroidSplitLauncher/SplitDataLauncher.java").unlink()
+        before = self.snapshot()
+        with self.assertRaisesRegex(ValueError, "Missing regular file"):
+            self.refresh()
+        self.assertEqual(before, self.snapshot())
+
+    def test_missing_new_helper_fails_before_any_mutation(self):
+        (self.assets / "AndroidSplitLauncher/LauncherTransferState.java").unlink()
+        before = self.snapshot()
+        with self.assertRaisesRegex(ValueError, "Missing regular file"):
+            self.refresh()
+        self.assertEqual(before, self.snapshot())
+
+    def test_missing_existing_launcher_fails_before_any_mutation(self):
+        (self.target / MODULE.JAVA / "LauncherOnlineUi.java").unlink()
         before = self.snapshot()
         with self.assertRaisesRegex(ValueError, "Missing regular file"):
             self.refresh()

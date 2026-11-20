@@ -126,13 +126,14 @@ instead of the saved authoring assets.
 Rebuild the Android bundle after rebaking. The optional neighborhood upgrade
 below packages these species materials with the new street profiles.
 
-## Japanese neighborhood 2.0
+## Japanese neighborhood 2.1
 
 The optional Pokémon neighborhood package uses **content API 4** and requires
-**OpenBonk 0.1.17-beta or newer**. Older APKs reject the package instead of
-silently dropping its streetscape settings. Its sunny Japanese streets combine
+**OpenBonk 0.1.18-beta or newer** for the terrace generator and Mewtwo shrine
+visual. APKs earlier than 0.1.17 reject API 4; 0.1.17 can import this format but
+does not implement those two additions. Its sunny Japanese streets combine
 shops, vending machines, gachapon, lanterns, notice boards and a shrine, with
-shallower elevation steps and distinct frontage sets in each district.
+gentle ramps, sustained upper and lower districts, and distinct frontage sets.
 The earlier `build.py` instructions and original-roster authoring section remain
 the base-package workflow; this upgrade starts from the existing optional
 Pokémon **1.4.0 ZIP**.
@@ -160,23 +161,48 @@ bakes vertex ambient occlusion on the six Japanese clusters. The adjacent
 `props.validation.json` records input hashes, collision envelopes, opaque
 colors and AO measurements.
 
+Create the shrine visual from the supplied regular Mewtwo GLB using the
+[statue source and reproduction notes](authoring/MewtwoStatue.SOURCE.md).
+After decoding the source GLB, export and merge its collision-free visual:
+
+```sh
+blender -b --python authoring/mewtwo_statue.py -- /path/to/150-decoded.glb "$NIMBO_STUDY/mewtwo" --render
+python3 - "$NIMBO_NEIGHBORHOOD/props.json" "$NIMBO_STUDY/mewtwo/MewtwoStatue.json" <<'PYMERGE'
+import json, pathlib, sys
+output, source = map(pathlib.Path, sys.argv[1:])
+kit, statue = json.loads(output.read_text()), json.loads(source.read_text())
+assert [p["name"] for p in statue["props"]] == ["MewtwoStatue"]
+kit["props"] = [p for p in kit["props"] if p["name"] != "MewtwoStatue"] + statue["props"]
+output.write_text(json.dumps(kit, separators=(",", ":"), allow_nan=False))
+PYMERGE
+```
+
+The six-frontage preparation receipt describes the pre-statue input; the
+statue's own receipt records its geometry and native-shrine fit. For a focused
+Unity review, set `OPENBONK_NIMBO_REVIEW_ONLY=MewtwoStatue` with
+`OPENBONK_NIMBO_REVIEW` and run `ReviewNimboAssets.Run`.
+
 Import the current builder and shaders into the dedicated Unity authoring
 project described above. Set `OPENBONK_NIMBO_PROPS` to the merged `props.json`,
 `OPENBONK_NIMBO_CREATURE` to `NIMBO_PRIVATE/creatures`, and
 `OPENBONK_NIMBO_BUNDLE` to `NIMBO_NEIGHBORHOOD/bundle`. Run
 `BuildDistrictBundle.Run` for Android, then inspect the resulting props and
-textured creatures in Unity before packaging:
+textured creatures in Unity before packaging. The bundle must also contain
+the reviewed `MewtwoStatue` prefab, which all three stages reference as their
+moai shrine visual. This replaces only the shrine's appearance; its interaction,
+collider and rewards retain the game's existing behavior.
 
 ```sh
 python3 authoring/package_neighborhood.py \
   "$NIMBO_PRIVATE/distrito-nimbo-pokemon-1.4.0.zip" \
   "$NIMBO_NEIGHBORHOOD/bundle/nimbo-props" \
-  "$NIMBO_NEIGHBORHOOD/distrito-nimbo-pokemon-2.0.0.zip"
+  "$NIMBO_NEIGHBORHOOD/distrito-nimbo-pokemon-2.1.0.zip"
 ```
 
-The packager sets API 4/version 2.0.0, replaces the bundle and file hashes, and
-assigns each enemy its `Nimbo` + species material. It preserves encounters,
-enemy statistics, attacks, rewards, scripts and other payloads. Random object
+The packager sets API 4/version 2.1.0 and a 540-second stage duration, replaces
+the bundle and file hashes, assigns each enemy its `Nimbo` + species material,
+and adds `moaiVisual: "MewtwoStatue"` to each stage environment. It preserves
+encounter rosters, enemy statistics, attacks, rewards, scripts and other payloads. Random object
 placements are removed so old houses do not obstruct the new street fronts;
 the optional `objects` property is omitted because the importers reject an
 empty array. ZIP entries use sorted names and fixed timestamps, and an existing
@@ -187,6 +213,36 @@ output ZIP is never overwritten.
 | Terminal | 26 m | 6 m | 0.95 | VendingCorner, GachaCorner, RamenFront, PosterGarden |
 | Interchange | 28 m | 7 m | 0.90 | VendingCorner, GachaCorner, RamenFront, LanternGate, PosterGarden |
 | Relay | 30 m | 8 m | 0.85 | RamenFront, LanternGate, PosterGarden, ShrineCorner |
+
+### Pacing and elevation
+
+Forest's three stage clocks are 10/9/8 minutes. Nimbo 2.0 shortened them to
+7/7/7 minutes; 2.1 uses 9/9/9 minutes, restoring the same 27-minute total
+scheduled stage time as Forest. Pauses and the player's choice of when to fight
+the boss still affect actual run length.
+
+The existing map recipe scales inherited event times, event durations and
+reinforcement intervals together. Against Forest, the three Nimbo stages use
+factors of 0.9, 1 and 1.125:
+
+| District | Stage clock | Swarm times | Miniboss times | Reinforcement check |
+|---|---|---|---|---|
+| Terminal | 9:00 | 3:36, 6:18 | 2:42, 7:12 | 54 s |
+| Interchange | 9:00 | 3:00, 6:00 | 2:00, 7:00 | 60 s |
+| Relay | 9:00 | 2:49, 4:30 | 1:41, 5:38 | 67.5 s |
+
+The streetscape-only generator follows a seeded, broad height field bounded
+to four steps above or below the entry level. Elevation persists through turns
+and branch junctions. Ramps occupy only straight, single-child maze tiles,
+preserving all connected routes and the 12 m clear street crossing. The
+6/7/8 m rises above are unchanged; variety comes from sustained elevation
+districts. Forest and maps without a streetscape retain the native generator.
+
+`OpenBonkStreetLayoutCheck.Run` exercises the actual combined terrain collider,
+spawn/boss clearance, deterministic elevations and frontages, native Forest
+regression, and the scaled nine-minute timelines. See
+[the 2.1 validation receipt](study/nimbo-2.1-validation.md) for measured results
+and final release validation.
 
 ### Building visibility regression check
 

@@ -50,7 +50,7 @@ public static class OpenBonkStreetLayoutCheck
             var recipe = new OpenBonkProceduralMapRecipe
             {
                 name = "Street test", description = "Street test", tileGridSize = 15,
-                volatility = .8f, slopeStrength = .25f, flatMapBias = .1f, stageDuration = 420,
+                volatility = .8f, slopeStrength = 0, flatMapBias = 0, stageDuration = 540,
                 stageEnvironments = environments,
             };
             using var build = OpenBonkProceduralMapBuild.Create(forest, recipe, texture);
@@ -59,6 +59,17 @@ public static class OpenBonkStreetLayoutCheck
                 var data = build.Map.stages[stage]; var profile = environments[stage].streetscape;
                 Require(data.mapParameters.scaledTileWidth == profile.tileWidth && data.mapParameters.scaledTileHeight == profile.stepHeight, "cloned dimensions");
                 Require(forest.stages[stage].mapParameters.scaledTileWidth == originalWidth[stage] && forest.stages[stage].mapParameters.scaledTileHeight == originalHeight[stage], "Forest dimensions preserved");
+                Require(data.stageTimeline.stageTime == 540 && forest.stages[stage].stageTimeline.stageTime == 600 - stage * 60,
+                    "nine minute districts preserve native ten/nine/eight minute Forest stages");
+                float timeScale = 540f / forest.stages[stage].stageTimeline.stageTime;
+                Require(Mathf.Approximately(data.stageTimeline.checkNewEnemyInterval, 60 * timeScale), "reinforcement pacing follows stage duration");
+                for (int i = 0; i < data.stageTimeline.events.Count; i++)
+                {
+                    var sourceEvent = forest.stages[stage].stageTimeline.events[i];
+                    var districtEvent = data.stageTimeline.events[i];
+                    Require(Mathf.Approximately(districtEvent.timeMinutes, sourceEvent.timeMinutes * timeScale) &&
+                        Mathf.Approximately(districtEvent.duration, sourceEvent.duration * timeScale), "wave time and duration scale together");
+                }
                 foreach (int seed in new[] { 0, 42, 731, 20261119 })
                 {
                     generator.debugSeed = seed;
@@ -67,6 +78,8 @@ public static class OpenBonkStreetLayoutCheck
                     Physics.SyncTransforms();
                     Require(generator.tiles.Count == 225 && generator.flatTiles.Count > 2, "complete terrain grid");
                     Require(generator.tiles.Count > generator.flatTiles.Count, "elevation uses real ramps");
+                    CheckTerraceDistribution(generator, seed);
+                    string signature = TerrainSignature(generator);
                     foreach (var fill in generator.fillTiles)
                     {
                         var scale = fill.transform.localScale;
@@ -97,6 +110,12 @@ public static class OpenBonkStreetLayoutCheck
                     }
                     placed += first.Count;
                     ReleaseCollisionMesh(generator);
+                    if (seed == 42)
+                    {
+                        generator.Generate(out _, data, data.mapParameters, true, streetscape: profile);
+                        Require(TerrainSignature(generator) == signature, "terrace elevations and ramp directions must be deterministic");
+                        ReleaseCollisionMesh(generator);
+                    }
                 }
             }
             // Odd metre widths on even grids require a half-metre world origin;
@@ -122,7 +141,11 @@ public static class OpenBonkStreetLayoutCheck
             generator.Generate(out _, native, native.mapParameters, true);
             Require(generator.flatTiles[0].transform.localScale == generator.flatTile.transform.localScale * native.mapParameters.scale &&
                 native.mapParameters.scaledTileWidth == originalWidth[0] && native.mapParameters.scaledTileHeight == originalHeight[0], "legacy transform remains uniform");
-            Debug.Log($"OpenBonk streetscape PASS: {connections} actual-collider tree connections across 13 generated maps, {placed} deterministic frontages, clear spawn/boss and 12m lanes, unchanged Forest");
+            var legacyLevels = CountLevels(generator);
+            Require(generator.tiles.Count == 225 && generator.flatTiles.Count == 174 && legacyLevels.Count == 5 &&
+                legacyLevels[-3] == 3 && legacyLevels[-2] == 4 && legacyLevels[-1] == 86 && legacyLevels[0] == 61 && legacyLevels[1] == 20,
+                "native Forest seed 42 height distribution remains identical");
+            Debug.Log($"OpenBonk streetscape PASS: {connections} actual-collider tree connections across 13 unique maps, {placed} deterministic frontages, populated terrace levels, clear spawn/boss and 12m lanes, unchanged Forest, 27-minute campaign");
         }
         finally
         {
@@ -132,6 +155,39 @@ public static class OpenBonkStreetLayoutCheck
             Object.DestroyImmediate(owner); Object.DestroyImmediate(frontage); Object.DestroyImmediate(mesh);
             Object.DestroyImmediate(texture); Object.DestroyImmediate(material);
         }
+    }
+
+    private static Dictionary<int, int> CountLevels(ProceduralTileGeneration generator)
+    {
+        var levels = new Dictionary<int, int>();
+        foreach (var flat in generator.flatTiles)
+        {
+            int height = flat.GetComponent<ProceduralTile>().posY;
+            levels.TryGetValue(height, out int count); levels[height] = count + 1;
+        }
+        return levels;
+    }
+
+    private static void CheckTerraceDistribution(ProceduralTileGeneration generator, int seed)
+    {
+        var levels = CountLevels(generator);
+        int populated = 0, minimum = int.MaxValue, maximum = int.MinValue;
+        foreach (var level in levels)
+        {
+            if (level.Value >= 10) populated++;
+            minimum = Math.Min(minimum, level.Key); maximum = Math.Max(maximum, level.Key);
+        }
+        Require(populated >= 4 && maximum - minimum >= 4 && minimum >= -4 && maximum <= 4,
+            $"seed {seed} needs several inhabited, bounded elevation districts");
+    }
+
+    private static string TerrainSignature(ProceduralTileGeneration generator)
+    {
+        var signature = new System.Text.StringBuilder();
+        foreach (var row in generator.proceduralTiles)
+            foreach (var tile in row)
+                signature.Append(tile.posY).Append(':').Append(tile.isFlat).Append(':').Append(tile.dir).Append(';');
+        return signature.ToString();
     }
 
     private static int CheckConnections(ProceduralTileGeneration generator, MeshCollider terrain, OpenBonkStreetLayout.Profile profile, int seed, int size)

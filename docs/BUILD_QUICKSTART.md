@@ -259,9 +259,11 @@ python3 tools/refresh-preserved-runtime.py \
 
 Remove `--dry-run` to apply the refresh. It synchronizes only
 `Il2CppOutputProject`, the matching `global-metadata.dat`,
-`RuntimeInitializeOnLoads.json` and `ScriptingAssemblies.json`, and these four
+`RuntimeInitializeOnLoads.json` and `ScriptingAssemblies.json`, and these six
 launcher implementations: `LauncherContentImporter`, `LauncherModImporter`,
-`LauncherModIntegrity` and `SplitDataLauncher`. Then run the existing Gradle
+`LauncherModIntegrity`, `LauncherOnlineUi`, `LauncherTransferState` and
+`SplitDataLauncher`. The new `LauncherTransferState` helper is added when absent
+from an older preserved project. Then run the existing Gradle
 build and signing steps for that project.
 
 The preserved project's generated `SplitExpectedData.java` must contain a real

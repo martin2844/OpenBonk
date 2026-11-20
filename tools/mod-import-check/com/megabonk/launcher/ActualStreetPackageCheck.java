@@ -22,14 +22,26 @@ public class ActualStreetPackageCheck {
         var release = new JSONObject(new String(after, StandardCharsets.UTF_8));
         String id = release.getString("id");
         require(legacy.getInt("api") == 3 && release.getInt("api") == 4, "actual API3/API4 files");
-        require(legacy.getString("id").equals(id) && release.getString("version").equals("2.0.0"), "matching update identity/version");
+        require(legacy.getString("id").equals(id) && legacy.getString("version").equals("1.4.0") &&
+            release.getString("version").equals("2.1.0"), "matching update identity/version");
         var map = release.getJSONObject("map"); require(!map.has("objects"), "legacy scattered objects omitted");
+        require(map.getDouble("stageDuration") == 540, "nine minute stages restore the 27-minute campaign");
         var stages = map.getJSONArray("stageEnvironments"); require(stages.length() == 3, "three neighborhoods");
+        String[][] expectedFrontages = {
+            { "NimboVendingCorner", "NimboGachaCorner", "NimboRamenFront", "NimboPosterGarden" },
+            { "NimboVendingCorner", "NimboGachaCorner", "NimboRamenFront", "NimboLanternGate", "NimboPosterGarden" },
+            { "NimboRamenFront", "NimboLanternGate", "NimboPosterGarden", "NimboShrineCorner" }
+        };
         for (int i = 0; i < 3; i++) {
             var stage = stages.getJSONObject(i); var profile = stage.getJSONObject("streetscape");
             require(stage.getInt("stage") == i + 1 && profile.getInt("tileWidth") == 26 + i * 2 && profile.getInt("stepHeight") == 6 + i &&
                 Math.abs(profile.getDouble("coverage") - (.95 - .05 * i)) < 1e-8 && profile.getJSONArray("frontages").length() >= 1 && profile.getJSONArray("frontages").length() <= 8,
                 "exact final profile " + (i + 1));
+            require(stage.getString("moaiVisual").equals("MewtwoStatue"), "Mewtwo shrine visual in stage " + (i + 1));
+            var frontages = profile.getJSONArray("frontages");
+            require(frontages.length() == expectedFrontages[i].length, "curated frontage count " + (i + 1));
+            for (int frontage = 0; frontage < expectedFrontages[i].length; frontage++)
+                require(frontages.getString(frontage).equals(expectedFrontages[i][frontage]), "curated frontage identity " + (i + 1));
         }
         var scratch = Files.createTempDirectory("actual-street-release-check-");
         for (boolean originallyEnabled : new boolean[] { false, true }) {
@@ -38,7 +50,7 @@ public class ActualStreetPackageCheck {
             require(install(oldZip, mods, prefs).equals(id), "actual 1.4 import");
             require(LauncherModIntegrity.valid(mods.resolve(id).toFile(), id), "API3 integrity");
             prefs.state.put(id, originallyEnabled);
-            require(install(newZip, mods, prefs).equals(id), "actual 2.0 update");
+            require(install(newZip, mods, prefs).equals(id), "actual 2.1 update");
             require(Arrays.equals(after, Files.readAllBytes(mods.resolve(id).resolve("manifest.json"))), "exact release manifest installed");
             require(LauncherModIntegrity.valid(mods.resolve(id).toFile(), id), "all actual API4 file hashes validated");
             require(Arrays.equals(before, Files.readAllBytes(app.resolve("ModsHistory").resolve(id).resolve("manifest.json"))), "1.4 retained for recovery");
@@ -47,11 +59,11 @@ public class ActualStreetPackageCheck {
             var activity = new SplitDataLauncher(prefs);
             var enable = SplitDataLauncher.class.getDeclaredMethod("enableContentMod", java.io.File.class, String.class);
             enable.setAccessible(true); enable.invoke(activity, app.toFile(), id);
-            require(prefs.getBoolean(id, false), "2.0 enabled after update from " + originallyEnabled);
+            require(prefs.getBoolean(id, false), "2.1 enabled after update from " + originallyEnabled);
             require(LauncherModRecovery.recover(mods.toFile()) == 0 && LauncherModIntegrity.valid(mods.resolve(id).toFile(), id), "new API4 survives recovery");
             LauncherModRecovery.restorePrevious(mods.toFile(), id, prefs);
             require(Arrays.equals(before, Files.readAllBytes(mods.resolve(id).resolve("manifest.json"))) && LauncherModIntegrity.valid(mods.resolve(id).toFile(), id), "restoring API3 remains valid");
         }
-        System.out.println("PASS actual1.4/API3→2.0/API4: exact profiles, final ZIP hashes, both old enabled states auto-enable, previous-version recovery and API3 restore. Scratch: " + scratch);
+        System.out.println("PASS actual1.4/API3→2.1/API4: 540-second stages, Mewtwo shrine visuals, exact profiles/frontages, final ZIP hashes, both old enabled states auto-enable, previous-version recovery and API3 restore. Scratch: " + scratch);
     }
 }

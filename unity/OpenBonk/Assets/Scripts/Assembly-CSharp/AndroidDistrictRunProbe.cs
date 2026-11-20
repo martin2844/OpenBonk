@@ -6,11 +6,13 @@ using Assets.Scripts.Actors.Enemies;
 using Assets.Scripts.Actors.Player;
 using Assets.Scripts.Inventory__Items__Pickups.Interactables;
 using Assets.Scripts.Managers;
+using Assets.Scripts.UI.InGame.Rewards;
 using Assets.Scripts.Utility;
 using UnityEngine;
 
 internal sealed class AndroidDistrictRunProbe : MonoBehaviour
 {
+    private bool moaiPassed;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Install()
     {
@@ -86,6 +88,11 @@ internal sealed class AndroidDistrictRunProbe : MonoBehaviour
                 if (capsule == null || !capsule.Interact() || GameObject.Find("NimboCapsuleBurst(Clone)") == null)
                 { Fail("capsule did not break with its effect", index); yield break; }
                 Debug.Log("District probe capsule break=true");
+                if (map.moaiVisuals.ContainsKey(stage))
+                {
+                    yield return CheckMoaiVisualAndReward(player);
+                    if (!moaiPassed) yield break;
+                }
             }
 
             var altar = FindFirstObjectByType<InteractableBossSpawner>();
@@ -165,6 +172,90 @@ internal sealed class AndroidDistrictRunProbe : MonoBehaviour
             }
             previous = player;
         }
+    }
+
+    private IEnumerator CheckMoaiVisualAndReward(MyPlayer player)
+    {
+        var windows = UiManager.Instance?.encounterWindows;
+        if (windows == null) { Fail("missing reward windows for Moai", 0); yield break; }
+        float until = Time.realtimeSinceStartup + 8f;
+        while (windows.HasEncounter() && Time.realtimeSinceStartup < until)
+        {
+            AcceptPendingReward();
+            yield return null;
+        }
+        if (windows.HasEncounter()) { Fail("earlier reward blocked Moai check", 0); yield break; }
+
+        InteractableShrineMoai shrine = null;
+        float nearest = float.PositiveInfinity;
+        foreach (var candidate in FindObjectsOfType<InteractableShrineMoai>())
+        {
+            float distance = (candidate.transform.position - player.transform.position).sqrMagnitude;
+            if (candidate.done || distance >= nearest) continue;
+            shrine = candidate; nearest = distance;
+        }
+        if (shrine == null) { Fail("declared Moai visual has no shrine", 0); yield break; }
+        var visual = shrine.transform.Find("ExternalMoaiVisual");
+        var head = shrine.GetComponent<MeshRenderer>();
+        var renderer = visual != null ? visual.GetComponent<MeshRenderer>() : null;
+        if (renderer == null || !renderer.enabled || !visual.gameObject.activeInHierarchy ||
+            head == null || head.enabled || Vector3.Dot(visual.up, Vector3.up) < .99f)
+        { Fail("Moai override missing, tilted, or native head still visible", 0); yield break; }
+        var icon = shrine.minimapIcon; var alert = shrine.alertIcon;
+        if (icon == null || alert == null || shrine.GetComponent<Collider>() == null)
+        { Fail("Moai lost native icons or collision", 0); yield break; }
+
+        var bounds = renderer.bounds;
+        var outward = visual.forward; outward.y = 0; outward.Normalize();
+        if (outward.sqrMagnitude < .5f) outward = Vector3.forward;
+        var approach = bounds.center + outward * Mathf.Max(5f, bounds.size.y * .75f);
+        approach.y = bounds.min.y + .5f;
+        player.playerMovement.TeleportPlayerBackToBounds(approach);
+        player.playerInput.SetSpawnDirection(-outward, -8f);
+        Physics.SyncTransforms();
+        until = Time.realtimeSinceStartup + 2f;
+        while (Time.realtimeSinceStartup < until)
+        {
+            AcceptPendingReward();
+            yield return null;
+        }
+        yield return new WaitForEndOfFrame();
+        var camera = PlayerCamera.Instance != null ? PlayerCamera.Instance.camera : Camera.main;
+        if (camera == null || !GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(camera), bounds))
+        { Fail("Moai statue outside capture camera", 0); yield break; }
+        string capture = System.IO.Path.Combine(Application.persistentDataPath, "mewtwo-statue.png");
+        ScreenCapture.CaptureScreenshot("mewtwo-statue.png");
+        Debug.Log($"District probe Moai visual: upright=true nativeHeadVisible=false visible={renderer.isVisible} bounds={bounds} capture={capture}");
+        yield return new WaitForEndOfFrame();
+        yield return null;
+
+        until = Time.realtimeSinceStartup + 8f;
+        while (windows.HasEncounter() && Time.realtimeSinceStartup < until)
+        {
+            AcceptPendingReward();
+            yield return null;
+        }
+        if (windows.HasEncounter()) { Fail("reward blocked Moai interaction", 0); yield break; }
+
+        bool first = shrine.Interact();
+        bool second = shrine.Interact();
+        if (!first || second || !shrine.done)
+        { Fail("Moai interaction must succeed exactly once", 0); yield break; }
+        var level = windows.levelupScreen as LevelupScreen;
+        var encounter = level == null ? null : typeof(LevelupScreen).GetField("encounterType", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(level);
+        if (level == null || level.window == null || !level.window.activeInHierarchy ||
+            encounter is not EEncounter kind || kind != EEncounter.Moai)
+        { Fail("Moai did not open its native reward prompt", 0); yield break; }
+        until = Time.realtimeSinceStartup + 8f;
+        do
+        {
+            AcceptPendingReward();
+            yield return null;
+        } while (windows.HasEncounter() && Time.realtimeSinceStartup < until);
+        if (windows.HasEncounter() || icon != null || alert != null || shrine != null)
+        { Fail("Moai reward or single-use cleanup did not finish", 0); yield break; }
+        moaiPassed = true;
+        Debug.Log("District probe Moai PASS: external statue visible/upright, original head hidden, native icons/collider retained, firstInteraction=true secondInteraction=false, native reward accepted");
     }
 
     private static bool StageReady(int index, MyPlayer previous) =>

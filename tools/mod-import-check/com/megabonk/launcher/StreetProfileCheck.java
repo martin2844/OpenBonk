@@ -37,6 +37,7 @@ public class StreetProfileCheck {
             var environment = environment(manifest); environment.remove("rooftops");
             environment.put("streetscape", new JSONObject().put("tileWidth", 26).put("stepHeight", 6).put("coverage", .95)
                 .put("frontages", new JSONArray().put("NimboRamenFront").put("NimboGachaCorner")));
+            environment.put("moaiVisual", "MewtwoStatue");
         });
         var prefs = new RecoveryCheck.Prefs(); String id = install(valid, root, prefs);
         Path installed = root.resolve(id).resolve("manifest.json");
@@ -64,7 +65,10 @@ public class StreetProfileCheck {
             m -> environment(m).put("streetscape", true),
             m -> environment(m).put("replaceDecorations", false),
             m -> environment(m).put("rooftops", new JSONObject().put("roofFraction", .7).put("bridgeFraction", .3).put("riseFraction", .06)),
-            m -> environment(m).remove("architectureMaterial"));
+            m -> environment(m).remove("architectureMaterial"),
+            m -> environment(m).put("moaiVisual", 123),
+            m -> environment(m).put("moaiVisual", new JSONObject().put("prefab", "MewtwoStatue")),
+            m -> environment(m).put("moaiVisual", "M".repeat(121)));
         for (var mutation : invalid) {
             boolean rejected = false;
             try { install(rewrite(valid, scratch.resolve("invalid.zip"), mutation), root, prefs); }
@@ -72,11 +76,29 @@ public class StreetProfileCheck {
             if (!rejected || !Arrays.equals(before, Files.readAllBytes(installed)) || !prefs.getBoolean(id, false))
                 throw new AssertionError("invalid profile changed installed data or enabled state");
         }
+        // Isolate the new visual from streets, creatures and architecture: it
+        // must independently request the bundle, just like other visual fields.
+        Path moaiOnly = rewrite(valid, scratch.resolve("moai-only.zip"), m -> {
+            var map = m.getJSONObject("map");
+            map.remove("objects"); map.remove("enemies"); map.remove("encounters");
+            map.put("stageEnvironments", new JSONArray().put(new JSONObject().put("stage", 1).put("moaiVisual", "MewtwoStatue")));
+        });
+        Path moaiRoot = Files.createDirectories(scratch.resolve("moai-only-app").resolve("Mods"));
+        var moaiPrefs = new RecoveryCheck.Prefs();
+        if (!install(moaiOnly, moaiRoot, moaiPrefs).equals(id) || !LauncherModIntegrity.valid(moaiRoot.resolve(id).toFile(), id))
+            throw new AssertionError("standalone moai visual with bundle must import");
+        Path moaiManifest = moaiRoot.resolve(id).resolve("manifest.json");
+        byte[] moaiBefore = Files.readAllBytes(moaiManifest); moaiPrefs.state.put(id, true);
+        boolean bundleRejected = false;
+        try { install(rewrite(moaiOnly, scratch.resolve("moai-no-bundle.zip"), m -> m.getJSONObject("map").remove("bundle")), moaiRoot, moaiPrefs); }
+        catch (IOException expected) { bundleRejected = "map bundle must match declared assets".equals(expected.getMessage()); }
+        if (!bundleRejected || !Arrays.equals(moaiBefore, Files.readAllBytes(moaiManifest)) || !moaiPrefs.getBoolean(id, false))
+            throw new AssertionError("standalone moai visual must require a bundle without changing installed state");
         install(rewrite(valid, scratch.resolve("legacy.zip"), m -> {
             m.put("api", 3);
             var environments = m.getJSONObject("map").getJSONArray("stageEnvironments");
             for (int i=0;i<environments.length();i++) environments.getJSONObject(i).remove("streetscape");
         }), root, prefs);
-        System.out.println("PASS: API4 street ZIP dispatch/integrity; 22 malformed updates preserve installed bytes/state; API3 still imports. Scratch: " + scratch);
+        System.out.println("PASS: API4 street ZIP dispatch/integrity; " + invalid.size() + " malformed updates preserve installed bytes/state; standalone moai visual requires its bundle; API3 still imports. Scratch: " + scratch);
     }
 }

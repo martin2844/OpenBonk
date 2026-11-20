@@ -16,6 +16,8 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -49,6 +51,7 @@ public final class SplitDataLauncher extends Activity {
     private static final int INK = 0xfffaf2ff;
     private static final int MUTED = 0xffcbbbd4;
     private static final int GOLD = 0xffffb744;
+    private static final int UPDATE_ORANGE = 0xffff9b42;
     private static final int LIME = 0xffd5f55f;
     private static final Typeface DISPLAY = Typeface.create("sans-serif-black", Typeface.NORMAL);
     private static final Typeface MEDIUM = Typeface.create("sans-serif-medium", Typeface.NORMAL);
@@ -80,7 +83,20 @@ public final class SplitDataLauncher extends Activity {
     private Button mods;
     private Button importModButton;
     private Button onlineMods, updateButton;
-    private Button downloadUpdateButton;
+    private Button downloadUpdateButton, updatesTab;
+    private BusyAction appUpdateAction;
+    private static final LauncherTransferState MOD_TRANSFER = new LauncherTransferState();
+    private final java.util.HashMap<String, CatalogAction> catalogActions = new java.util.HashMap<>();
+    private Runnable catalogRefresh;
+    private long renderedModCompletion;
+    private LauncherTransferState.Snapshot shownAppTransfer;
+    private final Runnable transferUiTick = new Runnable() {
+        @Override public void run() {
+            if (isFinishing() || isDestroyed()) return;
+            refreshTransferUi();
+            message.postDelayed(this, 250);
+        }
+    };
     private TextView gameDataStatus, updateStatus, releaseStatus;
     private LinearLayout releaseList;
     private int updateRequest;
@@ -331,8 +347,10 @@ public final class SplitDataLauncher extends Activity {
         updateStatus.setText(es ? "Última versión: sin comprobar" : "Latest version: not checked"); updateCard.addView(updateStatus);
         updateButton = new Button(this); updateButton.setText(es ? "Buscar actualización" : "Check for updates");
         updateButton.setOnClickListener(v -> loadUpdateOverview()); styleButton(updateButton, false); updateCard.addView(updateButton, buttonParams());
-        downloadUpdateButton = new Button(this); downloadUpdateButton.setText(es ? "Descargar actualización" : "Download update");
-        styleButton(downloadUpdateButton, true); downloadUpdateButton.setVisibility(View.GONE); updateCard.addView(downloadUpdateButton, buttonParams());
+        appUpdateAction = new BusyAction(true);
+        downloadUpdateButton = appUpdateAction.button;
+        downloadUpdateButton.setText(es ? "Descargar actualización" : "Download update");
+        appUpdateAction.setVisibility(View.GONE); updateCard.addView(appUpdateAction, buttonParams());
         historyCard.addView(cardTitle(es ? "Últimos cambios" : "Recent releases"));
         releaseStatus = new TextView(this); releaseStatus.setTextColor(MUTED); releaseStatus.setTextSize(12);
         releaseStatus.setText(es ? "Abrí esta sección para cargar los cambios." : "Open this section to load release notes."); historyCard.addView(releaseStatus);
@@ -375,6 +393,7 @@ public final class SplitDataLauncher extends Activity {
             Button tab = new Button(this);
             tab.setText(tabNames[i]);
             tabButtons[i] = tab;
+            if (i == 4) updatesTab = tab;
             tabs.addView(tab, new LinearLayout.LayoutParams(0, -1, 1));
             tab.setOnClickListener(v -> {
                 boolean game = index == 0;
@@ -412,7 +431,7 @@ public final class SplitDataLauncher extends Activity {
         gameStatusCard.addView(gameVersion);
 
         setContentView(layout);
-        tabButtons[0].performClick();
+        (LauncherOnlineUi.UPDATE.snapshot().busy ? tabButtons[4] : tabButtons[0]).performClick();
         checkData();
         long lastCheck = launcherPrefs.getLong("last_update_check", 0);
         if (launcherPrefs.getBoolean("auto_update_checks", true) && System.currentTimeMillis() - lastCheck >= 24L * 60 * 60 * 1000) {
@@ -634,6 +653,93 @@ public final class SplitDataLauncher extends Activity {
         actionStyle(button, primary ? LIME : INSET, primary ? Color.TRANSPARENT : LINE, primary ? CANVAS : INK);
     }
 
+    void styleUpdateButton(Button button) {
+        actionStyle(button, UPDATE_ORANGE, Color.TRANSPARENT, CANVAS);
+    }
+
+    private final class BusyAction extends FrameLayout {
+        final Button button;
+        final ProgressBar spinner;
+        BusyAction(boolean update) {
+            super(SplitDataLauncher.this);
+            button = new Button(SplitDataLauncher.this);
+            if (update) styleUpdateButton(button); else styleButton(button, false);
+            addView(button, new FrameLayout.LayoutParams(-1, -1));
+            spinner = new ProgressBar(SplitDataLauncher.this, null, android.R.attr.progressBarStyleSmall);
+            spinner.setIndeterminate(true);
+            spinner.setIndeterminateTintList(ColorStateList.valueOf(UPDATE_ORANGE));
+            spinner.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            FrameLayout.LayoutParams progress = new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.START | Gravity.CENTER_VERTICAL);
+            progress.setMarginStart(dp(9)); addView(spinner, progress);
+            spinner.setVisibility(View.GONE);
+        }
+        void bind(boolean busy, boolean enabled, String label) {
+            if (!label.contentEquals(button.getText())) button.setText(label);
+            button.setEnabled(enabled && !busy);
+            button.setPadding(dp(busy ? 32 : 8), 0, dp(8), 0);
+            spinner.setVisibility(busy ? View.VISIBLE : View.GONE);
+            button.setContentDescription(label);
+        }
+    }
+
+    private final class CatalogAction {
+        final BusyAction action;
+        final TextView details;
+        final String description, label;
+        CatalogAction(BusyAction action, TextView details, String description, String label) {
+            this.action = action; this.details = details; this.description = description; this.label = label;
+        }
+    }
+
+    private String transferStatus(LauncherTransferState.Snapshot state, boolean app) {
+        switch (state.phase) {
+            case DOWNLOAD: return es ? "Descargando…" : "Downloading…";
+            case VERIFY: return es ? "Verificando…" : "Verifying…";
+            case INSTALL: return app ? (es ? "Abriendo instalador…" : "Opening installer…")
+                : (es ? "Instalando…" : "Installing…");
+            case FAILED: return (es ? "Falló. Intentá de nuevo: " : "Failed. Try again: ") + state.failure;
+            case DONE: return app ? (es ? "Descarga lista. Android debe confirmar la instalación." : "Download ready. Android must confirm installation.")
+                : (es ? "Instalado" : "Installed");
+            default: return "";
+        }
+    }
+
+    void showAppUpdateProgress() {
+        updatesTab.performClick();
+        refreshTransferUi();
+    }
+
+    void refreshTransferUi() {
+        if (appUpdateAction == null) return;
+        LauncherTransferState.Snapshot app = LauncherOnlineUi.UPDATE.snapshot();
+        if (app != shownAppTransfer) {
+            shownAppTransfer = app;
+            if (app.phase != LauncherTransferState.Phase.IDLE) {
+                appUpdateAction.setVisibility(View.VISIBLE);
+                appUpdateAction.bind(app.busy, true, app.busy
+                    ? (es ? "Actualizando…" : "Updating…")
+                    : (es ? "Descargar actualización" : "Download update"));
+                updateStatus.setText(transferStatus(app, true));
+                JSONObject info = LauncherOnlineUi.updateInfo();
+                if (info != null) downloadUpdateButton.setOnClickListener(v -> LauncherOnlineUi.downloadUpdate(this, es, info));
+            }
+        }
+        updateButton.setEnabled(!app.busy && !IMPORT_GATE.isBusy());
+        LauncherTransferState.Snapshot mod = MOD_TRANSFER.snapshot();
+        if (mod.phase == LauncherTransferState.Phase.DONE && mod.generation != renderedModCompletion) {
+            renderedModCompletion = mod.generation;
+            if (catalogRefresh != null) catalogRefresh.run();
+        }
+        for (java.util.Map.Entry<String, CatalogAction> entry : catalogActions.entrySet()) {
+            CatalogAction row = entry.getValue();
+            boolean thisMod = entry.getKey().equals(mod.id), busy = thisMod && mod.busy;
+            row.action.bind(busy, !IMPORT_GATE.isBusy(), busy ? (es ? "Espera…" : "Wait…") : row.label);
+            String detail = thisMod && (mod.busy || mod.phase == LauncherTransferState.Phase.FAILED)
+                ? transferStatus(mod, false) : row.description;
+            if (!detail.contentEquals(row.details.getText())) row.details.setText(detail);
+        }
+    }
+
     private void stylePlay(Button button) {
         actionStyle(button, GOLD, Color.TRANSPARENT, CANVAS);
         button.setTextSize(19);
@@ -694,12 +800,18 @@ public final class SplitDataLauncher extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        if (message != null) { message.removeCallbacks(transferUiTick); transferUiTick.run(); }
         if (touchSettingsPanel != null && touchSettingsPanel.getParent() instanceof android.view.ViewGroup) {
             android.view.ViewGroup parent = (android.view.ViewGroup)touchSettingsPanel.getParent();
             int position = parent.indexOfChild(touchSettingsPanel); parent.removeView(touchSettingsPanel);
             touchSettingsPanel = LauncherTouchPanel.create(this, es); parent.addView(touchSettingsPanel, position);
             touchSettingsPanel.setVisibility(touchMode == 1 ? View.VISIBLE : View.GONE);
         }
+    }
+
+    @Override protected void onPause() {
+        if (message != null) message.removeCallbacks(transferUiTick);
+        super.onPause();
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -852,6 +964,7 @@ public final class SplitDataLauncher extends Activity {
                 boolean initial = usesLegacyPreference.get(i) && legacy.contains(oldKey) ? legacy.getInt(oldKey, 0) != 0 : defaults.get(i);
                 selected[i] = original[i] = prefs.getBoolean(ids.get(i), initial);
             }
+            catalogActions.clear(); catalogRefresh = null;
             modCard.setVisibility(View.GONE); catalogCard.setVisibility(View.VISIBLE); catalogCard.removeAllViews();
             catalogCard.addView(cardTitle(es ? "Gestionar mods" : "Manage mods"));
             LinearLayout results = new LinearLayout(this); results.setOrientation(LinearLayout.VERTICAL); catalogCard.addView(results);
@@ -988,7 +1101,7 @@ public final class SplitDataLauncher extends Activity {
             ? (es ? "Importar datos Android preparados" : "Import prepared Android data")
             : (ready ? (es ? "Cambiar datos" : "Change data") : (es ? "Seleccionar datos" : "Choose data")));
         choose.setEnabled(true); chooseSteam.setEnabled(true); chooseProfile.setEnabled(true); exportCurrentProfile.setEnabled(true); play.setEnabled(ready);
-        mods.setEnabled(true); importModButton.setEnabled(true); onlineMods.setEnabled(true); updateButton.setEnabled(true);
+        mods.setEnabled(true); importModButton.setEnabled(true); onlineMods.setEnabled(true); updateButton.setEnabled(!LauncherOnlineUi.UPDATE.snapshot().busy);
         (ready ? play : LauncherDiagnosticIntegration.available(this) ? chooseSteam : choose).requestFocus();
     }
 
@@ -1005,10 +1118,12 @@ public final class SplitDataLauncher extends Activity {
     }
 
     private void loadUpdateOverview() {
+        if (LauncherOnlineUi.UPDATE.snapshot().busy) { refreshTransferUi(); return; }
         final int request = ++updateRequest;
+        final long transferGeneration = LauncherOnlineUi.UPDATE.snapshot().generation;
         updateStatus.setText(es ? "Buscando la última versión…" : "Checking the latest version…");
         releaseStatus.setVisibility(View.VISIBLE); releaseStatus.setText(es ? "Cargando novedades…" : "Loading release notes…"); releaseList.removeAllViews();
-        downloadUpdateButton.setVisibility(View.GONE);
+        appUpdateAction.setVisibility(View.GONE);
         new Thread(() -> {
             try {
                 JSONObject info = LauncherOnline.metadata(LauncherOnline.UPDATES);
@@ -1018,14 +1133,15 @@ public final class SplitDataLauncher extends Activity {
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed() || request != updateRequest) return;
                     String status = remote > installed ? (es ? "Actualización disponible" : "Update available") : (es ? "Estás al día" : "Up to date");
+                    if (LauncherOnlineUi.UPDATE.snapshot().generation != transferGeneration) { refreshTransferUi(); return; }
                     updateStatus.setText((es ? "Última versión: " : "Latest version: ") + info.optString("tag") + "  ·  " + status);
                     if (remote > installed) {
-                        downloadUpdateButton.setVisibility(View.VISIBLE);
+                        appUpdateAction.setVisibility(View.VISIBLE);
                         downloadUpdateButton.setOnClickListener(v -> LauncherOnlineUi.downloadUpdate(this, es, info));
                     }
                 });
             } catch (Exception e) { runOnUiThread(() -> {
-                if (!isFinishing() && !isDestroyed() && request == updateRequest) updateStatus.setText(es ? "No se pudo comprobar la última versión. Intentá de nuevo." : "Could not check the latest version. Try again.");
+                if (!isFinishing() && !isDestroyed() && request == updateRequest && LauncherOnlineUi.UPDATE.snapshot().generation == transferGeneration) updateStatus.setText(es ? "No se pudo comprobar la última versión. Intentá de nuevo." : "Could not check the latest version. Try again.");
             }); }
         }, "openbonk-update-overview").start();
         new Thread(() -> {
@@ -1253,11 +1369,13 @@ public final class SplitDataLauncher extends Activity {
     }
 
     void showCatalogLoading() {
+        catalogActions.clear(); catalogRefresh = null;
         modCard.setVisibility(View.GONE); catalogCard.setVisibility(View.VISIBLE); catalogCard.removeAllViews();
         catalogCard.addView(cardTitle(es ? "Catálogo de mods" : "Mod catalog"));
         TextView text = new TextView(this); text.setTextColor(Color.WHITE); text.setText(es ? "Cargando…" : "Loading…"); catalogCard.addView(text);
     }
     void showCatalogError(String error) {
+        catalogActions.clear(); catalogRefresh = null;
         modCard.setVisibility(View.GONE); catalogCard.setVisibility(View.VISIBLE); catalogCard.removeAllViews();
         catalogCard.addView(cardTitle(es ? "No se pudo cargar el catálogo" : "Could not load catalog"));
         TextView text = new TextView(this); text.setTextColor(Color.WHITE); text.setText(error); catalogCard.addView(text);
@@ -1265,6 +1383,7 @@ public final class SplitDataLauncher extends Activity {
         back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); catalogCard.addView(back, new LinearLayout.LayoutParams(dp(106), dp(36)));
     }
     void showCatalog(JSONArray entries) {
+        catalogActions.clear(); catalogRefresh = null;
         modCard.setVisibility(View.GONE); catalogCard.setVisibility(View.VISIBLE); catalogCard.removeAllViews();
         catalogCard.addView(cardTitle(es ? "Catálogo de mods" : "Mod catalog"));
         android.widget.EditText search = new android.widget.EditText(this); search.setSingleLine(true); search.setTextColor(Color.WHITE);
@@ -1282,6 +1401,7 @@ public final class SplitDataLauncher extends Activity {
         File modsRoot = storage == null ? null : new File(storage, "Mods");
         Runnable[] refresh = new Runnable[1];
         Runnable render = () -> {
+            catalogActions.clear();
             results.removeAllViews(); String query = search.getText().toString().trim().toLowerCase(Locale.ROOT); ArrayList<JSONObject> matches = new ArrayList<>();
             for (int i = 0; i < entries.length(); i++) {
                 JSONObject item = entries.optJSONObject(i); if (item == null) continue;
@@ -1325,17 +1445,17 @@ public final class SplitDataLauncher extends Activity {
                         .setPositiveButton("OK", null);
                     if (installed != null && installedVersion.isEmpty()) {
                         detailsDialog.setNeutralButton(es ? "Reemplazar…" : "Replace…",
-                            (dialog, which) -> confirmModReplacement(item, refresh[0]));
+                            (dialog, which) -> confirmModReplacement(item));
                     }
                     showDialog(detailsDialog.create());
                 });
                 View action;
                 if (installed == null || hasUpdate) {
-                    Button importButton = new Button(this);
-                    importButton.setText(hasUpdate ? (es ? "Actualizar" : "Update") : (es ? "Importar" : "Import"));
-                    styleButton(importButton, false);
-                    importButton.setOnClickListener(v -> importOnlineMod(item, refresh[0]));
-                    action = importButton;
+                    BusyAction importAction = new BusyAction(hasUpdate);
+                    String label = hasUpdate ? (es ? "Actualizar" : "Update") : (es ? "Importar" : "Import");
+                    importAction.button.setOnClickListener(v -> importOnlineMod(item));
+                    catalogActions.put(id, new CatalogAction(importAction, details, item.optString("description"), label));
+                    action = importAction;
                 } else {
                     TextView badge = uiText("✓ " + installedLabel, 12, LIME);
                     badge.setGravity(Gravity.CENTER);
@@ -1343,7 +1463,7 @@ public final class SplitDataLauncher extends Activity {
                     badge.setBackground(shape(0xff32343a, LINE));
                     action = badge;
                 }
-                LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(dp(88), dp(installed != null && !hasUpdate ? 29 : 36));
+                LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(dp(104), dp(installed != null && !hasUpdate ? 29 : 36));
                 actionParams.setMarginStart(dp(6));
                 row.addView(action, actionParams);
                 rowGroup.addView(row, new LinearLayout.LayoutParams(0, -1, 1));
@@ -1351,15 +1471,17 @@ public final class SplitDataLauncher extends Activity {
             if (matches.isEmpty()) { TextView empty = new TextView(this); empty.setTextColor(Color.WHITE); empty.setText(es ? "No se encontraron mods." : "No mods found."); results.addView(empty); }
             pageLabel.setText((page[0] + 1) + " / " + pages + "  ·  " + matches.size()); previous.setEnabled(page[0] > 0); next.setEnabled(page[0] + 1 < pages);
         };
-        refresh[0] = () -> { if (results.isAttachedToWindow()) render.run(); };
-        previous.setOnClickListener(v -> { if (page[0] > 0) { page[0]--; render.run(); } });
-        next.setOnClickListener(v -> { page[0]++; render.run(); });
+        refresh[0] = () -> { if (results.isAttachedToWindow()) { render.run(); refreshTransferUi(); } };
+        catalogRefresh = refresh[0];
+        previous.setOnClickListener(v -> { if (page[0] > 0) { page[0]--; render.run(); refreshTransferUi(); } });
+        next.setOnClickListener(v -> { page[0]++; render.run(); refreshTransferUi(); });
         search.addTextChangedListener(new android.text.TextWatcher() {
             public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
-            public void onTextChanged(CharSequence text, int start, int before, int count) { page[0] = 0; render.run(); }
+            public void onTextChanged(CharSequence text, int start, int before, int count) { page[0] = 0; render.run(); refreshTransferUi(); }
             public void afterTextChanged(android.text.Editable text) { }
         });
         render.run();
+        refreshTransferUi();
         Button back = new Button(this); back.setText(es ? "Volver" : "Back"); styleButton(back, false);
         back.setOnClickListener(v -> { catalogCard.setVisibility(View.GONE); modCard.setVisibility(View.VISIBLE); }); catalogCard.addView(back, new LinearLayout.LayoutParams(dp(106), dp(36)));
     }
@@ -1385,22 +1507,31 @@ public final class SplitDataLauncher extends Activity {
         return false;
     }
 
-    private void confirmModReplacement(JSONObject item, Runnable refresh) {
+    private void confirmModReplacement(JSONObject item) {
         showDialog(new AlertDialog.Builder(this).setTitle(item.optString("name"))
             .setMessage(es ? "Esto reemplaza el mod instalado por la versión del catálogo." : "This replaces the installed mod with the catalog version.")
             .setNegativeButton(es ? "Cancelar" : "Cancel", null)
-            .setPositiveButton(es ? "Reemplazar" : "Replace", (dialog, which) -> importOnlineMod(item, refresh)).create());
+            .setPositiveButton(es ? "Reemplazar" : "Replace", (dialog, which) -> importOnlineMod(item)).create());
     }
 
-    private void importOnlineMod(JSONObject item, Runnable refresh) {
+    private void importOnlineMod(JSONObject item) {
         if (!IMPORT_GATE.begin()) { modHint.setText(es ? "Ya hay una importación en curso." : "An import is already in progress."); return; }
+        File storage = getExternalFilesDir(null);
+        String itemId = item.optString("id");
+        boolean updating = storage != null && itemId.matches("[A-Za-z0-9_-]{1,64}")
+            && readInstalledMod(new File(new File(storage, "Mods"), itemId)) != null;
+        final long transfer = MOD_TRANSFER.begin(itemId, updating);
         setImportBusy(); modHint.setText(es ? "Descargando mod…" : "Downloading mod…");
+        refreshTransferUi();
         final long generation = IMPORT_GATE.generation();
-        runImport(() -> {
+        try { runImport(() -> {
             String id = null, error = null; File file = null;
             try {
                 file = File.createTempFile("openbonk-mod-", ".zip", getCacheDir());
-                LauncherOnline.download(item, file, 128L * 1024 * 1024); LauncherOnline.checkModId(file, item.getString("id"));
+                LauncherOnline.download(item, file, 128L * 1024 * 1024);
+                MOD_TRANSFER.phase(transfer, LauncherTransferState.Phase.VERIFY);
+                LauncherOnline.checkModId(file, item.getString("id"));
+                MOD_TRANSFER.phase(transfer, LauncherTransferState.Phase.INSTALL);
                 synchronized (DATA_LOCK) {
                     File root = getExternalFilesDir(null); if (root == null) throw new IOException("storage unavailable");
                     try (InputStream in = new FileInputStream(file)) { id = LauncherModImporter.install(in, new File(root, "Mods"), getSharedPreferences("megabonk_mod_state", MODE_PRIVATE)); }
@@ -1409,12 +1540,19 @@ public final class SplitDataLauncher extends Activity {
             } catch (Exception e) { error = LauncherImportError.describe(e, es); }
             finally { if (file != null) file.delete(); }
             IMPORT_GATE.modResult(id, error, false); final String failure = error;
+            MOD_TRANSFER.finish(transfer, error);
             runOnUiThread(() -> { if (isFinishing() || isDestroyed() || IMPORT_GATE.generation() != generation) return;
                 setReady(dataReady); showModImportResult();
-                if (failure == null) refresh.run();
-                else showCatalogError(failure);
+                refreshTransferUi();
+                if (failure != null) showDialog(new AlertDialog.Builder(this)
+                    .setTitle(es ? "No se pudo completar" : "Could not complete")
+                    .setMessage(failure).setPositiveButton("OK", null).create());
             });
         }, "openbonk-online-mod");
+        } catch (RuntimeException e) {
+            MOD_TRANSFER.finish(transfer, LauncherImportError.describe(e, es));
+            setReady(dataReady); refreshTransferUi();
+        }
     }
 
     private void openModPicker() {

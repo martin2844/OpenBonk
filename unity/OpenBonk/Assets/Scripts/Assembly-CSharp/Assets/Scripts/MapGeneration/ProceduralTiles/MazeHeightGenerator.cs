@@ -22,6 +22,64 @@ namespace Assets.Scripts.MapGeneration.ProceduralTiles
 		{
 		}
 
+		// Opt-in street districts retain their elevation through turns and branch
+		// junctions. A broad, seeded height field creates upper and lower districts
+		// instead of pulling every new ramp run back towards sea level. Only
+		// straight, single-child tiles can ramp, preserving every maze connection.
+		public static void GenerateHeightTerraces(ProceduralTileGeneration generator, NodeTree startNode, int seed, MapParameters parameters)
+		{
+			const int maximumLevel = 4;
+			var random = new System.Random(seed ^ 0x54455252);
+			double phaseX = random.NextDouble() * System.Math.PI * 2;
+			double phaseZ = random.NextDouble() * System.Math.PI * 2;
+			var pending = new Queue<NodeTree>();
+			NodeTree current = startNode;
+			int height = 0;
+			while (current != null)
+			{
+				NodeTree next = null;
+				bool resumedBranch = false;
+				for (int i = 0; i < current.children.Count; i++)
+					if (i == 0) next = current.children[i];
+					else pending.Enqueue(current.children[i]);
+				if (next == null && pending.Count > 0)
+				{
+					next = pending.Dequeue();
+					resumedBranch = true;
+				}
+				Vector2Int direction = Vector2Int.zero;
+				bool straight = current.children.Count == 1 && current.children.Contains(next) && current.parent != null;
+				if (straight)
+				{
+					direction = next.position - current.position;
+					straight = direction == current.position - current.parent.position;
+				}
+				int slope = 0, tileHeight = height;
+				if (straight && random.NextDouble() < parameters.volatility)
+				{
+					double u = (current.position.x + .5) / parameters.size;
+					double v = (current.position.y + .5) / parameters.size;
+					int target = (int)System.Math.Round(maximumLevel *
+						(.65 * System.Math.Sin(u * System.Math.PI * 2 + phaseX) +
+						 .35 * System.Math.Sin(v * System.Math.PI * 2 + phaseZ)));
+					slope = System.Math.Sign(target - height);
+					height += slope;
+					if (slope < 0) tileHeight = height;
+				}
+				current.height = height;
+				foreach (NodeTree child in current.children) child.yDir = slope;
+				Vector2Int tileDirection = slope < 0 ? -direction : direction;
+				Vector2Int parentDirection = current.parent != null
+					? current.position - current.parent.position : tileDirection;
+				generator.InstantiateTile(current.position, tileHeight,
+					slope == 0 ? generator.flatTile : generator.slopeTile,
+					new Vector3(tileDirection.x, 0f, tileDirection.y),
+					new Vector3(parentDirection.x, 0f, parentDirection.y));
+				current = next;
+				if (resumedBranch) height = current.parent.height;
+			}
+		}
+
 		public static void GenerateHeightMe(ProceduralTileGeneration proceduralTileGeneration, NodeTree startNode, int seed, MapParameters mapParameters)
 		{
 			var random = new System.Random(seed);

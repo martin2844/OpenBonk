@@ -300,7 +300,7 @@ final class LauncherContentImporter {
                 !optionalText(entry, "wallTexture", 120) || !optionalText(entry, "potVisual", 120) ||
                 !optionalText(entry, "silverPotVisual", 120) || !optionalText(entry, "architectureMaterial", 120) ||
                 !optionalText(entry, "skyMaterial", 120) || !optionalText(entry, "arenaLandmark", 120) ||
-                !optionalText(entry, "potBreakFx", 120) ||
+                !optionalText(entry, "potBreakFx", 120) || !optionalText(entry, "moaiVisual", 120) ||
                 (entry.has("replaceDecorations") && !(entry.opt("replaceDecorations") instanceof Boolean)))
                 throw new IOException("invalid stage environment");
             int index = entry.optInt("stage") - 1;
@@ -343,11 +343,12 @@ final class LauncherContentImporter {
             if (landmark && (entry.has("rooftops") || !entry.optBoolean("replaceDecorations")))
                 throw new IOException("arena landmarks require tiled terrain with mod decorations");
             boolean potEffect = !optionalString(entry, "potBreakFx").isEmpty();
+            boolean moai = !optionalString(entry, "moaiVisual").isEmpty();
             boolean hasPotVisual = !optionalString(entry, "potVisual").isEmpty() ||
                 !optionalString(entry, "silverPotVisual").isEmpty();
             if (seen[index] || (!entry.optBoolean("replaceDecorations") && optionalString(entry, "groundTexture").isEmpty() &&
-                optionalString(entry, "wallTexture").isEmpty() && !hasPotVisual && !architecture && !potEffect)) throw new IOException("invalid stage environment");
-            needsBundle |= hasPotVisual || architecture || landmark || potEffect;
+                optionalString(entry, "wallTexture").isEmpty() && !moai && !hasPotVisual && !architecture && !potEffect)) throw new IOException("invalid stage environment");
+            needsBundle |= moai || hasPotVisual || architecture || landmark || potEffect;
             seen[index] = true;
         }
         return needsBundle;
