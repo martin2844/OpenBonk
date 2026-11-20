@@ -124,8 +124,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         safe.offsetMin = safe.offsetMax = Vector2.zero;
 
         // The first sibling receives only touches that did not start on a
-        // control. Jump explicitly shares its gesture with free look;
-        // the other controls keep exclusive ownership.
+        // control. Jump, Aim and Slide also share their gestures with free look.
         var lookArea = new GameObject("Free look area", typeof(RectTransform), typeof(Image), typeof(AndroidTouchFreeLook));
         var lookRect = (RectTransform)lookArea.transform;
         lookRect.SetParent(safe, false); lookRect.anchorMin = Vector2.zero; lookRect.anchorMax = Vector2.one;
@@ -209,38 +208,24 @@ internal sealed class AndroidTouchControls : MonoBehaviour
 
 internal sealed class AndroidTouchFreeLook : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 {
-    private static int pointer = int.MinValue;
-    private static int jumpPointer = int.MinValue;
-
     public void OnPointerDown(PointerEventData e)
     {
-        if (!AndroidTouchLayoutEditor.Editing && pointer == int.MinValue) pointer = e.pointerId;
+        if (!AndroidTouchLayoutEditor.Editing) AndroidTouchInput.LookGestures.Capture("", e.pointerId);
     }
-    public void OnPointerUp(PointerEventData e) { if (e.pointerId == pointer) pointer = int.MinValue; }
-    private void OnDisable() { pointer = jumpPointer = int.MinValue; }
-
-    internal static void CaptureJump(int id) { jumpPointer = id; }
-    internal static void ReleaseJump(int id) { if (jumpPointer == id) jumpPointer = int.MinValue; }
+    public void OnPointerUp(PointerEventData e) { AndroidTouchInput.LookGestures.Release("", e.pointerId); }
+    private void OnDisable() { AndroidTouchInput.LookGestures.Clear(); }
 
     internal static Vector2 Delta()
     {
         if (AndroidTouchLayoutEditor.Editing) return Vector2.zero;
-        if (pointer == int.MinValue && jumpPointer == int.MinValue) return Vector2.zero;
-        Vector2 freeDelta = Vector2.zero;
-        bool foundFree = false;
+        var gestures = AndroidTouchInput.LookGestures;
+        gestures.BeginSample();
         for (int i = 0; i < Input.touchCount; i++)
         {
             Touch touch = Input.GetTouch(i);
-            if (touch.fingerId == jumpPointer && touch.phase == TouchPhase.Moved)
-                return ScaleDelta(touch.deltaPosition);
-            if (touch.fingerId == pointer)
-            {
-                foundFree = true;
-                if (touch.phase == TouchPhase.Moved) freeDelta = touch.deltaPosition;
-            }
+            gestures.Observe(touch.fingerId, touch.phase, touch.deltaPosition);
         }
-        if (!foundFree) pointer = int.MinValue;
-        return ScaleDelta(freeDelta);
+        return ScaleDelta(gestures.EndSample());
     }
 
     private static Vector2 ScaleDelta(Vector2 delta) => delta * (1080f / Mathf.Max(1, Screen.height)) * .04f;
@@ -317,7 +302,7 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
         else
         {
             AndroidTouchInput.SetButton(action, true);
-            if (action == "Jump") AndroidTouchFreeLook.CaptureJump(pointer);
+            AndroidTouchInput.LookGestures.Capture(action, pointer);
         }
     }
     public void OnPointerUp(PointerEventData eventData) { if (eventData.pointerId == pointer) Release(); }
@@ -325,7 +310,7 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
     internal void ResetPointer() { Release(); }
     private void Release()
     {
-        if (action == "Jump") AndroidTouchFreeLook.ReleaseJump(pointer);
+        AndroidTouchInput.LookGestures.Release(action, pointer);
         pointer = int.MinValue;
         if (action != "Pause") AndroidTouchInput.SetButton(action, false);
     }
