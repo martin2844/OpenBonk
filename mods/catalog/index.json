@@ -102,12 +102,12 @@
     },
     {
       "id": "distrito-nimbo",
-      "name": "Distrito Nimbo",
-      "description": "Sunny Japanese neighborhood with terraced streets, shops, vending machines, gachapon, lanterns and Mewtwo shrine statues. Three nine-minute stages with textured, articulated Pokémon. Requires OpenBonk 0.1.18 or newer; contains third-party Pokémon models.",
-      "version": "2.1.0",
-      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.18-beta/distrito-nimbo-pokemon-2.1.0.zip",
-      "size": 19650070,
-      "sha256": "faeceb59555c2f653a7ef8910a6fbac1bd1455f903c937b2704111b6e4dd1133"
+      "name": "Nimbo District",
+      "description": "Sunny Japanese neighborhood with hillside streets, tall shops and apartments, gray roads, grassy pockets and dirt paths. Native 10/9/8-minute stages, animated Pok\u00e9mon, Fearow whirlwinds and Mewtwo shrine statues. Requires OpenBonk 0.1.20 or newer; contains third-party Pok\u00e9mon models.",
+      "version": "2.2.0",
+      "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.20-beta/nimbo-district-pokemon-2.2.0.zip",
+      "size": 19752988,
+      "sha256": "d43a974c0327776643faaf5f391bcc097041aed882b466758cef0f9c4282733d"
     },
     {
       "id": "offer-tools",
