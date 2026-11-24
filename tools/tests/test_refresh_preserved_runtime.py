@@ -30,13 +30,16 @@ class PreservedRuntimeRefreshTest(unittest.TestCase):
         for name in MODULE.METADATA:
             self.put(self.source / "assets/bin/Data" / name, "new " + name)
             self.put(self.target / "assets/bin/Data" / name, "old " + name)
-        for name in MODULE.LAUNCHER_SOURCES:
+        self.launcher_sources = [
+            "LauncherContentImporter.java", "LauncherImportError.java", "LauncherModImporter.java",
+            "LauncherTouchPanel.java", "SplitDataLauncher.java",
+        ]
+        for name in self.launcher_sources:
             self.put(self.assets / "AndroidSplitLauncher" / name, "new " + name)
-            if name not in MODULE.NEW_LAUNCHER_SOURCES:
-                self.put(self.target / MODULE.JAVA / name, "old " + name)
-        # A broad source overlay would overwrite both of these sentinels.
+            self.put(self.target / MODULE.JAVA / name, "old " + name)
+        # A broad source overlay would overwrite these sentinels.
         self.put(self.assets / "AndroidSplitLauncher/SplitExpectedData.java", 'SHA256 = "EMBEDDED";')
-        self.put(self.assets / "AndroidSplitLauncher/Unrelated.java", "checkout unrelated")
+        self.put(self.assets / "Other/Unrelated.java", "checkout unrelated")
         self.put(self.target / MODULE.JAVA / "Unrelated.java", "generated unrelated")
         self.put(self.target / "assets/bin/Data/globalgamemanagers", "preserved registry")
         self.put(self.target / "assets/bin/Data/globalgamemanagers.assets.split0", "preserved game data")
@@ -62,15 +65,17 @@ class PreservedRuntimeRefreshTest(unittest.TestCase):
         self.refresh()
         after = self.snapshot()
         allowed = {str((self.target / "assets/bin/Data" / name).relative_to(self.root)) for name in MODULE.METADATA}
-        allowed.update(str((self.target / MODULE.JAVA / name).relative_to(self.root)) for name in MODULE.LAUNCHER_SOURCES)
+        allowed.update(str((self.target / MODULE.JAVA / name).relative_to(self.root)) for name in self.launcher_sources)
         il2cpp_prefix = str((self.target / "Il2CppOutputProject").relative_to(self.root)) + "/"
         for name in before.keys() | after.keys():
             if name not in allowed and not name.startswith(il2cpp_prefix):
                 self.assertEqual(before.get(name), after.get(name), name)
         for name in MODULE.METADATA:
             self.assertEqual((self.target / "assets/bin/Data" / name).read_bytes(), ("new " + name).encode())
-        for name in MODULE.LAUNCHER_SOURCES:
+        for name in self.launcher_sources:
             self.assertEqual((self.target / MODULE.JAVA / name).read_bytes(), ("new " + name).encode())
+        self.assertTrue((self.target / MODULE.JAVA / "SplitExpectedData.java").read_text().startswith("final class SplitExpectedData"))
+        self.assertEqual((self.target / MODULE.JAVA / "Unrelated.java").read_text(), "generated unrelated")
         self.assertFalse((self.target / "Il2CppOutputProject/stale.cpp").exists())
         self.assertEqual((self.target / "Il2CppOutputProject/Source/il2cppOutput/Il2CppCodeRegistration.cpp").read_text(), "new code")
 
@@ -84,25 +89,17 @@ class PreservedRuntimeRefreshTest(unittest.TestCase):
                 self.assertEqual(before, self.snapshot())
 
     def test_missing_source_fails_before_any_mutation(self):
-        (self.assets / "AndroidSplitLauncher/SplitDataLauncher.java").unlink()
+        shutil.rmtree(self.assets / "AndroidSplitLauncher")
         before = self.snapshot()
-        with self.assertRaisesRegex(ValueError, "Missing regular file"):
+        with self.assertRaisesRegex(ValueError, "Missing launcher Java sources"):
             self.refresh()
         self.assertEqual(before, self.snapshot())
 
-    def test_missing_new_helper_fails_before_any_mutation(self):
-        (self.assets / "AndroidSplitLauncher/LauncherTransferState.java").unlink()
-        before = self.snapshot()
-        with self.assertRaisesRegex(ValueError, "Missing regular file"):
-            self.refresh()
-        self.assertEqual(before, self.snapshot())
-
-    def test_missing_existing_launcher_fails_before_any_mutation(self):
-        (self.target / MODULE.JAVA / "LauncherOnlineUi.java").unlink()
-        before = self.snapshot()
-        with self.assertRaisesRegex(ValueError, "Missing regular file"):
-            self.refresh()
-        self.assertEqual(before, self.snapshot())
+    @unittest.skipUnless(shutil.which("rsync"), "rsync is required for the real copy fixture")
+    def test_new_launcher_source_is_added(self):
+        self.put(self.assets / "AndroidSplitLauncher/LauncherNew.java", "new class")
+        self.refresh()
+        self.assertEqual((self.target / MODULE.JAVA / "LauncherNew.java").read_text(), "new class")
 
     @unittest.skipUnless(shutil.which("rsync"), "rsync is required by the helper")
     def test_dry_run_changes_nothing(self):
