@@ -286,15 +286,17 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
 
     internal void RefreshLabel()
     {
-        string glyph = action == "Pause" ? "II" : AndroidControlText.TouchGlyph(action);
+        bool xbox = AndroidControlText.XboxLabels;
+        string glyph = action == "Pause" ? "II" : xbox ? AndroidControlText.TouchGlyph(action) : AndroidControlText.TouchAction(action);
         label.text = glyph ?? string.Empty;
-        label.color = action == "Aim" ? new Color(.12f, .10f, .02f, 1f) : new Color(.96f, .97f, .90f, 1f);
+        label.color = xbox && action == "Aim" ? new Color(.12f, .10f, .02f, 1f) : new Color(.96f, .97f, .90f, 1f);
         var background = GetComponent<Image>();
-        if (background != null) background.color = ButtonColor(action);
+        if (background != null) background.color = ButtonColor(action, xbox);
     }
 
-    private static Color ButtonColor(string action)
+    private static Color ButtonColor(string action, bool xbox)
     {
+        if (!xbox) return action == "Interact" ? new Color(.20f, .41f, .45f, .72f) : new Color(.10f, .15f, .17f, .64f);
         if (string.Equals(action, "Jump", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "Jump Bhop", StringComparison.OrdinalIgnoreCase)) return new Color(.28f, .60f, .24f, .72f);
         if (string.Equals(action, "Slide", StringComparison.OrdinalIgnoreCase)) return new Color(.70f, .18f, .20f, .72f);
         if (string.Equals(action, "Interact", StringComparison.OrdinalIgnoreCase)) return new Color(.16f, .42f, .70f, .72f);
@@ -344,6 +346,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private GameObject toolbar;
     private TextMeshProUGUI selectedLabel;
     private TextMeshProUGUI toggleLabel;
+    private TextMeshProUGUI labelsLabel;
     private Image toggleBackground;
     private int profileSlot = 1;
     private bool pausedForEditing;
@@ -391,6 +394,8 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         MakeButton(bar, "Save", new Vector2(-80, -195), new Vector2(165, 64), SaveProfile, true);
         MakeButton(bar, "Load", new Vector2(100, -195), new Vector2(165, 64), LoadProfile, true);
         MakeButton(bar, "Auto run", new Vector2(280, -195), new Vector2(165, 64), ToggleAutoRun, true);
+        var labels = MakeButton(bar, "Labels", new Vector2(470, -195), new Vector2(180, 64), ToggleLabels, true);
+        labelsLabel = labels.GetComponentInChildren<TextMeshProUGUI>();
         var text = new GameObject("Selection", typeof(RectTransform), typeof(TextMeshProUGUI));
         var rect = (RectTransform)text.transform; rect.SetParent(bar, false); rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1);
         rect.anchoredPosition = new Vector2(0, -255); rect.sizeDelta = new Vector2(1400, 110);
@@ -398,6 +403,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         selectedLabel.fontSize = 25; selectedLabel.alignment = TextAlignmentOptions.Center; selectedLabel.raycastTarget = false;
         toolbar.SetActive(false);
         toggle.transform.SetAsLastSibling();
+        RefreshLabelsButton();
         RefreshToggleLabel();
     }
 
@@ -449,6 +455,18 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private void ChangeOpacity(float delta) { if (selected != null) selected.SetOpacity(selected.Opacity + delta); Refresh(); }
     private void ToggleGrid() { PlayerPrefs.SetInt(Prefix + "grid", SnapToGrid ? 0 : 1); Refresh(); }
     private void ToggleAutoRun() { PlayerPrefs.SetInt(Prefix + "autorun", PlayerPrefs.GetInt(Prefix + "autorun", 0) == 0 ? 1 : 0); Refresh(); }
+    private void ToggleLabels()
+    {
+        PlayerPrefs.SetInt(Prefix + "labels", AndroidControlText.XboxLabels ? 0 : 1);
+        PlayerPrefs.Save();
+        foreach (var button in buttons) button.RefreshLabel();
+        RefreshLabelsButton(); Refresh();
+    }
+    private void RefreshLabelsButton()
+    {
+        if (labelsLabel == null) return;
+        labelsLabel.text = (Spanish ? "Etiquetas: " : "Labels: ") + (AndroidControlText.XboxLabels ? "Xbox" : (Spanish ? "Texto" : "Text"));
+    }
     private string SlotKey => Prefix + "profile." + profileSlot + ".";
     private void SaveProfile()
     {
@@ -624,7 +642,7 @@ internal static class AndroidTouchSettingsBridge
     private static readonly string[] Ids = { "Move", "Look", "Jump", "Slide", "Interact", "Aim", "MapOverlay", "Pause" };
     private static void ForEachKey(Action<string, char> visit)
     {
-        visit(Prefix + "grid", 'i'); visit(Prefix + "autorun", 'i');
+        visit(Prefix + "grid", 'i'); visit(Prefix + "autorun", 'i'); visit(Prefix + "labels", 'i');
         for (int slot = 0; slot <= 3; slot++)
         {
             string root = slot == 0 ? Prefix : Prefix + "profile." + slot + ".";

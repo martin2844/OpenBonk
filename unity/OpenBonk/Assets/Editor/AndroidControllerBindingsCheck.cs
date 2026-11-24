@@ -14,6 +14,8 @@ public static class AndroidControllerBindingsCheck
         const string prefix = "megabonk.android.gamepad.";
         var values = new int[actions.Length]; var present = new bool[actions.Length];
         for (int i = 0; i < actions.Length; i++) { present[i] = PlayerPrefs.HasKey(prefix + actions[i]); values[i] = PlayerPrefs.GetInt(prefix + actions[i], -1); }
+        bool hadLabelStyle = PlayerPrefs.HasKey(AndroidControlText.TouchLabelStyleKey);
+        int labelStyle = PlayerPrefs.GetInt(AndroidControlText.TouchLabelStyleKey, 1);
         var flags = BindingFlags.NonPublic | BindingFlags.Static;
         var oldLocale = LocalizationSettings.SelectedLocale;
         var query = typeof(AndroidNativeInput).GetMethod("IsButtonPressed", flags);
@@ -58,12 +60,15 @@ public static class AndroidControllerBindingsCheck
             AndroidControllerBindings.Reset(); Check(!AndroidControllerBindings.TryGet("Jump", out _) && !PlayerPrefs.HasKey(prefix + "Jump"), "reset removes overrides");
             Check(AndroidControllerBindings.Set("QuickReset", 2) && AndroidControllerBindings.TryGet("Interact", out int displaced) && displaced == -2 && !Press("Interact", KeyCode.JoystickButton2), "unbound action displaces conflicting default");
             Check(AndroidControlText.TouchGlyph("Jump") == "A" && AndroidControlText.TouchGlyph("Slide") == "B" && AndroidControlText.TouchGlyph("Interact") == "X" && AndroidControlText.TouchGlyph("Aim") == "Y" && AndroidControlText.TouchGlyph("MapOverlay") == "RT" && AndroidControlText.TouchGlyph("Unknown") == null, "touch button glyphs match controller defaults");
+            PlayerPrefs.SetInt(AndroidControlText.TouchLabelStyleKey, 1); Check(AndroidControlText.XboxLabels, "xbox labels preference");
+            PlayerPrefs.SetInt(AndroidControlText.TouchLabelStyleKey, 0); Check(!AndroidControlText.XboxLabels, "text labels preference");
             Debug.Log("AndroidControllerBindingsCheck passed: defaults, overrides, keyboard/menu separation, trigger routing, persistence and reset");
         }
         finally
         {
             LocalizationSettings.SelectedLocale = oldLocale;
             for (int i = 0; i < actions.Length; i++) { if (present[i]) PlayerPrefs.SetInt(prefix + actions[i], values[i]); else PlayerPrefs.DeleteKey(prefix + actions[i]); }
+            if (hadLabelStyle) PlayerPrefs.SetInt(AndroidControlText.TouchLabelStyleKey, labelStyle); else PlayerPrefs.DeleteKey(AndroidControlText.TouchLabelStyleKey);
             PlayerPrefs.Save();
             ((System.Collections.IDictionary)typeof(AndroidControllerBindings).GetField("Overrides", flags).GetValue(null)).Clear();
             typeof(AndroidControllerBindings).GetField("loaded", flags).SetValue(null, false);

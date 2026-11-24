@@ -38,6 +38,21 @@ final class LauncherTouchPanel {
         activity.divider(panel, 10);
         panel.addView(activity.cardTitle(spanish ? "Perfiles táctiles" : "Touch profiles"));
         panel.addView(text(spanish ? "Editá los controles visualmente durante una partida." : "Edit controls visually during a run."));
+        LinearLayout labelsRow = new LinearLayout(activity); labelsRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView labelsText = text(spanish ? "Etiquetas de botones" : "Button labels");
+        labelsText.setPadding(0, 0, activity.dp(8), 0);
+        labelsRow.addView(labelsText, new LinearLayout.LayoutParams(0, -2, 1));
+        Button labels = button(settings.integer(LauncherTouchSettings.PREFIX + "labels", 1) != 0
+            ? "Xbox A/B/X/Y" : (spanish ? "Texto" : "Text"), () -> {
+                settings.set(LauncherTouchSettings.PREFIX + "labels",
+                    settings.integer(LauncherTouchSettings.PREFIX + "labels", 1) != 0 ? 0 : 1);
+                render();
+            });
+        labels.setContentDescription(spanish
+            ? "Cambiar entre etiquetas de Xbox y texto"
+            : "Switch between Xbox glyphs and text labels");
+        labelsRow.addView(labels, new LinearLayout.LayoutParams(0, -1, 1));
+        panel.addView(labelsRow, activity.buttonParams());
         if (!settings.hasSnapshot()) panel.addView(text(spanish
             ? "Iniciá una partida para sincronizar una configuración anterior antes de guardarla."
             : "Start a run to sync an existing layout before saving it."));
