@@ -164,7 +164,6 @@ internal sealed class AndroidTouchControls : MonoBehaviour
     private AndroidTouchButton CreateButton(RectTransform parent, string action, Vector2 position, float size, bool top = false)
     {
         var rect = CreateImage(parent, action, position, size, true, top);
-        rect.GetComponent<Image>().color = action == "Interact" ? new Color(.20f, .41f, .45f, .72f) : new Color(.10f, .15f, .17f, .64f);
         var labelObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
         var labelRect = labelObject.GetComponent<RectTransform>();
         labelRect.SetParent(rect, false); labelRect.anchorMin = Vector2.zero; labelRect.anchorMax = Vector2.one;
@@ -177,6 +176,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         label.raycastTarget = false;
         var button = rect.gameObject.AddComponent<AndroidTouchButton>();
         button.action = action; button.label = label;
+        button.RefreshLabel();
         return button;
     }
 
@@ -286,7 +286,21 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
 
     internal void RefreshLabel()
     {
-        label.text = action == "Pause" ? "II" : AndroidControlText.TouchAction(action) ?? string.Empty;
+        string glyph = action == "Pause" ? "II" : AndroidControlText.TouchGlyph(action);
+        label.text = glyph ?? string.Empty;
+        label.color = action == "Aim" ? new Color(.12f, .10f, .02f, 1f) : new Color(.96f, .97f, .90f, 1f);
+        var background = GetComponent<Image>();
+        if (background != null) background.color = ButtonColor(action);
+    }
+
+    private static Color ButtonColor(string action)
+    {
+        if (string.Equals(action, "Jump", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "Jump Bhop", StringComparison.OrdinalIgnoreCase)) return new Color(.28f, .60f, .24f, .72f);
+        if (string.Equals(action, "Slide", StringComparison.OrdinalIgnoreCase)) return new Color(.70f, .18f, .20f, .72f);
+        if (string.Equals(action, "Interact", StringComparison.OrdinalIgnoreCase)) return new Color(.16f, .42f, .70f, .72f);
+        if (string.Equals(action, "Aim", StringComparison.OrdinalIgnoreCase)) return new Color(.86f, .68f, .12f, .78f);
+        if (string.Equals(action, "MapOverlay", StringComparison.OrdinalIgnoreCase)) return new Color(.18f, .22f, .26f, .72f);
+        return new Color(.10f, .15f, .17f, .64f);
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -350,10 +364,13 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
             AddTarget(list, (RectTransform)button.transform, id, button);
         }
         targets = list.ToArray();
-        var toggle = MakeButton(safe, "Customize", new Vector2(0, 65), new Vector2(150, 64), ToggleEditing, false);
+        // Keep the editor affordance out of the centre of the screen, where it
+        // covered the hotbar and pickup prompts during a run.
+        var toggle = MakeButton(safe, "Customize", new Vector2(-30, 30), new Vector2(124, 56), ToggleEditing, false);
         var toggleRect = (RectTransform)toggle.transform;
-        toggleRect.anchorMin = toggleRect.anchorMax = new Vector2(.5f, 0);
-        toggleRect.anchoredPosition = new Vector2(0, 65);
+        toggleRect.anchorMin = toggleRect.anchorMax = new Vector2(1, 0);
+        toggleRect.pivot = new Vector2(1, 0);
+        toggleRect.anchoredPosition = new Vector2(-30, 30);
         toggleBackground = toggle.GetComponent<Image>();
         toggleLabel = toggle.GetComponentInChildren<TextMeshProUGUI>();
         toolbar = new GameObject("Touch layout toolbar", typeof(RectTransform));

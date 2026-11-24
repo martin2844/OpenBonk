@@ -57,6 +57,7 @@ public static class AndroidControllerBindingsCheck
             Check(AndroidControllerBindings.TryGet("Jump", out int reloaded) && reloaded == 3, "reload persisted override");
             AndroidControllerBindings.Reset(); Check(!AndroidControllerBindings.TryGet("Jump", out _) && !PlayerPrefs.HasKey(prefix + "Jump"), "reset removes overrides");
             Check(AndroidControllerBindings.Set("QuickReset", 2) && AndroidControllerBindings.TryGet("Interact", out int displaced) && displaced == -2 && !Press("Interact", KeyCode.JoystickButton2), "unbound action displaces conflicting default");
+            Check(AndroidControlText.TouchGlyph("Jump") == "A" && AndroidControlText.TouchGlyph("Slide") == "B" && AndroidControlText.TouchGlyph("Interact") == "X" && AndroidControlText.TouchGlyph("Aim") == "Y" && AndroidControlText.TouchGlyph("MapOverlay") == "RT" && AndroidControlText.TouchGlyph("Unknown") == null, "touch button glyphs match controller defaults");
             Debug.Log("AndroidControllerBindingsCheck passed: defaults, overrides, keyboard/menu separation, trigger routing, persistence and reset");
         }
         finally

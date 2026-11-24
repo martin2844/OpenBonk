@@ -45,10 +45,33 @@ public final class ContentFolderCheck {
         return bytes.toByteArray();
     }
     private static void check(boolean value, String message) { if (!value) throw new AssertionError(message); }
+    private static byte[] pcPackage(boolean thunderstoreManifest) throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream output = new ZipOutputStream(bytes)) {
+            if (thunderstoreManifest) {
+                output.putNextEntry(new ZipEntry("manifest.json"));
+                output.write("{\"name\":\"Demo\",\"version_number\":\"1.0.0\",\"website_url\":\"\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                output.closeEntry();
+            }
+            output.putNextEntry(new ZipEntry("BepInEx/plugins/Demo.dll"));
+            output.write(new byte[] { 1 });
+            output.closeEntry();
+        }
+        return bytes.toByteArray();
+    }
+    private static void reject(String expected, byte[] zip, Path mods, RecoveryCheck.Prefs prefs) throws Exception {
+        try { install(zip, mods, prefs); throw new AssertionError("accepted " + expected); }
+        catch (IOException error) {
+            if (!expected.equals(error.getMessage())) throw new AssertionError("expected " + expected + ", got " + error.getMessage());
+        }
+    }
     public static void main(String[] args) throws Exception {
         Path root = Files.createTempDirectory("openbonk-mod-folder-");
         Path mods = root.resolve("Mods"), original = Path.of(args[0]);
         RecoveryCheck.Prefs prefs = new RecoveryCheck.Prefs();
+        reject("not a zip", "not a zip".getBytes(java.nio.charset.StandardCharsets.UTF_8), mods, prefs);
+        reject("pc mod package", pcPackage(true), mods, prefs);
+        reject("pc mod package", pcPackage(false), mods, prefs);
         String id = install(wrap(original, "", false, false), mods, prefs);
         byte[] before = Files.readAllBytes(mods.resolve(id).resolve("main.lua"));
         prefs.state.put(id, true);
