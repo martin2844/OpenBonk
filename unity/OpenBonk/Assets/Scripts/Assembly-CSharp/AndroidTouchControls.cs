@@ -164,7 +164,6 @@ internal sealed class AndroidTouchControls : MonoBehaviour
     private AndroidTouchButton CreateButton(RectTransform parent, string action, Vector2 position, float size, bool top = false)
     {
         var rect = CreateImage(parent, action, position, size, true, top);
-        rect.GetComponent<Image>().color = action == "Interact" ? new Color(.20f, .41f, .45f, .72f) : new Color(.10f, .15f, .17f, .64f);
         var labelObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
         var labelRect = labelObject.GetComponent<RectTransform>();
         labelRect.SetParent(rect, false); labelRect.anchorMin = Vector2.zero; labelRect.anchorMax = Vector2.one;
@@ -177,6 +176,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         label.raycastTarget = false;
         var button = rect.gameObject.AddComponent<AndroidTouchButton>();
         button.action = action; button.label = label;
+        button.RefreshLabel();
         return button;
     }
 
@@ -286,7 +286,23 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
 
     internal void RefreshLabel()
     {
-        label.text = action == "Pause" ? "II" : AndroidControlText.TouchAction(action) ?? string.Empty;
+        bool xbox = AndroidControlText.XboxLabels;
+        string glyph = action == "Pause" ? "II" : xbox ? AndroidControlText.TouchGlyph(action) : AndroidControlText.TouchAction(action);
+        label.text = glyph ?? string.Empty;
+        label.color = xbox && action == "Aim" ? new Color(.12f, .10f, .02f, 1f) : new Color(.96f, .97f, .90f, 1f);
+        var background = GetComponent<Image>();
+        if (background != null) background.color = ButtonColor(action, xbox);
+    }
+
+    private static Color ButtonColor(string action, bool xbox)
+    {
+        if (!xbox) return action == "Interact" ? new Color(.20f, .41f, .45f, .72f) : new Color(.10f, .15f, .17f, .64f);
+        if (string.Equals(action, "Jump", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "Jump Bhop", StringComparison.OrdinalIgnoreCase)) return new Color(.28f, .60f, .24f, .72f);
+        if (string.Equals(action, "Slide", StringComparison.OrdinalIgnoreCase)) return new Color(.70f, .18f, .20f, .72f);
+        if (string.Equals(action, "Interact", StringComparison.OrdinalIgnoreCase)) return new Color(.16f, .42f, .70f, .72f);
+        if (string.Equals(action, "Aim", StringComparison.OrdinalIgnoreCase)) return new Color(.86f, .68f, .12f, .78f);
+        if (string.Equals(action, "MapOverlay", StringComparison.OrdinalIgnoreCase)) return new Color(.18f, .22f, .26f, .72f);
+        return new Color(.10f, .15f, .17f, .64f);
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -330,6 +346,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private GameObject toolbar;
     private TextMeshProUGUI selectedLabel;
     private TextMeshProUGUI toggleLabel;
+    private TextMeshProUGUI labelsLabel;
     private Image toggleBackground;
     private int profileSlot = 1;
     private bool pausedForEditing;
@@ -350,10 +367,13 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
             AddTarget(list, (RectTransform)button.transform, id, button);
         }
         targets = list.ToArray();
-        var toggle = MakeButton(safe, "Customize", new Vector2(0, 65), new Vector2(150, 64), ToggleEditing, false);
+        // Keep the editor affordance out of the centre of the screen, where it
+        // covered the hotbar and pickup prompts during a run.
+        var toggle = MakeButton(safe, "Customize", new Vector2(-30, 30), new Vector2(124, 56), ToggleEditing, false);
         var toggleRect = (RectTransform)toggle.transform;
-        toggleRect.anchorMin = toggleRect.anchorMax = new Vector2(.5f, 0);
-        toggleRect.anchoredPosition = new Vector2(0, 65);
+        toggleRect.anchorMin = toggleRect.anchorMax = new Vector2(1, 0);
+        toggleRect.pivot = new Vector2(1, 0);
+        toggleRect.anchoredPosition = new Vector2(-30, 30);
         toggleBackground = toggle.GetComponent<Image>();
         toggleLabel = toggle.GetComponentInChildren<TextMeshProUGUI>();
         toolbar = new GameObject("Touch layout toolbar", typeof(RectTransform));
@@ -374,6 +394,8 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         MakeButton(bar, "Save", new Vector2(-80, -195), new Vector2(165, 64), SaveProfile, true);
         MakeButton(bar, "Load", new Vector2(100, -195), new Vector2(165, 64), LoadProfile, true);
         MakeButton(bar, "Auto run", new Vector2(280, -195), new Vector2(165, 64), ToggleAutoRun, true);
+        var labels = MakeButton(bar, "Labels", new Vector2(470, -195), new Vector2(180, 64), ToggleLabels, true);
+        labelsLabel = labels.GetComponentInChildren<TextMeshProUGUI>();
         var text = new GameObject("Selection", typeof(RectTransform), typeof(TextMeshProUGUI));
         var rect = (RectTransform)text.transform; rect.SetParent(bar, false); rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1);
         rect.anchoredPosition = new Vector2(0, -255); rect.sizeDelta = new Vector2(1400, 110);
@@ -381,6 +403,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         selectedLabel.fontSize = 25; selectedLabel.alignment = TextAlignmentOptions.Center; selectedLabel.raycastTarget = false;
         toolbar.SetActive(false);
         toggle.transform.SetAsLastSibling();
+        RefreshLabelsButton();
         RefreshToggleLabel();
     }
 
@@ -432,6 +455,18 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private void ChangeOpacity(float delta) { if (selected != null) selected.SetOpacity(selected.Opacity + delta); Refresh(); }
     private void ToggleGrid() { PlayerPrefs.SetInt(Prefix + "grid", SnapToGrid ? 0 : 1); Refresh(); }
     private void ToggleAutoRun() { PlayerPrefs.SetInt(Prefix + "autorun", PlayerPrefs.GetInt(Prefix + "autorun", 0) == 0 ? 1 : 0); Refresh(); }
+    private void ToggleLabels()
+    {
+        PlayerPrefs.SetInt(Prefix + "labels", AndroidControlText.XboxLabels ? 0 : 1);
+        PlayerPrefs.Save();
+        foreach (var button in buttons) button.RefreshLabel();
+        RefreshLabelsButton(); Refresh();
+    }
+    private void RefreshLabelsButton()
+    {
+        if (labelsLabel == null) return;
+        labelsLabel.text = (Spanish ? "Etiquetas: " : "Labels: ") + (AndroidControlText.XboxLabels ? "Xbox" : (Spanish ? "Texto" : "Text"));
+    }
     private string SlotKey => Prefix + "profile." + profileSlot + ".";
     private void SaveProfile()
     {
@@ -607,7 +642,7 @@ internal static class AndroidTouchSettingsBridge
     private static readonly string[] Ids = { "Move", "Look", "Jump", "Slide", "Interact", "Aim", "MapOverlay", "Pause" };
     private static void ForEachKey(Action<string, char> visit)
     {
-        visit(Prefix + "grid", 'i'); visit(Prefix + "autorun", 'i');
+        visit(Prefix + "grid", 'i'); visit(Prefix + "autorun", 'i'); visit(Prefix + "labels", 'i');
         for (int slot = 0; slot <= 3; slot++)
         {
             string root = slot == 0 ? Prefix : Prefix + "profile." + slot + ".";

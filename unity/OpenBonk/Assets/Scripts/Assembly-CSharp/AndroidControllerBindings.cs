@@ -27,6 +27,19 @@ public static class AndroidControlText
         if (string.Equals(action, "MapOverlay", StringComparison.OrdinalIgnoreCase)) return Spanish ? "Mapa" : "Map";
         return null;
     }
+    // Touch buttons mirror the default Xbox-style controller actions. The
+    // labels do not change the gameplay action each button sends.
+    public const string TouchLabelStyleKey = "openbonk.touch.layout.labels";
+    public static bool XboxLabels => PlayerPrefs.GetInt(TouchLabelStyleKey, 1) != 0;
+    public static string TouchGlyph(string action)
+    {
+        if (string.Equals(action, "Jump", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "Jump Bhop", StringComparison.OrdinalIgnoreCase)) return "A";
+        if (string.Equals(action, "Slide", StringComparison.OrdinalIgnoreCase)) return "B";
+        if (string.Equals(action, "Interact", StringComparison.OrdinalIgnoreCase)) return "X";
+        if (string.Equals(action, "Aim", StringComparison.OrdinalIgnoreCase)) return "Y";
+        if (string.Equals(action, "MapOverlay", StringComparison.OrdinalIgnoreCase)) return "RT";
+        return null;
+    }
 }
 
 // Android does not have the original Rewired backend. Store gamepad button

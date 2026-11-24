@@ -2016,7 +2016,8 @@ public final class SplitDataLauncher extends Activity {
                 SharedPreferences.Editor editor = prefs.edit().remove(LAUNCH_ATTEMPT).remove(LAUNCH_PID);
                 if (reason != null) {
                     String version = prefs.getString("openbonk_launch_version", "");
-                    editor.putString(LAUNCH_REPORT, startupReport(version, reason + " (Android status " + exit.getStatus() + ")"));
+                    editor.putString(LAUNCH_REPORT, startupReport(version, reason + " (Android status " + exit.getStatus() + ")",
+                        startupExitDetail(exit)));
                 }
                 editor.apply();
                 break;
@@ -2038,8 +2039,115 @@ public final class SplitDataLauncher extends Activity {
     }
 
     private String startupReport(String version, String reason) {
-        return "OpenBonk " + version + "\n" + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL
-            + ", Android " + android.os.Build.VERSION.RELEASE + "\nPlay → main menu: " + reason;
+        return startupReport(version, reason, "");
+    }
+
+    private String startupReport(String version, String reason, String detail) {
+        StringBuilder report = new StringBuilder();
+        report.append("OpenBonk ").append(version).append(" (").append(versionCodeString()).append(")\n")
+            .append(android.os.Build.MANUFACTURER).append(' ').append(android.os.Build.MODEL)
+            .append("\nAndroid ").append(android.os.Build.VERSION.RELEASE)
+            .append(" (API ").append(android.os.Build.VERSION.SDK_INT)
+            .append("), ").append(primaryAbi()).append('\n')
+            .append("Play → main menu: ").append(reason).append('\n');
+        if (detail != null && !detail.isEmpty()) report.append(detail).append('\n');
+        report.append("Game data: ").append(startupDataSummary()).append('\n');
+        String log = startupLogTail();
+        if (!log.isEmpty()) report.append("Game log tail (review before posting):\n").append(log).append('\n');
+        return report.toString().trim();
+    }
+
+    private String startupExitDetail(android.app.ApplicationExitInfo exit) {
+        StringBuilder detail = new StringBuilder();
+        if (exit.getReason() == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE) {
+            String signal = nativeSignalName(exit.getStatus());
+            if (!signal.isEmpty()) detail.append("Signal: ").append(signal);
+        }
+        try {
+            CharSequence description = exit.getDescription();
+            if (description != null && description.length() > 0) {
+                if (detail.length() > 0) detail.append('\n');
+                detail.append("Android: ").append(description);
+            }
+        } catch (RuntimeException ignored) { }
+        return detail.toString();
+    }
+
+    private static String nativeSignalName(int status) {
+        switch (status) {
+            case 4: return "SIGILL (illegal instruction)";
+            case 5: return "SIGTRAP (trap)";
+            case 6: return "SIGABRT (abort)";
+            case 7: return "SIGBUS (bus error, often a truncated or unreadable mapped file)";
+            case 8: return "SIGFPE (arithmetic error)";
+            case 11: return "SIGSEGV (segmentation fault)";
+            case 13: return "SIGPIPE";
+            default: return "";
+        }
+    }
+
+    private String versionCodeString() {
+        try { return String.valueOf(getPackageManager().getPackageInfo(getPackageName(), 0).versionCode); }
+        catch (Exception e) { return "?"; }
+    }
+
+    private static String primaryAbi() {
+        String[] abis = android.os.Build.SUPPORTED_ABIS;
+        return abis != null && abis.length > 0 ? abis[0] : "unknown ABI";
+    }
+
+    private String startupDataSummary() {
+        File data = target();
+        String obb;
+        if (data == null) obb = "path unavailable";
+        else if (!data.isFile()) obb = "missing " + data.getName();
+        else obb = data.getName() + ", " + formatBytes(data.length());
+        File root = getExternalFilesDir(null);
+        File[] mods = root == null ? null : new File(root, "Mods").listFiles(File::isDirectory);
+        File storage = data != null && data.getParentFile() != null ? data.getParentFile() : root;
+        String free = "unknown";
+        if (storage != null) {
+            try { free = formatBytes(new android.os.StatFs(storage.getAbsolutePath()).getAvailableBytes()); }
+            catch (RuntimeException ignored) { }
+        }
+        return obb + ", mods: " + (mods == null ? 0 : mods.length) + ", free: " + free;
+    }
+
+    private String formatBytes(long bytes) {
+        return android.text.format.Formatter.formatShortFileSize(this, Math.max(0L, bytes));
+    }
+
+    private String startupLogTail() {
+        File root = getExternalFilesDir(null);
+        if (root == null) return "";
+        // Unity writes Player.log in the app's external files directory. A
+        // native crash can leave the important lines at the end of the file.
+        String tail = readLogTail(new File(root, "Player.log"), 2500);
+        if (tail.isEmpty()) tail = readLogTail(new File(root, "Player-prev.log"), 2500);
+        return tail;
+    }
+
+    private static String readLogTail(File file, int maxChars) {
+        if (file == null || !file.isFile() || file.length() <= 0) return "";
+        try (java.io.RandomAccessFile input = new java.io.RandomAccessFile(file, "r")) {
+            long length = input.length();
+            int bytes = (int)Math.min(length, maxChars * 3L);
+            byte[] buffer = new byte[bytes];
+            input.seek(length - bytes);
+            input.readFully(buffer);
+            String text = new String(buffer, StandardCharsets.UTF_8);
+            if (bytes < length) {
+                int newline = text.indexOf('\n');
+                if (newline >= 0) text = text.substring(newline + 1);
+            }
+            text = text.replace('\0', ' ').trim();
+            if (text.length() > maxChars) {
+                int start = text.length() - maxChars;
+                int newline = text.indexOf('\n', start);
+                text = (newline >= 0 ? text.substring(newline + 1) : text.substring(start)).trim();
+            }
+            return text;
+        } catch (Exception e) { return ""; }
     }
 
     private void showStartupReport(String report) {

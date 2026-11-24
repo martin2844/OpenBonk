@@ -1,6 +1,8 @@
 # Touch controls
 
-Choose **Touch** in the launcher's **Controls** tab to save or load profiles before a run. Start a run and tap **Edit** to position and customize controls visually. Loaded profiles apply when the touch overlay starts; after editing, the launcher reads back changes made in the game. The edit button stays available when other controls are hidden.
+Choose **Touch** in the launcher's **Controls** tab to save or load profiles before a run. Start a run and tap **Edit** to position and customize controls visually. Loaded profiles apply when the touch overlay starts; after editing, the launcher reads back changes made in the game. The edit button stays available when other controls are hidden and sits in the bottom-right corner.
+
+Action buttons show the default Xbox-style bindings: **A** jump, **B** slide, **X** use/interact, **Y** aim and **RT** map. Switch back to text labels with **Button labels** in the launcher's Controls tab or **Labels** in the in-game editor. Remapping a button in the editor updates its label; the underlying gameplay action is unchanged.
 
 - Drag a control to reposition it. Select one and use **-** or **+** to resize it; use **Swap** and tap another action button to exchange their actions.
 - Select a control and use **Show** to hide or show it, or **Opacity -** and **Opacity +** to adjust its transparency. **All** hides all action buttons, or shows them again if any are hidden. The movement and camera sticks can be hidden individually.

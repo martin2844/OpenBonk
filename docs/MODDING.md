@@ -2,6 +2,10 @@
 
 OpenBonk's mod API is experimental and specific to OpenBonk. Mods can use supported hooks and packaged content, but Lua does not have unrestricted access to Unity, game internals, files or the network. The sandbox is not a security boundary: only install mods from people you trust.
 
+## PC and Steam mods
+
+OpenBonk cannot load BepInEx, Thunderstore `.dll` packages or other PC mods. OpenBonk runs an Android IL2CPP build without a .NET/BepInEx loader, so PC assemblies cannot execute on the device. A PC mod can only be used after its supported behavior is rewritten as an OpenBonk Lua or content package.
+
 ## Install a mod
 
 1. Download or build a compatible mod ZIP and copy it to the Android device.

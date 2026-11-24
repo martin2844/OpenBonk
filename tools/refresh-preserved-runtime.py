@@ -16,15 +16,9 @@ METADATA = (
     "RuntimeInitializeOnLoads.json",
     "ScriptingAssemblies.json",
 )
-LAUNCHER_SOURCES = (
-    "LauncherContentImporter.java",
-    "LauncherModImporter.java",
-    "LauncherModIntegrity.java",
-    "LauncherOnlineUi.java",
-    "LauncherTransferState.java",
-    "SplitDataLauncher.java",
-)
-NEW_LAUNCHER_SOURCES = {"LauncherTransferState.java"}
+# SplitExpectedData.java is generated per build; the checked-in file is a
+# placeholder and must never replace the exported hash.
+GENERATED_LAUNCHER_SOURCES = {"SplitExpectedData.java"}
 MAIN = Path("unityLibrary/src/main")
 JAVA = Path("java/com/megabonk/launcher")
 
@@ -55,12 +49,16 @@ def refresh(exported_project, preserved_project, assets_root, *, dry_run=False):
     # Refuse an empty/wrong export before rsync --delete can remove old code.
     require_file(il2cpp_source / "Source/il2cppOutput/Il2CppCodeRegistration.cpp")
     copies = [(source / "assets/bin/Data" / name, target / "assets/bin/Data" / name) for name in METADATA]
-    copies += [(assets_root / "AndroidSplitLauncher" / name, target / JAVA / name) for name in LAUNCHER_SOURCES]
+    launcher_assets = assets_root / "AndroidSplitLauncher"
+    launcher_sources = sorted(path for path in launcher_assets.glob("*.java") if path.name not in GENERATED_LAUNCHER_SOURCES)
+    if not launcher_sources:
+        raise ValueError(f"Missing launcher Java sources: {launcher_assets}")
+    copies += [(path, target / JAVA / path.name) for path in launcher_sources]
     for origin, destination in copies:
         require_file(origin)
-        # This explicitly added helper has no counterpart in older preserved
-        # launchers. All existing runtime files must still be present.
-        if destination.name not in NEW_LAUNCHER_SOURCES or destination.exists() or destination.is_symlink():
+        # Existing runtime files must be regular files. A new launcher class is
+        # allowed so a source added to the checkout reaches the preserved build.
+        if destination.exists() or destination.is_symlink():
             require_file(destination)
         # Copying through a redirected ancestor could replace generated data.
         for path in (origin, destination):

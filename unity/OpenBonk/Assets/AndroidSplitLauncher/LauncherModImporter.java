@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -21,6 +22,7 @@ final class LauncherModImporter {
         File staging = new File(root, ".import-" + UUID.randomUUID());
         try {
             try (FileOutputStream out = new FileOutputStream(temporary)) { copy(input, out, ZIP_LIMIT); }
+            if (!isZip(temporary)) throw new IOException("not a zip");
             try (ZipFile candidate = new ZipFile(temporary)) {
                 ZipEntry entry = candidate.getEntry("manifest.json");
                 String contentPrefix = "";
@@ -39,10 +41,16 @@ final class LauncherModImporter {
                 if (entry != null && entry.getSize() > 0 && entry.getSize() <= FILE_LIMIT) {
                     byte[] bytes = readEntry(candidate, entry, FILE_LIMIT);
                     JSONObject json = new JSONObject(utf8(bytes));
-                    if (json.optInt("api", 0) == 3 || json.optInt("api", 0) == 4) return LauncherContentImporter.install(candidate, root, prefs, contentPrefix);
+                    int api = json.optInt("api", 0);
+                    if (api == 3 || api == 4) return LauncherContentImporter.install(candidate, root, prefs, contentPrefix);
+                    // Thunderstore packages also ship a root manifest.json, but
+                    // it describes a PC mod instead of an OpenBonk hook.
+                    if (!json.has("id") && (json.has("version_number") || json.has("website_url")))
+                        throw new IOException("pc mod package");
                 }
+                if (looksLikePcMod(candidate)) throw new IOException("pc mod package");
             }
-            if (temporary.length() > LEGACY_ZIP_LIMIT) throw new IOException("package too large");
+            if (temporary.length() > LEGACY_ZIP_LIMIT) throw new IOException("unsupported mod package");
             byte[] manifest = null, script = null;
             String prefix = null, directory = null;
             int count = 0;
@@ -88,6 +96,29 @@ final class LauncherModImporter {
             }
         }
     }
+    private static boolean isZip(File file) {
+        try (InputStream in = new FileInputStream(file)) {
+            byte[] magic = new byte[4]; int read = 0;
+            while (read < magic.length) {
+                int count = in.read(magic, read, magic.length - read);
+                if (count < 0) break;
+                read += count;
+            }
+            return read == magic.length && magic[0] == 'P' && magic[1] == 'K' &&
+                ((magic[2] == 3 && magic[3] == 4) || (magic[2] == 5 && magic[3] == 6) || (magic[2] == 7 && magic[3] == 8));
+        } catch (IOException e) { return false; }
+    }
+
+    private static boolean looksLikePcMod(ZipFile zip) {
+        Enumeration<? extends ZipEntry> entries = zip.entries();
+        while (entries.hasMoreElements()) {
+            String name = entries.nextElement().getName().toLowerCase(Locale.ROOT);
+            if (name.startsWith("bepinex/") || name.endsWith(".dll") || name.endsWith(".deps.json")
+                    || name.equals("doorstop_config.ini") || name.equals("winhttp.dll")) return true;
+        }
+        return false;
+    }
+
     private static void copy(InputStream in, OutputStream out, int limit) throws IOException {
         byte[] buffer = new byte[4096]; int n, total = 0;
         while ((n = in.read(buffer)) != -1) { total += n; if (total > limit) throw new IOException("package too large"); out.write(buffer, 0, n); }
