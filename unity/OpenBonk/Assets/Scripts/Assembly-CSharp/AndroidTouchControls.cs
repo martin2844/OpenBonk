@@ -294,7 +294,9 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
         {
             label.text = string.Empty;
             var hidden = GetComponent<Image>();
-            if (hidden != null) hidden.color = Color.clear;
+            // Keep a tiny non-zero alpha: a fully transparent Graphic can be
+            // culled by the canvas and stop receiving raycasts.
+            if (hidden != null) hidden.color = new Color(0f, 0f, 0f, .01f);
             return;
         }
         bool xbox = AndroidControlText.XboxLabels;
