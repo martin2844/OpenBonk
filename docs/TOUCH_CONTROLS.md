@@ -4,6 +4,8 @@ Choose **Touch** in the launcher's **Controls** tab to save or load profiles bef
 
 Action buttons show the default Xbox-style bindings: **A** jump, **B** slide, **X** use/interact, **Y** aim and **RT** map. Switch back to text labels with **Button labels** in the launcher's Controls tab or **Labels** in the in-game editor. Remapping a button in the editor updates its label; the underlying gameplay action is unchanged.
 
+The map opens while you hold the in-game minimap. The **Map** control is a transparent touch target over the minimap; select it in the editor if it needs repositioning after changing resolution or aspect.
+
 - Drag a control to reposition it. Select one and use **-** or **+** to resize it; use **Swap** and tap another action button to exchange their actions.
 - Select a control and use **Show** to hide or show it, or **Opacity -** and **Opacity +** to adjust its transparency. **All** hides all action buttons, or shows them again if any are hidden. The movement and camera sticks can be hidden individually.
 - **Grid** toggles snapping while dragging. The current grid setting appears below the toolbar.

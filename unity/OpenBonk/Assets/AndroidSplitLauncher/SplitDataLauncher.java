@@ -2016,8 +2016,16 @@ public final class SplitDataLauncher extends Activity {
                 SharedPreferences.Editor editor = prefs.edit().remove(LAUNCH_ATTEMPT).remove(LAUNCH_PID);
                 if (reason != null) {
                     String version = prefs.getString("openbonk_launch_version", "");
-                    editor.putString(LAUNCH_REPORT, startupReport(version, reason + " (Android status " + exit.getStatus() + ")",
-                        startupExitDetail(exit)));
+                    String report = startupReport(version, reason + " (Android status " + exit.getStatus() + ")",
+                        startupExitDetail(exit), pid);
+                    if (exit.getReason() == android.app.ApplicationExitInfo.REASON_CRASH ||
+                            exit.getReason() == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE) {
+                        // A truncated or partially written Unity metadata cache
+                        // can SIGBUS on the next launch. Re-extract it once.
+                        invalidateRuntimeMetadataCache();
+                        report += "\nRuntime cache: cleared for the next launch";
+                    }
+                    editor.putString(LAUNCH_REPORT, report);
                 }
                 editor.apply();
                 break;
@@ -2039,22 +2047,42 @@ public final class SplitDataLauncher extends Activity {
     }
 
     private String startupReport(String version, String reason) {
-        return startupReport(version, reason, "");
+        return startupReport(version, reason, "", 0);
     }
 
     private String startupReport(String version, String reason, String detail) {
+        return startupReport(version, reason, detail, 0);
+    }
+
+    private String startupReport(String version, String reason, String detail, int crashedPid) {
         StringBuilder report = new StringBuilder();
         report.append("OpenBonk ").append(version).append(" (").append(versionCodeString()).append(")\n")
             .append(android.os.Build.MANUFACTURER).append(' ').append(android.os.Build.MODEL)
-            .append("\nAndroid ").append(android.os.Build.VERSION.RELEASE)
+            .append(" (").append(android.os.Build.DEVICE).append(")\nAndroid ")
+            .append(android.os.Build.VERSION.RELEASE)
             .append(" (API ").append(android.os.Build.VERSION.SDK_INT)
             .append("), ").append(primaryAbi()).append('\n')
+            .append("Display: ").append(startupDisplaySummary()).append('\n')
             .append("Play → main menu: ").append(reason).append('\n');
         if (detail != null && !detail.isEmpty()) report.append(detail).append('\n');
         report.append("Game data: ").append(startupDataSummary()).append('\n');
-        String log = startupLogTail();
+        String log = startupLogTail(crashedPid);
         if (!log.isEmpty()) report.append("Game log tail (review before posting):\n").append(log).append('\n');
         return report.toString().trim();
+    }
+
+    private String startupDisplaySummary() {
+        try {
+            android.view.Display display = getWindowManager().getDefaultDisplay();
+            android.graphics.Point size = new android.graphics.Point();
+            display.getRealSize(size);
+            android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+            display.getRealMetrics(metrics);
+            int displayCount = 1;
+            android.hardware.display.DisplayManager manager = getSystemService(android.hardware.display.DisplayManager.class);
+            if (manager != null) displayCount = manager.getDisplays().length;
+            return size.x + "x" + size.y + " " + metrics.densityDpi + "dpi, " + displayCount + " display(s)";
+        } catch (RuntimeException e) { return "unknown"; }
     }
 
     private String startupExitDetail(android.app.ApplicationExitInfo exit) {
@@ -2117,14 +2145,41 @@ public final class SplitDataLauncher extends Activity {
         return android.text.format.Formatter.formatShortFileSize(this, Math.max(0L, bytes));
     }
 
-    private String startupLogTail() {
-        File root = getExternalFilesDir(null);
-        if (root == null) return "";
-        // Unity writes Player.log in the app's external files directory. A
-        // native crash can leave the important lines at the end of the file.
-        String tail = readLogTail(new File(root, "Player.log"), 2500);
-        if (tail.isEmpty()) tail = readLogTail(new File(root, "Player-prev.log"), 2500);
-        return tail;
+    private String startupLogTail(int crashedPid) {
+        File[] roots = { getExternalFilesDir(null), getFilesDir(), getCacheDir() };
+        String[] names = { "Player.log", "Player-prev.log", "Unity/Player.log", "logs/Player.log" };
+        for (File root : roots) {
+            if (root == null) continue;
+            for (String name : names) {
+                String tail = readLogTail(new File(root, name), 2500);
+                if (!tail.isEmpty()) return tail;
+            }
+        }
+        return logcatTail(crashedPid);
+    }
+
+    private static String logcatTail(int pid) {
+        if (pid <= 0) return "";
+        try {
+            Process process = new ProcessBuilder("logcat", "-d", "-v", "threadtime", "-t", "400", "--pid=" + pid)
+                .redirectErrorStream(true).start();
+            java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+            try (InputStream input = process.getInputStream()) {
+                byte[] buffer = new byte[8192]; int count;
+                while ((count = input.read(buffer)) != -1) {
+                    if (output.size() + count > 200000) break;
+                    output.write(buffer, 0, Math.min(count, 200000 - output.size()));
+                }
+            }
+            if (process.waitFor() != 0) return "";
+            String text = new String(output.toByteArray(), StandardCharsets.UTF_8).trim();
+            if (text.length() > 2500) {
+                int start = text.length() - 2500;
+                int newline = text.indexOf('\n', start);
+                text = newline >= 0 ? text.substring(newline + 1) : text.substring(start);
+            }
+            return text.trim();
+        } catch (Exception e) { return ""; }
     }
 
     private static String readLogTail(File file, int maxChars) {
@@ -2158,6 +2213,16 @@ public final class SplitDataLauncher extends Activity {
                 android.content.ClipboardManager clipboard = getSystemService(android.content.ClipboardManager.class);
                 if (clipboard != null) clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OpenBonk startup report", report));
             }).create());
+    }
+
+    private void invalidateRuntimeMetadataCache() {
+        File external = getExternalFilesDir(null);
+        for (File root : new File[] { external, getFilesDir() }) {
+            if (root == null) continue;
+            File cached = new File(root, "il2cpp/Metadata/global-metadata.dat");
+            if (cached.exists() && !cached.delete())
+                android.util.Log.w("OpenBonk", "Could not clear the Unity metadata cache: " + cached);
+        }
     }
 
     private void prepareRuntimeMetadata(SharedPreferences prefs)
