@@ -38,6 +38,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipEntry;
+import java.util.zip.CRC32;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import java.util.HashSet;
@@ -2146,6 +2148,8 @@ public final class SplitDataLauncher extends Activity {
     }
 
     private String startupLogTail(int crashedPid) {
+        String tombstone = readNewestTombstone(12000);
+        if (!tombstone.isEmpty()) return tombstone;
         File[] roots = { getExternalFilesDir(null), getFilesDir(), getCacheDir() };
         String[] names = { "Player.log", "Player-prev.log", "Unity/Player.log", "logs/Player.log" };
         for (File root : roots) {
@@ -2158,26 +2162,51 @@ public final class SplitDataLauncher extends Activity {
         return logcatTail(crashedPid);
     }
 
+    private String readNewestTombstone(int maxChars) {
+        File newest = null;
+        for (File root : new File[] { getExternalFilesDir(null), getFilesDir() }) {
+            if (root == null) continue;
+            File[] files = root.listFiles((dir, name) -> name.startsWith("tombstone_"));
+            if (files == null) continue;
+            for (File file : files) {
+                if (!file.isFile() || file.length() <= 0) continue;
+                if (newest == null || file.lastModified() > newest.lastModified()) newest = file;
+            }
+        }
+        return readLogHead(newest, maxChars);
+    }
+
+    private static String readLogHead(File file, int maxChars) {
+        if (file == null || !file.isFile() || file.length() <= 0) return "";
+        try (InputStream input = new FileInputStream(file)) {
+            byte[] buffer = new byte[Math.min(maxChars * 3, 48000)];
+            int total = 0, count;
+            while (total < buffer.length && (count = input.read(buffer, total, buffer.length - total)) != -1) total += count;
+            String text = new String(buffer, 0, total, StandardCharsets.UTF_8).replace('\0', ' ').trim();
+            if (text.length() > maxChars) text = text.substring(0, maxChars);
+            return text.trim();
+        } catch (Exception e) { return ""; }
+    }
+
     private static String logcatTail(int pid) {
         if (pid <= 0) return "";
         try {
-            Process process = new ProcessBuilder("logcat", "-d", "-v", "threadtime", "-t", "400", "--pid=" + pid)
+            Process process = new ProcessBuilder("logcat", "-d", "-v", "threadtime", "-t", "1000", "--pid=" + pid)
                 .redirectErrorStream(true).start();
             java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
             try (InputStream input = process.getInputStream()) {
                 byte[] buffer = new byte[8192]; int count;
                 while ((count = input.read(buffer)) != -1) {
-                    if (output.size() + count > 200000) break;
-                    output.write(buffer, 0, Math.min(count, 200000 - output.size()));
+                    if (output.size() + count > 400000) break;
+                    output.write(buffer, 0, Math.min(count, 400000 - output.size()));
                 }
             }
             if (process.waitFor() != 0) return "";
             String text = new String(output.toByteArray(), StandardCharsets.UTF_8).trim();
-            if (text.length() > 2500) {
-                int start = text.length() - 2500;
-                int newline = text.indexOf('\n', start);
-                text = newline >= 0 ? text.substring(newline + 1) : text.substring(start);
-            }
+            int firstFrame = text.indexOf("#00 pc");
+            int start = firstFrame >= 0 ? Math.max(0, firstFrame - 600) : Math.max(0, text.length() - 12000);
+            text = text.substring(start);
+            if (text.length() > 12000) text = text.substring(0, 12000);
             return text.trim();
         } catch (Exception e) { return ""; }
     }
@@ -2229,19 +2258,40 @@ public final class SplitDataLauncher extends Activity {
             throws IOException, android.content.pm.PackageManager.NameNotFoundException {
         long installedAt = getPackageManager().getPackageInfo(getPackageName(), 0).lastUpdateTime;
         String key = "openbonk_runtime_metadata_install";
-        if (prefs.getLong(key, -1L) == installedAt) return;
+        boolean installChanged = prefs.getLong(key, -1L) != installedAt;
 
-        // Unity extracts this file once and may otherwise reuse a previous
-        // APK's metadata with the upgraded IL2CPP library.
+        // Unity extracts this file once and reuses it on later launches. A
+        // truncated cache makes InitializeRuntime SIGBUS, so validate it
+        // against the APK copy before starting the game.
         File external = getExternalFilesDir(null);
         if (external == null) throw new IOException("Runtime storage unavailable");
         for (File root : new File[] { external, getFilesDir() }) {
             File cached = new File(root, "il2cpp/Metadata/global-metadata.dat");
-            if (cached.exists() && (!cached.isFile() || !cached.delete()))
-                throw new IOException("Could not refresh the Unity metadata cache");
+            if (!cached.exists()) continue;
+            if (installChanged || !cached.isFile() || !matchesBundledMetadata(cached)) {
+                if (!cached.delete()) throw new IOException("Could not refresh the Unity metadata cache");
+                android.util.Log.i("OpenBonk", "Cleared an invalid Unity metadata cache: " + cached);
+            }
         }
-        if (!prefs.edit().putLong(key, installedAt).commit())
+        if (installChanged && !prefs.edit().putLong(key, installedAt).commit())
             throw new IOException("Could not record the Unity metadata refresh");
+    }
+
+    private boolean matchesBundledMetadata(File cached) {
+        try (ZipFile apk = new ZipFile(getPackageCodePath())) {
+            ZipEntry entry = apk.getEntry("assets/bin/Data/Managed/Metadata/global-metadata.dat");
+            if (entry == null || entry.getSize() < 0 || entry.getCrc() < 0) return true;
+            if (cached.length() != entry.getSize()) return false;
+            CRC32 crc = new CRC32();
+            try (InputStream input = new FileInputStream(cached)) {
+                byte[] buffer = new byte[65536]; int count;
+                while ((count = input.read(buffer)) != -1) crc.update(buffer, 0, count);
+            }
+            return crc.getValue() == entry.getCrc();
+        } catch (Exception e) {
+            android.util.Log.w("OpenBonk", "Could not validate the Unity metadata cache", e);
+            return true;
+        }
     }
 
     private void launchGame() {
