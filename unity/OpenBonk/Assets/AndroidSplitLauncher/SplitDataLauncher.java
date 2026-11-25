@@ -2016,8 +2016,16 @@ public final class SplitDataLauncher extends Activity {
                 SharedPreferences.Editor editor = prefs.edit().remove(LAUNCH_ATTEMPT).remove(LAUNCH_PID);
                 if (reason != null) {
                     String version = prefs.getString("openbonk_launch_version", "");
-                    editor.putString(LAUNCH_REPORT, startupReport(version, reason + " (Android status " + exit.getStatus() + ")",
-                        startupExitDetail(exit), pid));
+                    String report = startupReport(version, reason + " (Android status " + exit.getStatus() + ")",
+                        startupExitDetail(exit), pid);
+                    if (exit.getReason() == android.app.ApplicationExitInfo.REASON_CRASH ||
+                            exit.getReason() == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE) {
+                        // A truncated or partially written Unity metadata cache
+                        // can SIGBUS on the next launch. Re-extract it once.
+                        invalidateRuntimeMetadataCache();
+                        report += "\nRuntime cache: cleared for the next launch";
+                    }
+                    editor.putString(LAUNCH_REPORT, report);
                 }
                 editor.apply();
                 break;
@@ -2205,6 +2213,16 @@ public final class SplitDataLauncher extends Activity {
                 android.content.ClipboardManager clipboard = getSystemService(android.content.ClipboardManager.class);
                 if (clipboard != null) clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OpenBonk startup report", report));
             }).create());
+    }
+
+    private void invalidateRuntimeMetadataCache() {
+        File external = getExternalFilesDir(null);
+        for (File root : new File[] { external, getFilesDir() }) {
+            if (root == null) continue;
+            File cached = new File(root, "il2cpp/Metadata/global-metadata.dat");
+            if (cached.exists() && !cached.delete())
+                android.util.Log.w("OpenBonk", "Could not clear the Unity metadata cache: " + cached);
+        }
     }
 
     private void prepareRuntimeMetadata(SharedPreferences prefs)
