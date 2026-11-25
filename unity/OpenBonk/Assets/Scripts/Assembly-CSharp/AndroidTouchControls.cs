@@ -138,7 +138,9 @@ internal sealed class AndroidTouchControls : MonoBehaviour
             CreateButton(safe, "Slide", new Vector2(-105, 325), 135),
             CreateButton(safe, "Interact", new Vector2(-260, 400), 135),
             CreateButton(safe, "Aim", new Vector2(-105, 475), 125),
-            CreateButton(safe, "MapOverlay", new Vector2(-420, 400), 110),
+            // Invisible touch target over the in-game minimap. It is still
+            // editable in the layout editor, where its label and outline show.
+            CreateButton(safe, "MapOverlay", new Vector2(-175, -195), 230, true),
             CreateButton(safe, "Pause", new Vector2(-700, -75), 90, true)
         };
         Canvas.ForceUpdateCanvases();
@@ -175,7 +177,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         label.alignment = TextAlignmentOptions.Center; label.color = new Color(.96f, .97f, .90f, 1f);
         label.raycastTarget = false;
         var button = rect.gameObject.AddComponent<AndroidTouchButton>();
-        button.action = action; button.label = label;
+        button.action = action; button.label = label; button.ghost = action == "MapOverlay";
         button.RefreshLabel();
         return button;
     }
@@ -282,10 +284,19 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
 {
     internal string action;
     internal TextMeshProUGUI label;
+    internal bool ghost;
     private int pointer = int.MinValue;
 
     internal void RefreshLabel()
     {
+        bool editing = AndroidTouchLayoutEditor.Editing;
+        if (ghost && !editing)
+        {
+            label.text = string.Empty;
+            var hidden = GetComponent<Image>();
+            if (hidden != null) hidden.color = Color.clear;
+            return;
+        }
         bool xbox = AndroidControlText.XboxLabels;
         string glyph = action == "Pause" ? "II" : xbox ? AndroidControlText.TouchGlyph(action) : AndroidControlText.TouchAction(action);
         label.text = glyph ?? string.Empty;
@@ -435,7 +446,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     {
         selected = target;
         foreach (var item in targets) item.UpdateAppearance();
-        if (swapFrom != null && target.Button != null && target.Button != swapFrom && IsRemappable(target.Button.action))
+        if (swapFrom != null && target.Button != null && target.Button != swapFrom && target.Id != "MapOverlay" && IsRemappable(target.Button.action))
         {
             string action = swapFrom.action; swapFrom.action = target.Button.action; target.Button.action = action;
             foreach (var t in targets) if (t.Button != null && IsRemappable(t.Id)) PlayerPrefs.SetString(Prefix + t.Id + ".action", t.Button.action);
@@ -444,7 +455,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         }
         Refresh();
     }
-    private void StartSwap() { swapFrom = selected?.Button; if (swapFrom != null && !IsRemappable(swapFrom.action)) swapFrom = null; Refresh(); }
+    private void StartSwap() { swapFrom = selected?.Button; if (swapFrom != null && (selected.Id == "MapOverlay" || !IsRemappable(swapFrom.action))) swapFrom = null; Refresh(); }
     private void Resize(float factor) { if (selected != null) selected.Resize(factor); Refresh(); }
     private void ToggleSelected() { if (selected != null) selected.SetVisible(!selected.Visible); Refresh(); }
     private void ToggleAll()
@@ -546,7 +557,13 @@ internal sealed class AndroidTouchLayoutTarget : MonoBehaviour, IPointerDownHand
     private void LoadSettings()
     {
         rect.anchorMin = rect.anchorMax = originalAnchor; rect.anchoredPosition = originalPosition;
-        if (Button != null) { string mapped = PlayerPrefs.GetString(prefix + "action", Id); Button.action = AndroidTouchLayoutEditor.ValidAction(Id, mapped) ? mapped : Id; }
+        if (Button != null) {
+            if (Id == "MapOverlay") Button.action = "MapOverlay";
+            else {
+                string mapped = PlayerPrefs.GetString(prefix + "action", Id);
+                Button.action = AndroidTouchLayoutEditor.ValidAction(Id, mapped) ? mapped : Id;
+            }
+        }
         float scale = PlayerPrefs.GetFloat(prefix + "scale", 1); if (float.IsNaN(scale) || float.IsInfinity(scale)) scale = 1;
         rect.localScale = Vector3.one * Mathf.Clamp(scale, .5f, 1.8f);
         if (PlayerPrefs.HasKey(prefix + "x") && PlayerPrefs.HasKey(prefix + "y"))
@@ -559,6 +576,7 @@ internal sealed class AndroidTouchLayoutTarget : MonoBehaviour, IPointerDownHand
     internal void UpdateAppearance()
     {
         if (canvasGroup == null) return;
+        if (Button != null) Button.RefreshLabel();
         canvasGroup.alpha = Visible ? Opacity : (AndroidTouchLayoutEditor.Editing ? .25f : 0f);
         canvasGroup.blocksRaycasts = Visible || AndroidTouchLayoutEditor.Editing;
         if (selectionOutline != null) selectionOutline.enabled = AndroidTouchLayoutEditor.Editing && editor.IsSelected(this);
