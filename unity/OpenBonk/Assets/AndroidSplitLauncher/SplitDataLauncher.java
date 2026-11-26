@@ -262,6 +262,11 @@ public final class SplitDataLauncher extends Activity {
         exportCurrentProfile = new Button(this); exportCurrentProfile.setText(es ? "Exportar perfil" : "Export profile");
         exportCurrentProfile.setEnabled(false); exportCurrentProfile.setOnClickListener(v -> chooseCurrentProfile());
         styleButton(exportCurrentProfile, false); addAction(profileActions, exportCurrentProfile, 6);
+        Button freeSpace = new Button(this); freeSpace.setText(es ? "Liberar espacio" : "Free up space");
+        styleButton(freeSpace, false); freeSpace.setOnClickListener(v -> showOldDataCleanup());
+        addActionRow(dataCard, es ? "Datos de versiones anteriores" : "Old version data",
+            es ? "Borrá los OBB antiguos que ya no usa esta versión. No afecta partidas, mods ni perfil."
+               : "Delete old OBBs this version no longer uses. Saves, mods and profile are kept.", freeSpace);
         LinearLayout modPage = new LinearLayout(this); modPage.setOrientation(LinearLayout.VERTICAL); left.addView(modPage);
         modCard = card(); modPage.addView(modCard);
         catalogCard = card(); modPage.addView(catalogCard); catalogCard.setVisibility(View.GONE);
@@ -1299,6 +1304,64 @@ public final class SplitDataLauncher extends Activity {
                 message.postDelayed(this, 500);
             }
         }, 500);
+    }
+
+    private void showOldDataCleanup() {
+        File current = target();
+        if (!dataReady || current == null || !current.isFile()) {
+            showDialog(new AlertDialog.Builder(this).setTitle(es ? "Liberar espacio" : "Free up space")
+                .setMessage(es ? "Los datos del juego todavía no están listos. Terminá la importación antes de borrar datos anteriores."
+                               : "Game data is not ready yet. Finish importing data before deleting old files.")
+                .setPositiveButton("OK", null).create());
+            return;
+        }
+        ArrayList<File> old = oldObbFiles(current);
+        if (old.isEmpty()) {
+            showDialog(new AlertDialog.Builder(this).setTitle(es ? "Liberar espacio" : "Free up space")
+                .setMessage(es ? "No hay datos de versiones anteriores para borrar."
+                               : "There is no old version data to delete.")
+                .setPositiveButton("OK", null).create());
+            return;
+        }
+        long bytes = 0;
+        for (File file : old) bytes += file.length();
+        final ArrayList<File> files = old;
+        final long total = bytes;
+        showDialog(new AlertDialog.Builder(this)
+            .setTitle(es ? "Liberar espacio" : "Free up space")
+            .setMessage(es
+                ? "Se borrarán " + files.size() + " OBB antiguo(s), " + formatBytes(total) + ". Se conservan los datos de esta versión, las partidas, los mods y el perfil."
+                : "This deletes " + files.size() + " old OBB file(s), " + formatBytes(total) + ". This version's data, saves, mods and profile are kept.")
+            .setNegativeButton(es ? "Cancelar" : "Cancel", null)
+            .setPositiveButton(es ? "Borrar" : "Delete", (dialog, which) -> {
+                long freed = 0; int deleted = 0;
+                for (File file : files) {
+                    long length = file.length();
+                    if (file.delete()) { deleted++; freed += length; }
+                }
+                message.setText(es
+                    ? "Liberados " + formatBytes(freed) + " (" + deleted + " archivo(s))."
+                    : "Freed " + formatBytes(freed) + " (" + deleted + " file(s)).");
+            }).create());
+    }
+
+    private ArrayList<File> oldObbFiles(File current) {
+        ArrayList<File> result = new ArrayList<>();
+        File dir = getObbDir();
+        if (dir == null) return result;
+        File[] files = dir.listFiles();
+        if (files == null) return result;
+        String suffix = "." + getPackageName() + ".obb";
+        for (File file : files) {
+            if (!file.isFile()) continue;
+            String name = file.getName();
+            if (!name.startsWith("main.") || !name.endsWith(suffix)) continue;
+            String middle = name.substring(5, name.length() - suffix.length());
+            if (!middle.matches("\\d+")) continue;
+            if (current != null && file.getAbsoluteFile().equals(current.getAbsoluteFile())) continue;
+            result.add(file);
+        }
+        return result;
     }
 
     private File target() {
