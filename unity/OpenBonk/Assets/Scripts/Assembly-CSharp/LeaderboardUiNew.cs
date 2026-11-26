@@ -1,13 +1,17 @@
-using System.Collections.Generic;
+using System;
+using System.Collections;
 using Assets.Scripts.Steam.LeaderboardsNew;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Networking;
 
 public class LeaderboardUiNew : MonoBehaviour
 {
+	private const string BaseUrl = "https://openbonk-leaderboard.vercel.app";
+
 	public GameObject lbPrefab;
 
-	private List<LeaderboardEntryUi> leaderboardEntries;
+	private System.Collections.Generic.List<LeaderboardEntryUi> leaderboardEntries;
 
 	public GameObject buffering;
 
@@ -28,26 +32,89 @@ public class LeaderboardUiNew : MonoBehaviour
 	private void Awake()
 	{
 #if UNITY_ANDROID && !UNITY_EDITOR
-		ShowUnavailable();
 		UnityEngine.Localization.Settings.LocalizationSettings.SelectedLocaleChanged += OnLocaleChanged;
+		RefreshFromServer();
 #endif
 	}
 
-	// The Steam backend is not present on Android. Do not display the serialized
-	// editor samples as real scores while the backend is unavailable.
+	private void OnDestroy()
+	{
+#if UNITY_ANDROID && !UNITY_EDITOR
+		UnityEngine.Localization.Settings.LocalizationSettings.SelectedLocaleChanged -= OnLocaleChanged;
+#endif
+	}
+
+	private void OnLocaleChanged(UnityEngine.Localization.Locale locale)
+	{
+		RefreshFromServer();
+	}
+
+	private void RefreshFromServer()
+	{
+		StopAllCoroutines();
+		StartCoroutine(Fetch());
+	}
+
+	private IEnumerator Fetch()
+	{
+		if (buffering != null) buffering.SetActive(true);
+		string board = isWeekly ? "kills_weekly" : "kills";
+		using (var request = UnityWebRequest.Get(BaseUrl + "/api/v1/leaderboard?board=" + board + "&limit=50"))
+		{
+			request.timeout = 10;
+			yield return request.SendWebRequest();
+			if (request.result != UnityWebRequest.Result.Success)
+			{
+				Debug.LogWarning("OpenBonk leaderboard read: " + request.error);
+				ShowUnavailable();
+				yield break;
+			}
+			LeaderboardResponse response = null;
+			try { response = JsonUtility.FromJson<LeaderboardResponse>(request.downloadHandler.text); }
+			catch (Exception e) { Debug.LogWarning("OpenBonk leaderboard parse: " + e.GetType().Name); }
+			if (response == null || response.entries == null || response.entries.Length == 0)
+			{
+				ShowMessage(Localized("No scores yet", "Todavía no hay puntajes"));
+				yield break;
+			}
+			ShowRows(response.entries);
+		}
+	}
+
+	private void ShowRows(LeaderboardResponse.Entry[] entries)
+	{
+		var rows = GetComponentsInChildren<LeaderboardEntryUi>(true);
+		for (int i = 0; i < rows.Length; i++) rows[i].gameObject.SetActive(false);
+		int count = Mathf.Min(entries.Length, rows.Length);
+		for (int i = 0; i < count; i++)
+		{
+			var row = entries[i];
+			var ui = rows[i];
+			ui.gameObject.SetActive(true);
+			if (ui.playerName != null) ui.playerName.text = string.IsNullOrEmpty(row.name) ? "Player" : row.name;
+			if (ui.rank != null) ui.rank.text = row.rank.ToString();
+			if (ui.score != null) ui.score.text = row.score.ToString("N0");
+			if (ui.playerIcon != null) ui.playerIcon.enabled = false;
+			if (ui.characterIcon != null) ui.characterIcon.enabled = false;
+			if (ui.localHighlight != null) ui.localHighlight.enabled = false;
+			if (ui.hoverOverlay != null) ui.hoverOverlay.SetActive(false);
+		}
+		if (buffering != null) buffering.SetActive(false);
+		if (t_reset != null) t_reset.text = "";
+	}
+
 	private void ShowUnavailable()
 	{
-		var entries = GetComponentsInChildren<LeaderboardEntryUi>(true);
-		LeaderboardEntryUi message = null;
-		foreach (var entry in entries)
-		{
-			if (message == null && entry.gameObject.activeSelf) message = entry;
-			entry.gameObject.SetActive(false);
-		}
+		ShowMessage(Localized("Leaderboard unavailable", "Clasificación no disponible"));
+	}
+
+	private void ShowMessage(string text)
+	{
+		var rows = GetComponentsInChildren<LeaderboardEntryUi>(true);
+		LeaderboardEntryUi message = rows.Length > 0 ? rows[0] : null;
+		for (int i = 0; i < rows.Length; i++) rows[i].gameObject.SetActive(false);
 		if (message != null)
 		{
-			var locale = UnityEngine.Localization.Settings.LocalizationSettings.SelectedLocale;
-			string code = locale != null ? locale.Identifier.Code : "en";
 			if (message.playerName != null)
 			{
 				var rect = message.playerName.rectTransform;
@@ -59,8 +126,7 @@ public class LeaderboardUiNew : MonoBehaviour
 				message.playerName.alignment = TextAlignmentOptions.Center;
 				message.playerName.enableAutoSizing = true;
 				message.playerName.fontSizeMin = 10;
-				message.playerName.text = code.StartsWith("es", System.StringComparison.OrdinalIgnoreCase)
-					? "Clasificación no disponible" : "Leaderboard unavailable";
+				message.playerName.text = text;
 			}
 			if (message.rank != null) message.rank.text = "";
 			if (message.score != null) message.score.text = "";
@@ -74,16 +140,11 @@ public class LeaderboardUiNew : MonoBehaviour
 		if (t_reset != null) t_reset.text = "";
 	}
 
-	private void OnDestroy()
+	private static string Localized(string english, string spanish)
 	{
-#if UNITY_ANDROID && !UNITY_EDITOR
-		UnityEngine.Localization.Settings.LocalizationSettings.SelectedLocaleChanged -= OnLocaleChanged;
-#endif
-	}
-
-	private void OnLocaleChanged(UnityEngine.Localization.Locale locale)
-	{
-		ShowUnavailable();
+		var locale = UnityEngine.Localization.Settings.LocalizationSettings.SelectedLocale;
+		string code = locale != null ? locale.Identifier.Code : "en";
+		return code.StartsWith("es", StringComparison.OrdinalIgnoreCase) ? spanish : english;
 	}
 
 	private void TryInit()
@@ -104,5 +165,27 @@ public class LeaderboardUiNew : MonoBehaviour
 
 	private void OnLeaderboardTypeSelected(int index)
 	{
+	}
+
+	[Serializable]
+	private sealed class LeaderboardResponse
+	{
+		public string board;
+		public string period;
+		public Entry[] entries;
+
+		[Serializable]
+		public sealed class Entry
+		{
+			public int rank;
+			public string name;
+			public int score;
+			public string version;
+			public string character;
+			public string map;
+			public int duration;
+			public bool mods;
+			public string at;
+		}
 	}
 }
