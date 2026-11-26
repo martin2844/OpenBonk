@@ -83,7 +83,7 @@ public class LeaderboardUiNew : MonoBehaviour
 
 	private void ShowRows(LeaderboardResponse.Entry[] entries)
 	{
-		var rows = GetComponentsInChildren<LeaderboardEntryUi>(true);
+		var rows = EnsureRows(entries.Length);
 		for (int i = 0; i < rows.Length; i++) rows[i].gameObject.SetActive(false);
 		int count = Mathf.Min(entries.Length, rows.Length);
 		for (int i = 0; i < count; i++)
@@ -95,12 +95,34 @@ public class LeaderboardUiNew : MonoBehaviour
 			if (ui.rank != null) ui.rank.text = row.rank.ToString();
 			if (ui.score != null) ui.score.text = row.score.ToString("N0");
 			if (ui.playerIcon != null) ui.playerIcon.enabled = false;
-			if (ui.characterIcon != null) ui.characterIcon.enabled = false;
+			if (ui.characterIcon != null)
+			{
+				var icon = CharacterIcon(row.character);
+				ui.characterIcon.texture = icon;
+				ui.characterIcon.enabled = icon != null;
+			}
 			if (ui.localHighlight != null) ui.localHighlight.enabled = false;
 			if (ui.hoverOverlay != null) ui.hoverOverlay.SetActive(false);
 		}
 		if (buffering != null) buffering.SetActive(false);
 		if (t_reset != null) t_reset.text = "";
+	}
+
+	// The menu panel ships with a single row, so further rows are created from
+	// lbPrefab (or a copy of the first row) next to it.
+	private LeaderboardEntryUi[] EnsureRows(int wanted)
+	{
+		var rows = GetComponentsInChildren<LeaderboardEntryUi>(true);
+		if (rows.Length == 0 || rows.Length >= wanted) return rows;
+		var parent = rows[0].transform.parent;
+		var template = lbPrefab != null && lbPrefab.GetComponent<LeaderboardEntryUi>() != null ? lbPrefab : rows[0].gameObject;
+		for (int i = rows.Length; i < wanted; i++)
+		{
+			var row = Instantiate(template, parent, false);
+			row.name = template.name + " " + i;
+			row.SetActive(false);
+		}
+		return GetComponentsInChildren<LeaderboardEntryUi>(true);
 	}
 
 	private void ShowUnavailable()
@@ -138,6 +160,36 @@ public class LeaderboardUiNew : MonoBehaviour
 		}
 		if (buffering != null) buffering.SetActive(false);
 		if (t_reset != null) t_reset.text = "";
+	}
+
+	// Vanilla characters are sent by enum name and mod characters as
+	// "package:id". Mod portraits come from the loaded mod when it is enabled,
+	// otherwise from the copies bundled in OpenBonkBundledCharacterIcons.
+	private static Texture CharacterIcon(string character)
+	{
+		if (string.IsNullOrEmpty(character) || character.Length > 64) return null;
+		int separator = character.IndexOf(':');
+		try
+		{
+			var data = DataManager.Instance;
+			if (data != null)
+			{
+				CharacterData found;
+				if (separator > 0)
+				{
+					var id = (ECharacter)OpenBonkContentIds.Character(character.Substring(0, separator), character.Substring(separator + 1));
+					if (data.TryGetCharacterData(id, out found) && found != null && found.icon != null) return found.icon;
+				}
+				else if (Enum.TryParse(character, false, out ECharacter vanilla) && Enum.IsDefined(typeof(ECharacter), vanilla) &&
+					data.TryGetCharacterData(vanilla, out found) && found != null && found.icon != null)
+					return found.icon;
+			}
+		}
+		catch (Exception e)
+		{
+			Debug.LogWarning("OpenBonk leaderboard icon: " + e.GetType().Name);
+		}
+		return separator > 0 ? OpenBonkBundledCharacterIcons.Get(character) : null;
 	}
 
 	private static string Localized(string english, string spanish)

@@ -1,6 +1,7 @@
 #if UNITY_ANDROID && !UNITY_EDITOR
 using System;
 using System.Collections;
+using System.IO;
 using System.Text;
 using Assets.Scripts.Managers;
 using Assets.Scripts.Saves___Serialization.Progression.Stats;
@@ -56,13 +57,63 @@ internal sealed class OpenBonkLeaderboard : MonoBehaviour
         int score = RunStats.GetStat(EMyStat.kills);
         if (score <= 0) return;
         int duration = Mathf.Max(1, Mathf.RoundToInt(Time.realtimeSinceStartup - runStartedAt));
-        string map = MapController.currentMap != null ? MapController.currentMap.eMap.ToString() : "";
+        string map = MapId();
+        string character = CharacterId();
+        bool mods = ModsEnabled();
         string name = PlayerName();
-        StartCoroutine(Post("kills", name, score, duration, map));
-        StartCoroutine(Post("kills_weekly", name, score, duration, map));
+        StartCoroutine(Post("kills", name, score, duration, map, character, mods));
+        StartCoroutine(Post("kills_weekly", name, score, duration, map, character, mods));
     }
 
-    private IEnumerator Post(string board, string name, int score, int duration, string map)
+    // Vanilla content is sent by enum name; mod content by its stable
+    // "package:id", since mod enum values are hashes.
+    private static string CharacterId()
+    {
+        var id = CharacterMenu.selectedCharacter;
+        try
+        {
+            if (DataManager.Instance != null && DataManager.Instance.TryGetCharacterData(id, out var data) &&
+                data is OpenBonkExternalCharacterData external && !string.IsNullOrEmpty(external.externalId))
+                return external.externalId;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("OpenBonk leaderboard character: " + e.GetType().Name);
+        }
+        return Enum.IsDefined(typeof(ECharacter), id) ? id.ToString() : "";
+    }
+
+    private static string MapId()
+    {
+        var map = MapController.currentMap;
+        if (map == null) return "";
+        if (map is OpenBonkExternalMapData external && !string.IsNullOrEmpty(external.externalId)) return external.externalId;
+        return map.eMap.ToString();
+    }
+
+    private static bool ModsEnabled()
+    {
+        try
+        {
+            string root = Path.Combine(Application.persistentDataPath, "Mods");
+            if (Directory.Exists(root))
+            {
+                using var unity = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                using var activity = unity.GetStatic<AndroidJavaObject>("currentActivity");
+                using var prefs = activity.Call<AndroidJavaObject>("getSharedPreferences", "megabonk_mod_state", 0);
+                foreach (string folder in Directory.GetDirectories(root))
+                    if (prefs.Call<bool>("getBoolean", Path.GetFileName(folder), false)) return true;
+            }
+            return AndroidLuaMods.ListMods().Exists(mod => mod.enabled);
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("OpenBonk leaderboard mods: " + e.GetType().Name);
+            return false;
+        }
+    }
+
+    private IEnumerator Post(string board, string name, int score, int duration, string map, string character, bool mods)
     {
         var payload = new ScoreRequest
         {
@@ -72,7 +123,8 @@ internal sealed class OpenBonkLeaderboard : MonoBehaviour
             duration = duration,
             version = Application.version,
             map = map,
-            mods = false
+            character = character,
+            mods = mods
         };
         var request = new UnityWebRequest(BaseUrl + "/api/v1/scores", "POST");
         request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(JsonUtility.ToJson(payload)));
@@ -116,6 +168,7 @@ internal sealed class OpenBonkLeaderboard : MonoBehaviour
         public int duration;
         public string version;
         public string map;
+        public string character;
         public bool mods;
     }
 }
