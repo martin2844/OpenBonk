@@ -4,10 +4,13 @@ using Assets.Scripts.Steam.LeaderboardsNew;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
 
 public class LeaderboardUiNew : MonoBehaviour
 {
 	private const string BaseUrl = "https://openbonk-leaderboard.vercel.app";
+
+	private const int MaxEntries = 25;
 
 	public GameObject lbPrefab;
 
@@ -59,7 +62,7 @@ public class LeaderboardUiNew : MonoBehaviour
 	{
 		if (buffering != null) buffering.SetActive(true);
 		string board = isWeekly ? "kills_weekly" : "kills";
-		using (var request = UnityWebRequest.Get(BaseUrl + "/api/v1/leaderboard?board=" + board + "&limit=50"))
+		using (var request = UnityWebRequest.Get(BaseUrl + "/api/v1/leaderboard?board=" + board + "&limit=" + MaxEntries))
 		{
 			request.timeout = 10;
 			yield return request.SendWebRequest();
@@ -81,14 +84,42 @@ public class LeaderboardUiNew : MonoBehaviour
 		}
 	}
 
+	private LeaderboardResponse.Entry[] shownEntries;
+
+	private int firstShown;
+
+	private float dragRemainder;
+
+	// UI masks do not clip in this port, so rows past the panel's height were
+	// drawn below it. Only the rows that fit are shown, and dragging or the
+	// mouse wheel changes which part of the top entries they display.
 	private void ShowRows(LeaderboardResponse.Entry[] entries)
 	{
-		var rows = EnsureRows(entries.Length);
+		if (entries.Length > MaxEntries) Array.Resize(ref entries, MaxEntries);
+		shownEntries = entries;
+		firstShown = 0;
+		dragRemainder = 0f;
+		RenderRows();
+		if (buffering != null) buffering.SetActive(false);
+		if (t_reset != null) t_reset.text = "";
+	}
+
+	private void RenderRows()
+	{
+		var entries = shownEntries;
+		if (entries == null) return;
+		var template = GetComponentsInChildren<LeaderboardEntryUi>(true);
+		if (template.Length == 0) return;
+		var container = template[0].transform.parent as RectTransform;
+		SetUpDrag(container);
+		int fit = Mathf.Min(entries.Length, RowsThatFit(container, template[0]));
+		firstShown = Mathf.Clamp(firstShown, 0, Mathf.Max(0, entries.Length - fit));
+		var rows = EnsureRows(fit);
 		for (int i = 0; i < rows.Length; i++) rows[i].gameObject.SetActive(false);
-		int count = Mathf.Min(entries.Length, rows.Length);
+		int count = Mathf.Min(fit, rows.Length);
 		for (int i = 0; i < count; i++)
 		{
-			var row = entries[i];
+			var row = entries[firstShown + i];
 			var ui = rows[i];
 			ui.gameObject.SetActive(true);
 			if (ui.playerName != null) ui.playerName.text = string.IsNullOrEmpty(row.name) ? "Player" : row.name;
@@ -104,8 +135,61 @@ public class LeaderboardUiNew : MonoBehaviour
 			if (ui.localHighlight != null) ui.localHighlight.enabled = false;
 			if (ui.hoverOverlay != null) ui.hoverOverlay.SetActive(false);
 		}
-		if (buffering != null) buffering.SetActive(false);
-		if (t_reset != null) t_reset.text = "";
+	}
+
+	private int RowsThatFit(RectTransform container, LeaderboardEntryUi sample)
+	{
+		const int fallback = 10;
+		var viewport = container != null ? container.parent as RectTransform : null;
+		var row = sample.transform as RectTransform;
+		if (viewport == null || row == null) return fallback;
+		float available = viewport.rect.height;
+		float rowHeight = row.rect.height > 0f ? row.rect.height : LayoutUtility.GetPreferredHeight(row);
+		float spacing = 0f;
+		var layout = container.GetComponent<VerticalLayoutGroup>();
+		if (layout != null)
+		{
+			spacing = layout.spacing;
+			available -= layout.padding.top + layout.padding.bottom;
+		}
+		if (available <= 0f || rowHeight <= 0f) return fallback;
+		return Mathf.Clamp(Mathf.FloorToInt((available + spacing) / (rowHeight + spacing)), 1, MaxEntries);
+	}
+
+	private float RowStep(RectTransform container)
+	{
+		var rows = GetComponentsInChildren<LeaderboardEntryUi>(false);
+		float height = rows.Length > 0 ? ((RectTransform)rows[0].transform).rect.height : 0f;
+		var layout = container != null ? container.GetComponent<VerticalLayoutGroup>() : null;
+		float step = height + (layout != null ? layout.spacing : 0f);
+		return step > 1f ? step : 40f;
+	}
+
+	private void SetUpDrag(RectTransform container)
+	{
+		if (container == null || container.GetComponent<OpenBonkLeaderboardDrag>() != null) return;
+		// The panel's own ScrollRect would move the rows out of the panel.
+		var viewport = container.parent;
+		if (viewport != null)
+			foreach (var behaviour in viewport.GetComponents<Behaviour>())
+				if (behaviour is ScrollRect || behaviour.GetType().Name == "AutoScrollRect") behaviour.enabled = false;
+		var drag = container.gameObject.AddComponent<OpenBonkLeaderboardDrag>();
+		drag.moved = distance => Scroll(container, distance);
+	}
+
+	// distance is in canvas units; positive moves towards lower ranks.
+	private void Scroll(RectTransform container, float distance)
+	{
+		if (shownEntries == null) return;
+		dragRemainder += distance;
+		float step = RowStep(container);
+		int rows = (int)(dragRemainder / step);
+		if (rows == 0) return;
+		dragRemainder -= rows * step;
+		int before = firstShown;
+		firstShown += rows;
+		RenderRows();
+		if (firstShown == before) dragRemainder = 0f;
 	}
 
 	// The menu panel ships with a single row, so further rows are created from
@@ -132,6 +216,7 @@ public class LeaderboardUiNew : MonoBehaviour
 
 	private void ShowMessage(string text)
 	{
+		shownEntries = null;
 		var rows = GetComponentsInChildren<LeaderboardEntryUi>(true);
 		LeaderboardEntryUi message = rows.Length > 0 ? rows[0] : null;
 		for (int i = 0; i < rows.Length; i++) rows[i].gameObject.SetActive(false);

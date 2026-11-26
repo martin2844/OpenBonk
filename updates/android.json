@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "tag": "v0.1.30-beta",
-  "version_code": 32,
-  "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.30-beta/OpenBonk.apk",
-  "size": 56732394,
-  "sha256": "342e4d65ffe246b333a532aa8ce4b74fa76a9c6563a08514d48db1dc58cdf053"
+  "tag": "v0.1.31-beta",
+  "version_code": 33,
+  "url": "https://github.com/martin2844/OpenBonk/releases/download/v0.1.31-beta/OpenBonk.apk",
+  "size": 56728298,
+  "sha256": "9502d5cd5ed8e9db3a07b1978c4fb7c5671f65f5dec9d8ad4fab5304d40b43e9"
 }
