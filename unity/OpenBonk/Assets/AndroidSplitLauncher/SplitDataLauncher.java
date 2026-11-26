@@ -16,6 +16,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.LinearLayout;
@@ -24,6 +25,7 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.ImageView;
 import android.widget.ScrollView;
+import android.text.InputFilter;
 import java.io.File;
 import java.io.IOException;
 import java.io.FileOutputStream;
@@ -79,6 +81,7 @@ public final class SplitDataLauncher extends Activity {
     private TextView message, modHint;
     private Button choose;
     private Button play;
+    private EditText playerNameField;
     private Button chooseSteam;
     private Button chooseProfile;
     private Button exportCurrentProfile;
@@ -432,6 +435,26 @@ public final class SplitDataLauncher extends Activity {
         LinearLayout gameStatusCard = card();
         right.addView(gameStatusCard);
         gameStatusCard.addView(cardTitle(es ? "Iniciar partida" : "Launch game"));
+        TextView nameLabel = uiText(es ? "Nombre del jugador" : "Player name", 13, MUTED);
+        nameLabel.setPadding(0, dp(6), 0, 0);
+        gameStatusCard.addView(nameLabel);
+        playerNameField = new EditText(this);
+        playerNameField.setSingleLine(true);
+        playerNameField.setTextSize(14);
+        playerNameField.setTextColor(INK);
+        playerNameField.setHintTextColor(MUTED);
+        playerNameField.setHint(es ? "Jugador" : "Player");
+        playerNameField.setFilters(new InputFilter[] { new InputFilter.LengthFilter(24) });
+        playerNameField.setBackgroundTintList(ColorStateList.valueOf(LINE));
+        playerNameField.setText(launcherPrefs.getString("player_name", "Player"));
+        playerNameField.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence text, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence text, int start, int before, int count) { }
+            @Override public void afterTextChanged(android.text.Editable text) {
+                launcherPrefs.edit().putString("player_name", text == null ? "" : text.toString()).apply();
+            }
+        });
+        gameStatusCard.addView(playerNameField, buttonParams());
         play = new Button(this);
         play.setText(es ? "▶   Jugar" : "▶   Play");
         play.setEnabled(false);
@@ -2414,6 +2437,11 @@ public final class SplitDataLauncher extends Activity {
         }
         Intent game = new Intent(); game.setClassName(getPackageName(), "com.unity3d.player.UnityPlayerGameActivity");
         game.putExtra("openbonk_split_launcher", true);
+        String playerName = playerNameField == null ? "Player" : playerNameField.getText().toString().trim();
+        if (playerName.isEmpty()) playerName = "Player";
+        if (playerName.length() > 24) playerName = playerName.substring(0, 24);
+        prefs.edit().putString("player_name", playerName).apply();
+        game.putExtra("openbonk_player_name", playerName);
         if (controlChanged) game.putExtra("megabonk_launcher_touch_mode", touchMode);
         if (pendingSteam().isFile()) game.putExtra("megabonk_import_original_texts", true);
         long attempt = System.currentTimeMillis();
