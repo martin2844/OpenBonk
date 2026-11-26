@@ -2022,10 +2022,13 @@ public final class SplitDataLauncher extends Activity {
                         startupExitDetail(exit), pid);
                     if (exit.getReason() == android.app.ApplicationExitInfo.REASON_CRASH ||
                             exit.getReason() == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE) {
-                        // A truncated or partially written Unity metadata cache
-                        // can SIGBUS on the next launch. Re-extract it once.
+                        // A truncated IL2CPP cache or a bad Vulkan PSO cache can
+                        // crash the next launch. Clear both, and keep clearing the
+                        // PSO cache on later launches for this installation.
                         invalidateRuntimeMetadataCache();
-                        report += "\nRuntime cache: cleared for the next launch";
+                        clearVulkanPsoCache();
+                        editor.putBoolean(CLEAR_PSO_CACHE, true);
+                        report += "\nRuntime caches: cleared for the next launch";
                     }
                     editor.putString(LAUNCH_REPORT, report);
                 }
@@ -2244,13 +2247,21 @@ public final class SplitDataLauncher extends Activity {
             }).create());
     }
 
+    private static final String[] IL2CPP_CACHE_FILES = {
+        "Metadata/global-metadata.dat",
+        "Resources/Newtonsoft.Json.dll-resources.dat",
+        "Resources/System.Data.dll-resources.dat",
+        "Resources/System.Drawing.dll-resources.dat",
+        "Resources/mscorlib.dll-resources.dat"
+    };
+    private static final String CLEAR_PSO_CACHE = "openbonk_clear_pso_cache";
+
     private void invalidateRuntimeMetadataCache() {
-        File external = getExternalFilesDir(null);
-        for (File root : new File[] { external, getFilesDir() }) {
+        for (File root : new File[] { getExternalFilesDir(null), getFilesDir() }) {
             if (root == null) continue;
-            File cached = new File(root, "il2cpp/Metadata/global-metadata.dat");
-            if (cached.exists() && !cached.delete())
-                android.util.Log.w("OpenBonk", "Could not clear the Unity metadata cache: " + cached);
+            File cache = new File(root, "il2cpp");
+            if (cache.exists() && !deleteTree(cache))
+                android.util.Log.w("OpenBonk", "Could not clear the Unity IL2CPP cache: " + cache);
         }
     }
 
@@ -2260,26 +2271,31 @@ public final class SplitDataLauncher extends Activity {
         String key = "openbonk_runtime_metadata_install";
         boolean installChanged = prefs.getLong(key, -1L) != installedAt;
 
-        // Unity extracts this file once and reuses it on later launches. A
-        // truncated cache makes InitializeRuntime SIGBUS, so validate it
-        // against the APK copy before starting the game.
+        // Unity extracts these files once and reuses them on later launches.
+        // A truncated metadata or resource file can corrupt startup, so
+        // validate every cached file against the APK copy before the game.
         File external = getExternalFilesDir(null);
         if (external == null) throw new IOException("Runtime storage unavailable");
         for (File root : new File[] { external, getFilesDir() }) {
-            File cached = new File(root, "il2cpp/Metadata/global-metadata.dat");
-            if (!cached.exists()) continue;
-            if (installChanged || !cached.isFile() || !matchesBundledMetadata(cached)) {
-                if (!cached.delete()) throw new IOException("Could not refresh the Unity metadata cache");
-                android.util.Log.i("OpenBonk", "Cleared an invalid Unity metadata cache: " + cached);
+            File cache = new File(root, "il2cpp");
+            if (!cache.exists()) continue;
+            boolean invalid = installChanged;
+            for (String relative : IL2CPP_CACHE_FILES) {
+                File cached = new File(cache, relative);
+                if (!cached.exists()) continue;
+                if (!cached.isFile() || !matchesBundled(cached, relative)) { invalid = true; break; }
             }
+            if (invalid && !deleteTree(cache))
+                throw new IOException("Could not refresh the Unity IL2CPP cache");
+            if (invalid) android.util.Log.i("OpenBonk", "Cleared an invalid Unity IL2CPP cache: " + cache);
         }
         if (installChanged && !prefs.edit().putLong(key, installedAt).commit())
             throw new IOException("Could not record the Unity metadata refresh");
     }
 
-    private boolean matchesBundledMetadata(File cached) {
+    private boolean matchesBundled(File cached, String relative) {
         try (ZipFile apk = new ZipFile(getPackageCodePath())) {
-            ZipEntry entry = apk.getEntry("assets/bin/Data/Managed/Metadata/global-metadata.dat");
+            ZipEntry entry = apk.getEntry("assets/bin/Data/Managed/" + relative);
             if (entry == null || entry.getSize() < 0 || entry.getCrc() < 0) return true;
             if (cached.length() != entry.getSize()) return false;
             CRC32 crc = new CRC32();
@@ -2289,8 +2305,28 @@ public final class SplitDataLauncher extends Activity {
             }
             return crc.getValue() == entry.getCrc();
         } catch (Exception e) {
-            android.util.Log.w("OpenBonk", "Could not validate the Unity metadata cache", e);
+            android.util.Log.w("OpenBonk", "Could not validate the Unity cache", e);
             return true;
+        }
+    }
+
+    private static boolean deleteTree(File file) {
+        if (file == null || !file.exists()) return true;
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) for (File child : children) if (!deleteTree(child)) return false;
+        }
+        return file.delete();
+    }
+
+    private void clearVulkanPsoCache() {
+        for (File dir : new File[] { getExternalCacheDir(), getCacheDir() }) {
+            if (dir == null) continue;
+            File cache = new File(dir, "vulkan_pso_cache.bin");
+            if (cache.exists()) {
+                if (!cache.delete()) android.util.Log.w("OpenBonk", "Could not clear the Vulkan PSO cache: " + cache);
+                else android.util.Log.i("OpenBonk", "Cleared the Vulkan PSO cache");
+            }
         }
     }
 
@@ -2298,6 +2334,7 @@ public final class SplitDataLauncher extends Activity {
         SharedPreferences prefs = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE);
         try {
             prepareRuntimeMetadata(prefs);
+            if (prefs.getBoolean(CLEAR_PSO_CACHE, false)) clearVulkanPsoCache();
         } catch (IOException | android.content.pm.PackageManager.NameNotFoundException e) {
             android.util.Log.w("OpenBonk", "Could not prepare Unity runtime metadata", e);
             showStartupReport(startupReport(installedVersion(),
