@@ -83,7 +83,7 @@ public class LeaderboardUiNew : MonoBehaviour
 
 	private void ShowRows(LeaderboardResponse.Entry[] entries)
 	{
-		var rows = GetComponentsInChildren<LeaderboardEntryUi>(true);
+		var rows = EnsureRows(entries.Length);
 		for (int i = 0; i < rows.Length; i++) rows[i].gameObject.SetActive(false);
 		int count = Mathf.Min(entries.Length, rows.Length);
 		for (int i = 0; i < count; i++)
@@ -106,6 +106,23 @@ public class LeaderboardUiNew : MonoBehaviour
 		}
 		if (buffering != null) buffering.SetActive(false);
 		if (t_reset != null) t_reset.text = "";
+	}
+
+	// The menu panel ships with a single row, so further rows are created from
+	// lbPrefab (or a copy of the first row) next to it.
+	private LeaderboardEntryUi[] EnsureRows(int wanted)
+	{
+		var rows = GetComponentsInChildren<LeaderboardEntryUi>(true);
+		if (rows.Length == 0 || rows.Length >= wanted) return rows;
+		var parent = rows[0].transform.parent;
+		var template = lbPrefab != null && lbPrefab.GetComponent<LeaderboardEntryUi>() != null ? lbPrefab : rows[0].gameObject;
+		for (int i = rows.Length; i < wanted; i++)
+		{
+			var row = Instantiate(template, parent, false);
+			row.name = template.name + " " + i;
+			row.SetActive(false);
+		}
+		return GetComponentsInChildren<LeaderboardEntryUi>(true);
 	}
 
 	private void ShowUnavailable()
