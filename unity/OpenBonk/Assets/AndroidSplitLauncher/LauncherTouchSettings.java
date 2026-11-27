@@ -49,7 +49,7 @@ final class LauncherTouchSettings {
                 pending.put(dst + id + ".visible", integer(PREFIX + id + ".visible", 1));
                 pending.put(dst + id + ".action", string(PREFIX + id + ".action", id));
             }
-            pending.put(dst + "grid", integer(PREFIX + "grid", 0)); pending.put(dst + "autorun", integer(PREFIX + "autorun", 0)); pending.put(dst + "exists", 1);
+            pending.put(dst + "grid", integer(PREFIX + "grid", 0)); pending.put(dst + "autorun", integer(PREFIX + "autorun", 0)); pending.put(dst + "floating", integer(PREFIX + "floating", 0)); pending.put(dst + "exists", 1);
             return prefs.edit().putString("pending", pending.toString()).commit();
         } catch (Exception e) { return false; }
     }
@@ -65,7 +65,7 @@ final class LauncherTouchSettings {
                 pending.put(PREFIX + id + ".visible", integer(src + id + ".visible", 1));
                 pending.put(PREFIX + id + ".action", string(src + id + ".action", id));
             }
-            pending.put(PREFIX + "grid", integer(src + "grid", 0)); pending.put(PREFIX + "autorun", integer(src + "autorun", 0));
+            pending.put(PREFIX + "grid", integer(src + "grid", 0)); pending.put(PREFIX + "autorun", integer(src + "autorun", 0)); pending.put(PREFIX + "floating", integer(src + "floating", 0));
             return prefs.edit().putString("pending", pending.toString()).commit();
         } catch (Exception e) { return false; }
     }

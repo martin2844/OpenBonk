@@ -24,6 +24,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
     private bool previousMouseSimulation;
     private string locale;
     private AndroidTouchButton[] buttons;
+    private AndroidTouchStick[] sticks;
     private AndroidTouchLayoutEditor layoutEditor;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -42,9 +43,9 @@ internal sealed class AndroidTouchControls : MonoBehaviour
     {
         bool enabled = forceTest || (SaveManager.Instance?.config?.cfControlSettings != null &&
                        SaveManager.Instance.config.cfControlSettings.touch_controls != 0);
-        bool canPlay = appFocused && !appPaused && GameManager.Instance != null && GameManager.Instance.IsPlaying() &&
-                       !GameManager.Instance.cutscene && MyPlayer.Instance != null &&
-                       MyPlayer.Instance.hasStarted && !MyPlayer.Instance.IsDead() && (!MyTime.paused || AndroidTouchLayoutEditor.Editing) &&
+        bool inRun = GameManager.Instance != null && GameManager.Instance.IsPlaying() && MyPlayer.Instance != null &&
+                     MyPlayer.Instance.hasStarted && !MyPlayer.Instance.IsDead();
+        bool canPlay = appFocused && !appPaused && inRun && !GameManager.Instance.cutscene && (!MyTime.paused || AndroidTouchLayoutEditor.Editing) &&
                        UiManager.Instance != null && UiManager.Instance.encounterWindows != null &&
                        !UiManager.Instance.encounterWindows.HasEncounter();
         bool shouldShow = enabled && canPlay;
@@ -56,6 +57,8 @@ internal sealed class AndroidTouchControls : MonoBehaviour
             if (!visible) AndroidTouchInput.ReleaseAll();
             if (overlay != null) overlay.SetActive(visible);
         }
+        // A held stick survives menus inside a run, but not the end of the run.
+        if (!visible && sticks != null) foreach (var stick in sticks) { if (enabled && inRun) stick.TrackWhileHidden(); else stick.ResetPointer(); }
         if (overlay != null)
         {
             string currentLocale = LocalizationSettings.SelectedLocale?.Identifier.Code ?? "en";
@@ -90,6 +93,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
     {
         SetMouseSimulationForGameplay(false);
         AndroidTouchInput.ReleaseAll();
+        if (sticks != null) foreach (var stick in sticks) stick.ResetPointer();
         // Disabling invokes each control's OnDisable, clearing its pointer ID.
         // Android may never send pointer-up after an interruption.
         visible = false;
@@ -131,8 +135,18 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         lookRect.offsetMin = lookRect.offsetMax = Vector2.zero;
         lookArea.GetComponent<Image>().color = Color.clear;
 
-        CreateStick(safe, "Move", new Vector2(190, 175), false);
-        CreateStick(safe, "Look", new Vector2(-390, 175), true);
+        // Above free look and below every control: used only by the floating
+        // movement stick, and forwards nothing while that option is off.
+        var floatingArea = new GameObject("Floating stick area", typeof(RectTransform), typeof(Image), typeof(AndroidTouchFloatingZone));
+        var floatingRect = (RectTransform)floatingArea.transform;
+        floatingRect.SetParent(safe, false); floatingRect.anchorMin = Vector2.zero; floatingRect.anchorMax = new Vector2(.5f, .8f);
+        floatingRect.offsetMin = floatingRect.offsetMax = Vector2.zero;
+        floatingArea.GetComponent<Image>().color = Color.clear;
+
+        var move = CreateStick(safe, "Move", new Vector2(190, 175), false);
+        var lookStick = CreateStick(safe, "Look", new Vector2(-390, 175), true);
+        sticks = new[] { move, lookStick };
+        floatingArea.GetComponent<AndroidTouchFloatingZone>().stick = move;
         buttons = new[] {
             CreateButton(safe, "Jump", new Vector2(-105, 155), 150),
             CreateButton(safe, "Slide", new Vector2(-105, 325), 135),
@@ -150,7 +164,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         overlay.SetActive(false);
     }
 
-    private void CreateStick(RectTransform parent, string name, Vector2 position, bool rightAnchor)
+    private AndroidTouchStick CreateStick(RectTransform parent, string name, Vector2 position, bool rightAnchor)
     {
         var baseRect = CreateImage(parent, name, position, 245, rightAnchor, false);
         baseRect.GetComponent<Image>().color = new Color(.08f, .12f, .14f, .46f);
@@ -161,6 +175,7 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         var stick = baseRect.gameObject.AddComponent<AndroidTouchStick>();
         stick.look = name == "Look";
         stick.knob = knob;
+        return stick;
     }
 
     private AndroidTouchButton CreateButton(RectTransform parent, string action, Vector2 position, float size, bool top = false)
@@ -235,11 +250,29 @@ internal sealed class AndroidTouchFreeLook : MonoBehaviour, IPointerDownHandler,
 
 internal sealed class AndroidTouchStick : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
 {
+    internal const string FloatingKey = "openbonk.touch.layout.floating";
     internal bool look;
     internal RectTransform knob;
     private int pointer = int.MinValue;
     private bool autoRun, autoRunArmed;
+    // Set when the finger was taken over from before a menu hid the overlay;
+    // the EventSystem keeps sending that finger's events elsewhere, so it is
+    // followed through Input.touches instead.
+    private bool polling;
+    private bool floatingHome;
+    private Vector2 home;
     private RectTransform Rect => (RectTransform)transform;
+    private static int floatingCache = -1;
+    internal static bool FloatingEnabled
+    {
+        get { if (floatingCache < 0) floatingCache = PlayerPrefs.GetInt(FloatingKey, 0) != 0 ? 1 : 0; return floatingCache == 1; }
+    }
+    internal static void RefreshFloating() { floatingCache = -1; }
+    private bool Floating => !look && FloatingEnabled;
+    internal bool Usable
+    {
+        get { var group = GetComponent<CanvasGroup>(); return group == null || group.blocksRaycasts; }
+    }
 
     public void OnPointerDown(PointerEventData eventData)
     {
@@ -247,25 +280,96 @@ internal sealed class AndroidTouchStick : MonoBehaviour, IPointerDownHandler, ID
         if (pointer != int.MinValue) return;
         if (autoRun) { Cancel(); return; }
         pointer = eventData.pointerId;
-        UpdatePosition(eventData);
+        polling = false;
+        if (Floating) MoveBaseTo(eventData.position, eventData.pressEventCamera);
+        UpdatePosition(eventData.position, eventData.pressEventCamera);
     }
-    public void OnDrag(PointerEventData eventData) { if (!AndroidTouchLayoutEditor.Editing && eventData.pointerId == pointer) UpdatePosition(eventData); }
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (!AndroidTouchLayoutEditor.Editing && !polling && eventData.pointerId == pointer) UpdatePosition(eventData.position, eventData.pressEventCamera);
+    }
     public void OnPointerUp(PointerEventData eventData)
     {
-        if (eventData.pointerId != pointer) return;
+        if (eventData.pointerId == pointer && !polling) Release();
+    }
+
+    private void Release()
+    {
         if (!look && autoRunArmed && PlayerPrefs.GetInt("openbonk.touch.layout.autorun", 0) != 0)
         {
-            pointer = int.MinValue; autoRun = true; autoRunArmed = false; AndroidTouchInput.Move = Vector2.up;
+            pointer = int.MinValue; polling = false; autoRun = true; autoRunArmed = false; AndroidTouchInput.Move = Vector2.up;
+            ReturnHome();
             if (knob != null) knob.anchoredPosition = Vector2.up * Mathf.Max(1f, Rect.rect.width * .35f);
         }
         else Cancel();
     }
-    private void OnDisable() { Cancel(); }
+
+    // Menus such as level-up and chests hide the overlay while the thumb
+    // usually stays on the stick. The finger and auto run are kept so movement
+    // resumes as soon as the menu closes; AndroidTouchControls calls
+    // TrackWhileHidden every frame to drop the finger if it is lifted meanwhile.
+    private void OnDisable()
+    {
+        if (look) Cancel();
+        else if (pointer != int.MinValue) { polling = true; if (knob != null) knob.anchoredPosition = Vector2.zero; }
+    }
+    private void OnEnable()
+    {
+        if (look || AndroidTouchLayoutEditor.Editing) return;
+        if (pointer != int.MinValue)
+        {
+            if (FindTouch(pointer, out var touch)) UpdatePosition(touch.position, null);
+            else Cancel();
+        }
+        else if (autoRun)
+        {
+            AndroidTouchInput.Move = Vector2.up;
+            if (knob != null) knob.anchoredPosition = Vector2.up * Mathf.Max(1f, Rect.rect.width * .35f);
+        }
+    }
+    internal void TrackWhileHidden()
+    {
+        if (pointer != int.MinValue && !FindTouch(pointer, out _)) Cancel();
+    }
+    private void Update()
+    {
+        if (!polling || pointer == int.MinValue) return;
+        if (AndroidTouchLayoutEditor.Editing) { Cancel(); return; }
+        if (FindTouch(pointer, out var touch)) UpdatePosition(touch.position, null);
+        else Release();
+    }
+    private static bool FindTouch(int finger, out Touch found)
+    {
+        for (int i = 0; i < Input.touchCount; i++)
+        {
+            Touch touch = Input.GetTouch(i);
+            if (touch.fingerId != finger) continue;
+            found = touch;
+            return touch.phase != TouchPhase.Ended && touch.phase != TouchPhase.Canceled;
+        }
+        found = default;
+        return false;
+    }
+
     internal void ResetPointer() { Cancel(); }
 
-    private void UpdatePosition(PointerEventData eventData)
+    private void MoveBaseTo(Vector2 screen, Camera camera)
     {
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(Rect, eventData.position, eventData.pressEventCamera, out var local)) return;
+        var parent = Rect.parent as RectTransform;
+        if (parent == null || !RectTransformUtility.ScreenPointToWorldPointInRectangle(parent, screen, camera, out var world)) return;
+        if (!floatingHome) { home = Rect.anchoredPosition; floatingHome = true; }
+        Rect.position = world;
+    }
+    private void ReturnHome()
+    {
+        if (!floatingHome) return;
+        Rect.anchoredPosition = home;
+        floatingHome = false;
+    }
+
+    private void UpdatePosition(Vector2 screen, Camera camera)
+    {
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(Rect, screen, camera, out var local)) return;
         float radius = Mathf.Max(1f, Rect.rect.width * .35f);
         Vector2 value = Vector2.ClampMagnitude(local / radius, 1f);
         if (!look) autoRunArmed = PlayerPrefs.GetInt("openbonk.touch.layout.autorun", 0) != 0 && local.y > radius * 1.35f && Mathf.Abs(local.x) < radius;
@@ -274,10 +378,25 @@ internal sealed class AndroidTouchStick : MonoBehaviour, IPointerDownHandler, ID
     }
     private void Cancel()
     {
-        pointer = int.MinValue; autoRun = autoRunArmed = false;
+        pointer = int.MinValue; polling = false; autoRun = autoRunArmed = false;
         if (look) AndroidTouchInput.Look = Vector2.zero; else AndroidTouchInput.Move = Vector2.zero;
         if (knob != null) knob.anchoredPosition = Vector2.zero;
+        ReturnHome();
     }
+}
+
+// With the floating stick enabled, a touch anywhere on the left part of the
+// screen that does not start on another control moves the stick under it.
+internal sealed class AndroidTouchFloatingZone : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
+{
+    internal AndroidTouchStick stick;
+    private Image image;
+    private void Awake() { image = GetComponent<Image>(); }
+    private void Update() { if (image != null) image.raycastTarget = AndroidTouchStick.FloatingEnabled && !AndroidTouchLayoutEditor.Editing; }
+    private bool Active => stick != null && stick.isActiveAndEnabled && stick.Usable && AndroidTouchStick.FloatingEnabled && !AndroidTouchLayoutEditor.Editing;
+    public void OnPointerDown(PointerEventData e) { if (Active) stick.OnPointerDown(e); }
+    public void OnDrag(PointerEventData e) { if (stick != null) stick.OnDrag(e); }
+    public void OnPointerUp(PointerEventData e) { if (stick != null) stick.OnPointerUp(e); }
 }
 
 internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
@@ -403,6 +522,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         MakeButton(bar, "Opacity -", new Vector2(-30, -125), new Vector2(165, 64), () => ChangeOpacity(-.1f), true);
         MakeButton(bar, "Opacity +", new Vector2(150, -125), new Vector2(165, 64), () => ChangeOpacity(.1f), true);
         MakeButton(bar, "Grid", new Vector2(330, -125), new Vector2(165, 64), ToggleGrid, true);
+        MakeButton(bar, "Floating", new Vector2(-440, -195), new Vector2(165, 64), ToggleFloating, true);
         MakeButton(bar, "Slot", new Vector2(-260, -195), new Vector2(165, 64), () => { profileSlot = profileSlot % 3 + 1; Refresh(); }, true);
         MakeButton(bar, "Save", new Vector2(-80, -195), new Vector2(165, 64), SaveProfile, true);
         MakeButton(bar, "Load", new Vector2(100, -195), new Vector2(165, 64), LoadProfile, true);
@@ -468,6 +588,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private void ChangeOpacity(float delta) { if (selected != null) selected.SetOpacity(selected.Opacity + delta); Refresh(); }
     private void ToggleGrid() { PlayerPrefs.SetInt(Prefix + "grid", SnapToGrid ? 0 : 1); Refresh(); }
     private void ToggleAutoRun() { PlayerPrefs.SetInt(Prefix + "autorun", PlayerPrefs.GetInt(Prefix + "autorun", 0) == 0 ? 1 : 0); Refresh(); }
+    private void ToggleFloating() { PlayerPrefs.SetInt(Prefix + "floating", AndroidTouchStick.FloatingEnabled ? 0 : 1); AndroidTouchStick.RefreshFloating(); Refresh(); }
     private void ToggleLabels()
     {
         PlayerPrefs.SetInt(Prefix + "labels", AndroidControlText.XboxLabels ? 0 : 1);
@@ -484,20 +605,21 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private void SaveProfile()
     {
         foreach (var target in targets) target.CopyToProfile(SlotKey);
-        PlayerPrefs.SetInt(SlotKey + "grid", SnapToGrid ? 1 : 0); PlayerPrefs.SetInt(SlotKey + "autorun", PlayerPrefs.GetInt(Prefix + "autorun", 0)); PlayerPrefs.SetInt(SlotKey + "exists", 1); PlayerPrefs.Save(); Refresh();
+        PlayerPrefs.SetInt(SlotKey + "grid", SnapToGrid ? 1 : 0); PlayerPrefs.SetInt(SlotKey + "autorun", PlayerPrefs.GetInt(Prefix + "autorun", 0)); PlayerPrefs.SetInt(SlotKey + "floating", PlayerPrefs.GetInt(Prefix + "floating", 0)); PlayerPrefs.SetInt(SlotKey + "exists", 1); PlayerPrefs.Save(); Refresh();
     }
     private void LoadProfile()
     {
         if (PlayerPrefs.GetInt(SlotKey + "exists", 0) == 0) { selectedLabel.text = Spanish ? "Perfil vacío" : "Empty profile"; return; }
         foreach (var target in targets) target.CopyFromProfile(SlotKey);
         PlayerPrefs.SetInt(Prefix + "grid", PlayerPrefs.GetInt(SlotKey + "grid", 0)); PlayerPrefs.SetInt(Prefix + "autorun", PlayerPrefs.GetInt(SlotKey + "autorun", 0));
+        PlayerPrefs.SetInt(Prefix + "floating", PlayerPrefs.GetInt(SlotKey + "floating", 0)); AndroidTouchStick.RefreshFloating();
         foreach (var button in buttons) button.RefreshLabel(); selected = null; swapFrom = null;
         foreach (var target in targets) target.UpdateAppearance(); PlayerPrefs.Save(); Refresh();
     }
     private void ResetLayout()
     {
         swapFrom = null; foreach (var target in targets) target.ResetLayout();
-        PlayerPrefs.DeleteKey(Prefix + "grid"); PlayerPrefs.DeleteKey(Prefix + "autorun");
+        PlayerPrefs.DeleteKey(Prefix + "grid"); PlayerPrefs.DeleteKey(Prefix + "autorun"); PlayerPrefs.DeleteKey(Prefix + "floating"); AndroidTouchStick.RefreshFloating();
         foreach (var button in buttons) button.RefreshLabel(); PlayerPrefs.Save(); Refresh();
     }
     internal void RefreshToggleLabel()
@@ -513,7 +635,8 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         selectedLabel.text = swapFrom != null ? (Spanish ? "Toca otro botón para intercambiar" : "Tap another button to swap") :
             (selected == null ? (Spanish ? "Arrastra un control para moverlo" : "Drag a control to move it") :
             (AndroidControlText.TouchAction(selected.Button?.action) ?? selected.Id) + "  ·  " + (Spanish ? "Tamaño" : "Size") + " " + Mathf.RoundToInt(selected.Scale * 100) + "%  ·  " + (Spanish ? "Opacidad" : "Opacity") + " " + Mathf.RoundToInt(selected.Opacity * 100) + "%" + (selected.Visible ? "" : (Spanish ? "  ·  Oculto" : "  ·  Hidden"))) +
-            "   |   " + (Spanish ? "Perfil " : "Profile ") + profileSlot + "   |   " + (Spanish ? "Cuadrícula: " : "Grid: ") + (SnapToGrid ? (Spanish ? "sí" : "on") : (Spanish ? "no" : "off")) + "   |   " + (Spanish ? "Autoavance: " : "Auto run: ") + (PlayerPrefs.GetInt(Prefix + "autorun", 0) != 0 ? (Spanish ? "sí" : "on") : (Spanish ? "no" : "off"));
+            "   |   " + (Spanish ? "Perfil " : "Profile ") + profileSlot + "   |   " + (Spanish ? "Cuadrícula: " : "Grid: ") + (SnapToGrid ? (Spanish ? "sí" : "on") : (Spanish ? "no" : "off")) + "   |   " + (Spanish ? "Autoavance: " : "Auto run: ") + (PlayerPrefs.GetInt(Prefix + "autorun", 0) != 0 ? (Spanish ? "sí" : "on") : (Spanish ? "no" : "off")) +
+            "   |   " + (Spanish ? "Stick flotante: " : "Floating stick: ") + (AndroidTouchStick.FloatingEnabled ? (Spanish ? "sí" : "on") : (Spanish ? "no" : "off"));
         if (selected != null && selected.Id == "Move" && PlayerPrefs.GetInt(Prefix + "autorun", 0) != 0)
             selectedLabel.text += Spanish ? "\nArrastrá hacia arriba y soltá; tocá para cancelar." : "\nDrag upward and release; tap to cancel.";
     }
@@ -526,7 +649,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
         var child = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI)); var tr = (RectTransform)child.transform;
         tr.SetParent(rect, false); tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one; tr.offsetMin = tr.offsetMax = Vector2.zero;
         var label = child.GetComponent<TextMeshProUGUI>(); label.font = TMP_Settings.defaultFontAsset; label.fontSize = 24; label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
-        label.text = Spanish ? (id == "Customize" ? "Editar" : id == "Done" ? "Listo" : id == "Reset" ? "Reiniciar" : id == "Swap" ? "Cambiar" : id == "Show" ? "Visible" : id == "All" ? "Todos" : id == "Opacity -" ? "Opacidad -" : id == "Opacity +" ? "Opacidad +" : id == "Grid" ? "Cuadrícula" : id == "Slot" ? "Perfil" : id == "Save" ? "Guardar" : id == "Load" ? "Cargar" : id == "Auto run" ? "Autoavance" : id) : (id == "Customize" ? "Edit" : id);
+        label.text = Spanish ? (id == "Customize" ? "Editar" : id == "Done" ? "Listo" : id == "Reset" ? "Reiniciar" : id == "Swap" ? "Cambiar" : id == "Show" ? "Visible" : id == "All" ? "Todos" : id == "Opacity -" ? "Opacidad -" : id == "Opacity +" ? "Opacidad +" : id == "Grid" ? "Cuadrícula" : id == "Slot" ? "Perfil" : id == "Save" ? "Guardar" : id == "Load" ? "Cargar" : id == "Auto run" ? "Autoavance" : id == "Floating" ? "Flotante" : id) : (id == "Customize" ? "Edit" : id);
         return obj;
     }
 }
@@ -662,11 +785,11 @@ internal static class AndroidTouchSettingsBridge
     private static readonly string[] Ids = { "Move", "Look", "Jump", "Slide", "Interact", "Aim", "MapOverlay", "Pause" };
     private static void ForEachKey(Action<string, char> visit)
     {
-        visit(Prefix + "grid", 'i'); visit(Prefix + "autorun", 'i'); visit(Prefix + "labels", 'i');
+        visit(Prefix + "grid", 'i'); visit(Prefix + "autorun", 'i'); visit(Prefix + "floating", 'i'); visit(Prefix + "labels", 'i');
         for (int slot = 0; slot <= 3; slot++)
         {
             string root = slot == 0 ? Prefix : Prefix + "profile." + slot + ".";
-            if (slot != 0) { visit(root + "exists", 'i'); visit(root + "grid", 'i'); visit(root + "autorun", 'i'); }
+            if (slot != 0) { visit(root + "exists", 'i'); visit(root + "grid", 'i'); visit(root + "autorun", 'i'); visit(root + "floating", 'i'); }
             foreach (string id in Ids)
             {
                 foreach (string name in new[] { "x", "y", "scale", "opacity" })
@@ -698,7 +821,7 @@ internal static class AndroidTouchSettingsBridge
                 else if (type == 's') PlayerPrefs.SetString(key, pending.Call<string>("getString", key));
                 else { double value = pending.Call<double>("getDouble", key); if (!double.IsNaN(value) && !double.IsInfinity(value)) PlayerPrefs.SetFloat(key, (float)value); }
             });
-            PlayerPrefs.Save(); Publish(prefs, true);
+            PlayerPrefs.Save(); AndroidTouchStick.RefreshFloating(); Publish(prefs, true);
         }
         catch (Exception e) { Debug.LogWarning("Could not apply launcher touch settings: " + e.Message); }
     }
