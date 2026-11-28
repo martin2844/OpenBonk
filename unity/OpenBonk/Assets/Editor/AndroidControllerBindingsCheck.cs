@@ -60,8 +60,10 @@ public static class AndroidControllerBindingsCheck
             AndroidControllerBindings.Reset(); Check(!AndroidControllerBindings.TryGet("Jump", out _) && !PlayerPrefs.HasKey(prefix + "Jump"), "reset removes overrides");
             Check(AndroidControllerBindings.Set("QuickReset", 2) && AndroidControllerBindings.TryGet("Interact", out int displaced) && displaced == -2 && !Press("Interact", KeyCode.JoystickButton2), "unbound action displaces conflicting default");
             Check(AndroidControlText.TouchGlyph("Jump") == "A" && AndroidControlText.TouchGlyph("Slide") == "B" && AndroidControlText.TouchGlyph("Interact") == "X" && AndroidControlText.TouchGlyph("Aim") == "Y" && AndroidControlText.TouchGlyph("MapOverlay") == "RT" && AndroidControlText.TouchGlyph("Unknown") == null, "touch button glyphs match controller defaults");
-            PlayerPrefs.SetInt(AndroidControlText.TouchLabelStyleKey, 1); Check(AndroidControlText.XboxLabels, "xbox labels preference");
-            PlayerPrefs.SetInt(AndroidControlText.TouchLabelStyleKey, 0); Check(!AndroidControlText.XboxLabels, "text labels preference");
+            PlayerPrefs.SetInt(AndroidControlText.TouchLabelStyleKey, 1); AndroidControlText.RefreshLabels(); Check(AndroidControlText.XboxLabels, "xbox labels preference");
+            PlayerPrefs.SetInt(AndroidControlText.TouchLabelStyleKey, 2); AndroidControlText.RefreshLabels(); Check(AndroidControlText.IconLabels && !AndroidControlText.XboxLabels && AndroidControlText.NextLabelStyle == 0, "icon labels preference");
+            Check(OpenBonkTouchIcons.Get("Jump") != null && OpenBonkTouchIcons.Get("Slide") != null && OpenBonkTouchIcons.Get("Interact") != null && OpenBonkTouchIcons.Get("Aim") != null && OpenBonkTouchIcons.Get("Pause") == null, "touch icons decode");
+            PlayerPrefs.SetInt(AndroidControlText.TouchLabelStyleKey, 0); AndroidControlText.RefreshLabels(); Check(!AndroidControlText.XboxLabels, "text labels preference");
             Debug.Log("AndroidControllerBindingsCheck passed: defaults, overrides, keyboard/menu separation, trigger routing, persistence and reset");
         }
         finally

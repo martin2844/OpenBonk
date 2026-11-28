@@ -191,8 +191,14 @@ internal sealed class AndroidTouchControls : MonoBehaviour
         label.enableAutoSizing = true; label.fontSizeMin = 16; label.fontSizeMax = label.fontSize;
         label.alignment = TextAlignmentOptions.Center; label.color = new Color(.96f, .97f, .90f, 1f);
         label.raycastTarget = false;
+        var iconObject = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+        var iconRect = iconObject.GetComponent<RectTransform>();
+        iconRect.SetParent(rect, false); iconRect.anchorMin = new Vector2(.14f, .14f); iconRect.anchorMax = new Vector2(.86f, .86f);
+        iconRect.offsetMin = iconRect.offsetMax = Vector2.zero;
+        var icon = iconObject.GetComponent<Image>();
+        icon.preserveAspect = true; icon.raycastTarget = false; icon.enabled = false;
         var button = rect.gameObject.AddComponent<AndroidTouchButton>();
-        button.action = action; button.label = label; button.ghost = action == "MapOverlay";
+        button.action = action; button.label = label; button.icon = icon; button.ghost = action == "MapOverlay";
         button.RefreshLabel();
         return button;
     }
@@ -403,6 +409,7 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
 {
     internal string action;
     internal TextMeshProUGUI label;
+    internal Image icon;
     internal bool ghost;
     private int pointer = int.MinValue;
 
@@ -412,6 +419,7 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
         if (ghost && !editing)
         {
             label.text = string.Empty;
+            if (icon != null) icon.enabled = false;
             var hidden = GetComponent<Image>();
             // Keep a tiny non-zero alpha: a fully transparent Graphic can be
             // culled by the canvas and stop receiving raycasts.
@@ -419,7 +427,9 @@ internal sealed class AndroidTouchButton : MonoBehaviour, IPointerDownHandler, I
             return;
         }
         bool xbox = AndroidControlText.XboxLabels;
-        string glyph = action == "Pause" ? "II" : xbox ? AndroidControlText.TouchGlyph(action) : AndroidControlText.TouchAction(action);
+        Sprite sprite = AndroidControlText.IconLabels ? OpenBonkTouchIcons.Get(action) : null;
+        if (icon != null) { icon.sprite = sprite; icon.enabled = sprite != null; }
+        string glyph = action == "Pause" ? "II" : sprite != null ? null : xbox ? AndroidControlText.TouchGlyph(action) : AndroidControlText.TouchAction(action);
         label.text = glyph ?? string.Empty;
         label.color = xbox && action == "Aim" ? new Color(.12f, .10f, .02f, 1f) : new Color(.96f, .97f, .90f, 1f);
         var background = GetComponent<Image>();
@@ -591,7 +601,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private void ToggleFloating() { PlayerPrefs.SetInt(Prefix + "floating", AndroidTouchStick.FloatingEnabled ? 0 : 1); AndroidTouchStick.RefreshFloating(); Refresh(); }
     private void ToggleLabels()
     {
-        PlayerPrefs.SetInt(Prefix + "labels", AndroidControlText.XboxLabels ? 0 : 1);
+        PlayerPrefs.SetInt(Prefix + "labels", AndroidControlText.NextLabelStyle);
         PlayerPrefs.Save();
         AndroidControlText.RefreshLabels();
         foreach (var button in buttons) button.RefreshLabel();
@@ -600,7 +610,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     private void RefreshLabelsButton()
     {
         if (labelsLabel == null) return;
-        labelsLabel.text = (Spanish ? "Etiquetas: " : "Labels: ") + (AndroidControlText.XboxLabels ? "Xbox" : (Spanish ? "Texto" : "Text"));
+        labelsLabel.text = (Spanish ? "Etiquetas: " : "Labels: ") + (AndroidControlText.XboxLabels ? "Xbox" : AndroidControlText.IconLabels ? (Spanish ? "Íconos" : "Icons") : (Spanish ? "Texto" : "Text"));
     }
     private string SlotKey => Prefix + "profile." + profileSlot + ".";
     private void SaveProfile()
