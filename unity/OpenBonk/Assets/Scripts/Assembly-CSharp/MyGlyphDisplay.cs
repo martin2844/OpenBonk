@@ -26,11 +26,12 @@ public class MyGlyphDisplay : MonoBehaviour
 #if UNITY_ANDROID && !UNITY_EDITOR
 	private bool lastTouchMode;
 	private string lastLocale;
+	private int lastLabels;
 	private static bool TouchMode => SaveManager.Instance?.config?.cfControlSettings != null && SaveManager.Instance.config.cfControlSettings.touch_controls != 0;
 	private static string CurrentLocale => UnityEngine.Localization.Settings.LocalizationSettings.SelectedLocale?.Identifier.Code ?? "en";
 	private void Update()
 	{
-		if (!string.IsNullOrEmpty(nativeAction) && (lastTouchMode != TouchMode || lastLocale != CurrentLocale)) RefreshNativeAction();
+		if (!string.IsNullOrEmpty(nativeAction) && (lastTouchMode != TouchMode || lastLocale != CurrentLocale || lastLabels != AndroidControlText.LabelsVersion)) RefreshNativeAction();
 	}
 #endif
 
@@ -76,7 +77,8 @@ public class MyGlyphDisplay : MonoBehaviour
 #if UNITY_ANDROID && !UNITY_EDITOR
 		lastTouchMode = TouchMode;
 		lastLocale = CurrentLocale;
-		string touchLabel = lastTouchMode ? AndroidControlText.TouchAction(action) : null;
+		lastLabels = AndroidControlText.LabelsVersion;
+		string touchLabel = lastTouchMode ? AndroidControlText.TouchPrompt(action) : null;
 		if (touchLabel != null) label = "[" + touchLabel + "]";
 		else
 #endif

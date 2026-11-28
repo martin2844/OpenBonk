@@ -30,7 +30,21 @@ public static class AndroidControlText
     // Touch buttons mirror the default Xbox-style controller actions. The
     // labels do not change the gameplay action each button sends.
     public const string TouchLabelStyleKey = "openbonk.touch.layout.labels";
-    public static bool XboxLabels => PlayerPrefs.GetInt(TouchLabelStyleKey, 1) != 0;
+    private static int xboxLabelsCache = -1;
+    public static int LabelsVersion { get; private set; }
+    public static bool XboxLabels
+    {
+        get { if (xboxLabelsCache < 0) xboxLabelsCache = PlayerPrefs.GetInt(TouchLabelStyleKey, 1) != 0 ? 1 : 0; return xboxLabelsCache == 1; }
+    }
+    public static void RefreshLabels() { xboxLabelsCache = -1; LabelsVersion++; }
+    // Prompt label for an action with touch controls, matching the button
+    // label style chosen in the touch layout editor.
+    public static string TouchPrompt(string action)
+    {
+        string text = TouchAction(action);
+        if (text == null) return null;
+        return XboxLabels ? TouchGlyph(action) ?? text : text;
+    }
     public static string TouchGlyph(string action)
     {
         if (string.Equals(action, "Jump", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "Jump Bhop", StringComparison.OrdinalIgnoreCase)) return "A";
