@@ -593,6 +593,7 @@ internal sealed class AndroidTouchLayoutEditor : MonoBehaviour
     {
         PlayerPrefs.SetInt(Prefix + "labels", AndroidControlText.XboxLabels ? 0 : 1);
         PlayerPrefs.Save();
+        AndroidControlText.RefreshLabels();
         foreach (var button in buttons) button.RefreshLabel();
         RefreshLabelsButton(); Refresh();
     }
@@ -821,7 +822,7 @@ internal static class AndroidTouchSettingsBridge
                 else if (type == 's') PlayerPrefs.SetString(key, pending.Call<string>("getString", key));
                 else { double value = pending.Call<double>("getDouble", key); if (!double.IsNaN(value) && !double.IsInfinity(value)) PlayerPrefs.SetFloat(key, (float)value); }
             });
-            PlayerPrefs.Save(); AndroidTouchStick.RefreshFloating(); Publish(prefs, true);
+            PlayerPrefs.Save(); AndroidTouchStick.RefreshFloating(); AndroidControlText.RefreshLabels(); Publish(prefs, true);
         }
         catch (Exception e) { Debug.LogWarning("Could not apply launcher touch settings: " + e.Message); }
     }

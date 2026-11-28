@@ -76,6 +76,9 @@ public final class SplitDataLauncher extends Activity {
     private static final String LAUNCH_ATTEMPT = "openbonk_launch_attempt";
     private static final String LAUNCH_PID = "openbonk_launch_pid";
     private static final String LAUNCH_REPORT = "openbonk_launch_report";
+    // Must match android:process of UnityPlayerGameActivity in the manifest.
+    private static final String GAME_PROCESS = ":game";
+    private static final java.util.concurrent.atomic.AtomicInteger LIVE_LAUNCHERS = new java.util.concurrent.atomic.AtomicInteger();
     private static final String PENDING_CONTROL = "pending_touch_mode";
     private static final Object CONTROL_LOCK = new Object();
     private TextView message, modHint;
@@ -154,6 +157,7 @@ public final class SplitDataLauncher extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        LIVE_LAUNCHERS.incrementAndGet();
         exportProfileId = state == null ? null : state.getString("exportProfileId");
         exportCurrentAccount = state == null ? null : state.getString("exportCurrentAccount");
         es = Locale.getDefault().getLanguage().equals("es");
@@ -852,6 +856,11 @@ public final class SplitDataLauncher extends Activity {
     @Override protected void onPause() {
         if (message != null) message.removeCallbacks(transferUiTick);
         super.onPause();
+    }
+
+    @Override protected void onDestroy() {
+        LIVE_LAUNCHERS.decrementAndGet();
+        super.onDestroy();
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -2093,13 +2102,18 @@ public final class SplitDataLauncher extends Activity {
     private void collectStartupReport(SharedPreferences prefs) {
         if (android.os.Build.VERSION.SDK_INT < 30) return;
         long attempt = prefs.getLong(LAUNCH_ATTEMPT, 0L);
-        int pid = prefs.getInt(LAUNCH_PID, 0);
-        if (attempt == 0L || pid == 0 || pid == android.os.Process.myPid()) return;
+        if (attempt == 0L) return;
         try {
             android.app.ActivityManager manager = getSystemService(android.app.ActivityManager.class);
             if (manager == null) return;
-            for (android.app.ApplicationExitInfo exit : manager.getHistoricalProcessExitReasons(getPackageName(), pid, 5)) {
+            // The game runs in its own process (GAME_PROCESS). The launcher
+            // process exits by itself after Play and is not a crash.
+            for (android.app.ApplicationExitInfo exit : manager.getHistoricalProcessExitReasons(getPackageName(), 0, 16)) {
                 if (exit.getTimestamp() < attempt) continue;
+                String process = exit.getProcessName();
+                boolean game = process != null && process.endsWith(GAME_PROCESS);
+                if (!game) continue;
+                int pid = exit.getPid();
                 String reason = startupExitReason(exit.getReason());
                 SharedPreferences.Editor editor = prefs.edit().remove(LAUNCH_ATTEMPT).remove(LAUNCH_PID);
                 if (reason != null) {
@@ -2237,7 +2251,7 @@ public final class SplitDataLauncher extends Activity {
     }
 
     private String startupLogTail(int crashedPid) {
-        String tombstone = readNewestTombstone(12000);
+        String tombstone = summarizeTombstone(readNewestTombstone(2_000_000));
         if (!tombstone.isEmpty()) return tombstone;
         File[] roots = { getExternalFilesDir(null), getFilesDir(), getCacheDir() };
         String[] names = { "Player.log", "Player-prev.log", "Unity/Player.log", "logs/Player.log" };
@@ -2265,10 +2279,54 @@ public final class SplitDataLauncher extends Activity {
         return readLogHead(newest, maxChars);
     }
 
+    // Keeps the header and backtrace, then only the memory-map entries that
+    // contain a register value and the thread names. The full tombstone is
+    // far too long to paste, and the map shows what the crashing code read.
+    static String summarizeTombstone(String text) {
+        if (text == null || text.isEmpty()) return "";
+        int near = text.indexOf("\nmemory near");
+        String head = near > 0 ? text.substring(0, near) : text;
+        if (head.length() > 9000) head = head.substring(0, 9000);
+        java.util.LinkedHashMap<String, Long> registers = new java.util.LinkedHashMap<>();
+        java.util.regex.Matcher reg = java.util.regex.Pattern.compile("\\b(x\\d+|lr|sp|pc)\\s+([0-9a-f]{16})\\b").matcher(head.indexOf("backtrace:") > 0 ? head.substring(0, head.indexOf("backtrace:")) : head);
+        while (reg.find()) {
+            try { long value = Long.parseUnsignedLong(reg.group(2), 16); if (value > 0x10000L) registers.put(reg.group(1), value); }
+            catch (NumberFormatException ignored) { }
+        }
+        StringBuilder out = new StringBuilder(head.trim());
+        StringBuilder maps = new StringBuilder();
+        int mapStart = text.indexOf("memory map (");
+        java.util.regex.Pattern range = java.util.regex.Pattern.compile("^\\s*(?:--->)?\\s*([0-9a-f']+)-([0-9a-f']+)\\s");
+        if (mapStart >= 0) {
+            int lines = 0;
+            for (String line : text.substring(mapStart).split("\n")) {
+                if (++lines > 20000 || maps.length() > 6000) break;
+                if (line.contains("--->")) { maps.append(line.trim()).append('\n'); continue; }
+                java.util.regex.Matcher m = range.matcher(line);
+                if (!m.find()) continue;
+                try {
+                    long start = Long.parseUnsignedLong(m.group(1).replace("'", ""), 16);
+                    long end = Long.parseUnsignedLong(m.group(2).replace("'", ""), 16);
+                    StringBuilder hits = new StringBuilder();
+                    for (java.util.Map.Entry<String, Long> r : registers.entrySet())
+                        if (Long.compareUnsigned(r.getValue(), start) >= 0 && Long.compareUnsigned(r.getValue(), end) <= 0)
+                            hits.append(hits.length() == 0 ? "" : ",").append(r.getKey());
+                    if (hits.length() > 0) maps.append(hits).append(": ").append(line.trim()).append('\n');
+                } catch (NumberFormatException ignored) { }
+            }
+        }
+        out.append("\nMemory map at registers:\n").append(maps.length() > 0 ? maps.toString().trim() : (mapStart >= 0 ? "no register inside a mapping" : "no memory map in tombstone"));
+        java.util.LinkedHashSet<String> threads = new java.util.LinkedHashSet<>();
+        java.util.regex.Matcher thread = java.util.regex.Pattern.compile("tid: \\d+, name: (.+?)\\s+>>>").matcher(text);
+        while (thread.find() && threads.size() < 80) threads.add(thread.group(1).trim());
+        if (!threads.isEmpty()) out.append("\nThreads: ").append(String.join(", ", threads));
+        return out.toString();
+    }
+
     private static String readLogHead(File file, int maxChars) {
         if (file == null || !file.isFile() || file.length() <= 0) return "";
         try (InputStream input = new FileInputStream(file)) {
-            byte[] buffer = new byte[Math.min(maxChars * 3, 48000)];
+            byte[] buffer = new byte[Math.min(maxChars * 3, 6_000_000)];
             int total = 0, count;
             while (total < buffer.length && (count = input.read(buffer, total, buffer.length - total)) != -1) total += count;
             String text = new String(buffer, 0, total, StandardCharsets.UTF_8).replace('\0', ' ').trim();
@@ -2416,6 +2474,29 @@ public final class SplitDataLauncher extends Activity {
         }
     }
 
+    // Unity runs in a separate process, started fresh for every Play, so it
+    // never shares an address space with launcher work such as copying and
+    // hashing the game data after an update. That first launch crashed in
+    // Unity's GC on some devices while a second, fresh process worked.
+    // The launcher process then exits so it cannot keep stale copies of the
+    // preferences the game updates; it waits for imports and downloads.
+    private static void exitLauncherProcessWhenIdle() {
+        Thread exit = new Thread(() -> {
+            try {
+                Thread.sleep(1500);
+                for (int i = 0; i < 600; i++) {
+                    if (LIVE_LAUNCHERS.get() == 0 && !IMPORT_GATE.isBusy() && !LauncherOnlineUi.UPDATE.snapshot().busy && !MOD_TRANSFER.snapshot().busy) {
+                        android.os.Process.killProcess(android.os.Process.myPid());
+                        return;
+                    }
+                    Thread.sleep(500);
+                }
+            } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        }, "openbonk-launcher-exit");
+        exit.setDaemon(true);
+        exit.start();
+    }
+
     private void launchGame() {
         SharedPreferences prefs = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE);
         try {
@@ -2452,6 +2533,7 @@ public final class SplitDataLauncher extends Activity {
         try {
             startActivity(game);
             finish();
+            exitLauncherProcessWhenIdle();
         } catch (RuntimeException e) {
             String report = startupReport(version, e.getClass().getSimpleName());
             prefs.edit().remove(LAUNCH_ATTEMPT).remove(LAUNCH_PID).putString(LAUNCH_REPORT, report).apply();

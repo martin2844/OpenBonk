@@ -58,6 +58,11 @@ internal sealed class AndroidSplitLauncherBuild : IPostGenerateGradleAndroidProj
         // Only the launcher in this app should start Unity. Exporting this
         // activity lets other apps bypass data checks and supply intent extras.
         Set(unityActivity, "exported", "false", android);
+        // Unity starts in its own fresh process on every Play. Starting it in the
+        // launcher process after the launcher copied and hashed the game data
+        // crashed Unity's GC during startup on some devices (issues #35, #52).
+        // SplitDataLauncher.GAME_PROCESS must match.
+        Set(unityActivity, "process", ":game", android);
         // SAF imports and app-owned runtime files are prepared by the launcher.
         // Unity's automatic storage dialog can pause GameActivity while its
         // accessibility initialization waits on the UI thread, deadlocking startup.
