@@ -42,15 +42,17 @@ final class LauncherTouchPanel {
         TextView labelsText = text(spanish ? "Etiquetas de botones" : "Button labels");
         labelsText.setPadding(0, 0, activity.dp(8), 0);
         labelsRow.addView(labelsText, new LinearLayout.LayoutParams(0, -2, 1));
-        Button labels = button(settings.integer(LauncherTouchSettings.PREFIX + "labels", 1) != 0
-            ? "Xbox A/B/X/Y" : (spanish ? "Texto" : "Text"), () -> {
-                settings.set(LauncherTouchSettings.PREFIX + "labels",
-                    settings.integer(LauncherTouchSettings.PREFIX + "labels", 1) != 0 ? 0 : 1);
+        // 0 = text, 1 = Xbox letters, 2 = icons (same values as the game).
+        int style = settings.integer(LauncherTouchSettings.PREFIX + "labels", 1);
+        if (style != 0 && style != 2) style = 1;
+        int next = (style + 1) % 3;
+        Button labels = button(style == 1 ? "Xbox A/B/X/Y" : style == 2 ? (spanish ? "Íconos" : "Icons") : (spanish ? "Texto" : "Text"), () -> {
+                settings.set(LauncherTouchSettings.PREFIX + "labels", next);
                 render();
             });
         labels.setContentDescription(spanish
-            ? "Cambiar entre etiquetas de Xbox y texto"
-            : "Switch between Xbox glyphs and text labels");
+            ? "Cambiar entre etiquetas de texto, Xbox e íconos"
+            : "Cycle between text, Xbox and icon labels");
         labelsRow.addView(labels, new LinearLayout.LayoutParams(0, -1, 1));
         panel.addView(labelsRow, activity.buttonParams());
         if (!settings.hasSnapshot()) panel.addView(text(spanish
